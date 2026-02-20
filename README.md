@@ -17,3 +17,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 - 日本語: [README_ja.md](./README_ja.md)
 - Release Notes (EN): [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md)
 - リリースノート (JA): [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md)
+
+### Doc Sync Note
+
+`reviewer.copilot` settings (`cli-path`, `healthcheck-seconds`, `authcheck-seconds`, `start-timeout-seconds`) are documented in both the English and Japanese READMEs.
