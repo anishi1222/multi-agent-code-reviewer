@@ -400,6 +400,11 @@ Customize application behavior via `application.yml`.
 
 ```yaml
 reviewer:
+  copilot:
+    cli-path: ${COPILOT_CLI_PATH:}                   # Optional explicit Copilot CLI path
+    healthcheck-seconds: ${COPILOT_CLI_HEALTHCHECK_SECONDS:10} # CLI --version timeout
+    authcheck-seconds: ${COPILOT_CLI_AUTHCHECK_SECONDS:15}     # CLI auth status timeout
+    start-timeout-seconds: ${COPILOT_START_TIMEOUT_SECONDS:60} # Copilot client startup timeout
   agents:
     directories:                      # Agent definition search directories
       - ./agents
@@ -948,6 +953,7 @@ multi-agent-reviewer/
     │   ├── ReviewCommand.java           # run subcommand
     │   └── SkillCommand.java            # skill subcommand
     ├── config/
+    │   ├── CopilotConfig.java         # Copilot CLI/startup timeout config
     │   ├── ConfigDefaults.java          # Shared default normalization helpers
     │   ├── ExecutionConfig.java         # Execution config
     │   ├── GithubMcpConfig.java         # GitHub MCP config
@@ -971,6 +977,7 @@ multi-agent-reviewer/
     │   └── SummaryGenerator.java        # Summary generation
     ├── service/
     │   ├── AgentService.java            # Agent management
+    │   ├── CopilotCliException.java     # Shared Copilot CLI exception type
     │   ├── CopilotService.java          # Copilot SDK integration
     │   ├── SkillService.java            # Skill management
     │   └── TemplateService.java         # Template loading
@@ -983,6 +990,7 @@ multi-agent-reviewer/
     │   ├── LocalFileProvider.java       # Local file collector
     │   └── ReviewTarget.java            # Review target (sealed interface)
     └── util/
+      ├── BackoffUtils.java           # Retry backoff + jitter utility
         ├── CliPathResolver.java         # CLI path resolver
         ├── FrontmatterParser.java       # YAML frontmatter parser
         ├── GitHubTokenResolver.java     # GitHub token resolution

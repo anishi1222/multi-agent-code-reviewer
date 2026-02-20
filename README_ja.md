@@ -403,6 +403,11 @@ agent: 'agent'
 
 ```yaml
 reviewer:
+  copilot:
+    cli-path: ${COPILOT_CLI_PATH:}                   # Copilot CLI の明示パス（任意）
+    healthcheck-seconds: ${COPILOT_CLI_HEALTHCHECK_SECONDS:10} # CLI --version タイムアウト
+    authcheck-seconds: ${COPILOT_CLI_AUTHCHECK_SECONDS:15}     # CLI auth status タイムアウト
+    start-timeout-seconds: ${COPILOT_START_TIMEOUT_SECONDS:60} # Copilot クライアント起動タイムアウト
   agents:
     directories:                      # エージェント定義の検索ディレクトリ
       - ./agents
@@ -948,6 +953,7 @@ multi-agent-reviewer/
     │   ├── ReviewCommand.java           # runサブコマンド
     │   └── SkillCommand.java            # skillサブコマンド
     ├── config/
+    │   ├── CopilotConfig.java         # Copilot CLI/起動タイムアウト設定
     │   ├── ConfigDefaults.java          # 共通デフォルト正規化ヘルパー
     │   ├── ExecutionConfig.java         # 実行設定
     │   ├── GithubMcpConfig.java         # GitHub MCP設定
@@ -971,6 +977,7 @@ multi-agent-reviewer/
     │   └── SummaryGenerator.java        # サマリー生成
     ├── service/
     │   ├── AgentService.java            # エージェント管理
+    │   ├── CopilotCliException.java     # Copilot CLI 共通例外
     │   ├── CopilotService.java          # Copilot SDK連携
     │   ├── SkillService.java            # スキル管理
     │   └── TemplateService.java         # テンプレート読込
@@ -983,6 +990,7 @@ multi-agent-reviewer/
     │   ├── LocalFileProvider.java       # ローカルファイル収集
     │   └── ReviewTarget.java            # レビュー対象（sealed interface）
     └── util/
+      ├── BackoffUtils.java           # リトライ用バックオフ + ジッターユーティリティ
         ├── CliPathResolver.java         # CLIパス解決
         ├── FrontmatterParser.java       # YAMLフロントマターパーサー
         ├── GitHubTokenResolver.java     # GitHubトークン解決
