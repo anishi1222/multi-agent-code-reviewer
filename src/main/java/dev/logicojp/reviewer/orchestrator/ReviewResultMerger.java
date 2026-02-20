@@ -180,45 +180,8 @@ public final class ReviewResultMerger {
         Set<String> fallbackPassContents = new LinkedHashSet<>();
 
         for (int i = 0; i < successful.size(); i++) {
-            ReviewResult result = successful.get(i);
-            int passNumber = i + 1;
-            String content = result.content();
-            if (content == null || content.isBlank()) continue;
-
-            List<FindingBlock> blocks = extractFindingBlocks(content);
-            if (blocks.isEmpty()) {
-                String normalizedContent = normalizeText(content);
-                if (!normalizedContent.isEmpty() && fallbackPassContents.add(normalizedContent)) {
-                    aggregatedFindings.putIfAbsent(
-                        "fallback|" + normalizedContent,
-                        createFallback(content, passNumber));
-                }
-                continue;
-            }
-
-            for (FindingBlock block : blocks) {
-                NormalizedFinding normalized = normalizeFinding(block);
-                String key = findingKeyFromNormalized(normalized, block.body());
-                AggregatedFinding existingExact = aggregatedFindings.get(key);
-                if (existingExact != null) {
-                    aggregatedFindings.put(key, existingExact.withPass(passNumber));
-                    continue;
-                }
-
-                String nearDuplicateKey = findNearDuplicateKey(
-                    aggregatedFindings, findingKeysByPriority,
-                    findingKeysByPriorityAndPrefix, normalized);
-                if (nearDuplicateKey != null) {
-                    AggregatedFinding nearExisting = aggregatedFindings.get(nearDuplicateKey);
-                    aggregatedFindings.put(nearDuplicateKey, nearExisting.withPass(passNumber));
-                    continue;
-                }
-
-                aggregatedFindings.put(key, fromNormalized(block, normalized, passNumber));
-                indexByPriority(findingKeysByPriority, normalized.priority(), key);
-                indexByPriorityAndPrefix(findingKeysByPriorityAndPrefix,
-                    normalized.priority(), buildPrefixKey(normalized.title()), key);
-            }
+            processPassResult(successful.get(i), i + 1,
+                aggregatedFindings, findingKeysByPriority, findingKeysByPriorityAndPrefix, fallbackPassContents);
         }
 
         int failedCount = agentResults.size() - successful.size();
@@ -230,6 +193,95 @@ public final class ReviewResultMerger {
             .content(content)
             .success(true)
             .build();
+    }
+
+    private static void processPassResult(ReviewResult result,
+                                          int passNumber,
+                                          Map<String, AggregatedFinding> aggregatedFindings,
+                                          Map<String, Set<String>> findingKeysByPriority,
+                                          Map<String, Set<String>> findingKeysByPriorityAndPrefix,
+                                          Set<String> fallbackPassContents) {
+        String content = result.content();
+        if (content == null || content.isBlank()) {
+            return;
+        }
+
+        List<FindingBlock> blocks = extractFindingBlocks(content);
+        if (blocks.isEmpty()) {
+            addFallbackIfAbsent(content, passNumber, aggregatedFindings, fallbackPassContents);
+            return;
+        }
+
+        for (FindingBlock block : blocks) {
+            mergeFindingBlock(block, passNumber,
+                aggregatedFindings, findingKeysByPriority, findingKeysByPriorityAndPrefix);
+        }
+    }
+
+    private static void addFallbackIfAbsent(String content,
+                                            int passNumber,
+                                            Map<String, AggregatedFinding> aggregatedFindings,
+                                            Set<String> fallbackPassContents) {
+        String normalizedContent = normalizeText(content);
+        if (!normalizedContent.isEmpty() && fallbackPassContents.add(normalizedContent)) {
+            aggregatedFindings.putIfAbsent(
+                "fallback|" + normalizedContent,
+                createFallback(content, passNumber));
+        }
+    }
+
+    private static void mergeFindingBlock(FindingBlock block,
+                                          int passNumber,
+                                          Map<String, AggregatedFinding> aggregatedFindings,
+                                          Map<String, Set<String>> findingKeysByPriority,
+                                          Map<String, Set<String>> findingKeysByPriorityAndPrefix) {
+        NormalizedFinding normalized = normalizeFinding(block);
+        String key = findingKeyFromNormalized(normalized, block.body());
+
+        if (appendPassToExactMatch(key, passNumber, aggregatedFindings)) {
+            return;
+        }
+
+        String nearDuplicateKey = findNearDuplicateKey(
+            aggregatedFindings, findingKeysByPriority, findingKeysByPriorityAndPrefix, normalized);
+        if (nearDuplicateKey != null) {
+            appendPassToNearDuplicate(nearDuplicateKey, passNumber, aggregatedFindings);
+            return;
+        }
+
+        addNewFinding(block, normalized, key, passNumber,
+            aggregatedFindings, findingKeysByPriority, findingKeysByPriorityAndPrefix);
+    }
+
+    private static boolean appendPassToExactMatch(String key,
+                                                  int passNumber,
+                                                  Map<String, AggregatedFinding> aggregatedFindings) {
+        AggregatedFinding existingExact = aggregatedFindings.get(key);
+        if (existingExact == null) {
+            return false;
+        }
+        aggregatedFindings.put(key, existingExact.withPass(passNumber));
+        return true;
+    }
+
+    private static void appendPassToNearDuplicate(String nearDuplicateKey,
+                                                  int passNumber,
+                                                  Map<String, AggregatedFinding> aggregatedFindings) {
+        AggregatedFinding nearExisting = aggregatedFindings.get(nearDuplicateKey);
+        aggregatedFindings.put(nearDuplicateKey, nearExisting.withPass(passNumber));
+    }
+
+    private static void addNewFinding(FindingBlock block,
+                                      NormalizedFinding normalized,
+                                      String key,
+                                      int passNumber,
+                                      Map<String, AggregatedFinding> aggregatedFindings,
+                                      Map<String, Set<String>> findingKeysByPriority,
+                                      Map<String, Set<String>> findingKeysByPriorityAndPrefix) {
+        aggregatedFindings.put(key, fromNormalized(block, normalized, passNumber));
+        indexByPriority(findingKeysByPriority, normalized.priority(), key);
+        indexByPriorityAndPrefix(findingKeysByPriorityAndPrefix,
+            normalized.priority(), buildPrefixKey(normalized.title()), key);
     }
 
     // ========================================================================

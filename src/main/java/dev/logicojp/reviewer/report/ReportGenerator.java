@@ -126,7 +126,7 @@ public class ReportGenerator {
     // ------------------------------------------------------------------
 
     private Path createReportPath(AgentConfig config) throws IOException {
-        String filename = sanitizeAgentName(config.name()) + "-report.md";
+        String filename = ReportFileNames.agentReportFileName(sanitizeAgentName(config.name()));
         Path reportPath = outputDirectory.resolve(filename).normalize();
         if (!reportPath.startsWith(outputDirectory.normalize())) {
             throw new IOException("Invalid agent name: path traversal detected in '" + config.name() + "'");

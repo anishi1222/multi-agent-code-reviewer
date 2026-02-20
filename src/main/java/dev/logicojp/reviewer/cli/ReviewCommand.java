@@ -6,12 +6,6 @@ import dev.logicojp.reviewer.config.ModelConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.instruction.CustomInstructionLoader;
 import dev.logicojp.reviewer.instruction.CustomInstructionSafetyValidator;
-import dev.logicojp.reviewer.orchestrator.ReviewOrchestrator;
-import dev.logicojp.reviewer.orchestrator.ReviewOrchestratorFactory;
-import dev.logicojp.reviewer.report.ReportGenerator;
-import dev.logicojp.reviewer.report.ReportService;
-import dev.logicojp.reviewer.report.ReviewResult;
-import dev.logicojp.reviewer.report.SummaryGenerator;
 import dev.logicojp.reviewer.service.AgentService;
 import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.TemplateService;
@@ -81,8 +75,7 @@ public class ReviewCommand {
     private final ExecutionConfig executionConfig;
     private final CopilotService copilotService;
     private final AgentService agentService;
-    private final ReviewOrchestratorFactory orchestratorFactory;
-    private final ReportService reportService;
+    private final ReviewPipelineExecutor pipelineExecutor;
     private final CustomInstructionLoader instructionLoader;
     private final GitHubTokenResolver tokenResolver;
     private final TemplateService templateService;
@@ -134,14 +127,13 @@ public class ReviewCommand {
                          ExecutionConfig executionConfig,
                          CopilotService copilotService,
                          AgentService agentService,
-                         ReviewOrchestratorFactory orchestratorFactory,
-                         ReportService reportService,
+                        ReviewPipelineExecutor pipelineExecutor,
                          CustomInstructionLoader instructionLoader,
                          GitHubTokenResolver tokenResolver,
                          TemplateService templateService,
                          CliOutput output) {
         this(defaultModelConfig, executionConfig, copilotService, agentService,
-             orchestratorFactory, reportService, instructionLoader, tokenResolver,
+               pipelineExecutor, instructionLoader, tokenResolver,
              templateService, output, Clock.systemDefaultZone());
     }
 
@@ -149,8 +141,7 @@ public class ReviewCommand {
                   ExecutionConfig executionConfig,
                   CopilotService copilotService,
                   AgentService agentService,
-                  ReviewOrchestratorFactory orchestratorFactory,
-                  ReportService reportService,
+                   ReviewPipelineExecutor pipelineExecutor,
                   CustomInstructionLoader instructionLoader,
                   GitHubTokenResolver tokenResolver,
                   TemplateService templateService,
@@ -160,8 +151,7 @@ public class ReviewCommand {
         this.executionConfig = executionConfig;
         this.copilotService = copilotService;
         this.agentService = agentService;
-        this.orchestratorFactory = orchestratorFactory;
-        this.reportService = reportService;
+        this.pipelineExecutor = pipelineExecutor;
         this.instructionLoader = instructionLoader;
         this.tokenResolver = tokenResolver;
         this.templateService = templateService;
@@ -337,9 +327,10 @@ public class ReviewCommand {
         // 8. Initialize Copilot, execute, shutdown
         try {
             copilotService.initializeOrThrow(resolvedToken);
-            return executeReviewPipeline(
+            return pipelineExecutor.execute(
                 target, modelConfig, agentConfigs, customInstructions,
-                outputDirectory, outputConstraints, options);
+                outputDirectory, outputConstraints,
+                options.parallelism(), options.noSummary(), resolvedToken);
         } finally {
             copilotService.shutdown();
         }
@@ -504,70 +495,6 @@ public class ReviewCommand {
         output.println(loadedPrefix + instruction.sourcePath());
     }
 
-    // ── Review Pipeline ─────────────────────────────────────────────────
-
-    private int executeReviewPipeline(ReviewTarget target,
-                                      ModelConfig modelConfig,
-                                      Map<String, AgentConfig> agentConfigs,
-                                      List<CustomInstruction> customInstructions,
-                                      Path outputDirectory,
-                                      String outputConstraints,
-                                      ParsedOptions options) {
-        output.println("Starting reviews...");
-
-        // Execute reviews via orchestrator
-        String reasoningEffort = modelConfig.reasoningEffort();
-        var effectiveConfig = executionConfig.withParallelism(options.parallelism());
-        List<ReviewResult> results;
-        try (var orchestrator = orchestratorFactory.create(
-                resolveToken(options.target(), options.githubToken()),
-                effectiveConfig, customInstructions, reasoningEffort, outputConstraints)) {
-            results = orchestrator.executeReviews(agentConfigs, target);
-        }
-
-        // Generate reports
-        generateReports(results, outputDirectory);
-
-        // Generate summary
-        if (!options.noSummary()) {
-            generateSummary(results, target, modelConfig, outputDirectory, reasoningEffort);
-        }
-
-        // Print completion summary
-        printCompletionSummary(results, outputDirectory);
-        return ExitCodes.OK;
-    }
-
-    private void generateReports(List<ReviewResult> results, Path outputDirectory) {
-        output.println("\nGenerating reports...");
-        try {
-            ReportGenerator generator = reportService.createReportGenerator(outputDirectory);
-            List<Path> reports = generator.generateReports(results);
-            for (Path report : reports) {
-                output.println("  ✓ " + report.getFileName());
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Report generation failed", e);
-        }
-    }
-
-    private void generateSummary(List<ReviewResult> results, ReviewTarget target,
-                                 ModelConfig modelConfig, Path outputDirectory,
-                                 String reasoningEffort) {
-        output.println("\nGenerating executive summary...");
-        try {
-            SummaryGenerator generator = reportService.createSummaryGenerator(
-                outputDirectory, copilotService.getClient(),
-                modelConfig.summaryModel(), reasoningEffort,
-                executionConfig.summaryTimeoutMinutes());
-            Path summaryPath = generator.generateSummary(results, target.displayName());
-            output.println("  ✓ " + summaryPath.getFileName());
-        } catch (IOException e) {
-            logger.error("Summary generation failed: {}", e.getMessage(), e);
-            output.errorln("Warning: Summary generation failed: " + e.getMessage());
-        }
-    }
-
     // ── Output Directory ────────────────────────────────────────────────
 
     private Path resolveOutputDirectory(ParsedOptions options, ReviewTarget target) {
@@ -613,18 +540,6 @@ public class ReviewCommand {
             output.println("Review passes: " + executionConfig.reviewPasses() + " per agent");
         }
         output.println("");
-    }
-
-    private void printCompletionSummary(List<ReviewResult> results, Path outputDirectory) {
-        long successCount = results.stream().filter(ReviewResult::success).count();
-        output.println("");
-        output.println("════════════════════════════════════════════════════════════");
-        output.println("Review completed!");
-        output.println("  Total agents: " + results.size());
-        output.println("  Successful: " + successCount);
-        output.println("  Failed: " + (results.size() - successCount));
-        output.println("  Reports: " + outputDirectory.toAbsolutePath());
-        output.println("════════════════════════════════════════════════════════════");
     }
 
     private void printNoAgentsError(List<Path> agentDirs) {
