@@ -17,6 +17,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.HexFormat;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 
 /// Merges multiple review results from the same agent (multi-pass reviews)
 /// into a single consolidated {@link ReviewResult}.
@@ -44,6 +48,7 @@ public final class ReviewResultMerger {
         "[a-z0-9_]+|[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}]{2,}");
     private static final double NEAR_DUPLICATE_SIMILARITY = 0.80d;
     private static final int FALLBACK_SIMILARITY_PREFIX_LENGTH = 500;
+    private static final int FALLBACK_KEY_HASH_LENGTH_BYTES = 12;
 
     private ReviewResultMerger() {
     }
@@ -224,9 +229,20 @@ public final class ReviewResultMerger {
                                             Set<String> fallbackPassContents) {
         String normalizedContent = normalizeText(content);
         if (!normalizedContent.isEmpty() && fallbackPassContents.add(normalizedContent)) {
+            String contentHash = shortSha256(normalizedContent);
             aggregatedFindings.putIfAbsent(
-                "fallback|" + normalizedContent,
+                "fallback|" + contentHash,
                 createFallback(content, passNumber));
+        }
+    }
+
+    private static String shortSha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash, 0, FALLBACK_KEY_HASH_LENGTH_BYTES);
+        } catch (NoSuchAlgorithmException e) {
+            return Integer.toHexString(value.hashCode());
         }
     }
 

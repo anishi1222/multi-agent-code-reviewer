@@ -158,31 +158,42 @@ public final class CustomInstructionSafetyValidator {
     }
 
     private static String normalizeHomoglyphs(String text) {
-        return text
-            .replace('\u0456', 'i')  // Cyrillic і → i
-            .replace('\u0430', 'a')  // Cyrillic а → a
-            .replace('\u0435', 'e')  // Cyrillic е → e
-            .replace('\u043E', 'o')  // Cyrillic о → o
-            .replace('\u0440', 'p')  // Cyrillic р → p
-            .replace('\u0441', 'c')  // Cyrillic с → c
-            .replace('\u0443', 'y')  // Cyrillic у → y
-            .replace('\u0445', 'x')  // Cyrillic х → x
-            .replace('\u03BF', 'o')  // Greek ο → o
-            .replace('\u03B1', 'a')  // Greek α → a
-            .replace('\u03B5', 'e')  // Greek ε → e
-            .replace('\u03B9', 'i')  // Greek ι → i
-            .replace('\u0391', 'A')  // Greek Α → A
-            .replace('\u0392', 'B')  // Greek Β → B
-            .replace('\u0395', 'E')  // Greek Ε → E
-            .replace('\u0397', 'H')  // Greek Η → H
-            .replace('\u0399', 'I')  // Greek Ι → I
-            .replace('\u039A', 'K')  // Greek Κ → K
-            .replace('\u039C', 'M')  // Greek Μ → M
-            .replace('\u039D', 'N')  // Greek Ν → N
-            .replace('\u039F', 'O')  // Greek Ο → O
-            .replace('\u03A1', 'P')  // Greek Ρ → P
-            .replace('\u03A4', 'T')  // Greek Τ → T
-            .replace('\u03A5', 'Y')  // Greek Υ → Y
-            .replace('\u03A7', 'X'); // Greek Χ → X
+        char[] chars = text.toCharArray();
+        boolean modified = false;
+        for (int i = 0; i < chars.length; i++) {
+            char normalized = normalizeHomoglyph(chars[i]);
+            if (normalized != chars[i]) {
+                chars[i] = normalized;
+                modified = true;
+            }
+        }
+        return modified ? new String(chars) : text;
+    }
+
+    private static char normalizeHomoglyph(char value) {
+        return switch (value) {
+            case '\u0456', '\u03B9' -> 'i'; // Cyrillic і, Greek ι
+            case '\u0430', '\u03B1' -> 'a'; // Cyrillic а, Greek α
+            case '\u0435', '\u03B5' -> 'e'; // Cyrillic е, Greek ε
+            case '\u043E', '\u03BF' -> 'o'; // Cyrillic о, Greek ο
+            case '\u0440' -> 'p'; // Cyrillic р
+            case '\u0441' -> 'c'; // Cyrillic с
+            case '\u0443' -> 'y'; // Cyrillic у
+            case '\u0445' -> 'x'; // Cyrillic х
+            case '\u0391' -> 'A'; // Greek Α
+            case '\u0392' -> 'B'; // Greek Β
+            case '\u0395' -> 'E'; // Greek Ε
+            case '\u0397' -> 'H'; // Greek Η
+            case '\u0399' -> 'I'; // Greek Ι
+            case '\u039A' -> 'K'; // Greek Κ
+            case '\u039C' -> 'M'; // Greek Μ
+            case '\u039D' -> 'N'; // Greek Ν
+            case '\u039F' -> 'O'; // Greek Ο
+            case '\u03A1' -> 'P'; // Greek Ρ
+            case '\u03A4' -> 'T'; // Greek Τ
+            case '\u03A5' -> 'Y'; // Greek Υ
+            case '\u03A7' -> 'X'; // Greek Χ
+            default -> value;
+        };
     }
 }
