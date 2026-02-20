@@ -73,6 +73,9 @@ public class CopilotService {
     private static final int INIT_MAX_ATTEMPTS = 3;
     private static final long INIT_BACKOFF_BASE_MS = 1000L;
     private static final long INIT_BACKOFF_MAX_MS = 5000L;
+    private static final int CLI_CHECK_MAX_ATTEMPTS = 3;
+    private static final long CLI_CHECK_BACKOFF_BASE_MS = 500L;
+    private static final long CLI_CHECK_BACKOFF_MAX_MS = 4000L;
 
     /// Volatile for safe publication; mutations serialized by synchronized lifecycle methods.
     private volatile CopilotClient client;
@@ -290,7 +293,7 @@ public class CopilotService {
         if (cliPath == null || cliPath.isBlank()) {
             return;
         }
-        runCliCommand(
+        runCliCommandWithRetry(
             List.of(cliPath, "--version"),
             resolveEnvTimeout(CLI_HEALTHCHECK_ENV, DEFAULT_CLI_HEALTHCHECK_SECONDS),
             "Copilot CLI did not respond within ",
@@ -301,7 +304,7 @@ public class CopilotService {
         if (tokenProvided) {
             logger.info("GITHUB_TOKEN provided — skipping CLI auth status check");
         } else {
-            runCliCommand(
+            runCliCommandWithRetry(
                 List.of(cliPath, "auth", "status"),
                 resolveEnvTimeout(CLI_AUTH_CHECK_ENV, DEFAULT_CLI_AUTHCHECK_SECONDS),
                 "Copilot CLI auth status timed out after ",
@@ -342,6 +345,29 @@ public class CopilotService {
             }
         } catch (IOException e) {
             throw new CliException(ioMessage + e.getMessage(), e);
+        }
+    }
+
+    private void runCliCommandWithRetry(List<String> command, long timeoutSeconds,
+                                        String timeoutMessage, String exitMessage,
+                                        String ioMessage, String remediationMessage)
+        throws InterruptedException {
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= CLI_CHECK_MAX_ATTEMPTS; attempt++) {
+            try {
+                runCliCommand(command, timeoutSeconds, timeoutMessage, exitMessage, ioMessage, remediationMessage);
+                return;
+            } catch (RuntimeException e) {
+                lastFailure = e;
+                if (attempt < CLI_CHECK_MAX_ATTEMPTS) {
+                    logger.warn("CLI check attempt {}/{} failed for '{}': {}",
+                        attempt, CLI_CHECK_MAX_ATTEMPTS, String.join(" ", command), e.getMessage());
+                    sleepWithJitter(attempt, CLI_CHECK_BACKOFF_BASE_MS, CLI_CHECK_BACKOFF_MAX_MS);
+                }
+            }
+        }
+        if (lastFailure != null) {
+            throw lastFailure;
         }
     }
 
@@ -421,7 +447,11 @@ public class CopilotService {
     }
 
     private static void sleepWithJitter(int attempt) throws InterruptedException {
-        long exponentialMs = Math.min(INIT_BACKOFF_BASE_MS << Math.max(0, attempt - 1), INIT_BACKOFF_MAX_MS);
+        sleepWithJitter(attempt, INIT_BACKOFF_BASE_MS, INIT_BACKOFF_MAX_MS);
+    }
+
+    private static void sleepWithJitter(int attempt, long baseMs, long maxMs) throws InterruptedException {
+        long exponentialMs = Math.min(baseMs << Math.max(0, attempt - 1), maxMs);
         long jitteredMs = ThreadLocalRandom.current().nextLong(exponentialMs + 1);
         Thread.sleep(jitteredMs);
     }
