@@ -202,3 +202,9 @@ Parsed by `AgentMarkdownParser`. Template placeholders: `${repository}`, `${disp
 - Tokens/secrets come from environment variables or `gh auth token` — never hardcode
 - Output reports go to `./reports/` directory by default
 - Japanese is used for user-facing output, display names, and test descriptions
+- English is used for code identifiers, comments, and documentation
+- Follow the principle of least privilege for permissions (e.g., GitHub token scopes)
+- Use feature flags for experimental features to allow easy rollback
+- Always validate external inputs (CLI args, API responses) and fail fast with clear error messages
+- No need for excessive advertising. Focus on clean, maintainable code and robust error handling.
+- There is no need to use emojis and/or flashy expressions. Just write simply and honestly. Keep it simple and professional.
