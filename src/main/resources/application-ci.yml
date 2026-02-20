@@ -1,0 +1,8 @@
+reviewer:
+  execution:
+    parallelism: 4
+    review-passes: 1
+    agent-timeout-minutes: 12
+    orchestrator-timeout-minutes: 25
+    max-retries: 1
+    checkpoint-directory: reports/.checkpoints/ci
