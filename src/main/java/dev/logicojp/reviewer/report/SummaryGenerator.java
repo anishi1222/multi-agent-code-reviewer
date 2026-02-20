@@ -121,17 +121,24 @@ public class SummaryGenerator {
         logger.info("Using model for summary: {}", summaryModel);
         var sessionConfig = createSummarySessionConfig();
         long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutMinutes);
+        String prompt = buildSummaryPrompt(results, repository);
 
-        for (int attempt = 1; attempt <= SUMMARY_MAX_ATTEMPTS; attempt++) {
-            if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
-                long remainingMs = API_CIRCUIT_BREAKER.remainingOpenMs();
-                return fallbackSummary(results,
-                    "Copilot API circuit breaker is open (remaining " + remainingMs + " ms)");
-            }
+        if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
+            long remainingMs = API_CIRCUIT_BREAKER.remainingOpenMs();
+            return fallbackSummary(results,
+                "Copilot API circuit breaker is open (remaining " + remainingMs + " ms)");
+        }
 
-            try (CopilotSession session = client.createSession(sessionConfig)
-                    .get(timeoutMinutes, TimeUnit.MINUTES)) {
-                String prompt = buildSummaryPrompt(results, repository);
+        try (CopilotSession session = client.createSession(sessionConfig)
+                .get(timeoutMinutes, TimeUnit.MINUTES)) {
+            for (int attempt = 1; attempt <= SUMMARY_MAX_ATTEMPTS; attempt++) {
+                if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
+                    long remainingMs = API_CIRCUIT_BREAKER.remainingOpenMs();
+                    return fallbackSummary(results,
+                        "Copilot API circuit breaker is open (remaining " + remainingMs + " ms)");
+                }
+
+                try {
                 var response = session
                     .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
                     .get(timeoutMinutes, TimeUnit.MINUTES);
@@ -147,20 +154,25 @@ public class SummaryGenerator {
 
                 API_CIRCUIT_BREAKER.recordSuccess();
                 return content;
-            } catch (ExecutionException | TimeoutException e) {
-                API_CIRCUIT_BREAKER.recordFailure();
-                if (attempt < SUMMARY_MAX_ATTEMPTS) {
-                    logger.warn("Summary generation attempt {}/{} failed: {}",
-                        attempt, SUMMARY_MAX_ATTEMPTS, e.getMessage());
-                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
-                    continue;
+                } catch (ExecutionException | TimeoutException e) {
+                    API_CIRCUIT_BREAKER.recordFailure();
+                    if (attempt < SUMMARY_MAX_ATTEMPTS) {
+                        logger.warn("Summary generation attempt {}/{} failed: {}",
+                            attempt, SUMMARY_MAX_ATTEMPTS, e.getMessage());
+                        BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
+                        continue;
+                    }
+                    return fallbackSummary(results,
+                        "Failed to generate summary using established session: " + e.getMessage());
                 }
-                return fallbackSummary(results,
-                    "Failed to create or execute summary session: " + e.getMessage());
-            } catch (InterruptedException _) {
-                Thread.currentThread().interrupt();
-                throw new CopilotCliException("Summary generation interrupted");
             }
+        } catch (ExecutionException | TimeoutException e) {
+            API_CIRCUIT_BREAKER.recordFailure();
+            return fallbackSummary(results,
+                "Failed to create summary session: " + e.getMessage());
+        } catch (InterruptedException _) {
+            Thread.currentThread().interrupt();
+            throw new CopilotCliException("Summary generation interrupted");
         }
 
         return fallbackSummary(results, "Summary generation exhausted retry attempts");
