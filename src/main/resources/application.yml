@@ -3,6 +3,11 @@ micronaut:
     name: multi-agent-reviewer
 
 reviewer:
+  copilot:
+    cli-path: ${COPILOT_CLI_PATH:}
+    healthcheck-seconds: ${COPILOT_CLI_HEALTHCHECK_SECONDS:10}
+    authcheck-seconds: ${COPILOT_CLI_AUTHCHECK_SECONDS:15}
+    start-timeout-seconds: ${COPILOT_START_TIMEOUT_SECONDS:60}
   agents:
     directories:
       - ./agents

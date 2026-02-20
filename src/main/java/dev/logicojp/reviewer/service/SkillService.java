@@ -2,7 +2,6 @@ package dev.logicojp.reviewer.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.ReviewerConfig;
@@ -13,8 +12,6 @@ import dev.logicojp.reviewer.util.TokenHashUtils;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Optional;
@@ -22,8 +19,6 @@ import java.util.Optional;
 /// Service for managing and executing skills.
 @Singleton
 public class SkillService {
-
-    private static final Logger logger = LoggerFactory.getLogger(SkillService.class);
 
     private final SkillRegistry skillRegistry;
     private final CopilotService copilotService;
@@ -46,11 +41,6 @@ public class SkillService {
         this.executorCache = Caffeine.newBuilder()
             .initialCapacity(skillsConfig.executorCacheInitialCapacity())
             .maximumSize(skillsConfig.maxExecutorCacheSize())
-            .removalListener((ExecutorCacheKey key, SkillExecutor executor, RemovalCause cause) -> {
-                if (executor != null && cause.wasEvicted()) {
-                    executor.close();
-                }
-            })
             .build();
     }
 
@@ -117,9 +107,6 @@ public class SkillService {
 
     @PreDestroy
     public void shutdown() {
-        for (SkillExecutor executor : executorCache.asMap().values()) {
-            executor.close();
-        }
         executorCache.invalidateAll();
     }
 }

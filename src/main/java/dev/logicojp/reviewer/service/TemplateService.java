@@ -1,5 +1,7 @@
 package dev.logicojp.reviewer.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.logicojp.reviewer.config.TemplateConfig;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -11,9 +13,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,14 +26,16 @@ public class TemplateService {
     private static final int MAX_TEMPLATE_CACHE_SIZE = 64;
 
     private final TemplateConfig config;
-    private final TemplateLruCache templateCache;
+    private final Cache<String, String> templateCache;
     private static final Pattern TEMPLATE_NAME_PATTERN = Pattern.compile("[A-Za-z0-9._-]+\\.md");
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{(\\w+)}}");
 
     @Inject
     public TemplateService(TemplateConfig config) {
         this.config = config;
-        this.templateCache = new TemplateLruCache(MAX_TEMPLATE_CACHE_SIZE);
+        this.templateCache = Caffeine.newBuilder()
+            .maximumSize(MAX_TEMPLATE_CACHE_SIZE)
+            .build();
     }
 
     /// Loads a template by name, applying placeholder substitutions.
@@ -44,35 +46,7 @@ public class TemplateService {
 
     /// Loads raw template content without placeholder substitution.
     public String loadTemplateContent(String templateName) {
-        return templateCache.getOrLoad(templateName, this::loadTemplateFromSource);
-    }
-
-    private static final class TemplateLruCache {
-        private final int maxSize;
-        private final LinkedHashMap<String, String> cache;
-
-        private TemplateLruCache(int maxSize) {
-            this.maxSize = maxSize;
-            this.cache = new LinkedHashMap<>(16, 0.75f, true);
-        }
-
-        private synchronized String getOrLoad(String key, Function<String, String> loader) {
-            String existing = cache.get(key);
-            if (existing != null) {
-                return existing;
-            }
-            String loaded = loader.apply(key);
-            cache.put(key, loaded);
-            evictIfNeeded();
-            return loaded;
-        }
-
-        private void evictIfNeeded() {
-            while (cache.size() > maxSize) {
-                String eldestKey = cache.keySet().iterator().next();
-                cache.remove(eldestKey);
-            }
-        }
+        return templateCache.get(templateName, this::loadTemplateFromSource);
     }
 
     private String loadTemplateFromSource(String templateName) {

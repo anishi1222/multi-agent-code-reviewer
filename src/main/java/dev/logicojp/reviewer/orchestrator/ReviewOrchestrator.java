@@ -1,7 +1,6 @@
 package dev.logicojp.reviewer.orchestrator;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
-import dev.logicojp.reviewer.agent.AgentPromptBuilder;
 import dev.logicojp.reviewer.agent.ReviewAgent;
 import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.config.ExecutionConfig;
@@ -24,9 +23,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.StructuredTaskScope;
@@ -46,7 +44,6 @@ import java.util.concurrent.TimeoutException;
 /// PromptTexts, AgentReviewer(Factory), LocalSourceCollector(Factory).
 public class ReviewOrchestrator implements AutoCloseable {
 
-    private static final int EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS = 60;
     private static final int SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS = 10;
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewOrchestrator.class);
@@ -59,7 +56,6 @@ public class ReviewOrchestrator implements AutoCloseable {
     private final Map<String, Object> cachedMcpServers;
     private final String reasoningEffort;
     private final String outputConstraints;
-    private final ExecutorService agentExecutionExecutor;
     private final ScheduledExecutorService sharedScheduler;
     private final Semaphore concurrencyLimit;
     private final Path checkpointRootDirectory;
@@ -79,8 +75,6 @@ public class ReviewOrchestrator implements AutoCloseable {
             config.githubToken(), config.githubMcpConfig()).orElse(Map.of());
         this.concurrencyLimit = new Semaphore(executionConfig.parallelism());
         this.checkpointRootDirectory = Path.of(executionConfig.checkpointDirectory()).normalize();
-        this.agentExecutionExecutor = Executors.newThreadPerTaskExecutor(
-            Thread.ofVirtual().name("agent-execution-", 0).factory());
         this.sharedScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "idle-timeout-shared");
             t.setDaemon(true);
@@ -226,24 +220,27 @@ public class ReviewOrchestrator implements AutoCloseable {
                                                         ReviewContext context,
                                                         int reviewPasses,
                                                         long perAgentTimeoutMinutes) {
+        long totalTimeoutMinutes = perAgentTimeoutMinutes * Math.max(1, reviewPasses);
         try {
             logger.debug("Starting agent: {} (timeout: {} min)", config.name(), perAgentTimeoutMinutes);
             ReviewAgent agent = new ReviewAgent(config, context, promptTemplates);
-            Future<List<ReviewResult>> future = agentExecutionExecutor.submit(
-                () -> agent.reviewPasses(target, reviewPasses));
-            try {
-                long totalTimeoutMinutes = perAgentTimeoutMinutes * Math.max(1, reviewPasses);
-                return future.get(totalTimeoutMinutes, TimeUnit.MINUTES);
-            } catch (TimeoutException e) {
-                future.cancel(true);
-                throw e;
+
+            try (var innerScope = StructuredTaskScope.<List<ReviewResult>>open()) {
+                var task = innerScope.fork(() -> agent.reviewPasses(target, reviewPasses));
+                StructuredConcurrencyUtils.joinWithTimeout(innerScope, totalTimeoutMinutes, TimeUnit.MINUTES);
+
+                return switch (task.state()) {
+                    case SUCCESS -> task.get();
+                    case FAILED -> throw asRuntimeException(task.exception());
+                    case UNAVAILABLE -> ReviewResult.failedResults(config, target.displayName(), reviewPasses,
+                        "Review timed out after " + totalTimeoutMinutes + " minutes");
+                };
             }
         } catch (TimeoutException e) {
-            long totalTimeoutMinutes = perAgentTimeoutMinutes * Math.max(1, reviewPasses);
             logger.warn("Agent {} timed out after {} minutes", config.name(), totalTimeoutMinutes, e);
             return ReviewResult.failedResults(config, target.displayName(), reviewPasses,
                 "Review timed out after " + totalTimeoutMinutes + " minutes");
-        } catch (java.util.concurrent.ExecutionException e) {
+        } catch (RuntimeException e) {
             logger.error("Agent {} execution failed: {}", config.name(), e.getMessage(), e);
             return ReviewResult.failedResults(config, target.displayName(), reviewPasses,
                 "Review failed: " + e.getMessage());
@@ -325,7 +322,6 @@ public class ReviewOrchestrator implements AutoCloseable {
 
     @Override
     public void close() {
-        shutdownGracefully(agentExecutionExecutor, EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS);
         shutdownGracefully(sharedScheduler, SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS);
     }
 
@@ -340,6 +336,16 @@ public class ReviewOrchestrator implements AutoCloseable {
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    private static RuntimeException asRuntimeException(Throwable throwable) {
+        if (throwable instanceof RuntimeException runtimeException) {
+            return runtimeException;
+        }
+        if (throwable == null) {
+            return new IllegalStateException("Unknown execution failure");
+        }
+        return new RuntimeException(throwable);
     }
 
     private void persistIntermediateResults(AgentConfig config,

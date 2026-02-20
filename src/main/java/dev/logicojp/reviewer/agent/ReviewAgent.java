@@ -1,13 +1,13 @@
 package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.config.ModelConfig;
-import dev.logicojp.reviewer.config.ReviewerConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.report.ContentSanitizer;
 import dev.logicojp.reviewer.report.ReviewResult;
 import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import dev.logicojp.reviewer.util.ApiCircuitBreaker;
+import dev.logicojp.reviewer.util.BackoffUtils;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.events.AssistantMessageEvent;
@@ -26,12 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -65,9 +62,6 @@ public class ReviewAgent {
 
     // --- Idle timeout defaults ---
     private static final long MIN_CHECK_INTERVAL_MS = 5000L;
-
-    /// No-op ScheduledFuture for when the scheduler is unavailable.
-    private static final ScheduledFuture<?> NO_OP_FUTURE = new NoOpScheduledFuture();
 
     // --- Prompt templates ---
 
@@ -359,7 +353,7 @@ public class ReviewAgent {
         var collector = new ContentCollector(config.name(), System::currentTimeMillis,
             tuning.maxAccumulatedSize(), tuning.initialAccumulatedCapacity());
         var subscriptions = registerEventListeners(session, collector);
-        var idleTask = scheduleIdleTimeout(collector, idleTimeoutMs);
+        ScheduledFuture<?> idleTask = scheduleIdleTimeout(collector, idleTimeoutMs);
         try {
             session.send(new MessageOptions().setPrompt(prompt));
             return collector.awaitResult(maxTimeoutMs);
@@ -372,7 +366,9 @@ public class ReviewAgent {
             }
             throw e;
         } finally {
-            idleTask.cancel(false);
+            if (idleTask != null) {
+                idleTask.cancel(false);
+            }
             subscriptions.closeAll();
         }
     }
@@ -429,14 +425,14 @@ public class ReviewAgent {
         ScheduledExecutorService scheduler = ctx.sharedScheduler();
         if (scheduler.isShutdown() || scheduler.isTerminated()) {
             logger.warn("Idle-timeout scheduler is not available; continuing without idle watchdog");
-            return NO_OP_FUTURE;
+            return null;
         }
         try {
             return scheduler.scheduleAtFixedRate(timeoutCheck, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException e) {
             logger.warn("Idle-timeout task scheduling was rejected; continuing without idle watchdog: {}",
                 e.getMessage());
-            return NO_OP_FUTURE;
+            return null;
         }
     }
 
@@ -585,7 +581,7 @@ public class ReviewAgent {
                 API_CIRCUIT_BREAKER.recordFailure();
 
                 if (attempt < totalAttempts) {
-                    waitRetryBackoff(attempt);
+                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
                     logger.warn("Agent {} failed on attempt {}/{}: {}. Retrying...",
                         config.name(), attempt, totalAttempts, lastResult.errorMessage());
                 } else {
@@ -597,7 +593,7 @@ public class ReviewAgent {
                 lastResult = exceptionMapper.map(e);
 
                 if (attempt < totalAttempts) {
-                    waitRetryBackoff(attempt);
+                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
                     logger.warn("Agent {} threw exception on attempt {}/{}: {}. Retrying...",
                         config.name(), attempt, totalAttempts, e.getMessage(), e);
                 } else {
@@ -608,16 +604,6 @@ public class ReviewAgent {
         }
 
         return lastResult;
-    }
-
-    private void waitRetryBackoff(int attempt) {
-        long exponentialMs = Math.min(BACKOFF_BASE_MS << Math.max(0, attempt - 1), BACKOFF_MAX_MS);
-        long backoffMs = ThreadLocalRandom.current().nextLong(exponentialMs + 1);
-        try {
-            Thread.sleep(backoffMs);
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     // ================================================================
@@ -668,18 +654,4 @@ public class ReviewAgent {
         return ContentSanitizer.sanitize(content);
     }
 
-    // ================================================================
-    // No-op ScheduledFuture for when scheduler is unavailable
-    // ================================================================
-
-    private static final class NoOpScheduledFuture implements ScheduledFuture<Object> {
-        @Override public long getDelay(TimeUnit unit) { return 0; }
-        @Override public int compareTo(Delayed other) { return 0; }
-        @Override public boolean cancel(boolean mayInterruptIfRunning) { return false; }
-        @Override public boolean isCancelled() { return false; }
-        @Override public boolean isDone() { return true; }
-        @Override public Object get() throws InterruptedException, ExecutionException { return null; }
-        @Override public Object get(long timeout, TimeUnit unit)
-            throws InterruptedException, ExecutionException, TimeoutException { return null; }
-    }
 }

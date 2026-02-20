@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.skill;
 
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.util.ApiCircuitBreaker;
+import dev.logicojp.reviewer.util.BackoffUtils;
 import dev.logicojp.reviewer.util.StructuredConcurrencyUtils;
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.SystemMessageMode;
@@ -17,12 +18,11 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.StructuredTaskScope;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /// Executes skills using the Copilot SDK with StructuredTaskScope for timeout control.
-public class SkillExecutor implements AutoCloseable {
+public class SkillExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(SkillExecutor.class);
     private static final ApiCircuitBreaker API_CIRCUIT_BREAKER = ApiCircuitBreaker.copilotApi();
@@ -110,7 +110,7 @@ public class SkillExecutor implements AutoCloseable {
                 }
                 API_CIRCUIT_BREAKER.recordFailure();
                 if (attempt < MAX_ATTEMPTS && isRetryable(result.errorMessage())) {
-                    sleepWithJitter(attempt);
+                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
                     continue;
                 }
                 return result;
@@ -119,7 +119,7 @@ public class SkillExecutor implements AutoCloseable {
                 if (attempt < MAX_ATTEMPTS && isRetryable(e.getMessage())) {
                     logger.warn("Skill {} attempt {}/{} failed: {}",
                         skill.id(), attempt, MAX_ATTEMPTS, e.getMessage());
-                    sleepWithJitter(attempt);
+                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
                     continue;
                 }
                 logger.error("Skill execution failed for {}: {}", skill.id(), e.getMessage(), e);
@@ -192,11 +192,6 @@ public class SkillExecutor implements AutoCloseable {
         }
     }
 
-    @Override
-    public void close() {
-        // No owned executor to shut down in v2
-    }
-
     private static boolean isRetryable(String message) {
         if (message == null) {
             return false;
@@ -212,13 +207,4 @@ public class SkillExecutor implements AutoCloseable {
             || lower.contains("unavailable");
     }
 
-    private static void sleepWithJitter(int attempt) {
-        long exponentialMs = Math.min(BACKOFF_BASE_MS << Math.max(0, attempt - 1), BACKOFF_MAX_MS);
-        long jitteredMs = ThreadLocalRandom.current().nextLong(exponentialMs + 1);
-        try {
-            Thread.sleep(jitteredMs);
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
-        }
-    }
 }

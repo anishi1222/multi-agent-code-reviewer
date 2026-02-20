@@ -2,9 +2,10 @@ package dev.logicojp.reviewer.report;
 
 import dev.logicojp.reviewer.config.ExecutionConfig.SummarySettings;
 import dev.logicojp.reviewer.config.ModelConfig;
-import dev.logicojp.reviewer.service.CopilotService;
+import dev.logicojp.reviewer.service.CopilotCliException;
 import dev.logicojp.reviewer.service.TemplateService;
 import dev.logicojp.reviewer.util.ApiCircuitBreaker;
+import dev.logicojp.reviewer.util.BackoffUtils;
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
@@ -23,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
@@ -139,7 +139,7 @@ public class SummaryGenerator {
                 if (content == null || content.isBlank()) {
                     API_CIRCUIT_BREAKER.recordFailure();
                     if (attempt < SUMMARY_MAX_ATTEMPTS) {
-                        sleepWithJitter(attempt);
+                        BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
                         continue;
                     }
                     return fallbackSummary(results, "AI summary response was empty");
@@ -152,28 +152,18 @@ public class SummaryGenerator {
                 if (attempt < SUMMARY_MAX_ATTEMPTS) {
                     logger.warn("Summary generation attempt {}/{} failed: {}",
                         attempt, SUMMARY_MAX_ATTEMPTS, e.getMessage());
-                    sleepWithJitter(attempt);
+                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
                     continue;
                 }
                 return fallbackSummary(results,
                     "Failed to create or execute summary session: " + e.getMessage());
             } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
-                throw new CopilotService.CliException("Summary generation interrupted");
+                throw new CopilotCliException("Summary generation interrupted");
             }
         }
 
         return fallbackSummary(results, "Summary generation exhausted retry attempts");
-    }
-
-    private void sleepWithJitter(int attempt) {
-        long exponentialMs = Math.min(BACKOFF_BASE_MS << Math.max(0, attempt - 1), BACKOFF_MAX_MS);
-        long jitteredMs = ThreadLocalRandom.current().nextLong(exponentialMs + 1);
-        try {
-            Thread.sleep(jitteredMs);
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     private SessionConfig createSummarySessionConfig() {

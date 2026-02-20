@@ -2,11 +2,14 @@ package dev.logicojp.reviewer.service;
 
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.json.CopilotClientOptions;
+import dev.logicojp.reviewer.config.CopilotConfig;
+import dev.logicojp.reviewer.util.BackoffUtils;
 import dev.logicojp.reviewer.util.CliPathResolver;
 import dev.logicojp.reviewer.util.SecurityAuditLogger;
 import dev.logicojp.reviewer.util.TokenHashUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,56 +21,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /// Service for managing the Copilot SDK client lifecycle.
-///
-/// Merges v1 CopilotCliPathResolver, CopilotCliHealthChecker,
-/// CopilotStartupErrorFormatter, CopilotClientStarter, CopilotTimeoutResolver,
-/// and CopilotCliException into a single cohesive class.
 @Singleton
 public class CopilotService {
 
-    /// Exception thrown when the Copilot CLI is not found, not authenticated,
-    /// or fails health checks.
-    public static final class CliException extends RuntimeException {
-        @java.io.Serial
-        private static final long serialVersionUID = 1L;
-
-        public CliException(String message) {
-            super(message);
-        }
-
-        public CliException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-
     private static final Logger logger = LoggerFactory.getLogger(CopilotService.class);
 
-    // --- CLI path resolution constants ---
     private static final String CLI_PATH_ENV = "COPILOT_CLI_PATH";
     private static final String[] CLI_CANDIDATES = {"github-copilot", "copilot"};
 
-    // --- Health check constants ---
-    private static final long DEFAULT_CLI_HEALTHCHECK_SECONDS = 10;
-    private static final String CLI_HEALTHCHECK_ENV = "COPILOT_CLI_HEALTHCHECK_SECONDS";
-    private static final String CLI_AUTH_CHECK_ENV = "COPILOT_CLI_AUTHCHECK_SECONDS";
-    private static final long DEFAULT_CLI_AUTHCHECK_SECONDS = 15;
-
-    // --- Startup constants ---
-    private static final long DEFAULT_START_TIMEOUT_SECONDS = 60;
-    private static final String START_TIMEOUT_ENV = "COPILOT_START_TIMEOUT_SECONDS";
     private static final String GITHUB_TOKEN_ENV = "GITHUB_TOKEN";
     private static final String UNRESOLVED_TOKEN_PLACEHOLDER = "${GITHUB_TOKEN}";
 
-    // --- Error message constants ---
     private static final String CLI_INSTALL_AUTH_GUIDANCE =
         "Ensure GitHub Copilot CLI is installed and authenticated";
     private static final String CLIENT_TIMEOUT_ENV_GUIDANCE =
-        "or set COPILOT_START_TIMEOUT_SECONDS to a higher value.";
+        "or set reviewer.copilot.start-timeout-seconds to a higher value.";
     private static final String PROTOCOL_AUTH_GUIDANCE =
         "and authenticated (for example, run `github-copilot auth login`)";
     private static final int INIT_MAX_ATTEMPTS = 3;
@@ -77,25 +49,26 @@ public class CopilotService {
     private static final long CLI_CHECK_BACKOFF_BASE_MS = 500L;
     private static final long CLI_CHECK_BACKOFF_MAX_MS = 4000L;
 
+    private final CopilotConfig copilotConfig;
+
     /// Volatile for safe publication; mutations serialized by synchronized lifecycle methods.
     private volatile CopilotClient client;
     private volatile String initializedTokenFingerprint;
 
-    // ========================================================================
-    // Lifecycle
-    // ========================================================================
+    @Inject
+    public CopilotService(CopilotConfig copilotConfig) {
+        this.copilotConfig = copilotConfig;
+    }
 
-    /// Attempts eager initialization during bean startup using GITHUB_TOKEN when available.
     @PostConstruct
     void initializeAtStartup() {
         try {
             initializeOrThrow(System.getenv(GITHUB_TOKEN_ENV));
-        } catch (CliException e) {
+        } catch (CopilotCliException e) {
             logger.debug("Skipping eager Copilot initialization at startup: {}", e.getMessage(), e);
         }
     }
 
-    /// Initializes the Copilot client, wrapping checked exceptions as RuntimeException.
     public void initializeOrThrow(String githubToken) {
         try {
             initialize(normalizeToken(githubToken));
@@ -105,7 +78,7 @@ public class CopilotService {
                 "authentication", "copilot.initialize",
                 "Copilot client initialization interrupted",
                 Map.of("outcome", "interrupted"));
-            throw new CliException("Failed to initialize Copilot service", e);
+            throw new CopilotCliException("Failed to initialize Copilot service", e);
         } catch (RuntimeException e) {
             SecurityAuditLogger.log(
                 "authentication", "copilot.initialize",
@@ -133,7 +106,7 @@ public class CopilotService {
                 "authMethod", shouldUseToken(githubToken) ? "github-token" : "gh-cli",
                 "tokenFingerprintPrefix", shortFingerprint(tokenFingerprint)));
 
-        long timeoutSeconds = resolveEnvTimeout(START_TIMEOUT_ENV, DEFAULT_START_TIMEOUT_SECONDS);
+        long timeoutSeconds = copilotConfig.startTimeoutSeconds();
         RuntimeException lastFailure = null;
 
         for (int attempt = 1; attempt <= INIT_MAX_ATTEMPTS; attempt++) {
@@ -154,8 +127,7 @@ public class CopilotService {
                 if (attempt < INIT_MAX_ATTEMPTS) {
                     logger.warn("Copilot client initialization attempt {}/{} failed: {}",
                         attempt, INIT_MAX_ATTEMPTS, e.getMessage());
-                    sleepWithJitter(attempt);
-                    continue;
+                    BackoffUtils.sleepWithJitter(attempt, INIT_BACKOFF_BASE_MS, INIT_BACKOFF_MAX_MS);
                 }
             }
         }
@@ -165,7 +137,6 @@ public class CopilotService {
         }
     }
 
-    /// Gets the initialized CopilotClient.
     public CopilotClient getClient() {
         CopilotClient localClient = client;
         if (localClient == null) {
@@ -174,7 +145,6 @@ public class CopilotService {
         return localClient;
     }
 
-    /// Checks if the service is initialized.
     public boolean isInitialized() {
         return client != null;
     }
@@ -206,10 +176,6 @@ public class CopilotService {
             initializedTokenFingerprint = null;
         }
     }
-
-    // ========================================================================
-    // Client options & auth
-    // ========================================================================
 
     private CopilotClientOptions buildClientOptions(String githubToken) throws InterruptedException {
         var options = new CopilotClientOptions();
@@ -245,10 +211,6 @@ public class CopilotService {
         return fingerprint.length() <= 12 ? fingerprint : fingerprint.substring(0, 12);
     }
 
-    // ========================================================================
-    // CLI path resolution (merged from CopilotCliPathResolver)
-    // ========================================================================
-
     private String resolveCliPath() {
         String explicit = resolveExplicitCliPath();
         if (explicit != null) {
@@ -258,7 +220,7 @@ public class CopilotService {
     }
 
     private String resolveExplicitCliPath() {
-        String explicit = System.getenv(CLI_PATH_ENV);
+        String explicit = copilotConfig.cliPath();
         if (explicit == null || explicit.isBlank()) {
             return null;
         }
@@ -267,27 +229,23 @@ public class CopilotService {
             return explicitPath.get().toString();
         }
         Path explicitPathValue = Path.of(explicit.trim()).toAbsolutePath().normalize();
-        throw new CliException("Copilot CLI not found at " + explicitPathValue
-            + ". Verify " + CLI_PATH_ENV + " or install GitHub Copilot CLI.");
+        throw new CopilotCliException("Copilot CLI not found at " + explicitPathValue
+            + ". Verify reviewer.copilot.cli-path or " + CLI_PATH_ENV + ".");
     }
 
     private String resolveCliPathFromSystemPath() {
         String pathEnv = System.getenv("PATH");
         if (pathEnv == null || pathEnv.isBlank()) {
-            throw new CliException("PATH is not set. Install GitHub Copilot CLI and/or set "
+            throw new CopilotCliException("PATH is not set. Install GitHub Copilot CLI and/or set "
                 + CLI_PATH_ENV + " to its executable path.");
         }
         var candidate = CliPathResolver.findExecutableInPath(CLI_CANDIDATES);
         if (candidate.isPresent()) {
             return candidate.get().toString();
         }
-        throw new CliException("GitHub Copilot CLI not found in PATH. Install it and ensure "
+        throw new CopilotCliException("GitHub Copilot CLI not found in PATH. Install it and ensure "
             + "`github-copilot` or `copilot` is available, or set " + CLI_PATH_ENV + ".");
     }
-
-    // ========================================================================
-    // CLI health checking (merged from CopilotCliHealthChecker)
-    // ========================================================================
 
     private void verifyCliHealthy(String cliPath, boolean tokenProvided) throws InterruptedException {
         if (cliPath == null || cliPath.isBlank()) {
@@ -295,7 +253,7 @@ public class CopilotService {
         }
         runCliCommandWithRetry(
             List.of(cliPath, "--version"),
-            resolveEnvTimeout(CLI_HEALTHCHECK_ENV, DEFAULT_CLI_HEALTHCHECK_SECONDS),
+            copilotConfig.healthcheckSeconds(),
             "Copilot CLI did not respond within ",
             "Copilot CLI exited with code ",
             "Failed to execute Copilot CLI: ",
@@ -306,7 +264,7 @@ public class CopilotService {
         } else {
             runCliCommandWithRetry(
                 List.of(cliPath, "auth", "status"),
-                resolveEnvTimeout(CLI_AUTH_CHECK_ENV, DEFAULT_CLI_AUTHCHECK_SECONDS),
+                copilotConfig.authcheckSeconds(),
                 "Copilot CLI auth status timed out after ",
                 "Copilot CLI auth status failed with code ",
                 "Failed to execute Copilot CLI auth status: ",
@@ -333,18 +291,18 @@ public class CopilotService {
                 if (!finished) {
                     process.destroyForcibly();
                     drainThread.interrupt();
-                    throw new CliException(
+                    throw new CopilotCliException(
                         timeoutMessage + timeoutSeconds + "s. " + remediationMessage);
                 }
                 if (process.exitValue() != 0) {
-                    throw new CliException(
+                    throw new CopilotCliException(
                         exitMessage + process.exitValue() + ". " + remediationMessage);
                 }
             } finally {
                 drainThread.join();
             }
         } catch (IOException e) {
-            throw new CliException(ioMessage + e.getMessage(), e);
+            throw new CopilotCliException(ioMessage + e.getMessage(), e);
         }
     }
 
@@ -362,7 +320,7 @@ public class CopilotService {
                 if (attempt < CLI_CHECK_MAX_ATTEMPTS) {
                     logger.warn("CLI check attempt {}/{} failed for '{}': {}",
                         attempt, CLI_CHECK_MAX_ATTEMPTS, String.join(" ", command), e.getMessage());
-                    sleepWithJitter(attempt, CLI_CHECK_BACKOFF_BASE_MS, CLI_CHECK_BACKOFF_MAX_MS);
+                    BackoffUtils.sleepWithJitter(attempt, CLI_CHECK_BACKOFF_BASE_MS, CLI_CHECK_BACKOFF_MAX_MS);
                 }
             }
         }
@@ -370,10 +328,6 @@ public class CopilotService {
             throw lastFailure;
         }
     }
-
-    // ========================================================================
-    // Client starting (merged from CopilotClientStarter)
-    // ========================================================================
 
     private void startClient(CopilotClient createdClient, long timeoutSeconds)
         throws InterruptedException {
@@ -388,19 +342,19 @@ public class CopilotService {
             throw mapExecutionException(e);
         } catch (TimeoutException e) {
             closeQuietly(createdClient);
-            throw new CliException(buildClientTimeoutMessage(timeoutSeconds), e);
+            throw new CopilotCliException(buildClientTimeoutMessage(timeoutSeconds), e);
         }
     }
 
-    private CliException mapExecutionException(ExecutionException e) {
+    private CopilotCliException mapExecutionException(ExecutionException e) {
         Throwable cause = e.getCause();
         if (cause instanceof TimeoutException) {
-            return new CliException(buildProtocolTimeoutMessage(), cause);
+            return new CopilotCliException(buildProtocolTimeoutMessage(), cause);
         }
         if (cause != null) {
-            return new CliException("Copilot client start failed: " + cause.getMessage(), cause);
+            return new CopilotCliException("Copilot client start failed: " + cause.getMessage(), cause);
         }
-        return new CliException("Copilot client start failed", e);
+        return new CopilotCliException("Copilot client start failed", e);
     }
 
     private void closeQuietly(CopilotClient c) {
@@ -410,10 +364,6 @@ public class CopilotService {
             logger.debug("Failed to close Copilot client after startup failure: {}", e.getMessage(), e);
         }
     }
-
-    // ========================================================================
-    // Error formatting (merged from CopilotStartupErrorFormatter)
-    // ========================================================================
 
     private static String buildClientTimeoutMessage(long timeoutSeconds) {
         return "Copilot client start timed out after " + timeoutSeconds + "s. "
@@ -426,33 +376,5 @@ public class CopilotService {
             + CLI_INSTALL_AUTH_GUIDANCE + " "
             + PROTOCOL_AUTH_GUIDANCE + ", "
             + "or set " + CLI_PATH_ENV + " to the correct executable.";
-    }
-
-    // ========================================================================
-    // Timeout resolution (merged from CopilotTimeoutResolver)
-    // ========================================================================
-
-    static long resolveEnvTimeout(String envVar, long defaultValue) {
-        String value = System.getenv(envVar);
-        if (value == null || value.isBlank()) {
-            return defaultValue;
-        }
-        try {
-            long parsed = Long.parseLong(value.trim());
-            return parsed >= 0 ? parsed : defaultValue;
-        } catch (NumberFormatException _) {
-            logger.warn("Invalid {} value: {}. Using default.", envVar, value);
-            return defaultValue;
-        }
-    }
-
-    private static void sleepWithJitter(int attempt) throws InterruptedException {
-        sleepWithJitter(attempt, INIT_BACKOFF_BASE_MS, INIT_BACKOFF_MAX_MS);
-    }
-
-    private static void sleepWithJitter(int attempt, long baseMs, long maxMs) throws InterruptedException {
-        long exponentialMs = Math.min(baseMs << Math.max(0, attempt - 1), maxMs);
-        long jitteredMs = ThreadLocalRandom.current().nextLong(exponentialMs + 1);
-        Thread.sleep(jitteredMs);
     }
 }
