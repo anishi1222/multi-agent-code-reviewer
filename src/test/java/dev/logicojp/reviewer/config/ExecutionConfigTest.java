@@ -19,7 +19,7 @@ class ExecutionConfigTest {
                                    int maxRetries) {
         return new ExecutionConfig(parallelism, reviewPasses, orchestratorTimeout,
             agentTimeout, idleTimeout, skillTimeout, summaryTimeout,
-            ghAuthTimeout, maxRetries, 0, 0, 0, DEFAULT_SUMMARY);
+            ghAuthTimeout, maxRetries, 0, 0, 0, null, DEFAULT_SUMMARY);
     }
 
     @Nested
@@ -105,10 +105,20 @@ class ExecutionConfigTest {
         @Test
         @DisplayName("summaryがnullの場合はデフォルトSummarySettingsが使われる")
         void nullSummaryDefaultsToNewInstance() {
-            var config = new ExecutionConfig(4, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0, null);
+            var config = new ExecutionConfig(4, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0, null, null);
             assertThat(config.summary()).isNotNull();
             assertThat(config.summary().maxContentPerAgent())
                 .isEqualTo(ExecutionConfig.SummarySettings.DEFAULT_MAX_CONTENT_PER_AGENT);
+        }
+
+        @Test
+        @DisplayName("checkpointDirectoryがnull/空の場合はデフォルトに設定される")
+        void checkpointDirectoryDefaultsWhenBlank() {
+            var nullConfig = new ExecutionConfig(4, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0, null, DEFAULT_SUMMARY);
+            var blankConfig = new ExecutionConfig(4, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0, "  ", DEFAULT_SUMMARY);
+
+            assertThat(nullConfig.checkpointDirectory()).isEqualTo(ExecutionConfig.DEFAULT_CHECKPOINT_DIRECTORY);
+            assertThat(blankConfig.checkpointDirectory()).isEqualTo(ExecutionConfig.DEFAULT_CHECKPOINT_DIRECTORY);
         }
     }
 
@@ -119,7 +129,8 @@ class ExecutionConfigTest {
         @Test
         @DisplayName("正の値が指定された場合はそのまま保持される")
         void positiveValuesArePreserved() {
-            var config = create(8, 3, 20, 15, 5, 10, 12, 30, 3);
+            var config = new ExecutionConfig(8, 3, 20, 15, 5, 10, 12, 30, 3,
+                4096, 1024, 64, "./tmp/checkpoints", DEFAULT_SUMMARY);
 
             assertThat(config.parallelism()).isEqualTo(8);
             assertThat(config.reviewPasses()).isEqualTo(3);
@@ -130,6 +141,7 @@ class ExecutionConfigTest {
             assertThat(config.summaryTimeoutMinutes()).isEqualTo(12);
             assertThat(config.ghAuthTimeoutSeconds()).isEqualTo(30);
             assertThat(config.maxRetries()).isEqualTo(3);
+            assertThat(config.checkpointDirectory()).isEqualTo("./tmp/checkpoints");
         }
 
         @Test
