@@ -5,7 +5,7 @@
     <!-- Console appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [%X{event.category}:%X{event.action}] - %replace(%msg){'${MASK_PATTERN}','$1***'}%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [%X{event.category:-app}:%X{event.action:-general}] - %replace(%msg){'${MASK_PATTERN}','$1***'}%n</pattern>
         </encoder>
     </appender>
 
@@ -16,7 +16,7 @@
             <maxHistory>14</maxHistory>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{ISO8601} level=%-5level category=%X{event.category} action=%X{event.action} %msg%n</pattern>
+            <pattern>%d{ISO8601} level=%-5level category=%X{event.category:-security} action=%X{event.action:-audit} %msg%n</pattern>
         </encoder>
     </appender>
     
