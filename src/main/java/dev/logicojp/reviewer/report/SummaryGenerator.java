@@ -309,7 +309,7 @@ public class SummaryGenerator {
 
     private String formatFinalReport(String summaryContent, String repository,
                                      List<ReviewResult> results, String date) {
-        String reportLinks = buildReportLinks(results, date);
+        String reportLinks = buildReportLinks(results);
         String findingsSummary = resolveFindingsSummary(results);
 
         var placeholders = new HashMap<String, String>();
@@ -330,11 +330,11 @@ public class SummaryGenerator {
         return summary.isEmpty() ? "指摘事項はありません。" : summary;
     }
 
-    private String buildReportLinks(List<ReviewResult> results, String date) {
+    private String buildReportLinks(List<ReviewResult> results) {
         var sb = new StringBuilder();
         for (ReviewResult result : results) {
             String safeName = ReportGenerator.sanitizeAgentName(result.agentConfig().name());
-            String filename = "%s_%s.md".formatted(safeName, date);
+            String filename = ReportFileNames.agentReportFileName(safeName);
             sb.append(templateService.getReportLinkEntry(Map.of(
                 "displayName", result.agentConfig().displayName(),
                 "filename", filename)));

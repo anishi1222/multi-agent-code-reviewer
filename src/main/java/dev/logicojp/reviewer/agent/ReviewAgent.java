@@ -31,7 +31,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 /// Executes a code review using the Copilot SDK with a specific agent configuration.
 ///
@@ -116,9 +115,6 @@ public class ReviewAgent {
         @Nullable String localSourceContent,
         @Nullable Map<String, Object> mcpServers
     ) {}
-
-    /// Event data record for session event abstraction.
-    private record EventData(String type, String content, int toolCalls, String errorMessage) {}
 
     @FunctionalInterface
     private interface PromptSender {
@@ -376,16 +372,6 @@ public class ReviewAgent {
     // ================================================================
     // Event handling (inlined ReviewSessionEvents)
     // ================================================================
-
-    @FunctionalInterface
-    private interface SessionSubscription {
-        AutoCloseable subscribe(Consumer<EventData> handler);
-    }
-
-    @FunctionalInterface
-    private interface TypedSessionSubscription<T> {
-        AutoCloseable subscribe(Consumer<T> handler);
-    }
 
     private EventSubscriptions registerEventListeners(CopilotSession session, ContentCollector collector) {
         var allEventsSub = session.on(event -> {

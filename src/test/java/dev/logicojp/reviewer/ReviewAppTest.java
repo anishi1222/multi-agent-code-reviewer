@@ -28,7 +28,7 @@ class ReviewAppTest {
     // Stub commands that override execute to return OK
     private static class StubReviewCommand extends ReviewCommand {
         StubReviewCommand(CliOutput output) {
-            super(null, null, null, null, null, null, null, null, null, output);
+            super(null, null, null, null, null, null, null, null, output);
         }
 
         @Override
