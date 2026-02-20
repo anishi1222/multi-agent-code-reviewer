@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
+import dev.logicojp.reviewer.config.ResilienceConfig;
 import dev.logicojp.reviewer.config.ReviewerConfig;
 import dev.logicojp.reviewer.skill.SkillDefinition;
 import dev.logicojp.reviewer.skill.SkillExecutor;
@@ -25,6 +26,7 @@ public class SkillService {
     private final GithubMcpConfig githubMcpConfig;
     private final ExecutionConfig executionConfig;
     private final ReviewerConfig.Skills skillsConfig;
+    private final ResilienceConfig resilienceConfig;
     private final Cache<ExecutorCacheKey, SkillExecutor> executorCache;
     private final Cache<String, Map<String, Object>> mcpServerCache;
 
@@ -33,11 +35,13 @@ public class SkillService {
                         CopilotService copilotService,
                         GithubMcpConfig githubMcpConfig,
                         ExecutionConfig executionConfig,
+                        ResilienceConfig resilienceConfig,
                         ReviewerConfig reviewerConfig) {
         this.skillRegistry = skillRegistry;
         this.copilotService = copilotService;
         this.githubMcpConfig = githubMcpConfig;
         this.executionConfig = executionConfig;
+        this.resilienceConfig = resilienceConfig;
         this.skillsConfig = reviewerConfig.skills();
         this.executorCache = Caffeine.newBuilder()
             .initialCapacity(skillsConfig.executorCacheInitialCapacity())
@@ -102,7 +106,12 @@ public class SkillService {
                 model,
                 executionConfig.skillTimeoutMinutes(),
                 skillsConfig.maxParameterValueLength(),
-                skillsConfig.executorShutdownTimeoutSeconds())));
+                skillsConfig.executorShutdownTimeoutSeconds(),
+                resilienceConfig.skill().failureThreshold(),
+                resilienceConfig.skill().openDurationSeconds(),
+                resilienceConfig.skill().maxAttempts(),
+                resilienceConfig.skill().backoffBaseMs(),
+                resilienceConfig.skill().backoffMaxMs())));
     }
 
     private record ExecutorCacheKey(String tokenDigest, String model) {

@@ -75,3 +75,22 @@ reviewer:
     report-model: claude-opus-4.6-fast
     summary-model: claude-sonnet-4.5
     reasoning-effort: high
+  resilience:
+    review:
+      failure-threshold: 5
+      open-duration-seconds: 30
+      max-attempts: 3
+      backoff-base-ms: 1000
+      backoff-max-ms: 8000
+    summary:
+      failure-threshold: 3
+      open-duration-seconds: 20
+      max-attempts: 3
+      backoff-base-ms: 500
+      backoff-max-ms: 4000
+    skill:
+      failure-threshold: 3
+      open-duration-seconds: 20
+      max-attempts: 3
+      backoff-base-ms: 500
+      backoff-max-ms: 4000

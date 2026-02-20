@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.config.ReviewerConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
+import dev.logicojp.reviewer.util.ApiCircuitBreaker;
 import com.github.copilot.sdk.CopilotClient;
 import io.micronaut.core.annotation.Nullable;
 
@@ -34,7 +35,9 @@ public record ReviewContext(
     CachedResources cachedResources,
     ReviewerConfig.LocalFiles localFileConfig,
     ScheduledExecutorService sharedScheduler,
-    AgentTuningConfig agentTuningConfig
+    AgentTuningConfig agentTuningConfig,
+    RetryConfig retryConfig,
+    ApiCircuitBreaker circuitBreaker
 ) {
 
     /// Groups timeout and retry parameters.
@@ -57,6 +60,17 @@ public record ReviewContext(
         );
     }
 
+    /// Retry and backoff parameters for agent execution.
+    public record RetryConfig(int maxAttempts, long backoffBaseMs, long backoffMaxMs) {
+        public RetryConfig {
+            maxAttempts = Math.max(1, maxAttempts);
+            backoffBaseMs = Math.max(1, backoffBaseMs);
+            backoffMaxMs = Math.max(backoffBaseMs, backoffMaxMs);
+        }
+
+        public static final RetryConfig DEFAULTS = new RetryConfig(3, 1000L, 8000L);
+    }
+
     public ReviewContext {
         Objects.requireNonNull(client, "client must not be null");
         Objects.requireNonNull(sharedScheduler, "sharedScheduler must not be null");
@@ -64,6 +78,8 @@ public record ReviewContext(
         customInstructions = customInstructions != null ? List.copyOf(customInstructions) : List.of();
         cachedResources = cachedResources != null ? cachedResources : new CachedResources(null, null);
         agentTuningConfig = agentTuningConfig != null ? agentTuningConfig : AgentTuningConfig.DEFAULTS;
+        retryConfig = retryConfig != null ? retryConfig : RetryConfig.DEFAULTS;
+        circuitBreaker = circuitBreaker != null ? circuitBreaker : ApiCircuitBreaker.forReview();
     }
 
     public static Builder builder() {
@@ -83,6 +99,8 @@ public record ReviewContext(
         private ReviewerConfig.LocalFiles localFileConfig;
         private ScheduledExecutorService sharedScheduler;
         private AgentTuningConfig agentTuningConfig;
+        private RetryConfig retryConfig;
+        private ApiCircuitBreaker circuitBreaker;
 
         public Builder client(CopilotClient client) {
             this.client = client;
@@ -144,6 +162,16 @@ public record ReviewContext(
             return this;
         }
 
+        public Builder retryConfig(RetryConfig retryConfig) {
+            this.retryConfig = retryConfig;
+            return this;
+        }
+
+        public Builder circuitBreaker(ApiCircuitBreaker circuitBreaker) {
+            this.circuitBreaker = circuitBreaker;
+            return this;
+        }
+
         public ReviewContext build() {
             Objects.requireNonNull(client, "client must not be null");
             Objects.requireNonNull(sharedScheduler, "sharedScheduler must not be null");
@@ -161,7 +189,9 @@ public record ReviewContext(
                 new CachedResources(cachedMcpServers, cachedSourceContent),
                 effectiveLocalFileConfig,
                 sharedScheduler,
-                agentTuningConfig
+                agentTuningConfig,
+                retryConfig,
+                circuitBreaker
             );
         }
 

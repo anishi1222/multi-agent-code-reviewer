@@ -24,11 +24,6 @@ import java.util.concurrent.TimeoutException;
 public class SkillExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(SkillExecutor.class);
-    private static final ApiCircuitBreaker API_CIRCUIT_BREAKER = ApiCircuitBreaker.copilotApi();
-    private static final int MAX_ATTEMPTS = 3;
-    private static final long BACKOFF_BASE_MS = 500L;
-    private static final long BACKOFF_MAX_MS = 4000L;
-
     /// Result of a skill execution.
     public record Result(
         String skillId,
@@ -63,7 +58,12 @@ public class SkillExecutor {
         String defaultModel,
         long timeoutMinutes,
         int maxParameterValueLength,
-        int executorShutdownTimeoutSeconds
+        int executorShutdownTimeoutSeconds,
+        int failureThreshold,
+        long openDurationSeconds,
+        int maxAttempts,
+        long backoffBaseMs,
+        long backoffMaxMs
     ) {
         public Config {
             defaultModel = Objects.requireNonNull(defaultModel, "defaultModel must not be null");
@@ -75,6 +75,10 @@ public class SkillExecutor {
     private final long timeoutMinutes;
     private final int maxParameterValueLength;
     private final Map<String, Object> cachedMcpServers;
+    private final ApiCircuitBreaker apiCircuitBreaker;
+    private final int maxAttempts;
+    private final long backoffBaseMs;
+    private final long backoffMaxMs;
 
     public SkillExecutor(CopilotClient client,
                          Map<String, Object> mcpServers,
@@ -86,6 +90,13 @@ public class SkillExecutor {
         this.cachedMcpServers = (mcpServers == null || mcpServers.isEmpty())
             ? Map.of()
             : Map.copyOf(mcpServers);
+        this.apiCircuitBreaker = new ApiCircuitBreaker(
+            config.failureThreshold(),
+            TimeUnit.SECONDS.toMillis(config.openDurationSeconds()),
+            Clock.systemUTC());
+        this.maxAttempts = Math.max(1, config.maxAttempts());
+        this.backoffBaseMs = Math.max(1L, config.backoffBaseMs());
+        this.backoffMaxMs = Math.max(this.backoffBaseMs, config.backoffMaxMs());
     }
 
     /// Executes a skill with the given parameters.
@@ -97,30 +108,30 @@ public class SkillExecutor {
     public Result execute(SkillDefinition skill,
                           Map<String, String> parameters,
                           @Nullable String systemPrompt) {
-        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            if (!apiCircuitBreaker.isRequestAllowed()) {
                 return Result.failure(skill.id(),
                     "Copilot API circuit breaker is open (remaining "
-                        + API_CIRCUIT_BREAKER.remainingOpenMs() + " ms)");
+                        + apiCircuitBreaker.remainingOpenMs() + " ms)");
             }
             try {
                 Result result = executeWithTimeout(skill, parameters, systemPrompt);
                 if (result.success()) {
-                    API_CIRCUIT_BREAKER.recordSuccess();
+                    apiCircuitBreaker.recordSuccess();
                     return result;
                 }
-                API_CIRCUIT_BREAKER.recordFailure();
-                if (attempt < MAX_ATTEMPTS && isRetryable(result.errorMessage())) {
-                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
+                apiCircuitBreaker.recordFailure();
+                if (attempt < maxAttempts && isRetryable(result.errorMessage())) {
+                    BackoffUtils.sleepWithJitterQuietly(attempt, backoffBaseMs, backoffMaxMs);
                     continue;
                 }
                 return result;
             } catch (Exception e) {
-                API_CIRCUIT_BREAKER.recordFailure();
-                if (attempt < MAX_ATTEMPTS && isRetryable(e.getMessage())) {
+                apiCircuitBreaker.recordFailure();
+                if (attempt < maxAttempts && isRetryable(e.getMessage())) {
                     logger.warn("Skill {} attempt {}/{} failed: {}",
-                        skill.id(), attempt, MAX_ATTEMPTS, e.getMessage());
-                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
+                        skill.id(), attempt, maxAttempts, e.getMessage());
+                    BackoffUtils.sleepWithJitterQuietly(attempt, backoffBaseMs, backoffMaxMs);
                     continue;
                 }
                 logger.error("Skill execution failed for {}: {}", skill.id(), e.getMessage(), e);

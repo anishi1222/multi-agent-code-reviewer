@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.report;
 
 import dev.logicojp.reviewer.config.ExecutionConfig;
+import dev.logicojp.reviewer.config.ResilienceConfig;
 import dev.logicojp.reviewer.service.TemplateService;
 import com.github.copilot.sdk.CopilotClient;
 import jakarta.inject.Inject;
@@ -17,11 +18,15 @@ public class ReportService {
 
     private final TemplateService templateService;
     private final ExecutionConfig.SummarySettings summarySettings;
+    private final ResilienceConfig resilienceConfig;
 
     @Inject
-    public ReportService(TemplateService templateService, ExecutionConfig executionConfig) {
+    public ReportService(TemplateService templateService,
+                         ExecutionConfig executionConfig,
+                         ResilienceConfig resilienceConfig) {
         this.templateService = templateService;
         this.summarySettings = executionConfig.summary();
+        this.resilienceConfig = resilienceConfig;
     }
 
     /// Creates a new ReportGenerator for the given output directory.
@@ -42,7 +47,8 @@ public class ReportService {
             reasoningEffort,
             timeoutMinutes,
             templateService,
-            summarySettings
+            summarySettings,
+            resilienceConfig.summary()
         );
     }
 }
