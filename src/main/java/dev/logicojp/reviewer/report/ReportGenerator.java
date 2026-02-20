@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -161,9 +162,23 @@ public class ReportGenerator {
     /// Writes content to a file with owner-only permissions on POSIX systems.
     /// Package-private — also used by SummaryGenerator.
     static void writeSecureString(Path filePath, String content) throws IOException {
-        Files.writeString(filePath, content);
-        if (supportsPosix(filePath)) {
-            Files.setPosixFilePermissions(filePath, OWNER_FILE_PERMISSIONS);
+        ensureOutputDirectory(filePath.getParent());
+
+        Path tempFile = Files.createTempFile(filePath.getParent(), ".tmp-", ".part");
+        try {
+            Files.writeString(tempFile, content);
+            if (supportsPosix(tempFile)) {
+                Files.setPosixFilePermissions(tempFile, OWNER_FILE_PERMISSIONS);
+            }
+            Files.move(tempFile, filePath,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+            if (supportsPosix(filePath)) {
+                Files.setPosixFilePermissions(filePath, OWNER_FILE_PERMISSIONS);
+            }
+        } catch (IOException e) {
+            Files.deleteIfExists(tempFile);
+            throw e;
         }
     }
 

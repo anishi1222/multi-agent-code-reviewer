@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -69,6 +70,9 @@ public class CopilotService {
         "or set COPILOT_START_TIMEOUT_SECONDS to a higher value.";
     private static final String PROTOCOL_AUTH_GUIDANCE =
         "and authenticated (for example, run `github-copilot auth login`)";
+    private static final int INIT_MAX_ATTEMPTS = 3;
+    private static final long INIT_BACKOFF_BASE_MS = 1000L;
+    private static final long INIT_BACKOFF_MAX_MS = 5000L;
 
     /// Volatile for safe publication; mutations serialized by synchronized lifecycle methods.
     private volatile CopilotClient client;
@@ -126,17 +130,36 @@ public class CopilotService {
                 "authMethod", shouldUseToken(githubToken) ? "github-token" : "gh-cli",
                 "tokenFingerprintPrefix", shortFingerprint(tokenFingerprint)));
 
-        CopilotClient createdClient = new CopilotClient(options);
         long timeoutSeconds = resolveEnvTimeout(START_TIMEOUT_ENV, DEFAULT_START_TIMEOUT_SECONDS);
-        startClient(createdClient, timeoutSeconds);
+        RuntimeException lastFailure = null;
 
-        client = createdClient;
-        initializedTokenFingerprint = tokenFingerprint;
-        logger.info("Copilot client initialized");
-        SecurityAuditLogger.log(
-            "authentication", "copilot.initialize",
-            "Copilot client authentication completed",
-            Map.of("outcome", "success"));
+        for (int attempt = 1; attempt <= INIT_MAX_ATTEMPTS; attempt++) {
+            CopilotClient createdClient = new CopilotClient(options);
+            try {
+                startClient(createdClient, timeoutSeconds);
+                client = createdClient;
+                initializedTokenFingerprint = tokenFingerprint;
+                logger.info("Copilot client initialized");
+                SecurityAuditLogger.log(
+                    "authentication", "copilot.initialize",
+                    "Copilot client authentication completed",
+                    Map.of("outcome", "success", "attempt", String.valueOf(attempt)));
+                return;
+            } catch (RuntimeException e) {
+                lastFailure = e;
+                closeQuietly(createdClient);
+                if (attempt < INIT_MAX_ATTEMPTS) {
+                    logger.warn("Copilot client initialization attempt {}/{} failed: {}",
+                        attempt, INIT_MAX_ATTEMPTS, e.getMessage());
+                    sleepWithJitter(attempt);
+                    continue;
+                }
+            }
+        }
+
+        if (lastFailure != null) {
+            throw lastFailure;
+        }
     }
 
     /// Gets the initialized CopilotClient.
@@ -395,5 +418,11 @@ public class CopilotService {
             logger.warn("Invalid {} value: {}. Using default.", envVar, value);
             return defaultValue;
         }
+    }
+
+    private static void sleepWithJitter(int attempt) throws InterruptedException {
+        long exponentialMs = Math.min(INIT_BACKOFF_BASE_MS << Math.max(0, attempt - 1), INIT_BACKOFF_MAX_MS);
+        long jitteredMs = ThreadLocalRandom.current().nextLong(exponentialMs + 1);
+        Thread.sleep(jitteredMs);
     }
 }

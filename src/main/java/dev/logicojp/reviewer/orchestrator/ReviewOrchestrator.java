@@ -18,6 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +62,7 @@ public class ReviewOrchestrator implements AutoCloseable {
     private final ExecutorService agentExecutionExecutor;
     private final ScheduledExecutorService sharedScheduler;
     private final Semaphore concurrencyLimit;
+    private final Path checkpointRootDirectory;
 
     public ReviewOrchestrator(CopilotClient client, Config config) {
         this.client = Objects.requireNonNull(client, "client must not be null");
@@ -75,6 +78,7 @@ public class ReviewOrchestrator implements AutoCloseable {
         this.cachedMcpServers = GithubMcpConfig.buildMcpServers(
             config.githubToken(), config.githubMcpConfig()).orElse(Map.of());
         this.concurrencyLimit = new Semaphore(executionConfig.parallelism());
+        this.checkpointRootDirectory = Path.of("reports", ".checkpoints");
         this.agentExecutionExecutor = Executors.newThreadPerTaskExecutor(
             Thread.ofVirtual().name("agent-execution-", 0).factory());
         this.sharedScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -177,7 +181,7 @@ public class ReviewOrchestrator implements AutoCloseable {
                                                    AgentConfig config,
                                                    ReviewTarget target,
                                                    int reviewPasses) {
-        return switch (subtask.state()) {
+        List<ReviewResult> results = switch (subtask.state()) {
             case SUCCESS -> subtask.get();
             case FAILED -> {
                 logger.error("Agent {} failed: {}", config.name(), subtask.exception().getMessage());
@@ -190,6 +194,8 @@ public class ReviewOrchestrator implements AutoCloseable {
                     "Review timed out or was cancelled");
             }
         };
+        persistIntermediateResults(config, target, results);
+        return results;
     }
 
     // ========================================================================
@@ -333,6 +339,44 @@ public class ReviewOrchestrator implements AutoCloseable {
         } catch (InterruptedException _) {
             executor.shutdownNow();
             Thread.currentThread().interrupt();
+        }
+    }
+
+    private void persistIntermediateResults(AgentConfig config,
+                                            ReviewTarget target,
+                                            List<ReviewResult> results) {
+        if (results == null || results.isEmpty()) {
+            return;
+        }
+        try {
+            Files.createDirectories(checkpointRootDirectory);
+            String safeAgentName = config.name().replaceAll("[^a-zA-Z0-9._-]", "_");
+            String safeTarget = target.displayName().replaceAll("[^a-zA-Z0-9._-]", "_");
+            Path checkpointPath = checkpointRootDirectory.resolve(safeTarget + "_" + safeAgentName + ".md");
+            Path tempFile = Files.createTempFile(checkpointRootDirectory, ".checkpoint-", ".tmp");
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("# Intermediate Review Checkpoint\n");
+            sb.append("agent=").append(config.name()).append('\n');
+            sb.append("target=").append(target.displayName()).append('\n');
+            for (ReviewResult result : results) {
+                sb.append("\n## pass-result\n");
+                sb.append("success=").append(result.success()).append('\n');
+                if (result.errorMessage() != null) {
+                    sb.append("error=").append(result.errorMessage()).append('\n');
+                }
+                if (result.content() != null && !result.content().isBlank()) {
+                    sb.append(result.content()).append('\n');
+                }
+            }
+
+            Files.writeString(tempFile, sb.toString());
+            Files.move(tempFile, checkpointPath,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+            logger.debug("Persisted intermediate checkpoint for agent {}: {}", config.name(), checkpointPath);
+        } catch (Exception e) {
+            logger.warn("Failed to persist intermediate checkpoint for {}: {}", config.name(), e.getMessage());
         }
     }
 }

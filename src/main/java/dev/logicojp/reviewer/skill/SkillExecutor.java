@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.skill;
 
 import dev.logicojp.reviewer.config.GithubMcpConfig;
+import dev.logicojp.reviewer.util.ApiCircuitBreaker;
 import dev.logicojp.reviewer.util.StructuredConcurrencyUtils;
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.SystemMessageMode;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -23,6 +25,10 @@ import java.util.concurrent.TimeoutException;
 public class SkillExecutor implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(SkillExecutor.class);
+    private static final ApiCircuitBreaker API_CIRCUIT_BREAKER = ApiCircuitBreaker.copilotApi();
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long BACKOFF_BASE_MS = 500L;
+    private static final long BACKOFF_MAX_MS = 4000L;
 
     /// Result of a skill execution.
     public record Result(
@@ -90,12 +96,37 @@ public class SkillExecutor implements AutoCloseable {
     public Result execute(SkillDefinition skill,
                           Map<String, String> parameters,
                           @Nullable String systemPrompt) {
-        try {
-            return executeWithTimeout(skill, parameters, systemPrompt);
-        } catch (Exception e) {
-            logger.error("Skill execution failed for {}: {}", skill.id(), e.getMessage(), e);
-            return Result.failure(skill.id(), e.getMessage());
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
+                return Result.failure(skill.id(),
+                    "Copilot API circuit breaker is open (remaining "
+                        + API_CIRCUIT_BREAKER.remainingOpenMs() + " ms)");
+            }
+            try {
+                Result result = executeWithTimeout(skill, parameters, systemPrompt);
+                if (result.success()) {
+                    API_CIRCUIT_BREAKER.recordSuccess();
+                    return result;
+                }
+                API_CIRCUIT_BREAKER.recordFailure();
+                if (attempt < MAX_ATTEMPTS && isRetryable(result.errorMessage())) {
+                    sleepWithJitter(attempt);
+                    continue;
+                }
+                return result;
+            } catch (Exception e) {
+                API_CIRCUIT_BREAKER.recordFailure();
+                if (attempt < MAX_ATTEMPTS && isRetryable(e.getMessage())) {
+                    logger.warn("Skill {} attempt {}/{} failed: {}",
+                        skill.id(), attempt, MAX_ATTEMPTS, e.getMessage());
+                    sleepWithJitter(attempt);
+                    continue;
+                }
+                logger.error("Skill execution failed for {}: {}", skill.id(), e.getMessage(), e);
+                return Result.failure(skill.id(), e.getMessage());
+            }
         }
+        return Result.failure(skill.id(), "Skill execution exhausted retry attempts");
     }
 
     private Result executeWithTimeout(SkillDefinition skill,
@@ -164,5 +195,30 @@ public class SkillExecutor implements AutoCloseable {
     @Override
     public void close() {
         // No owned executor to shut down in v2
+    }
+
+    private static boolean isRetryable(String message) {
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase();
+        return lower.contains("timeout")
+            || lower.contains("timed out")
+            || lower.contains("rate")
+            || lower.contains("429")
+            || lower.contains("tempor")
+            || lower.contains("network")
+            || lower.contains("connection")
+            || lower.contains("unavailable");
+    }
+
+    private static void sleepWithJitter(int attempt) {
+        long exponentialMs = Math.min(BACKOFF_BASE_MS << Math.max(0, attempt - 1), BACKOFF_MAX_MS);
+        long jitteredMs = ThreadLocalRandom.current().nextLong(exponentialMs + 1);
+        try {
+            Thread.sleep(jitteredMs);
+        } catch (InterruptedException _) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

@@ -7,6 +7,7 @@ import dev.logicojp.reviewer.report.ContentSanitizer;
 import dev.logicojp.reviewer.report.ReviewResult;
 import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
+import dev.logicojp.reviewer.util.ApiCircuitBreaker;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.events.AssistantMessageEvent;
@@ -30,6 +31,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -59,6 +61,7 @@ public class ReviewAgent {
     // --- Retry defaults ---
     private static final long BACKOFF_BASE_MS = 1000L;
     private static final long BACKOFF_MAX_MS = 8000L;
+    private static final ApiCircuitBreaker API_CIRCUIT_BREAKER = ApiCircuitBreaker.copilotApi();
 
     // --- Idle timeout defaults ---
     private static final long MIN_CHECK_INTERVAL_MS = 5000L;
@@ -259,11 +262,23 @@ public class ReviewAgent {
                                                   String localSourceContent,
                                                   Map<String, Object> mcpServers,
                                                   CopilotSession session) throws Exception {
+        if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
+            long remainingMs = API_CIRCUIT_BREAKER.remainingOpenMs();
+            return baseResultBuilder(displayName)
+                .success(false)
+                .errorMessage("Copilot API circuit breaker is open (remaining " + remainingMs + " ms)")
+                .timestamp(Instant.now())
+                .build();
+        }
+
         String content = sendAndCollectContent(session, instruction, localSourceContent);
 
         if (content == null || content.isBlank()) {
+            API_CIRCUIT_BREAKER.recordFailure();
             return emptyContentFailure(displayName, mcpServers != null);
         }
+
+        API_CIRCUIT_BREAKER.recordSuccess();
 
         logger.info("Review completed for agent: {} (content length: {} chars)",
             config.name(), content.length());
@@ -559,12 +574,15 @@ public class ReviewAgent {
             try {
                 lastResult = attemptExecutor.execute();
                 if (lastResult.success()) {
+                    API_CIRCUIT_BREAKER.recordSuccess();
                     if (attempt > 1) {
                         logger.info("Agent {} succeeded on attempt {}/{}",
                             config.name(), attempt, totalAttempts);
                     }
                     return lastResult;
                 }
+
+                API_CIRCUIT_BREAKER.recordFailure();
 
                 if (attempt < totalAttempts) {
                     waitRetryBackoff(attempt);
@@ -575,6 +593,7 @@ public class ReviewAgent {
                         config.name(), attempt, totalAttempts, lastResult.errorMessage());
                 }
             } catch (Exception e) {
+                API_CIRCUIT_BREAKER.recordFailure();
                 lastResult = exceptionMapper.map(e);
 
                 if (attempt < totalAttempts) {
@@ -592,7 +611,8 @@ public class ReviewAgent {
     }
 
     private void waitRetryBackoff(int attempt) {
-        long backoffMs = Math.min(BACKOFF_BASE_MS << Math.max(0, attempt - 1), BACKOFF_MAX_MS);
+        long exponentialMs = Math.min(BACKOFF_BASE_MS << Math.max(0, attempt - 1), BACKOFF_MAX_MS);
+        long backoffMs = ThreadLocalRandom.current().nextLong(exponentialMs + 1);
         try {
             Thread.sleep(backoffMs);
         } catch (InterruptedException _) {
