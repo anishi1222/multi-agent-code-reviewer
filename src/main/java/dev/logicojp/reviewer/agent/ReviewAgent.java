@@ -6,7 +6,6 @@ import dev.logicojp.reviewer.report.ContentSanitizer;
 import dev.logicojp.reviewer.report.ReviewResult;
 import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
-import dev.logicojp.reviewer.util.ApiCircuitBreaker;
 import dev.logicojp.reviewer.util.BackoffUtils;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
@@ -53,11 +52,6 @@ public class ReviewAgent {
     /// Follow-up prompt sent when the primary send returns empty content.
     private static final String FOLLOWUP_PROMPT =
         "Please provide the complete review results in the specified output format.";
-
-    // --- Retry defaults ---
-    private static final long BACKOFF_BASE_MS = 1000L;
-    private static final long BACKOFF_MAX_MS = 8000L;
-    private static final ApiCircuitBreaker API_CIRCUIT_BREAKER = ApiCircuitBreaker.copilotApi();
 
     // --- Idle timeout defaults ---
     private static final long MIN_CHECK_INTERVAL_MS = 5000L;
@@ -252,8 +246,8 @@ public class ReviewAgent {
                                                   String localSourceContent,
                                                   Map<String, Object> mcpServers,
                                                   CopilotSession session) throws Exception {
-        if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
-            long remainingMs = API_CIRCUIT_BREAKER.remainingOpenMs();
+        if (!ctx.circuitBreaker().isRequestAllowed()) {
+            long remainingMs = ctx.circuitBreaker().remainingOpenMs();
             return baseResultBuilder(displayName)
                 .success(false)
                 .errorMessage("Copilot API circuit breaker is open (remaining " + remainingMs + " ms)")
@@ -264,11 +258,11 @@ public class ReviewAgent {
         String content = sendAndCollectContent(session, instruction, localSourceContent);
 
         if (content == null || content.isBlank()) {
-            API_CIRCUIT_BREAKER.recordFailure();
+            ctx.circuitBreaker().recordFailure();
             return emptyContentFailure(displayName, mcpServers != null);
         }
 
-        API_CIRCUIT_BREAKER.recordSuccess();
+        ctx.circuitBreaker().recordSuccess();
 
         logger.info("Review completed for agent: {} (content length: {} chars)",
             config.name(), content.length());
@@ -549,14 +543,14 @@ public class ReviewAgent {
     private ReviewResult executeWithRetry(AttemptExecutor attemptExecutor,
                                           ExceptionMapper exceptionMapper) {
         int maxRetries = ctx.timeoutConfig().maxRetries();
-        int totalAttempts = maxRetries + 1;
+        int totalAttempts = Math.max(maxRetries + 1, ctx.retryConfig().maxAttempts());
         ReviewResult lastResult = null;
 
         for (int attempt = 1; attempt <= totalAttempts; attempt++) {
             try {
                 lastResult = attemptExecutor.execute();
                 if (lastResult.success()) {
-                    API_CIRCUIT_BREAKER.recordSuccess();
+                    ctx.circuitBreaker().recordSuccess();
                     if (attempt > 1) {
                         logger.info("Agent {} succeeded on attempt {}/{}",
                             config.name(), attempt, totalAttempts);
@@ -564,32 +558,51 @@ public class ReviewAgent {
                     return lastResult;
                 }
 
-                API_CIRCUIT_BREAKER.recordFailure();
+                ctx.circuitBreaker().recordFailure();
 
-                if (attempt < totalAttempts) {
-                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
+                if (attempt < totalAttempts && isRetryable(lastResult.errorMessage())) {
+                    BackoffUtils.sleepWithJitterQuietly(
+                        attempt, ctx.retryConfig().backoffBaseMs(), ctx.retryConfig().backoffMaxMs());
                     logger.warn("Agent {} failed on attempt {}/{}: {}. Retrying...",
                         config.name(), attempt, totalAttempts, lastResult.errorMessage());
                 } else {
-                    logger.error("Agent {} failed on final attempt {}/{}: {}",
+                    logger.error("Agent {} failed with non-retryable result on attempt {}/{}: {}",
                         config.name(), attempt, totalAttempts, lastResult.errorMessage());
+                    break;
                 }
             } catch (Exception e) {
-                API_CIRCUIT_BREAKER.recordFailure();
+                ctx.circuitBreaker().recordFailure();
                 lastResult = exceptionMapper.map(e);
 
-                if (attempt < totalAttempts) {
-                    BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
+                if (attempt < totalAttempts && isRetryable(e.getMessage())) {
+                    BackoffUtils.sleepWithJitterQuietly(
+                        attempt, ctx.retryConfig().backoffBaseMs(), ctx.retryConfig().backoffMaxMs());
                     logger.warn("Agent {} threw exception on attempt {}/{}: {}. Retrying...",
                         config.name(), attempt, totalAttempts, e.getMessage(), e);
                 } else {
-                    logger.error("Agent {} threw exception on final attempt {}/{}: {}",
+                    logger.error("Agent {} threw non-retryable exception on attempt {}/{}: {}",
                         config.name(), attempt, totalAttempts, e.getMessage(), e);
+                    break;
                 }
             }
         }
 
         return lastResult;
+    }
+
+    private static boolean isRetryable(String message) {
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase();
+        return lower.contains("timeout")
+            || lower.contains("timed out")
+            || lower.contains("rate")
+            || lower.contains("429")
+            || lower.contains("tempor")
+            || lower.contains("network")
+            || lower.contains("connection")
+            || lower.contains("unavailable");
     }
 
     // ================================================================

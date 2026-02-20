@@ -5,11 +5,13 @@ import dev.logicojp.reviewer.agent.ReviewAgent;
 import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
+import dev.logicojp.reviewer.config.ResilienceConfig;
 import dev.logicojp.reviewer.config.ReviewerConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.report.ReviewResult;
 import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
+import dev.logicojp.reviewer.util.ApiCircuitBreaker;
 import dev.logicojp.reviewer.util.StructuredConcurrencyUtils;
 import com.github.copilot.sdk.CopilotClient;
 import io.micronaut.core.annotation.Nullable;
@@ -20,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,6 +62,8 @@ public class ReviewOrchestrator implements AutoCloseable {
     private final ScheduledExecutorService sharedScheduler;
     private final Semaphore concurrencyLimit;
     private final Path checkpointRootDirectory;
+    private final ResilienceConfig resilienceConfig;
+    private final ApiCircuitBreaker reviewCircuitBreaker;
 
     public ReviewOrchestrator(CopilotClient client, Config config) {
         this.client = Objects.requireNonNull(client, "client must not be null");
@@ -75,6 +80,13 @@ public class ReviewOrchestrator implements AutoCloseable {
             config.githubToken(), config.githubMcpConfig()).orElse(Map.of());
         this.concurrencyLimit = new Semaphore(executionConfig.parallelism());
         this.checkpointRootDirectory = Path.of(executionConfig.checkpointDirectory()).normalize();
+        this.resilienceConfig = config.resilienceConfig() != null
+            ? config.resilienceConfig()
+            : new ResilienceConfig(null, null, null);
+        this.reviewCircuitBreaker = new ApiCircuitBreaker(
+            this.resilienceConfig.review().failureThreshold(),
+            TimeUnit.SECONDS.toMillis(this.resilienceConfig.review().openDurationSeconds()),
+            java.time.Clock.systemUTC());
         this.sharedScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "idle-timeout-shared");
             t.setDaemon(true);
@@ -103,12 +115,14 @@ public class ReviewOrchestrator implements AutoCloseable {
         List<CustomInstruction> customInstructions,
         @Nullable String reasoningEffort,
         @Nullable String outputConstraints,
-        @Nullable ReviewAgent.PromptTemplates promptTemplates
+        @Nullable ReviewAgent.PromptTemplates promptTemplates,
+        @Nullable ResilienceConfig resilienceConfig
     ) {
         public Config {
             executionConfig = Objects.requireNonNull(executionConfig, "executionConfig must not be null");
             localFileConfig = localFileConfig != null ? localFileConfig : new ReviewerConfig.LocalFiles();
             customInstructions = customInstructions != null ? List.copyOf(customInstructions) : List.of();
+            resilienceConfig = resilienceConfig != null ? resilienceConfig : new ResilienceConfig(null, null, null);
         }
     }
 
@@ -139,24 +153,127 @@ public class ReviewOrchestrator implements AutoCloseable {
         long perAgentTimeoutMinutes = perAgentTimeoutMinutes();
         long orchestratorTimeoutMinutes = executionConfig.orchestratorTimeoutMinutes();
 
+        Map<String, List<ReviewResult>> recoveredCheckpoints = loadRecoveredCheckpoints(agents, target, reviewPasses);
+
         List<StructuredTaskScope.Subtask<List<ReviewResult>>> subtasks = new ArrayList<>(agents.size());
-        List<AgentConfig> configs = new ArrayList<>(agents.size());
+        List<AgentConfig> pendingConfigs = new ArrayList<>(agents.size());
 
         try (var scope = StructuredTaskScope.<List<ReviewResult>>open()) {
             for (var config : agents.values()) {
+                if (recoveredCheckpoints.containsKey(config.name())) {
+                    continue;
+                }
                 subtasks.add(scope.fork(() -> executeAgentPassesSafely(
                     config, target, sharedContext, reviewPasses, perAgentTimeoutMinutes)));
-                configs.add(config);
+                pendingConfigs.add(config);
             }
 
             joinStructuredWithTimeout(scope, orchestratorTimeoutMinutes);
 
-            List<ReviewResult> results = new ArrayList<>();
+            List<ReviewResult> results = new ArrayList<>(recoveredCheckpoints.values().stream().mapToInt(List::size).sum());
+            for (var config : agents.values()) {
+                List<ReviewResult> recovered = recoveredCheckpoints.get(config.name());
+                if (recovered != null) {
+                    results.addAll(recovered);
+                }
+            }
             for (int i = 0; i < subtasks.size(); i++) {
-                results.addAll(summarizeTaskResult(subtasks.get(i), configs.get(i), target, reviewPasses));
+                results.addAll(summarizeTaskResult(subtasks.get(i), pendingConfigs.get(i), target, reviewPasses));
             }
             return finalizeResults(results, reviewPasses);
         }
+    }
+
+    private Map<String, List<ReviewResult>> loadRecoveredCheckpoints(Map<String, AgentConfig> agents,
+                                                                     ReviewTarget target,
+                                                                     int reviewPasses) {
+        Map<String, List<ReviewResult>> recovered = new LinkedHashMap<>();
+        if (!Files.isDirectory(checkpointRootDirectory)) {
+            return recovered;
+        }
+
+        String safeTarget = target.displayName().replaceAll("[^a-zA-Z0-9._-]", "_");
+        for (var config : agents.values()) {
+            String safeAgentName = config.name().replaceAll("[^a-zA-Z0-9._-]", "_");
+            Path checkpointPath = checkpointRootDirectory.resolve(safeTarget + "_" + safeAgentName + ".md");
+            if (!Files.exists(checkpointPath)) {
+                continue;
+            }
+
+            try {
+                List<ReviewResult> parsed = parseCheckpoint(checkpointPath, config, target.displayName());
+                if (parsed.size() == reviewPasses && parsed.stream().allMatch(ReviewResult::success)) {
+                    recovered.put(config.name(), parsed);
+                    logger.info("Recovered checkpoint for agent {} ({} pass results)", config.name(), parsed.size());
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to recover checkpoint for {}: {}", config.name(), e.getMessage());
+            }
+        }
+        return recovered;
+    }
+
+    private List<ReviewResult> parseCheckpoint(Path checkpointPath,
+                                               AgentConfig config,
+                                               String repository) throws Exception {
+        List<String> lines = Files.readAllLines(checkpointPath);
+        List<ReviewResult> parsed = new ArrayList<>();
+
+        Boolean currentSuccess = null;
+        String currentError = null;
+        StringBuilder contentBuilder = new StringBuilder();
+        boolean inPassBlock = false;
+
+        for (String line : lines) {
+            if (line.startsWith("## pass-result")) {
+                if (inPassBlock) {
+                    parsed.add(fromCheckpointBlock(config, repository, currentSuccess, currentError, contentBuilder));
+                }
+                inPassBlock = true;
+                currentSuccess = null;
+                currentError = null;
+                contentBuilder = new StringBuilder();
+                continue;
+            }
+            if (!inPassBlock) {
+                continue;
+            }
+            if (line.startsWith("success=")) {
+                currentSuccess = Boolean.parseBoolean(line.substring("success=".length()));
+                continue;
+            }
+            if (line.startsWith("error=")) {
+                currentError = line.substring("error=".length());
+                continue;
+            }
+            if (!line.isBlank()) {
+                if (!contentBuilder.isEmpty()) {
+                    contentBuilder.append('\n');
+                }
+                contentBuilder.append(line);
+            }
+        }
+
+        if (inPassBlock) {
+            parsed.add(fromCheckpointBlock(config, repository, currentSuccess, currentError, contentBuilder));
+        }
+
+        return parsed;
+    }
+
+    private ReviewResult fromCheckpointBlock(AgentConfig config,
+                                             String repository,
+                                             Boolean success,
+                                             String error,
+                                             StringBuilder contentBuilder) {
+        boolean safeSuccess = success != null && success;
+        return ReviewResult.builder()
+            .agentConfig(config)
+            .repository(repository)
+            .success(safeSuccess)
+            .errorMessage(error)
+            .content(contentBuilder.toString())
+            .build();
     }
 
     private void joinStructuredWithTimeout(StructuredTaskScope<List<ReviewResult>, ?> scope,
@@ -276,6 +393,11 @@ public class ReviewOrchestrator implements AutoCloseable {
                 executionConfig.maxAccumulatedSize(),
                 executionConfig.initialAccumulatedCapacity(),
                 executionConfig.instructionBufferExtraCapacity()))
+            .retryConfig(new ReviewContext.RetryConfig(
+                resilienceConfig.review().maxAttempts(),
+                resilienceConfig.review().backoffBaseMs(),
+                resilienceConfig.review().backoffMaxMs()))
+            .circuitBreaker(reviewCircuitBreaker)
             .build();
     }
 

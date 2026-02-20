@@ -4,6 +4,7 @@ import dev.logicojp.reviewer.agent.AgentPromptBuilder;
 import dev.logicojp.reviewer.agent.ReviewAgent;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
+import dev.logicojp.reviewer.config.ResilienceConfig;
 import dev.logicojp.reviewer.config.ReviewerConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.service.CopilotService;
@@ -28,16 +29,19 @@ public class ReviewOrchestratorFactory {
     private final CopilotService copilotService;
     private final GithubMcpConfig githubMcpConfig;
     private final ReviewerConfig reviewerConfig;
+    private final ResilienceConfig resilienceConfig;
     private final TemplateService templateService;
 
     @Inject
     public ReviewOrchestratorFactory(CopilotService copilotService,
                                      GithubMcpConfig githubMcpConfig,
                                      ReviewerConfig reviewerConfig,
+                                     ResilienceConfig resilienceConfig,
                                      TemplateService templateService) {
         this.copilotService = copilotService;
         this.githubMcpConfig = githubMcpConfig;
         this.reviewerConfig = reviewerConfig;
+        this.resilienceConfig = resilienceConfig;
         this.templateService = templateService;
     }
 
@@ -56,7 +60,8 @@ public class ReviewOrchestratorFactory {
             customInstructions,
             reasoningEffort,
             outputConstraints,
-            promptTemplates
+            promptTemplates,
+            resilienceConfig
         );
         return new ReviewOrchestrator(copilotService.getClient(), config);
     }

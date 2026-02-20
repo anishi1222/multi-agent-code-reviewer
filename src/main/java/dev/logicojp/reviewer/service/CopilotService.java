@@ -331,18 +331,17 @@ public class CopilotService {
 
     private void startClient(CopilotClient createdClient, long timeoutSeconds)
         throws InterruptedException {
+        long effectiveTimeoutSeconds = timeoutSeconds > 0
+            ? timeoutSeconds
+            : CopilotConfig.DEFAULT_START_TIMEOUT_SECONDS;
         try {
-            if (timeoutSeconds > 0) {
-                createdClient.start().get(timeoutSeconds, TimeUnit.SECONDS);
-            } else {
-                createdClient.start().get();
-            }
+            createdClient.start().get(effectiveTimeoutSeconds, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             closeQuietly(createdClient);
             throw mapExecutionException(e);
         } catch (TimeoutException e) {
             closeQuietly(createdClient);
-            throw new CopilotCliException(buildClientTimeoutMessage(timeoutSeconds), e);
+            throw new CopilotCliException(buildClientTimeoutMessage(effectiveTimeoutSeconds), e);
         }
     }
 

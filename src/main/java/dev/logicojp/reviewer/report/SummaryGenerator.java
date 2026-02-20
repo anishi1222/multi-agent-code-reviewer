@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.report;
 
 import dev.logicojp.reviewer.config.ExecutionConfig.SummarySettings;
 import dev.logicojp.reviewer.config.ModelConfig;
+import dev.logicojp.reviewer.config.ResilienceConfig;
 import dev.logicojp.reviewer.service.CopilotCliException;
 import dev.logicojp.reviewer.service.TemplateService;
 import dev.logicojp.reviewer.util.ApiCircuitBreaker;
@@ -46,10 +47,6 @@ public class SummaryGenerator {
     private static final Pattern INVOCATION_TIMESTAMP_PATTERN =
         Pattern.compile("\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}");
     private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
-    private static final ApiCircuitBreaker API_CIRCUIT_BREAKER = ApiCircuitBreaker.copilotApi();
-    private static final int SUMMARY_MAX_ATTEMPTS = 3;
-    private static final long BACKOFF_BASE_MS = 500L;
-    private static final long BACKOFF_MAX_MS = 4000L;
 
     private final Path outputDirectory;
     private final CopilotClient client;
@@ -59,6 +56,10 @@ public class SummaryGenerator {
     private final TemplateService templateService;
     private final SummarySettings summarySettings;
     private final String invocationTimestamp;
+    private final ApiCircuitBreaker apiCircuitBreaker;
+    private final int maxAttempts;
+    private final long backoffBaseMs;
+    private final long backoffMaxMs;
 
     public SummaryGenerator(
             Path outputDirectory,
@@ -67,9 +68,10 @@ public class SummaryGenerator {
             String reasoningEffort,
             long timeoutMinutes,
             TemplateService templateService,
-            SummarySettings summarySettings) {
+            SummarySettings summarySettings,
+            ResilienceConfig.OperationSettings resilienceSettings) {
         this(outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes,
-            templateService, summarySettings, Clock.systemDefaultZone());
+            templateService, summarySettings, resilienceSettings, Clock.systemDefaultZone());
     }
 
     SummaryGenerator(
@@ -80,6 +82,7 @@ public class SummaryGenerator {
             long timeoutMinutes,
             TemplateService templateService,
             SummarySettings summarySettings,
+            ResilienceConfig.OperationSettings resilienceSettings,
             Clock clock) {
         this.outputDirectory = outputDirectory;
         this.client = client;
@@ -89,6 +92,16 @@ public class SummaryGenerator {
         this.templateService = templateService;
         this.summarySettings = summarySettings;
         this.invocationTimestamp = LocalDateTime.now(clock).format(TIMESTAMP_FORMATTER);
+        var settings = resilienceSettings != null
+            ? resilienceSettings
+            : ResilienceConfig.OperationSettings.summaryDefaults();
+        this.apiCircuitBreaker = new ApiCircuitBreaker(
+            settings.failureThreshold(),
+            TimeUnit.SECONDS.toMillis(settings.openDurationSeconds()),
+            Clock.systemUTC());
+        this.maxAttempts = settings.maxAttempts();
+        this.backoffBaseMs = settings.backoffBaseMs();
+        this.backoffMaxMs = settings.backoffMaxMs();
     }
 
     // ------------------------------------------------------------------
@@ -123,17 +136,17 @@ public class SummaryGenerator {
         long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutMinutes);
         String prompt = buildSummaryPrompt(results, repository);
 
-        if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
-            long remainingMs = API_CIRCUIT_BREAKER.remainingOpenMs();
+        if (!apiCircuitBreaker.isRequestAllowed()) {
+            long remainingMs = apiCircuitBreaker.remainingOpenMs();
             return fallbackSummary(results,
                 "Copilot API circuit breaker is open (remaining " + remainingMs + " ms)");
         }
 
         try (CopilotSession session = client.createSession(sessionConfig)
                 .get(timeoutMinutes, TimeUnit.MINUTES)) {
-            for (int attempt = 1; attempt <= SUMMARY_MAX_ATTEMPTS; attempt++) {
-                if (!API_CIRCUIT_BREAKER.isRequestAllowed()) {
-                    long remainingMs = API_CIRCUIT_BREAKER.remainingOpenMs();
+            for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                if (!apiCircuitBreaker.isRequestAllowed()) {
+                    long remainingMs = apiCircuitBreaker.remainingOpenMs();
                     return fallbackSummary(results,
                         "Copilot API circuit breaker is open (remaining " + remainingMs + " ms)");
                 }
@@ -144,22 +157,22 @@ public class SummaryGenerator {
                     .get(timeoutMinutes, TimeUnit.MINUTES);
                 String content = response.getData().content();
                 if (content == null || content.isBlank()) {
-                    API_CIRCUIT_BREAKER.recordFailure();
-                    if (attempt < SUMMARY_MAX_ATTEMPTS) {
-                        BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
+                    apiCircuitBreaker.recordFailure();
+                    if (attempt < maxAttempts) {
+                        BackoffUtils.sleepWithJitterQuietly(attempt, backoffBaseMs, backoffMaxMs);
                         continue;
                     }
                     return fallbackSummary(results, "AI summary response was empty");
                 }
 
-                API_CIRCUIT_BREAKER.recordSuccess();
+                apiCircuitBreaker.recordSuccess();
                 return content;
                 } catch (ExecutionException | TimeoutException e) {
-                    API_CIRCUIT_BREAKER.recordFailure();
-                    if (attempt < SUMMARY_MAX_ATTEMPTS) {
+                    apiCircuitBreaker.recordFailure();
+                    if (attempt < maxAttempts) {
                         logger.warn("Summary generation attempt {}/{} failed: {}",
-                            attempt, SUMMARY_MAX_ATTEMPTS, e.getMessage());
-                        BackoffUtils.sleepWithJitterQuietly(attempt, BACKOFF_BASE_MS, BACKOFF_MAX_MS);
+                            attempt, maxAttempts, e.getMessage());
+                        BackoffUtils.sleepWithJitterQuietly(attempt, backoffBaseMs, backoffMaxMs);
                         continue;
                     }
                     return fallbackSummary(results,
@@ -167,7 +180,7 @@ public class SummaryGenerator {
                 }
             }
         } catch (ExecutionException | TimeoutException e) {
-            API_CIRCUIT_BREAKER.recordFailure();
+            apiCircuitBreaker.recordFailure();
             return fallbackSummary(results,
                 "Failed to create summary session: " + e.getMessage());
         } catch (InterruptedException _) {
