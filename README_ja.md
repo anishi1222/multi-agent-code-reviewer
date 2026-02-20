@@ -25,27 +25,11 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 ## 最新リメディエーション状況
 
-2026-02-16 〜 2026-02-19 のレビューサイクルで検出された全指摘事項は対応済みです。
+2026-02-16 〜 2026-02-20 のレビューサイクルで検出された全指摘事項は対応済みです。
 
-- 2026-02-20: WAF Reliability対応 — `ApiCircuitBreaker` にhalf-openプローブと用途別分離（review/summary/skill）を導入、`ReviewAgent` に一時障害判定を追加し非再試行エラーを即打ち切り、`ReviewOrchestrator` にチェックポイント復旧パスを追加、`CopilotService.startClient()` の無期限待機を解消、`ResilienceConfig` で回復性パラメータを `application.yml` から外部化、`SummaryGenerator` / `SkillExecutor` に専用CB・再試行設定を適用
-- 2026-02-19 (v12): ベストプラクティス指摘対応 — `TemplateService` のキャッシュ同期を整理しつつ決定的LRU挙動を維持、`SkillService` の手動実行器キャッシュ管理を Caffeine + エビクション時クローズへ置換、`CliParsing.TokenInput` によりCLIトークン読込のシステムI/O依存を抽象化、`ContentCollector` の連結キャッシュロックを簡素化、`AgentMarkdownParser` のセクション解析可読性改善、`ReviewExecutionModeRunner` のマルチパス開始ログを実行実態に一致させ、`GithubMcpConfig` のMapラッパー委譲メソッドを補完、`ReviewResult` のデフォルトtimestamp処理を簡素化、`SkillExecutor` のFQCN呼出しを解消、`CopilotService` / `ReviewOrchestrator` に並行設計意図コメントを補強
-- 2026-02-19 (v11): コード品質指摘対応 — 共通 `TokenHashUtils` によるトークンSHA-256ハッシュの一元化、`ReviewResult.failedResults(...)` による失敗結果生成の共通化、`ReviewOrchestrator` のネスト型（`OrchestratorConfig` / `PromptTexts` / 協調インターフェース・レコード群）をトップレベル型へ分離、`ScopedInstructionLoader` のストリーム内副作用try-catchを明示ループ+分離I/O処理へ整理、`ExecutionConfig` にグルーピング設定（`ConcurrencySettings` / `TimeoutSettings` / `RetrySettings` / `BufferSettings`）とファクトリを追加、デッドコード削除（`ReviewResultPipeline.collectFromFutures`・未使用 `ReviewFindingSimilarity.WHITESPACE`）、`ReviewCommand` / `SkillCommand` 専用ユニットテスト追加
-- 2026-02-19 (v10): パフォーマンス + WAF セキュリティ強化対応 — マージ処理の重複キー抽出を排除（`findingKeyFromNormalized` 再利用）、近似重複探索に priority+タイトルprefixインデックスを追加、ローカルファイル読込バッファの初期容量最適化、フォールバック要約の正規表現を事前コンパイル化、構造化 `SECURITY_AUDIT` ログ導入、`--verbose` 時でも Copilot SDK ロガーを `WARN` 固定、POSIX環境でレポート出力を owner-only 権限化、Maven `dependencyConvergence` 追加、週次 OWASP 依存関係監査ワークフロー追加
-- 2026-02-19 (v9): セキュリティ追従対応完了 — エージェント定義の疑わしいパターン検証を全プロンプト注入フィールドへ拡張し、MCPヘッダーのマスキング経路（`entrySet`/`values` 文字列化）を強化、さらに `--token -` の標準入力読込を解決境界まで遅延してトークン露出時間を短縮
-- 2026-02-19 (v8): 命名規則整合対応 — エグゼクティブサマリー出力を `reports/{owner}/{repo}/executive_summary_yyyy-mm-dd-HH-mm-ss.md`（CLI呼び出し時刻）へ同期し、README EN/JA の出力例とテストを一致
-- 2026-02-19 (v7): セキュリティレポート追従対応 — `LocalFileConfig` の機密ファイルパターンのフォールバックをリソース定義と同期し、OWASP `dependency-check-maven` を実行できる任意プロファイル `security-audit` を追加
-- 2026-02-19 (v6): リリース文書集約対応 — RELEASE_NOTES EN/JA に 2026-02-19 Daily Rollup を公開
-- 2026-02-19 (v5): ドキュメント整備対応 — v2-v4 の進行を簡潔な運用サマリーとして追記
-- 2026-02-19 (v4): ドキュメント同期対応 — 運用完了チェックを 2026-02-19 に更新し、PR #76 完了を明示
-- 2026-02-19 (v3): 信頼性対応 — idle-timeout scheduler 停止時も継続し、`RejectedExecutionException` のリトライ連鎖を防止
-- 2026-02-19 (v2): CI整合性対応 — CodeQL ワークフローの JDK を 26 から 25 へ変更し、Java 25.0.2 方針に統一
-- 2026-02-19 (v1): マルチパスレビュー性能改善対応 — 同一エージェント内で `CopilotSession` を再利用し、実行経路をエージェント単位へリファクタ
-- 2026-02-18: ベストプラクティスレビュー指摘対応 — コンパクトコンストラクタ・防御的コピー追加、SLF4Jスタックトレース出力改善、設定レコード拡張、SkillConfig.defaults()ファクトリ導入
-- 2026-02-17 (v2): PRs #34〜#40 — セキュリティ、パフォーマンス、コード品質、ベストプラクティス修正 + 108テスト追加
-- 2026-02-17 (v1): PRs #22〜#27 — 最終リメディエーション（PR-1〜PR-5）
-- 運用サマリー（2026-02-19 v2-v4）: Java 25 へのCI整合（PR #74）→ idle-timeout scheduler 耐障害性修正（PR #76）→ 運用完了チェック同期（PR #78）
-- リリース詳細: `RELEASE_NOTES_ja.md`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.02.19-notes-v12
+変更履歴の詳細は [`RELEASE_NOTES_en.md`](RELEASE_NOTES_en.md) を参照してください。
+
+- 最新: [v2026.02.20-reliability](https://github.com/anishi1222/multi-agent-code-reviewer-v2/releases/tag/v2026.02.20-reliability) — WAF Reliability対応（Circuit Breaker分離・再試行制御・チェックポイント復旧）
 
 ## 運用完了チェック（2026-02-20）
 
