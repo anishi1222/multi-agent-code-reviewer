@@ -21,6 +21,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 /// Collects, filters, reads, and formats local source files for review.
@@ -40,6 +43,8 @@ public class LocalFileProvider {
         Map.entry("ps1", "powershell"), Map.entry("psm1", "powershell"),
         Map.entry("yml", "yaml"), Map.entry("md", "markdown")
     );
+
+    private static final int PARALLEL_PROCESSING_THRESHOLD = 24;
 
     // --- Public records ---
 
@@ -107,6 +112,8 @@ public class LocalFileProvider {
     }
 
     private record ProcessingResult(long totalSize, int fileCount) {}
+
+    private record CandidateSelection(List<Candidate> candidates, long skippedLargeFilesTotalSize) {}
 
     // --- Fields ---
 
@@ -271,6 +278,13 @@ public class LocalFileProvider {
     // --- Candidate processing (read with limits) ---
 
     private ProcessingResult processCandidates(List<Candidate> candidates, FileConsumer consumer) {
+        if (candidates.size() >= PARALLEL_PROCESSING_THRESHOLD) {
+            return processCandidatesParallel(candidates, consumer);
+        }
+        return processCandidatesSequential(candidates, consumer);
+    }
+
+    private ProcessingResult processCandidatesSequential(List<Candidate> candidates, FileConsumer consumer) {
         long totalSize = 0;
         int fileCount = 0;
         for (Candidate candidate : candidates) {
@@ -282,6 +296,76 @@ public class LocalFileProvider {
             fileCount++;
         }
         return new ProcessingResult(totalSize, fileCount);
+    }
+
+    private ProcessingResult processCandidatesParallel(List<Candidate> candidates, FileConsumer consumer) {
+        CandidateSelection selection = selectCandidatesWithinTotalBudget(candidates);
+        List<Candidate> selectedCandidates = selection.candidates();
+        if (selectedCandidates.isEmpty()) {
+            return new ProcessingResult(0, 0);
+        }
+
+        List<Future<ProcessedCandidate>> futures = new ArrayList<>(selectedCandidates.size());
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (Candidate candidate : selectedCandidates) {
+                futures.add(executor.submit(() -> processCandidateWithoutTotalBudget(candidate)));
+            }
+
+            long totalSize = 0;
+            int fileCount = 0;
+            for (int i = 0; i < selectedCandidates.size(); i++) {
+                Candidate candidate = selectedCandidates.get(i);
+                ProcessedCandidate processed = awaitProcessedCandidate(futures.get(i), candidate.path());
+                if (processed == null || !processed.included()) {
+                    continue;
+                }
+                if (totalSize + processed.size() > selectionConfig.maxTotalSize()) {
+                    logger.warn("Total content size limit reached ({} bytes). Stopping collection.", totalSize);
+                    break;
+                }
+
+                consumer.accept(processed.relativePath(), processed.content(), processed.size());
+                totalSize += processed.size();
+                fileCount++;
+            }
+            return new ProcessingResult(totalSize, fileCount);
+        }
+    }
+
+    private CandidateSelection selectCandidatesWithinTotalBudget(List<Candidate> candidates) {
+        long selectedTotalSize = 0;
+        long skippedLargeFilesTotalSize = 0;
+        List<Candidate> selected = new ArrayList<>(candidates.size());
+
+        for (Candidate candidate : candidates) {
+            long size = candidate.size();
+            if (size > selectionConfig.maxFileSize()) {
+                skippedLargeFilesTotalSize += size;
+                logger.debug("Skipping large file ({} bytes): {}", size, candidate.path());
+                continue;
+            }
+            if (selectedTotalSize + size > selectionConfig.maxTotalSize()) {
+                logger.warn("Total content size limit reached ({} bytes). Stopping collection.", selectedTotalSize);
+                break;
+            }
+            selected.add(candidate);
+            selectedTotalSize += size;
+        }
+
+        return new CandidateSelection(List.copyOf(selected), skippedLargeFilesTotalSize);
+    }
+
+    private ProcessedCandidate awaitProcessedCandidate(Future<ProcessedCandidate> future, Path path) {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Interrupted while reading file {}", path);
+            return null;
+        } catch (ExecutionException e) {
+            logger.warn("Failed to read file {}: {}", path, e.getMessage(), e);
+            return null;
+        }
     }
 
     private ProcessedCandidate processCandidate(Candidate candidate, long totalSize) {
@@ -299,6 +383,35 @@ public class LocalFileProvider {
             return ProcessedCandidate.stop();
         }
         try {
+            return processCandidateRead(path, size, maxFileSize, maxTotalSize - totalSize);
+        } catch (IOException e) {
+            logger.warn("Failed to read file {}: {}", candidate.path(), e.getMessage(), e);
+            return ProcessedCandidate.skip();
+        }
+    }
+
+    private ProcessedCandidate processCandidateWithoutTotalBudget(Candidate candidate) {
+        Path path = candidate.path();
+        long size = candidate.size();
+        long maxFileSize = selectionConfig.maxFileSize();
+
+        if (size > maxFileSize) {
+            logger.debug("Skipping large file ({} bytes): {}", size, path);
+            return ProcessedCandidate.skip();
+        }
+
+        try {
+            return processCandidateRead(path, size, maxFileSize, maxFileSize);
+        } catch (IOException e) {
+            logger.warn("Failed to read file {}: {}", candidate.path(), e.getMessage(), e);
+            return ProcessedCandidate.skip();
+        }
+    }
+
+    private ProcessedCandidate processCandidateRead(Path path,
+                                                    long size,
+                                                    long maxFileSize,
+                                                    long readBudget) throws IOException {
             if (Files.isSymbolicLink(path)) {
                 logger.warn("File became symbolic link after collection, skipping: {}", path);
                 return ProcessedCandidate.skip();
@@ -308,27 +421,22 @@ public class LocalFileProvider {
                 logger.warn("File escaped base directory (possible race), skipping: {}", path);
                 return ProcessedCandidate.skip();
             }
-            long remainingBudget = maxTotalSize - totalSize;
-            long readLimit = Math.min(maxFileSize, remainingBudget);
+            long readLimit = Math.min(maxFileSize, readBudget);
             if (readLimit <= 0) {
-                logger.warn("Total content size limit reached ({} bytes). Stopping collection.", totalSize);
+                logger.warn("Total content size limit reached. Stopping collection.");
                 return ProcessedCandidate.stop();
             }
             ReadResult readResult = readUtf8WithLimit(realPath, readLimit, size);
             if (readResult.exceededLimit()) {
-                if (maxFileSize <= remainingBudget) {
+                if (readLimit == maxFileSize) {
                     logger.warn("File size exceeded limit during read (possible race), skipping: {}", path);
                     return ProcessedCandidate.skip();
                 }
-                logger.warn("Total content size limit reached ({} bytes). Stopping collection.", totalSize);
+                logger.warn("Total content size limit reached. Stopping collection.");
                 return ProcessedCandidate.stop();
             }
             String relativePath = baseDirectory.relativize(path).toString().replace('\\', '/');
             return ProcessedCandidate.included(relativePath, readResult.content(), readResult.sizeBytes());
-        } catch (IOException e) {
-            logger.warn("Failed to read file {}: {}", candidate.path(), e.getMessage(), e);
-            return ProcessedCandidate.skip();
-        }
     }
 
     private ReadResult readUtf8WithLimit(Path path, long maxBytes, long expectedSize) throws IOException {

@@ -26,6 +26,7 @@ public class SkillService {
     private final ExecutionConfig executionConfig;
     private final ReviewerConfig.Skills skillsConfig;
     private final Cache<ExecutorCacheKey, SkillExecutor> executorCache;
+    private final Cache<String, Map<String, Object>> mcpServerCache;
 
     @Inject
     public SkillService(SkillRegistry skillRegistry,
@@ -39,6 +40,10 @@ public class SkillService {
         this.executionConfig = executionConfig;
         this.skillsConfig = reviewerConfig.skills();
         this.executorCache = Caffeine.newBuilder()
+            .initialCapacity(skillsConfig.executorCacheInitialCapacity())
+            .maximumSize(skillsConfig.maxExecutorCacheSize())
+            .build();
+        this.mcpServerCache = Caffeine.newBuilder()
             .initialCapacity(skillsConfig.executorCacheInitialCapacity())
             .maximumSize(skillsConfig.maxExecutorCacheSize())
             .build();
@@ -84,13 +89,15 @@ public class SkillService {
     }
 
     private SkillExecutor createExecutor(String githubToken, String model) {
+        String tokenDigest = TokenHashUtils.sha256HexOrEmpty(githubToken);
+        Map<String, Object> mcpServers = mcpServerCache.get(tokenDigest,
+            _ -> GithubMcpConfig.buildMcpServers(githubToken, githubMcpConfig).orElse(Map.of()));
         var key = new ExecutorCacheKey(
-            TokenHashUtils.sha256HexOrEmpty(githubToken),
+            tokenDigest,
             model);
         return executorCache.get(key, _ -> new SkillExecutor(
             copilotService.getClient(),
-            githubToken,
-            githubMcpConfig,
+            mcpServers,
             new SkillExecutor.Config(
                 model,
                 executionConfig.skillTimeoutMinutes(),
@@ -108,5 +115,6 @@ public class SkillService {
     @PreDestroy
     public void shutdown() {
         executorCache.invalidateAll();
+        mcpServerCache.invalidateAll();
     }
 }
