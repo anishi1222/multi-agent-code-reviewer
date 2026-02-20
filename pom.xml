@@ -27,6 +27,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Application dependencies -->
+        <assertj.version>3.27.7</assertj.version>
         <copilot.sdk.version>1.0.9</copilot.sdk.version>
         <graalvm.version>25.0.2</graalvm.version>
         <dependency.check.version>12.2.0</dependency.check.version>
