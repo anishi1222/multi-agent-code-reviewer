@@ -20,6 +20,7 @@ reviewer:
     max-accumulated-size: 4194304
     initial-accumulated-capacity: 4096
     instruction-buffer-extra-capacity: 32
+    checkpoint-directory: reports/.checkpoints
     summary:
       max-content-per-agent: 50000
       max-total-prompt-content: 200000

@@ -414,6 +414,7 @@ reviewer:
     summary-timeout-minutes: 20 # Summary timeout (minutes)
     gh-auth-timeout-seconds: 30 # GitHub auth timeout (seconds)
     max-retries: 2              # Max retry count on review failure
+    checkpoint-directory: reports/.checkpoints # Intermediate checkpoint output directory
     summary:
       max-content-per-agent: 50000     # Max characters per agent content for summary prompt
       max-total-prompt-content: 200000 # Max total prompt characters for summary generation

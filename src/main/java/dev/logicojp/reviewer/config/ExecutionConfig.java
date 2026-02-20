@@ -20,6 +20,7 @@ public record ExecutionConfig(
     int maxAccumulatedSize,
     int initialAccumulatedCapacity,
     int instructionBufferExtraCapacity,
+    String checkpointDirectory,
     SummarySettings summary
 ) {
 
@@ -35,6 +36,7 @@ public record ExecutionConfig(
     public static final int DEFAULT_MAX_ACCUMULATED_SIZE = 4 * 1024 * 1024;
     public static final int DEFAULT_INITIAL_ACCUMULATED_CAPACITY = 4096;
     public static final int DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY = 32;
+    public static final String DEFAULT_CHECKPOINT_DIRECTORY = "reports/.checkpoints";
 
     public ExecutionConfig {
         parallelism = ConfigDefaults.defaultIfNonPositive(parallelism, DEFAULT_PARALLELISM);
@@ -49,6 +51,7 @@ public record ExecutionConfig(
         maxAccumulatedSize = ConfigDefaults.defaultIfNonPositive(maxAccumulatedSize, DEFAULT_MAX_ACCUMULATED_SIZE);
         initialAccumulatedCapacity = ConfigDefaults.defaultIfNonPositive(initialAccumulatedCapacity, DEFAULT_INITIAL_ACCUMULATED_CAPACITY);
         instructionBufferExtraCapacity = ConfigDefaults.defaultIfNonPositive(instructionBufferExtraCapacity, DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY);
+        checkpointDirectory = ConfigDefaults.defaultIfBlank(checkpointDirectory, DEFAULT_CHECKPOINT_DIRECTORY);
         summary = summary != null ? summary : new SummarySettings(0, 0, 0, 0, 0, 0);
     }
 
@@ -59,6 +62,7 @@ public record ExecutionConfig(
             agentTimeoutMinutes, idleTimeoutMinutes, skillTimeoutMinutes,
             summaryTimeoutMinutes, ghAuthTimeoutSeconds, maxRetries,
             maxAccumulatedSize, initialAccumulatedCapacity, instructionBufferExtraCapacity,
+            checkpointDirectory,
             summary
         );
     }

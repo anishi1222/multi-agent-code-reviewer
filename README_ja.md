@@ -417,6 +417,7 @@ reviewer:
     summary-timeout-minutes: 20 # サマリータイムアウト（分）
     gh-auth-timeout-seconds: 30 # GitHub認証タイムアウト（秒）
     max-retries: 2              # レビュー失敗時の最大リトライ回数
+    checkpoint-directory: reports/.checkpoints # 中間チェックポイントの出力先
     summary:                    # サマリー生成制限設定
       max-content-per-agent: 50000     # エージェント別最大文字数
       max-total-prompt-content: 200000 # 総プロンプト最大文字数

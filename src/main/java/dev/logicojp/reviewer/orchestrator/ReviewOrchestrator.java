@@ -78,7 +78,7 @@ public class ReviewOrchestrator implements AutoCloseable {
         this.cachedMcpServers = GithubMcpConfig.buildMcpServers(
             config.githubToken(), config.githubMcpConfig()).orElse(Map.of());
         this.concurrencyLimit = new Semaphore(executionConfig.parallelism());
-        this.checkpointRootDirectory = Path.of("reports", ".checkpoints");
+        this.checkpointRootDirectory = Path.of(executionConfig.checkpointDirectory()).normalize();
         this.agentExecutionExecutor = Executors.newThreadPerTaskExecutor(
             Thread.ofVirtual().name("agent-execution-", 0).factory());
         this.sharedScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
