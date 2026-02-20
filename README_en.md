@@ -27,6 +27,7 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 All review findings from 2026-02-16 through 2026-02-19 review cycles have been fully addressed.
 
+- 2026-02-20: WAF Reliability remediation — introduced half-open probe and per-operation isolation (review/summary/skill) in `ApiCircuitBreaker`, added transient-failure classification in `ReviewAgent` to skip non-retryable errors, added checkpoint recovery path in `ReviewOrchestrator`, eliminated unbounded `startClient()` wait in `CopilotService`, externalized resilience parameters via `ResilienceConfig` + `application.yml`, applied dedicated CB and retry settings to `SummaryGenerator` / `SkillExecutor`
 - 2026-02-19 (v12): Best-practices remediation — simplified `TemplateService` cache synchronization with deterministic LRU behavior, replaced `SkillService` manual executor-cache management with Caffeine eviction + close-on-evict, abstracted CLI token input handling (`CliParsing.TokenInput`) from direct system I/O, simplified `ContentCollector` joined-content cache locking, improved section parsing readability in `AgentMarkdownParser`, made multi-pass start logging in `ReviewExecutionModeRunner` accurate, completed delegation methods in `GithubMcpConfig` map wrappers, simplified `ReviewResult` default timestamp handling, removed FQCN utility usage in `SkillExecutor`, and clarified concurrency/threading design intent in `CopilotService` and `ReviewOrchestrator`
 - 2026-02-19 (v11): Code quality remediation — centralized token hashing via shared `TokenHashUtils`, unified orchestrator failure-result generation with `ReviewResult.failedResults(...)`, extracted orchestrator nested types (`OrchestratorConfig`, `PromptTexts`, and collaborator interfaces/records) into top-level package types, refactored scoped-instruction loading to avoid stream-side-effect try/catch blocks, introduced grouped execution settings (`ConcurrencySettings`, `TimeoutSettings`, `RetrySettings`, `BufferSettings`) with factory access, removed dead code (`ReviewResultPipeline.collectFromFutures`) and unused similarity field, and added dedicated command tests for `ReviewCommand` / `SkillCommand`
 - 2026-02-19 (v10): Performance + WAF security hardening — eliminated redundant finding-key extraction in merge flow, added prefix-indexed near-duplicate lookup, optimized local file read buffer sizing, precompiled fallback whitespace regex, introduced structured security audit logging, enforced SDK WARN level even in verbose mode, applied owner-only report output permissions on POSIX, added Maven `dependencyConvergence`, and added weekly OWASP dependency-audit workflow
@@ -46,11 +47,11 @@ All review findings from 2026-02-16 through 2026-02-19 review cycles have been f
 - Release details: `RELEASE_NOTES_en.md`
 - GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.02.19-notes-v12
 
-## Operational Completion Check (2026-02-19)
+## Operational Completion Check (2026-02-20)
 
-- Last updated: 2026-02-19 (v12)
+- Last updated: 2026-02-20
 
-- [x] All review findings addressed
+- [x] All review findings addressed (including 7 WAF Reliability items)
 - [x] Full test suite passing (0 failures)
 - [x] Reliability fix PR merged: #76 (idle-timeout scheduler shutdown fallback)
 - [x] Sensitive-pattern fallback sync completed (`LocalFileConfig`)
@@ -84,6 +85,13 @@ All review findings from 2026-02-16 through 2026-02-19 review cycles have been f
 - [x] `SkillExecutor` FQCN utility call removed (`ExecutorUtils` import)
 - [x] Concurrency/threading design intent documentation reinforced (`CopilotService`, `ReviewOrchestrator`)
 - [x] README EN/JA synchronized
+- [x] `ApiCircuitBreaker` half-open probe introduced for gradual recovery
+- [x] Circuit breaker isolated per operation type (review/summary/skill)
+- [x] `ReviewAgent` `isRetryable()` added to retry only transient failures
+- [x] `ReviewOrchestrator` checkpoint recovery path added (reuse successful passes)
+- [x] `CopilotService.startClient()` unbounded wait eliminated (always bounded timeout)
+- [x] `ResilienceConfig` + `application.yml` `reviewer.resilience` externalized resilience parameters
+- [x] `SummaryGenerator` / `SkillExecutor` use dedicated CB and retry settings
 
 ## Release Update Procedure (Template)
 
@@ -958,6 +966,7 @@ multi-agent-reviewer/
     │   ├── ExecutionConfig.java         # Execution config
     │   ├── GithubMcpConfig.java         # GitHub MCP config
     │   ├── ModelConfig.java             # LLM model config
+    │   ├── ResilienceConfig.java         # Resilience config (CB, retry, backoff)
     │   ├── ReviewerConfig.java          # Unified config (agents, local-files, skills)
     │   └── TemplateConfig.java          # Template config
     ├── instruction/
@@ -990,7 +999,8 @@ multi-agent-reviewer/
     │   ├── LocalFileProvider.java       # Local file collector
     │   └── ReviewTarget.java            # Review target (sealed interface)
     └── util/
-      ├── BackoffUtils.java           # Retry backoff + jitter utility
+        ├── ApiCircuitBreaker.java       # Lightweight circuit breaker (half-open support)
+        ├── BackoffUtils.java            # Retry backoff + jitter utility
         ├── CliPathResolver.java         # CLI path resolver
         ├── FrontmatterParser.java       # YAML frontmatter parser
         ├── GitHubTokenResolver.java     # GitHub token resolution

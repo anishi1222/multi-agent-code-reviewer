@@ -27,6 +27,7 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 2026-02-16 〜 2026-02-19 のレビューサイクルで検出された全指摘事項は対応済みです。
 
+- 2026-02-20: WAF Reliability対応 — `ApiCircuitBreaker` にhalf-openプローブと用途別分離（review/summary/skill）を導入、`ReviewAgent` に一時障害判定を追加し非再試行エラーを即打ち切り、`ReviewOrchestrator` にチェックポイント復旧パスを追加、`CopilotService.startClient()` の無期限待機を解消、`ResilienceConfig` で回復性パラメータを `application.yml` から外部化、`SummaryGenerator` / `SkillExecutor` に専用CB・再試行設定を適用
 - 2026-02-19 (v12): ベストプラクティス指摘対応 — `TemplateService` のキャッシュ同期を整理しつつ決定的LRU挙動を維持、`SkillService` の手動実行器キャッシュ管理を Caffeine + エビクション時クローズへ置換、`CliParsing.TokenInput` によりCLIトークン読込のシステムI/O依存を抽象化、`ContentCollector` の連結キャッシュロックを簡素化、`AgentMarkdownParser` のセクション解析可読性改善、`ReviewExecutionModeRunner` のマルチパス開始ログを実行実態に一致させ、`GithubMcpConfig` のMapラッパー委譲メソッドを補完、`ReviewResult` のデフォルトtimestamp処理を簡素化、`SkillExecutor` のFQCN呼出しを解消、`CopilotService` / `ReviewOrchestrator` に並行設計意図コメントを補強
 - 2026-02-19 (v11): コード品質指摘対応 — 共通 `TokenHashUtils` によるトークンSHA-256ハッシュの一元化、`ReviewResult.failedResults(...)` による失敗結果生成の共通化、`ReviewOrchestrator` のネスト型（`OrchestratorConfig` / `PromptTexts` / 協調インターフェース・レコード群）をトップレベル型へ分離、`ScopedInstructionLoader` のストリーム内副作用try-catchを明示ループ+分離I/O処理へ整理、`ExecutionConfig` にグルーピング設定（`ConcurrencySettings` / `TimeoutSettings` / `RetrySettings` / `BufferSettings`）とファクトリを追加、デッドコード削除（`ReviewResultPipeline.collectFromFutures`・未使用 `ReviewFindingSimilarity.WHITESPACE`）、`ReviewCommand` / `SkillCommand` 専用ユニットテスト追加
 - 2026-02-19 (v10): パフォーマンス + WAF セキュリティ強化対応 — マージ処理の重複キー抽出を排除（`findingKeyFromNormalized` 再利用）、近似重複探索に priority+タイトルprefixインデックスを追加、ローカルファイル読込バッファの初期容量最適化、フォールバック要約の正規表現を事前コンパイル化、構造化 `SECURITY_AUDIT` ログ導入、`--verbose` 時でも Copilot SDK ロガーを `WARN` 固定、POSIX環境でレポート出力を owner-only 権限化、Maven `dependencyConvergence` 追加、週次 OWASP 依存関係監査ワークフロー追加
@@ -46,11 +47,11 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 - リリース詳細: `RELEASE_NOTES_ja.md`
 - GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.02.19-notes-v12
 
-## 運用完了チェック（2026-02-19）
+## 運用完了チェック（2026-02-20）
 
-- 最終更新: 2026-02-19 (v12)
+- 最終更新: 2026-02-20
 
-- [x] 全レビュー指摘事項を対応完了
+- [x] 全レビュー指摘事項を対応完了（WAF Reliability 7件含む）
 - [x] 全テストスイート合格（0失敗）
 - [x] 信頼性修正PRをマージ完了: #76（idle-timeout scheduler 停止時フォールバック）
 - [x] 機密ファイルパターンのフォールバック同期を完了（`LocalFileConfig`）
@@ -84,6 +85,13 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 - [x] `SkillExecutor` のFQCNユーティリティ呼出しを解消（`ExecutorUtils` import）
 - [x] `CopilotService` / `ReviewOrchestrator` の並行設計意図コメントを補強
 - [x] README EN/JA を同期
+- [x] `ApiCircuitBreaker` にhalf-openプローブを導入し段階的回復を実現
+- [x] Circuit Breakerを用途別（review/summary/skill）に分離して障害分離を強化
+- [x] `ReviewAgent` に `isRetryable()` を追加し一時障害のみリトライ
+- [x] `ReviewOrchestrator` にチェックポイント復旧パスを追加（成功済みpass再利用）
+- [x] `CopilotService.startClient()` の無期限待機を解消（常時タイムアウト境界を適用）
+- [x] `ResilienceConfig` と `application.yml` `reviewer.resilience` で回復性パラメータを外部化
+- [x] `SummaryGenerator` / `SkillExecutor` に専用CB・再試行設定を適用
 
 ## リリース更新手順（テンプレート）
 
@@ -958,6 +966,7 @@ multi-agent-reviewer/
     │   ├── ExecutionConfig.java         # 実行設定
     │   ├── GithubMcpConfig.java         # GitHub MCP設定
     │   ├── ModelConfig.java             # LLMモデル設定
+    │   ├── ResilienceConfig.java         # 回復性設定（CB・リトライ・バックオフ）
     │   ├── ReviewerConfig.java          # 統合設定（agents, local-files, skills）
     │   └── TemplateConfig.java          # テンプレート設定
     ├── instruction/
@@ -990,7 +999,8 @@ multi-agent-reviewer/
     │   ├── LocalFileProvider.java       # ローカルファイル収集
     │   └── ReviewTarget.java            # レビュー対象（sealed interface）
     └── util/
-      ├── BackoffUtils.java           # リトライ用バックオフ + ジッターユーティリティ
+        ├── ApiCircuitBreaker.java       # 軽量サーキットブレーカー（half-open対応）
+        ├── BackoffUtils.java            # リトライ用バックオフ + ジッターユーティリティ
         ├── CliPathResolver.java         # CLIパス解決
         ├── FrontmatterParser.java       # YAMLフロントマターパーサー
         ├── GitHubTokenResolver.java     # GitHubトークン解決
