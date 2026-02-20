@@ -484,6 +484,19 @@ export REVIEWER_EXECUTION_PARALLELISM=8
 java -jar multi-agent-code-reviewer.jar
 ```
 
+**環境別プロファイルファイル（`application-dev.yml` / `application-ci.yml` / `application-prod.yml`）を使う方法:**
+
+```bash
+# 開発プロファイル
+java -Dmicronaut.environments=dev -jar multi-agent-code-reviewer.jar
+
+# CIプロファイル
+java -Dmicronaut.environments=ci -jar multi-agent-code-reviewer.jar
+
+# 本番プロファイル
+java -Dmicronaut.environments=prod -jar multi-agent-code-reviewer.jar
+```
+
 > **注意:** 外部の `application.yml` には上書きしたいプロパティだけを記述すれば十分です。ファイル全体をコピーする必要はありません。
 
 設定は以下の優先順位で解決されます（上が最優先）：

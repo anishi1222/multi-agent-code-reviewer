@@ -484,6 +484,19 @@ export REVIEWER_EXECUTION_PARALLELISM=8
 java -jar multi-agent-code-reviewer.jar
 ```
 
+**Or use environment-specific profile files (`application-dev.yml`, `application-ci.yml`, `application-prod.yml`):**
+
+```bash
+# Development profile
+java -Dmicronaut.environments=dev -jar multi-agent-code-reviewer.jar
+
+# CI profile
+java -Dmicronaut.environments=ci -jar multi-agent-code-reviewer.jar
+
+# Production profile
+java -Dmicronaut.environments=prod -jar multi-agent-code-reviewer.jar
+```
+
 > **Note:** The external `application.yml` only needs to contain the properties you want to override — you do not need to copy the entire file.
 
 Configuration is resolved in the following priority order (highest first):
