@@ -1,6 +1,5 @@
 package dev.logicojp.reviewer.skill;
 
-import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.util.ApiCircuitBreaker;
 import dev.logicojp.reviewer.util.BackoffUtils;
 import dev.logicojp.reviewer.util.StructuredConcurrencyUtils;
@@ -77,14 +76,16 @@ public class SkillExecutor {
     private final int maxParameterValueLength;
     private final Map<String, Object> cachedMcpServers;
 
-    public SkillExecutor(CopilotClient client, String githubToken,
-                         GithubMcpConfig githubMcpConfig,
+    public SkillExecutor(CopilotClient client,
+                         Map<String, Object> mcpServers,
                          Config config) {
         this.client = client;
         this.defaultModel = config.defaultModel();
         this.timeoutMinutes = config.timeoutMinutes();
         this.maxParameterValueLength = config.maxParameterValueLength();
-        this.cachedMcpServers = GithubMcpConfig.buildMcpServers(githubToken, githubMcpConfig).orElse(Map.of());
+        this.cachedMcpServers = (mcpServers == null || mcpServers.isEmpty())
+            ? Map.of()
+            : Map.copyOf(mcpServers);
     }
 
     /// Executes a skill with the given parameters.
