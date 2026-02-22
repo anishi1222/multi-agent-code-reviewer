@@ -16,7 +16,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 - English: [README_en.md](./README_en.md)
 - 日本語: [README_ja.md](./README_ja.md)
 - Release Notes (EN): [RELEASE_NOTES.md](./RELEASE_NOTES.md)
-- ※日本語のリリースノートはありません。
+- ※日本語のリリースノートはありませんが、英語版の [RELEASE_NOTES.md](./RELEASE_NOTES.md) を参照してください。
 
 ### Doc Sync Note
 
