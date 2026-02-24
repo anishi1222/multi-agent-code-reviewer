@@ -27,7 +27,7 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 2026-02-16 〜 2026-02-24 のレビューサイクルで検出された全指摘事項は対応済みです。
 
-変更履歴の詳細は [`RELEASE_NOTES_en.md`](RELEASE_NOTES_en.md) を参照してください。
+変更履歴の詳細は [`RELEASE_NOTES.md`](RELEASE_NOTES.md) を参照してください。
 
 - 最新: [v2026.02.20-reliability](https://github.com/anishi1222/multi-agent-code-reviewer-v2/releases/tag/v2026.02.20-reliability) — WAF Reliability対応（Circuit Breaker分離・再試行制御・チェックポイント書き込み）
 
@@ -90,14 +90,14 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 参照チェックリスト: `reports/anishi1222/multi-agent-code-reviewer/documentation_sync_checklist_2026-02-17.md`
 
-1. `RELEASE_NOTES_en.md` と `RELEASE_NOTES_ja.md` に同一構成で新しい日付セクションを追加する。
+1. `RELEASE_NOTES.md`（英語集約ファイル）に新しい日付セクションを追加する。
 2. 注釈付きタグ（例: `vYYYY.MM.DD-notes`）を作成して push する。
 3. タグから GitHub Release を作成し、EN/JA の要約を本文に含める。
 4. `README_en.md` と `README_ja.md` にリリース参照とURLを追記する。
 
 ## リリース作業チェックリスト
 
-- [ ] `RELEASE_NOTES_en.md` と `RELEASE_NOTES_ja.md` に同じ日付のセクションを追加する。
+- [ ] `RELEASE_NOTES.md` に新しい日付セクションを追加する。
 - [ ] `README_en.md` と `README_ja.md` のリリース参照を更新する。
 - [ ] 作業ブランチでコミットし、PRを作成する（`main` へ直接 push しない）。
 - [ ] 必須チェックがすべて成功していることを確認する（Supply Chain Guard / Build and Test / Build Native Image / dependency-review / submit-maven）。

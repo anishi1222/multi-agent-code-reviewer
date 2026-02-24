@@ -1,5 +1,26 @@
 # Release Notes
 
+## 2026-02-24
+
+### Reliability / Security / Performance Follow-up
+
+- Enforced executive summary filename timestamp to use the **application invocation timestamp** (aligned with per-agent report directory timestamp).
+- Added fallback timestamp resolution logic in `SummaryGenerator` and test coverage (`SummaryGeneratorTimestampTest`).
+- Improved reliability posture:
+	- timeout hierarchy warning in `ReviewOrchestrator`
+	- bounded idle-timeout scheduler pool (replacing single-thread scheduler)
+	- session-establishment retry path in `SummaryGenerator`
+	- per-pass session isolation in `ReviewAgent` multi-pass flow
+	- equal-jitter retry strategy in `BackoffUtils`
+	- adaptive open-duration growth on repeated half-open failures in `ApiCircuitBreaker`
+	- operation-specific default merge behavior in `ResilienceConfig`
+- Strengthened security handling:
+	- named HTML entity decoding before sanitization in `ContentSanitizer`
+	- secure checkpoint write path via owner-only permissions.
+- Updated docs:
+	- synchronized `README_en.md` and `README_ja.md`
+	- updated examples/config values (`orchestrator-timeout-minutes: 200`) and completion checklist.
+
 ## 2026-02-20
 
 ### WAF Reliability Remediation

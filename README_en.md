@@ -27,7 +27,7 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 All review findings from 2026-02-16 through 2026-02-24 have been fully addressed.
 
-For the full change log, see [`RELEASE_NOTES_en.md`](RELEASE_NOTES_en.md).
+For the full change log, see [`RELEASE_NOTES.md`](RELEASE_NOTES.md).
 
 - Latest: [v2026.02.20-reliability](https://github.com/anishi1222/multi-agent-code-reviewer-v2/releases/tag/v2026.02.20-reliability) — WAF Reliability remediation (circuit breaker isolation, retry policy, checkpoint persistence)
 
@@ -90,14 +90,14 @@ For the full change log, see [`RELEASE_NOTES_en.md`](RELEASE_NOTES_en.md).
 
 Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation_sync_checklist_2026-02-17.md`
 
-1. Add a new date section to `RELEASE_NOTES_en.md` and `RELEASE_NOTES_ja.md` with matching structure.
+1. Add a new date section to `RELEASE_NOTES.md` (English-only consolidated file).
 2. Create and push an annotated tag (for example: `vYYYY.MM.DD-notes`).
 3. Publish a GitHub Release from the tag and include EN/JA notes summary.
 4. Update `README_en.md` and `README_ja.md` with release references and URLs.
 
 ## Release Operation Checklist
 
-- [ ] Add the same release date section to `RELEASE_NOTES_en.md` and `RELEASE_NOTES_ja.md`.
+- [ ] Add the new release date section to `RELEASE_NOTES.md`.
 - [ ] Update release references in `README_en.md` and `README_ja.md`.
 - [ ] Commit on a feature/docs branch and open a PR (do not push directly to `main`).
 - [ ] Confirm required checks are green (Supply Chain Guard, Build and Test, Build Native Image, dependency-review, submit-maven).
