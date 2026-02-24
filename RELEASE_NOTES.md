@@ -2,6 +2,17 @@
 
 ## 2026-02-24
 
+### Local File Orchestration Refactor + Regression Coverage (PR #37)
+
+- extracted local file collection coordination into `LocalFileCollectionCoordinator`
+- simplified local file provider flow and renamed `LocalFileContentReader` to `LocalFileReader`
+- reduced merger complexity by extracting finding deduplication (`ReviewFindingDeduplicator`)
+- consolidated retry/backoff loops across `SkillExecutor`, `SummaryGenerator`, and `CopilotService`
+- strengthened config safety by switching `ExecutionConfig.withParallelism()` to builder-copy
+- added broad regression tests for orchestrator/report/service/skill/target/util paths
+
+PR: #37
+
 ### Reliability / Security / Performance Follow-up
 
 	- timeout hierarchy warning in `ReviewOrchestrator`
