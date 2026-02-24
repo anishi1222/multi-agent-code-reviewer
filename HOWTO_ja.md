@@ -93,12 +93,12 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 1. `RELEASE_NOTES.md`（英語集約ファイル）に新しい日付セクションを追加する。
 2. 注釈付きタグ（例: `vYYYY.MM.DD-notes`）を作成して push する。
 3. タグから GitHub Release を作成し、EN/JA の要約を本文に含める。
-4. `README_en.md` と `README_ja.md` にリリース参照とURLを追記する。
+4. `HOWTO_en.md` と `HOWTO_ja.md` にリリース参照とURLを追記する。
 
 ## リリース作業チェックリスト
 
 - [ ] `RELEASE_NOTES.md` に新しい日付セクションを追加する。
-- [ ] `README_en.md` と `README_ja.md` のリリース参照を更新する。
+- [ ] `HOWTO_en.md` と `HOWTO_ja.md` のリリース参照を更新する。
 - [ ] 作業ブランチでコミットし、PRを作成する（`main` へ直接 push しない）。
 - [ ] 必須チェックがすべて成功していることを確認する（Supply Chain Guard / Build and Test / Build Native Image / dependency-review / submit-maven）。
 - [ ] PRをマージし、ローカル `main` を fast-forward で同期する。

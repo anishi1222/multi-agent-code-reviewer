@@ -93,12 +93,12 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 1. Add a new date section to `RELEASE_NOTES.md` (English-only consolidated file).
 2. Create and push an annotated tag (for example: `vYYYY.MM.DD-notes`).
 3. Publish a GitHub Release from the tag and include EN/JA notes summary.
-4. Update `README_en.md` and `README_ja.md` with release references and URLs.
+4. Update `HOWTO_en.md` and `HOWTO_ja.md` with release references and URLs.
 
 ## Release Operation Checklist
 
 - [ ] Add the new release date section to `RELEASE_NOTES.md`.
-- [ ] Update release references in `README_en.md` and `README_ja.md`.
+- [ ] Update release references in `HOWTO_en.md` and `HOWTO_ja.md`.
 - [ ] Commit on a feature/docs branch and open a PR (do not push directly to `main`).
 - [ ] Confirm required checks are green (Supply Chain Guard, Build and Test, Build Native Image, dependency-review, submit-maven).
 - [ ] Merge the PR and fast-forward local `main`.
