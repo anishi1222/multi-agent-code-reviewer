@@ -29,7 +29,7 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 変更履歴の詳細は [`RELEASE_NOTES.md`](RELEASE_NOTES.md) を参照してください。
 
-- 最新: [v2026.02.20-reliability](https://github.com/anishi1222/multi-agent-code-reviewer-v2/releases/tag/v2026.02.20-reliability) — WAF Reliability対応（Circuit Breaker分離・再試行制御・チェックポイント書き込み）
+- 最新: [v2026.02.24-notes](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.02.24-notes) — リリースノート集約と 2026-02-24 対応内容の反映
 
 ## 運用完了チェック（2026-02-20）
 
