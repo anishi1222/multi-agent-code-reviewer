@@ -4,9 +4,8 @@ import dev.logicojp.reviewer.config.ModelConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.report.ContentSanitizer;
 import dev.logicojp.reviewer.report.ReviewResult;
-import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
-import dev.logicojp.reviewer.util.BackoffUtils;
+import dev.logicojp.reviewer.util.RetryExecutor;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.events.AssistantMessageEvent;
@@ -15,11 +14,9 @@ import com.github.copilot.sdk.events.SessionIdleEvent;
 import com.github.copilot.sdk.json.MessageOptions;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
-import io.micronaut.core.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -103,13 +100,6 @@ public class ReviewAgent {
         }
     }
 
-    /// Resolved instruction data from target resolution.
-    private record ResolvedInstruction(
-        String instruction,
-        @Nullable String localSourceContent,
-        @Nullable Map<String, Object> mcpServers
-    ) {}
-
     @FunctionalInterface
     private interface PromptSender {
         String send(String prompt) throws Exception;
@@ -122,6 +112,7 @@ public class ReviewAgent {
     private final String focusAreasGuidance;
     private final String localSourceHeaderPrompt;
     private final String localReviewResultPrompt;
+    private final ReviewTargetInstructionResolver targetInstructionResolver;
 
     public ReviewAgent(AgentConfig config, ReviewContext ctx) {
         this(config, ctx, PromptTemplates.DEFAULTS);
@@ -133,6 +124,7 @@ public class ReviewAgent {
         this.focusAreasGuidance = promptTemplates.focusAreasGuidance();
         this.localSourceHeaderPrompt = promptTemplates.localSourceHeader();
         this.localReviewResultPrompt = promptTemplates.localReviewResultPrompt();
+        this.targetInstructionResolver = new ReviewTargetInstructionResolver(config, ctx);
     }
 
     // ================================================================
@@ -177,7 +169,7 @@ public class ReviewAgent {
         logger.info("Starting review with agent: {} for target: {}",
             config.name(), target.displayName());
 
-        var resolved = resolveTargetInstruction(target);
+        var resolved = targetInstructionResolver.resolve(target);
 
         return executeReviewCommon(
             target.displayName(),
@@ -191,7 +183,7 @@ public class ReviewAgent {
         logger.info("Starting {} review passes for agent: {} on target: {}",
             reviewPasses, config.name(), target.displayName());
 
-        var resolved = resolveTargetInstruction(target);
+        var resolved = targetInstructionResolver.resolve(target);
         String displayName = target.displayName();
         String instruction = resolved.instruction();
         String localSourceContent = resolved.localSourceContent();
@@ -253,11 +245,8 @@ public class ReviewAgent {
         String content = sendAndCollectContent(session, instruction, localSourceContent);
 
         if (content == null || content.isBlank()) {
-            ctx.circuitBreaker().recordFailure();
             return emptyContentFailure(displayName, mcpServers != null);
         }
-
-        ctx.circuitBreaker().recordSuccess();
 
         logger.info("Review completed for agent: {} (content length: {} chars)",
             config.name(), content.length());
@@ -308,6 +297,10 @@ public class ReviewAgent {
     private String sendForLocalReview(String instruction,
                                       String localSourceContent,
                                       PromptSender promptSender) throws Exception {
+        if (localSourceContent.length() > 1_000_000) {
+            logger.info("Agent {}: large prompt construction ({} chars source content)",
+                config.name(), localSourceContent.length());
+        }
         int extraCapacity = ctx.agentTuningConfig().instructionBufferExtraCapacity();
         String combinedPrompt = new StringBuilder(
             instruction.length()
@@ -459,45 +452,6 @@ public class ReviewAgent {
     }
 
     // ================================================================
-    // Target instruction resolution (inlined ReviewTargetInstructionResolver)
-    // ================================================================
-
-    private ResolvedInstruction resolveTargetInstruction(ReviewTarget target) {
-        return switch (target) {
-            case ReviewTarget.LocalTarget(Path directory) ->
-                resolveLocalInstruction(target, directory);
-            case ReviewTarget.GitHubTarget(String repository) ->
-                resolveGitHubInstruction(repository);
-        };
-    }
-
-    private ResolvedInstruction resolveLocalInstruction(ReviewTarget target, Path directory) {
-        String sourceContent = resolveLocalSourceContent(directory);
-        String instruction = AgentPromptBuilder.buildLocalInstructionBase(config, target.displayName());
-        return new ResolvedInstruction(instruction, sourceContent, null);
-    }
-
-    private String resolveLocalSourceContent(Path directory) {
-        String cachedSource = ctx.cachedResources().sourceContent();
-        if (cachedSource != null) {
-            return cachedSource;
-        }
-        LocalFileProvider fileProvider = new LocalFileProvider(directory, ctx.localFileConfig());
-        var collectionResult = fileProvider.collectAndGenerate();
-        logger.debug("Computed source content locally for agent: {}", config.name());
-        return collectionResult.reviewContent();
-    }
-
-    private ResolvedInstruction resolveGitHubInstruction(String repository) {
-        Map<String, Object> mcpServers = ctx.cachedResources().mcpServers();
-        return new ResolvedInstruction(
-            AgentPromptBuilder.buildInstruction(config, repository),
-            null,
-            mcpServers
-        );
-    }
-
-    // ================================================================
     // Session config creation (inlined ReviewSessionConfigFactory)
     // ================================================================
 
@@ -525,79 +479,20 @@ public class ReviewAgent {
     // Retry logic (inlined ReviewRetryExecutor)
     // ================================================================
 
-    @FunctionalInterface
-    private interface AttemptExecutor {
-        ReviewResult execute() throws Exception;
-    }
-
-    @FunctionalInterface
-    private interface ExceptionMapper {
-        ReviewResult map(Exception e);
-    }
-
-    private ReviewResult executeWithRetry(AttemptExecutor attemptExecutor,
-                                          ExceptionMapper exceptionMapper) {
-        int maxRetries = ctx.timeoutConfig().maxRetries();
-        int totalAttempts = Math.max(maxRetries + 1, ctx.retryConfig().maxAttempts());
-        ReviewResult lastResult = null;
-
-        for (int attempt = 1; attempt <= totalAttempts; attempt++) {
-            try {
-                lastResult = attemptExecutor.execute();
-                if (lastResult.success()) {
-                    ctx.circuitBreaker().recordSuccess();
-                    if (attempt > 1) {
-                        logger.info("Agent {} succeeded on attempt {}/{}",
-                            config.name(), attempt, totalAttempts);
-                    }
-                    return lastResult;
-                }
-
-                ctx.circuitBreaker().recordFailure();
-
-                if (attempt < totalAttempts && isRetryable(lastResult.errorMessage())) {
-                    BackoffUtils.sleepWithJitterQuietly(
-                        attempt, ctx.retryConfig().backoffBaseMs(), ctx.retryConfig().backoffMaxMs());
-                    logger.warn("Agent {} failed on attempt {}/{}: {}. Retrying...",
-                        config.name(), attempt, totalAttempts, lastResult.errorMessage());
-                } else {
-                    logger.error("Agent {} failed with non-retryable result on attempt {}/{}: {}",
-                        config.name(), attempt, totalAttempts, lastResult.errorMessage());
-                    break;
-                }
-            } catch (Exception e) {
-                ctx.circuitBreaker().recordFailure();
-                lastResult = exceptionMapper.map(e);
-
-                if (attempt < totalAttempts && isRetryable(e.getMessage())) {
-                    BackoffUtils.sleepWithJitterQuietly(
-                        attempt, ctx.retryConfig().backoffBaseMs(), ctx.retryConfig().backoffMaxMs());
-                    logger.warn("Agent {} threw exception on attempt {}/{}: {}. Retrying...",
-                        config.name(), attempt, totalAttempts, e.getMessage(), e);
-                } else {
-                    logger.error("Agent {} threw non-retryable exception on attempt {}/{}: {}",
-                        config.name(), attempt, totalAttempts, e.getMessage(), e);
-                    break;
-                }
-            }
-        }
-
-        return lastResult;
-    }
-
-    private static boolean isRetryable(String message) {
-        if (message == null) {
-            return false;
-        }
-        String lower = message.toLowerCase();
-        return lower.contains("timeout")
-            || lower.contains("timed out")
-            || lower.contains("rate")
-            || lower.contains("429")
-            || lower.contains("tempor")
-            || lower.contains("network")
-            || lower.contains("connection")
-            || lower.contains("unavailable");
+    private ReviewResult executeWithRetry(RetryExecutor.Attempt<ReviewResult> attemptExecutor,
+                                          java.util.function.Function<Exception, ReviewResult> exceptionMapper) {
+        return RetryExecutor.execute(
+            attemptExecutor,
+            exceptionMapper,
+            ReviewResult::success,
+            ReviewResult::errorMessage,
+            ctx.retryConfig().maxAttempts(),
+            ctx.retryConfig().backoffBaseMs(),
+            ctx.retryConfig().backoffMaxMs(),
+            ctx.circuitBreaker(),
+            logger,
+            "Agent " + config.name()
+        );
     }
 
     // ================================================================

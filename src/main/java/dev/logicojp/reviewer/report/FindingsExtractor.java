@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -100,21 +101,19 @@ public final class FindingsExtractor {
 
         List<Finding> findings = new ArrayList<>();
 
-        // Pair titles with priorities (1:1 mapping)
-        int count = Math.min(titles.size(), priorities.size());
-        for (int i = 0; i < count; i++) {
-            findings.add(new Finding(titles.get(i), priorities.get(i), agentName));
-        }
-
-        // Extra priorities without titles
-        if (titles.isEmpty() && !priorities.isEmpty()) {
+        if (!titles.isEmpty() && !priorities.isEmpty()) {
+            // Both present: 1:1 pairing
+            int count = Math.min(titles.size(), priorities.size());
+            for (int i = 0; i < count; i++) {
+                findings.add(new Finding(titles.get(i), priorities.get(i), agentName));
+            }
+        } else if (titles.isEmpty() && !priorities.isEmpty()) {
+            // Priorities only: assign generic titles
             for (int i = 0; i < priorities.size(); i++) {
                 findings.add(new Finding("Finding " + (i + 1), priorities.get(i), agentName));
             }
-        }
-
-        // Extra titles without priorities
-        if (!titles.isEmpty() && priorities.isEmpty()) {
+        } else if (!titles.isEmpty()) {
+            // Titles only: assign Unknown priority
             for (String title : titles) {
                 findings.add(new Finding(title, "Unknown", agentName));
             }
@@ -163,6 +162,6 @@ public final class FindingsExtractor {
         if (s == null || s.isEmpty()) {
             return s;
         }
-        return Character.toUpperCase(s.charAt(0)) + s.substring(1).toLowerCase();
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1).toLowerCase(Locale.ROOT);
     }
 }

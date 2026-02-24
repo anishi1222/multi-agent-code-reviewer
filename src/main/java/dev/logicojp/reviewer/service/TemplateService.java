@@ -151,7 +151,7 @@ public class TemplateService {
             return template;
         }
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(template);
-        var sb = new StringBuilder();
+        var sb = new StringBuilder(template.length());
         while (matcher.find()) {
             String key = matcher.group(1);
             String value = placeholders.getOrDefault(key, matcher.group());

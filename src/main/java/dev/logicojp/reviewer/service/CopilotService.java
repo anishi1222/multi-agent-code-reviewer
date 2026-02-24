@@ -64,7 +64,8 @@ public class CopilotService {
         try {
             initializeOrThrow(copilotConfig.githubToken());
         } catch (CopilotCliException e) {
-            logger.debug("Skipping eager Copilot initialization at startup: {}", e.getMessage(), e);
+            logger.warn("Copilot client not available at startup: {}. "
+                + "Initialization will be retried when a review command is executed.", e.getMessage());
         }
     }
 

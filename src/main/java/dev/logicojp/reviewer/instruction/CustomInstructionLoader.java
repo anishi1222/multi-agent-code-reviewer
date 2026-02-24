@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -117,7 +118,11 @@ public class CustomInstructionLoader {
     // --- Standard instruction file loading ---
 
     private Optional<CustomInstruction> loadInstructionFile(Path path) {
-        if (!Files.exists(path) || !Files.isRegularFile(path)) {
+        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS) || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+            return Optional.empty();
+        }
+        if (Files.isSymbolicLink(path)) {
+            logger.warn("Skipping symbolic link instruction file: {}", path);
             return Optional.empty();
         }
         try {
@@ -159,6 +164,10 @@ public class CustomInstructionLoader {
     }
 
     private Optional<CustomInstruction> loadScopedInstruction(Path path) {
+        if (Files.isSymbolicLink(path)) {
+            logger.warn("Skipping symbolic link scoped instruction: {}", path);
+            return Optional.empty();
+        }
         try {
             String rawContent = Files.readString(path, StandardCharsets.UTF_8);
             if (rawContent.isBlank()) {
@@ -185,30 +194,38 @@ public class CustomInstructionLoader {
             return List.of();
         }
 
-        List<CustomInstruction> prompts = new ArrayList<>();
+        List<Path> promptFiles;
         try (Stream<Path> stream = Files.list(promptsDir)) {
-            stream.filter(Files::isRegularFile)
+            promptFiles = stream.filter(Files::isRegularFile)
                   .filter(p -> p.getFileName().toString().endsWith(PROMPT_EXTENSION))
                   .sorted()
-                  .forEach(path -> {
-                      try {
-                          String rawContent = Files.readString(path, StandardCharsets.UTF_8);
-                          if (rawContent.isBlank()) {
-                              logger.debug("Prompt file is empty: {}", path);
-                              return;
-                          }
-                          var parsed = parsePromptFrontmatter(rawContent);
-                          prompts.add(new CustomInstruction(
-                              path.toString(), parsed.content().trim(),
-                              CustomInstruction.Source.LOCAL_FILE, null, parsed.description()));
-                          logger.info("Loaded prompt from: {} (description: {})",
-                              path.getFileName(), parsed.description());
-                      } catch (IOException e) {
-                          logger.warn("Failed to read prompt file {}: {}", path, e.getMessage(), e);
-                      }
-                  });
+                  .toList();
         } catch (IOException e) {
             logger.warn("Failed to scan prompts directory {}: {}", promptsDir, e.getMessage(), e);
+            return List.of();
+        }
+
+        List<CustomInstruction> prompts = new ArrayList<>();
+        for (Path path : promptFiles) {
+            if (Files.isSymbolicLink(path)) {
+                logger.warn("Skipping symbolic link prompt file: {}", path);
+                continue;
+            }
+            try {
+                String rawContent = Files.readString(path, StandardCharsets.UTF_8);
+                if (rawContent.isBlank()) {
+                    logger.debug("Prompt file is empty: {}", path);
+                    continue;
+                }
+                var parsed = parsePromptFrontmatter(rawContent);
+                prompts.add(new CustomInstruction(
+                    path.toString(), parsed.content().trim(),
+                    CustomInstruction.Source.LOCAL_FILE, null, parsed.description()));
+                logger.info("Loaded prompt from: {} (description: {})",
+                    path.getFileName(), parsed.description());
+            } catch (IOException e) {
+                logger.warn("Failed to read prompt file {}: {}", path, e.getMessage(), e);
+            }
         }
         return prompts;
     }

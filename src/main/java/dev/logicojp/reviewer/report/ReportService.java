@@ -40,15 +40,9 @@ public class ReportService {
                                                     String summaryModel,
                                                     String reasoningEffort,
                                                     long timeoutMinutes) {
-        return new SummaryGenerator(
-            outputDirectory,
-            client,
-            summaryModel,
-            reasoningEffort,
-            timeoutMinutes,
-            templateService,
-            summarySettings,
-            resilienceConfig.summary()
-        );
+        var config = new SummaryGenerator.SummaryConfig(
+            outputDirectory, summaryModel, reasoningEffort,
+            timeoutMinutes, summarySettings, resilienceConfig.summary());
+        return new SummaryGenerator(config, client, templateService);
     }
 }

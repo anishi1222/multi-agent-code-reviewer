@@ -121,14 +121,14 @@ public class SkillExecutor {
                     return result;
                 }
                 apiCircuitBreaker.recordFailure();
-                if (attempt < maxAttempts && isRetryable(result.errorMessage())) {
+                if (attempt < maxAttempts && BackoffUtils.isRetryableMessage(result.errorMessage())) {
                     BackoffUtils.sleepWithJitterQuietly(attempt, backoffBaseMs, backoffMaxMs);
                     continue;
                 }
                 return result;
             } catch (Exception e) {
                 apiCircuitBreaker.recordFailure();
-                if (attempt < maxAttempts && isRetryable(e.getMessage())) {
+                if (attempt < maxAttempts && BackoffUtils.isRetryableMessage(e.getMessage())) {
                     logger.warn("Skill {} attempt {}/{} failed: {}",
                         skill.id(), attempt, maxAttempts, e.getMessage());
                     BackoffUtils.sleepWithJitterQuietly(attempt, backoffBaseMs, backoffMaxMs);
@@ -186,7 +186,7 @@ public class SkillExecutor {
 
         long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutMinutes);
 
-        try (var session = client.createSession(sessionConfigBuilder).get(timeoutMinutes, TimeUnit.MINUTES)) {
+        try (var session = client.createSession(sessionConfigBuilder).get(Math.max(1, timeoutMinutes / 4), TimeUnit.MINUTES)) {
             logger.debug("Sending skill prompt: {} (timeout: {} min)", skill.id(), timeoutMinutes);
             var response = session
                 .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
@@ -202,21 +202,6 @@ public class SkillExecutor {
             logger.info("Skill execution completed: {} (content length: {} chars)", skill.id(), content.length());
             return Result.success(skill.id(), content);
         }
-    }
-
-    private static boolean isRetryable(String message) {
-        if (message == null) {
-            return false;
-        }
-        String lower = message.toLowerCase();
-        return lower.contains("timeout")
-            || lower.contains("timed out")
-            || lower.contains("rate")
-            || lower.contains("429")
-            || lower.contains("tempor")
-            || lower.contains("network")
-            || lower.contains("connection")
-            || lower.contains("unavailable");
     }
 
 }

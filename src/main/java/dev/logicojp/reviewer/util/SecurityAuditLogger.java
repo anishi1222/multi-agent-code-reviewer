@@ -23,19 +23,24 @@ public final class SecurityAuditLogger {
                            String eventAction,
                            String message,
                            Map<String, String> attributes) {
-        MDC.put("event.category", safe(eventCategory));
-        MDC.put("event.action", safe(eventAction));
-        if (attributes != null) {
-            attributes.forEach((key, value) -> {
-                if (key != null && !key.isBlank()) {
-                    MDC.put("audit." + key, safe(value));
-                }
-            });
-        }
+        var previousContext = MDC.getCopyOfContextMap();
         try {
+            MDC.put("event.category", safe(eventCategory));
+            MDC.put("event.action", safe(eventAction));
+            if (attributes != null) {
+                attributes.forEach((key, value) -> {
+                    if (key != null && !key.isBlank()) {
+                        MDC.put("audit." + key, safe(value));
+                    }
+                });
+            }
             AUDIT_LOGGER.info(message);
         } finally {
-            MDC.clear();
+            if (previousContext != null) {
+                MDC.setContextMap(previousContext);
+            } else {
+                MDC.clear();
+            }
         }
     }
 

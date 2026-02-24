@@ -270,7 +270,7 @@ class ReviewResultMergerTest {
             var finding = new ReviewResultMerger.AggregatedFinding(
                     "title", "body", Set.of(1),
                     "title", "high", "summary", "location",
-                    Set.of("ti"), Set.of("su"), Set.of("lo"));
+                    Set.of(1), Set.of(2), Set.of(3));
 
             assertThat(finding.passNumbers()).containsExactly(1);
         }
@@ -281,7 +281,7 @@ class ReviewResultMergerTest {
             var finding = new ReviewResultMerger.AggregatedFinding(
                     "title", "body", Set.of(1),
                     "title", "high", "summary", "location",
-                    Set.of("ti"), Set.of("su"), Set.of("lo"));
+                    Set.of(1), Set.of(2), Set.of(3));
 
             var updated = finding.withPass(2);
 

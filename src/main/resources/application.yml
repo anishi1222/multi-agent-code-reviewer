@@ -55,7 +55,6 @@ reviewer:
     max-parameter-value-length: 10000
     max-executor-cache-size: 16
     executor-cache-initial-capacity: 16
-    executor-cache-load-factor: 0.75
     service-shutdown-timeout-seconds: 60
     executor-shutdown-timeout-seconds: 30
   mcp:

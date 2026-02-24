@@ -27,4 +27,12 @@ public record CopilotConfig(
         startTimeoutSeconds = ConfigDefaults.defaultIfNonPositive(
             startTimeoutSeconds, DEFAULT_START_TIMEOUT_SECONDS);
     }
+
+    @Override
+    public String toString() {
+        return "CopilotConfig[cliPath=%s, githubToken=%s, healthcheckSeconds=%d, authcheckSeconds=%d, startTimeoutSeconds=%d]"
+            .formatted(cliPath,
+                       githubToken != null && !githubToken.isBlank() ? "***" : "(empty)",
+                       healthcheckSeconds, authcheckSeconds, startTimeoutSeconds);
+    }
 }

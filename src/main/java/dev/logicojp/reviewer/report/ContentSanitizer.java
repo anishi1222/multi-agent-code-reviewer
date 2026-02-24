@@ -1,7 +1,9 @@
 package dev.logicojp.reviewer.report;
 
+import java.text.Normalizer;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,6 +68,9 @@ public final class ContentSanitizer {
         Pattern.DOTALL | Pattern.CASE_INSENSITIVE
     );
 
+    private static final Pattern CONTROL_CHARS_PATTERN = Pattern.compile("[\\p{Cf}\\x00-\\x08\\x0B\\x0E-\\x1F\\x7F]");
+    private static final int MAX_SANITIZE_ITERATIONS = 3;
+
     /// Combined pattern to remove CoT blocks and dangerous HTML in a single pass.
     /// Note: CoT and dangerous HTML patterns are applied separately to avoid
     /// backreference collisions between the thinking block and HTML tag groups.
@@ -94,8 +99,14 @@ public final class ContentSanitizer {
         }
         String result = decodeNumericHtmlEntities(content);
         result = decodeNamedHtmlEntities(result);
-        for (Rule rule : RULES) {
-            result = rule.apply(result);
+        result = Normalizer.normalize(result, Normalizer.Form.NFKC);
+        result = CONTROL_CHARS_PATTERN.matcher(result).replaceAll("");
+        for (int iteration = 0; iteration < MAX_SANITIZE_ITERATIONS; iteration++) {
+            String previous = result;
+            for (Rule rule : RULES) {
+                result = rule.apply(result);
+            }
+            if (result.equals(previous)) break;
         }
         return result.strip();
     }
@@ -129,7 +140,7 @@ public final class ContentSanitizer {
         StringBuilder decoded = new StringBuilder(input.length());
 
         while (matcher.find()) {
-            String entityName = matcher.group(1).toLowerCase();
+            String entityName = matcher.group(1).toLowerCase(Locale.ROOT);
             String replacement = NAMED_ENTITIES.getOrDefault(entityName, matcher.group());
             matcher.appendReplacement(decoded, Matcher.quoteReplacement(replacement));
         }

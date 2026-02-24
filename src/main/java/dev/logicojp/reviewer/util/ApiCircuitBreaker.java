@@ -11,13 +11,6 @@ public final class ApiCircuitBreaker {
 
     private static final int MAX_OPEN_DURATION_MULTIPLIER = 8;
 
-    private static final ApiCircuitBreaker REVIEW_BREAKER =
-        new ApiCircuitBreaker(5, TimeUnit.SECONDS.toMillis(30), Clock.systemUTC());
-    private static final ApiCircuitBreaker SUMMARY_BREAKER =
-        new ApiCircuitBreaker(3, TimeUnit.SECONDS.toMillis(20), Clock.systemUTC());
-    private static final ApiCircuitBreaker SKILL_BREAKER =
-        new ApiCircuitBreaker(3, TimeUnit.SECONDS.toMillis(20), Clock.systemUTC());
-
     private final int failureThreshold;
     private final long openDurationMs;
     private final Clock clock;
@@ -35,15 +28,15 @@ public final class ApiCircuitBreaker {
     }
 
     public static ApiCircuitBreaker forReview() {
-        return REVIEW_BREAKER;
+        return new ApiCircuitBreaker(5, TimeUnit.SECONDS.toMillis(30), Clock.systemUTC());
     }
 
     public static ApiCircuitBreaker forSummary() {
-        return SUMMARY_BREAKER;
+        return new ApiCircuitBreaker(3, TimeUnit.SECONDS.toMillis(20), Clock.systemUTC());
     }
 
     public static ApiCircuitBreaker forSkill() {
-        return SKILL_BREAKER;
+        return new ApiCircuitBreaker(3, TimeUnit.SECONDS.toMillis(20), Clock.systemUTC());
     }
 
     public boolean isRequestAllowed() {
@@ -101,5 +94,15 @@ public final class ApiCircuitBreaker {
             return Long.MAX_VALUE;
         }
         return value * multiplier;
+    }
+
+    /// Manually resets the circuit breaker to closed state.
+    /// Use after confirming the external service has recovered.
+    public void reset() {
+        consecutiveFailures.set(0);
+        consecutiveProbeFailures.set(0);
+        openedAtMs.set(-1L);
+        currentOpenDurationMs.set(openDurationMs);
+        halfOpenProbeInFlight.set(false);
     }
 }

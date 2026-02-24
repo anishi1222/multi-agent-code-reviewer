@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +86,7 @@ public class ReviewOrchestrator implements AutoCloseable {
         this.reviewCircuitBreaker = new ApiCircuitBreaker(
             this.resilienceConfig.review().failureThreshold(),
             TimeUnit.SECONDS.toMillis(this.resilienceConfig.review().openDurationSeconds()),
-            java.time.Clock.systemUTC());
+            Clock.systemUTC());
         int schedulerThreads = Math.max(2,
             Math.min(executionConfig.parallelism(), Runtime.getRuntime().availableProcessors()));
         this.sharedScheduler = Executors.newScheduledThreadPool(schedulerThreads, r -> {
@@ -200,7 +201,8 @@ public class ReviewOrchestrator implements AutoCloseable {
             Thread.currentThread().interrupt();
             logger.warn("Orchestrator join interrupted");
         } catch (TimeoutException e) {
-            logger.warn("Orchestrator timed out after {} minutes", timeoutMinutes);
+            logger.warn("Orchestrator timed out after {} minutes — closing scope to cancel remaining tasks",
+                timeoutMinutes);
         }
     }
 

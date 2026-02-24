@@ -101,12 +101,7 @@ public class SkillCommand {
 
     private Optional<ParsedOptions> parseArgs(String[] args) {
         args = Objects.requireNonNullElse(args, new String[0]);
-        String skillId = null;
-        List<String> paramStrings = new ArrayList<>();
-        String githubToken = null;
-        String model = ModelConfig.DEFAULT_MODEL;
-        List<Path> additionalAgentDirs = new ArrayList<>();
-        boolean listSkills = false;
+        var state = new ParseState();
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
@@ -117,30 +112,20 @@ public class SkillCommand {
                 }
                 case "-p", "--param" -> {
                     var value = CliParsing.readSingleValue(arg, args, i, "--param");
-                    paramStrings.addAll(CliParsing.splitComma(value.value()));
+                    state.paramStrings.addAll(CliParsing.splitComma(value.value()));
                     i = value.newIndex();
                 }
-                case "--token" -> {
-                    final String[] tokenRef = {githubToken};
-                    i = CliParsing.readTokenInto(args, i, "--token", v -> tokenRef[0] = v);
-                    githubToken = tokenRef[0];
-                }
-                case "--model" -> {
-                    final String[] modelRef = {model};
-                    i = CliParsing.readInto(args, i, "--model", v -> modelRef[0] = v);
-                    model = modelRef[0];
-                }
-                case "--agents-dir" -> {
-                    final List<Path> agentDirRef = additionalAgentDirs;
-                    i = CliParsing.readMultiInto(args, i, "--agents-dir", v -> agentDirRef.add(Path.of(v)));
-                }
-                case "--list" -> listSkills = true;
+                case "--token" -> i = CliParsing.readTokenInto(args, i, "--token", v -> state.githubToken = v);
+                case "--model" -> i = CliParsing.readInto(args, i, "--model", v -> state.model = v);
+                case "--agents-dir" -> i = CliParsing.readMultiInto(args, i, "--agents-dir",
+                    v -> state.additionalAgentDirs.add(Path.of(v)));
+                case "--list" -> state.listSkills = true;
                 default -> {
                     if (arg.startsWith("-")) {
                         throw new CliValidationException("Unknown option: " + arg, true);
                     }
-                    if (skillId == null) {
-                        skillId = arg;
+                    if (state.skillId == null) {
+                        state.skillId = arg;
                     } else {
                         throw new CliValidationException("Unexpected argument: " + arg, true);
                     }
@@ -149,8 +134,17 @@ public class SkillCommand {
         }
 
         return Optional.of(new ParsedOptions(
-            skillId, List.copyOf(paramStrings), githubToken, model,
-            List.copyOf(additionalAgentDirs), listSkills));
+            state.skillId, List.copyOf(state.paramStrings), state.githubToken, state.model,
+            List.copyOf(state.additionalAgentDirs), state.listSkills));
+    }
+
+    private static final class ParseState {
+        String skillId;
+        final List<String> paramStrings = new ArrayList<>();
+        String githubToken;
+        String model = ModelConfig.DEFAULT_MODEL;
+        final List<Path> additionalAgentDirs = new ArrayList<>();
+        boolean listSkills;
     }
 
     // ── Execution Logic ─────────────────────────────────────────────────

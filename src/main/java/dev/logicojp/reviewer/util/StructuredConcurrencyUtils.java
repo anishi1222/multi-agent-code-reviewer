@@ -4,6 +4,7 @@ import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Locale;
 
 /// Utility for working with {@link StructuredTaskScope} in preview JDK releases.
 ///
@@ -27,8 +28,9 @@ public final class StructuredConcurrencyUtils {
             throws InterruptedException, TimeoutException {
         Thread ownerThread = Thread.currentThread();
         var timedOut = new AtomicBoolean(false);
+        var completed = new AtomicBoolean(false);
 
-        Thread timeoutThread = startTimeoutThread(ownerThread, timedOut, timeout, unit);
+        Thread timeoutThread = startTimeoutThread(ownerThread, timedOut, completed, timeout, unit);
 
         try {
             scope.join();
@@ -39,19 +41,23 @@ public final class StructuredConcurrencyUtils {
             }
             throw e;
         } finally {
+            completed.set(true);
             timeoutThread.interrupt();
         }
     }
 
     private static Thread startTimeoutThread(Thread ownerThread,
                                              AtomicBoolean timedOut,
+                                             AtomicBoolean completed,
                                              long timeout,
                                              TimeUnit unit) {
         return Thread.ofVirtual().name("join-timeout").start(() -> {
             try {
                 Thread.sleep(unit.toMillis(timeout));
                 timedOut.set(true);
-                ownerThread.interrupt();
+                if (!completed.get()) {
+                    ownerThread.interrupt();
+                }
             } catch (InterruptedException _) {
                 // Timeout cancelled — scope.join() completed in time
             }
@@ -59,6 +65,6 @@ public final class StructuredConcurrencyUtils {
     }
 
     private static TimeoutException timeoutException(long timeout, TimeUnit unit) {
-        return new TimeoutException("Join timed out after " + timeout + " " + unit.name().toLowerCase());
+        return new TimeoutException("Join timed out after " + timeout + " " + unit.name().toLowerCase(Locale.ROOT));
     }
 }

@@ -56,14 +56,23 @@ public record ExecutionConfig(
     }
 
     /// Returns a copy with the parallelism value replaced.
+    /// Uses named field access to prevent positional copy errors when fields are added.
     public ExecutionConfig withParallelism(int newParallelism) {
         return new ExecutionConfig(
-            newParallelism, reviewPasses, orchestratorTimeoutMinutes,
-            agentTimeoutMinutes, idleTimeoutMinutes, skillTimeoutMinutes,
-            summaryTimeoutMinutes, ghAuthTimeoutSeconds, maxRetries,
-            maxAccumulatedSize, initialAccumulatedCapacity, instructionBufferExtraCapacity,
-            checkpointDirectory,
-            summary
+            newParallelism,
+            this.reviewPasses,
+            this.orchestratorTimeoutMinutes,
+            this.agentTimeoutMinutes,
+            this.idleTimeoutMinutes,
+            this.skillTimeoutMinutes,
+            this.summaryTimeoutMinutes,
+            this.ghAuthTimeoutSeconds,
+            this.maxRetries,
+            this.maxAccumulatedSize,
+            this.initialAccumulatedCapacity,
+            this.instructionBufferExtraCapacity,
+            this.checkpointDirectory,
+            this.summary
         );
     }
 

@@ -20,9 +20,28 @@ public final class CustomInstructionSafetyValidator {
     private static final Logger logger = LoggerFactory.getLogger(CustomInstructionSafetyValidator.class);
     private static final String SUSPICIOUS_PATTERNS_RESOURCE = "safety/suspicious-patterns.txt";
 
-    private static final int MAX_INSTRUCTION_SIZE = 32 * 1024;
-    private static final int MAX_UNTRUSTED_INSTRUCTION_SIZE = 8 * 1024;
-    private static final int MAX_INSTRUCTION_LINES = 300;
+    /// Externalized safety limits for instruction validation.
+    public record SafetyLimits(
+        int maxInstructionSize,
+        int maxUntrustedInstructionSize,
+        int maxInstructionLines
+    ) {
+        public static final int DEFAULT_MAX_INSTRUCTION_SIZE = 32 * 1024;
+        public static final int DEFAULT_MAX_UNTRUSTED_INSTRUCTION_SIZE = 8 * 1024;
+        public static final int DEFAULT_MAX_INSTRUCTION_LINES = 300;
+
+        public SafetyLimits {
+            if (maxInstructionSize <= 0) maxInstructionSize = DEFAULT_MAX_INSTRUCTION_SIZE;
+            if (maxUntrustedInstructionSize <= 0) maxUntrustedInstructionSize = DEFAULT_MAX_UNTRUSTED_INSTRUCTION_SIZE;
+            if (maxInstructionLines <= 0) maxInstructionLines = DEFAULT_MAX_INSTRUCTION_LINES;
+        }
+
+        public static SafetyLimits defaults() {
+            return new SafetyLimits(0, 0, 0);
+        }
+    }
+
+    private static final SafetyLimits DEFAULT_LIMITS = SafetyLimits.defaults();
     private static final List<String> DEFAULT_SUSPICIOUS_PATTERN_TEXTS = List.of(
         "ignore\\s+(all\\s+)?(previous|prior|above)\\s+instructions?",
         "disregard\\s+(all\\s+)?(previous|prior|above)",
@@ -92,20 +111,24 @@ public final class CustomInstructionSafetyValidator {
     }
 
     static ValidationResult validate(CustomInstruction instruction) {
-        return validate(instruction, false);
+        return validate(instruction, false, DEFAULT_LIMITS);
     }
 
     public static ValidationResult validate(CustomInstruction instruction, boolean trusted) {
+        return validate(instruction, trusted, DEFAULT_LIMITS);
+    }
+
+    public static ValidationResult validate(CustomInstruction instruction, boolean trusted, SafetyLimits limits) {
         if (instruction == null || instruction.isEmpty()) {
             return new ValidationResult(true, "empty");
         }
 
         String content = instruction.content();
-        int maxSize = trusted ? MAX_INSTRUCTION_SIZE : MAX_UNTRUSTED_INSTRUCTION_SIZE;
+        int maxSize = trusted ? limits.maxInstructionSize() : limits.maxUntrustedInstructionSize();
         if (content.length() > maxSize) {
             return new ValidationResult(false, "size limit exceeded");
         }
-        if (exceedsLineLimit(content, MAX_INSTRUCTION_LINES)) {
+        if (exceedsLineLimit(content, limits.maxInstructionLines())) {
             return new ValidationResult(false, "line count limit exceeded");
         }
 
@@ -217,6 +240,12 @@ public final class CustomInstructionSafetyValidator {
             case '\u03A4' -> 'T'; // Greek Τ
             case '\u03A5' -> 'Y'; // Greek Υ
             case '\u03A7' -> 'X'; // Greek Χ
+            case '\u2014' -> '-'; // em-dash
+            case '\u2013' -> '-'; // en-dash
+            case '\u2015' -> '-'; // horizontal bar
+            case '\uFE58' -> '-'; // small em-dash
+            case '\uFE63' -> '-'; // small hyphen-minus
+            case '\uFF0D' -> '-'; // fullwidth hyphen-minus
             default -> value;
         };
     }

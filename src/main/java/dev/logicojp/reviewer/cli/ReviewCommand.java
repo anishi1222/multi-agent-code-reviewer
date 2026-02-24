@@ -5,7 +5,6 @@ import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.instruction.CustomInstructionLoader;
-import dev.logicojp.reviewer.instruction.CustomInstructionSafetyValidator;
 import dev.logicojp.reviewer.service.AgentService;
 import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.TemplateService;
@@ -69,6 +68,7 @@ public class ReviewCommand {
                 --instructions <path...>    Custom instruction files (Markdown)
                 --no-instructions           Disable automatic instructions
                 --no-prompts                Disable loading .github/prompts/*.prompt.md
+                --keep-checkpoints          Archive checkpoints instead of deleting
             """;
 
     private final ModelConfig defaultModelConfig;
@@ -76,11 +76,12 @@ public class ReviewCommand {
     private final CopilotService copilotService;
     private final AgentService agentService;
     private final ReviewPipelineExecutor pipelineExecutor;
-    private final CustomInstructionLoader instructionLoader;
     private final GitHubTokenResolver tokenResolver;
     private final TemplateService templateService;
     private final CliOutput output;
     private final Clock clock;
+    private final CustomInstructionResolver customInstructionResolver;
+    private final ReviewBannerPrinter bannerPrinter;
 
     /// Target selection — sealed interface for type-safe exclusive choice.
     sealed interface TargetSelection {
@@ -110,7 +111,8 @@ public class ReviewCommand {
         List<Path> instructionPaths,
         boolean noInstructions,
         boolean noPrompts,
-        boolean trustTarget
+        boolean trustTarget,
+        boolean keepCheckpoints
     ) {
         ParsedOptions {
             additionalAgentDirs = additionalAgentDirs != null ? List.copyOf(additionalAgentDirs) : List.of();
@@ -152,11 +154,12 @@ public class ReviewCommand {
         this.copilotService = copilotService;
         this.agentService = agentService;
         this.pipelineExecutor = pipelineExecutor;
-        this.instructionLoader = instructionLoader;
         this.tokenResolver = tokenResolver;
         this.templateService = templateService;
         this.output = output;
         this.clock = clock;
+        this.customInstructionResolver = new CustomInstructionResolver(instructionLoader, output);
+        this.bannerPrinter = new ReviewBannerPrinter(output, executionConfig);
     }
 
     public int execute(String[] args) {
@@ -208,6 +211,7 @@ public class ReviewCommand {
         boolean noInstructions;
         boolean noPrompts;
         boolean trustTarget;
+        boolean keepCheckpoints;
         boolean helpRequested;
 
         ParseState(int defaultParallelism) {
@@ -246,6 +250,7 @@ public class ReviewCommand {
             case "--no-instructions" -> { state.noInstructions = true; yield i; }
             case "--no-prompts" -> { state.noPrompts = true; yield i; }
             case "--trust" -> { state.trustTarget = true; yield i; }
+            case "--keep-checkpoints" -> { state.keepCheckpoints = true; yield i; }
             default -> {
                 if (arg.startsWith("-")) {
                     throw new CliValidationException("Unknown option: " + arg, true);
@@ -262,7 +267,8 @@ public class ReviewCommand {
             target, agents, state.outputDirectory, state.additionalAgentDirs,
             state.githubToken, state.parallelism, state.noSummary,
             state.reviewModel, state.reportModel, state.summaryModel, state.defaultModel,
-            state.instructionPaths, state.noInstructions, state.noPrompts, state.trustTarget);
+            state.instructionPaths, state.noInstructions, state.noPrompts, state.trustTarget,
+            state.keepCheckpoints);
     }
 
     private static TargetSelection resolveTargetSelection(String repository, Path localDirectory) {
@@ -308,7 +314,7 @@ public class ReviewCommand {
         Map<String, AgentConfig> agentConfigs = loadAgentConfigs(options.agents(), agentDirs);
         agentConfigs = applyReviewModelOverride(agentConfigs, options.reviewModel());
         if (agentConfigs.isEmpty()) {
-            printNoAgentsError(agentDirs);
+            bannerPrinter.printNoAgentsError(agentDirs);
             return ExitCodes.SOFTWARE;
         }
 
@@ -316,10 +322,10 @@ public class ReviewCommand {
         Path outputDirectory = resolveOutputDirectory(options, target);
 
         // 5. Resolve custom instructions
-        List<CustomInstruction> customInstructions = resolveCustomInstructions(options, target);
+        List<CustomInstruction> customInstructions = customInstructionResolver.resolve(options, target);
 
         // 6. Print banner
-        printBanner(agentConfigs, agentDirs, modelConfig, target, outputDirectory, options.reviewModel());
+        bannerPrinter.printBanner(agentConfigs, agentDirs, modelConfig, target, outputDirectory, options.reviewModel());
 
         // 7. Load output constraints template
         String outputConstraints = loadOutputConstraints();
@@ -330,7 +336,7 @@ public class ReviewCommand {
             return pipelineExecutor.execute(
                 target, modelConfig, agentConfigs, customInstructions,
                 outputDirectory, outputConstraints,
-                options.parallelism(), options.noSummary(), resolvedToken);
+                options.parallelism(), options.noSummary(), options.keepCheckpoints(), resolvedToken);
         } finally {
             copilotService.shutdown();
         }
@@ -409,92 +415,6 @@ public class ReviewCommand {
         return adjusted;
     }
 
-    // ── Custom Instruction Resolution ───────────────────────────────────
-
-    private List<CustomInstruction> resolveCustomInstructions(ParsedOptions options, ReviewTarget target) {
-        if (options.noInstructions()) {
-            logger.info("Custom instructions disabled by --no-instructions flag");
-            return List.of();
-        }
-
-        List<CustomInstruction> instructions = new ArrayList<>();
-        loadExplicitInstructions(options.instructionPaths(), instructions);
-        loadTargetInstructions(target, options, instructions);
-        return List.copyOf(instructions);
-    }
-
-    private void loadExplicitInstructions(List<Path> paths, List<CustomInstruction> instructions) {
-        if (paths == null || paths.isEmpty()) return;
-        for (Path path : paths) {
-            loadInstructionFromPath(path).ifPresent(instruction ->
-                addIfSafe(instruction, instructions, "  ✓ Loaded instructions: ", true));
-        }
-    }
-
-    private Optional<CustomInstruction> loadInstructionFromPath(Path path) {
-        try {
-            if (!Files.exists(path) || !Files.isRegularFile(path)) {
-                logger.warn("Instruction file not found: {}", path);
-                return Optional.empty();
-            }
-            String content = Files.readString(path);
-            if (content.isBlank()) return Optional.empty();
-            return Optional.of(new CustomInstruction(
-                path.toString(), content.trim(), CustomInstruction.Source.LOCAL_FILE, null, null));
-        } catch (IOException | SecurityException e) {
-            logger.warn("Failed to read instruction file {}: {}", path, e.getMessage(), e);
-            return Optional.empty();
-        }
-    }
-
-    private void loadTargetInstructions(ReviewTarget target, ParsedOptions options,
-                                        List<CustomInstruction> instructions) {
-        if (!target.isLocal()) return;
-        if (!options.trustTarget()) {
-            output.println("ℹ  Target instructions skipped (use --trust to load from review target).");
-            return;
-        }
-
-        output.println("⚠  --trust enabled: loading custom instructions from the review target.");
-        logger.warn("[SECURITY AUDIT] Trust boundary relaxed: loading instructions from target={}",
-            target.displayName());
-        SecurityAuditLogger.log("trust-boundary", "instruction-load",
-            "Trust mode enabled for target instruction loading",
-            Map.of("target", target.displayName()));
-
-        CustomInstructionLoader targetLoader = options.noPrompts()
-            ? CustomInstructionLoader.withSettings(null, false)
-            : instructionLoader;
-        List<CustomInstruction> targetInstructions = targetLoader.loadForTarget(target);
-
-        for (CustomInstruction instruction : targetInstructions) {
-            String sourcePath = instruction.sourcePath() != null ? instruction.sourcePath() : "unknown";
-            logger.warn("[SECURITY AUDIT] Loaded trusted instruction from: {} (size: {} bytes)",
-                sourcePath, instruction.content() != null ? instruction.content().length() : 0);
-            SecurityAuditLogger.log("trust-boundary", "instruction-load",
-                "Trusted instruction loaded",
-                Map.of("source", sourcePath,
-                       "size", Integer.toString(instruction.content() != null ? instruction.content().length() : 0)));
-            addIfSafe(instruction, instructions, "  ✓ Loaded instructions from target: ", false);
-        }
-    }
-
-    private void addIfSafe(CustomInstruction instruction, List<CustomInstruction> instructions,
-                           String loadedPrefix, boolean trusted) {
-        var validation = CustomInstructionSafetyValidator.validate(instruction, trusted);
-        if (!validation.safe()) {
-            String sourcePath = instruction.sourcePath() != null ? instruction.sourcePath() : "unknown";
-            logger.warn("Skipped unsafe instruction {}: {}", sourcePath, validation.reason());
-            SecurityAuditLogger.log("instruction-validation", "instruction-rejected",
-                "Unsafe instruction rejected",
-                Map.of("source", sourcePath, "reason", validation.reason(),
-                       "trusted", Boolean.toString(trusted)));
-            return;
-        }
-        instructions.add(instruction);
-        output.println(loadedPrefix + instruction.sourcePath());
-    }
-
     // ── Output Directory ────────────────────────────────────────────────
 
     private Path resolveOutputDirectory(ParsedOptions options, ReviewTarget target) {
@@ -512,40 +432,6 @@ public class ReviewCommand {
         } catch (IllegalStateException | IllegalArgumentException e) {
             logger.debug("Output constraints template unavailable: {}", e.getMessage());
             return null;
-        }
-    }
-
-    // ── Banner & Summary Output ─────────────────────────────────────────
-
-    private void printBanner(Map<String, AgentConfig> agentConfigs, List<Path> agentDirs,
-                             ModelConfig modelConfig, ReviewTarget target,
-                             Path outputDirectory, String reviewModel) {
-        output.println("╔════════════════════════════════════════════════════════════╗");
-        output.println("║           Multi-Agent Code Reviewer                        ║");
-        output.println("╚════════════════════════════════════════════════════════════╝");
-        output.println("");
-        output.println("Target: " + target.displayName() + (target.isLocal() ? " (local)" : " (GitHub)"));
-        output.println("Agents: " + agentConfigs.keySet());
-        output.println("Output: " + outputDirectory.toAbsolutePath());
-        output.println("");
-        output.println("Agent directories:");
-        for (Path dir : agentDirs) {
-            output.println("  - " + dir + (Files.exists(dir) ? "" : " (not found)"));
-        }
-        output.println("");
-        output.println("Models:");
-        output.println("  Review: " + (reviewModel != null ? reviewModel : "(agent default)"));
-        output.println("  Summary: " + modelConfig.summaryModel());
-        if (executionConfig.reviewPasses() > 1) {
-            output.println("Review passes: " + executionConfig.reviewPasses() + " per agent");
-        }
-        output.println("");
-    }
-
-    private void printNoAgentsError(List<Path> agentDirs) {
-        output.errorln("Error: No agents found. Check the agents directories:");
-        for (Path dir : agentDirs) {
-            output.errorln("  - " + dir);
         }
     }
 

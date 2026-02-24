@@ -30,9 +30,9 @@ public final class FrontmatterParser {
         Pattern.DOTALL
     );
 
-    private static final ThreadLocal<Yaml> YAML_INSTANCE = ThreadLocal.withInitial(
-        () -> new Yaml(new SafeConstructor(buildLoaderOptions()))
-    );
+    private static Yaml createYaml() {
+        return new Yaml(new SafeConstructor(buildLoaderOptions()));
+    }
 
     private FrontmatterParser() {}
 
@@ -117,7 +117,7 @@ public final class FrontmatterParser {
     /// Falls back to manual parsing for YAML special characters.
     private static Map<String, String> parseFields(String frontmatter) {
         try {
-            Map<?, ?> parsed = YAML_INSTANCE.get().loadAs(frontmatter, Map.class);
+            Map<?, ?> parsed = createYaml().loadAs(frontmatter, Map.class);
             if (parsed == null) {
                 return Map.of();
             }

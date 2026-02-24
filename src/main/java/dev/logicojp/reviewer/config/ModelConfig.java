@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.config;
 import io.micronaut.context.annotation.ConfigurationProperties;
 
 import java.util.List;
+import java.util.Locale;
 
 /// Configuration for LLM models used in different stages of the review process.
 ///
@@ -53,7 +54,7 @@ public record ModelConfig(
         if (model == null) {
             return false;
         }
-        String lower = model.toLowerCase();
+        String lower = model.toLowerCase(Locale.ROOT);
         return REASONING_CONTAINS_PATTERNS.stream().anyMatch(lower::contains)
             || REASONING_PREFIX_PATTERNS.stream().anyMatch(lower::startsWith);
     }

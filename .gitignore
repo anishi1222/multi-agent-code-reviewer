@@ -31,6 +31,7 @@ gradle-app.setting
 # Logs
 *.log
 logs/
+hs_err_pid*
 
 # OS
 .DS_Store

@@ -216,6 +216,14 @@
       ]
     },
     {
+      "type": "com.github.benmanes.caffeine.cache.SSMS",
+      "fields": [
+        {
+          "name": "FACTORY"
+        }
+      ]
+    },
+    {
       "type": "com.github.benmanes.caffeine.cache.StripedBuffer",
       "fields": [
         {
@@ -901,6 +909,35 @@
       ]
     },
     {
+      "type": "com.github.copilot.sdk.events.SkillInvokedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.sdk.events.SkillInvokedEvent$SkillInvokedData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.sdk.events.SkillInvokedEvent$SkillInvokedData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.List"
+          ]
+        }
+      ]
+    },
+    {
       "type": "com.github.copilot.sdk.events.SubagentCompletedEvent",
       "methods": [
         {
@@ -1149,6 +1186,13 @@
         {
           "name": "<init>",
           "parameterTypes": []
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
         },
         {
           "name": "setPartialOutput",
@@ -1698,6 +1742,15 @@
       ]
     },
     {
+      "type": "dev.logicojp.reviewer.cli.$ReviewPipelineExecutor$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "dev.logicojp.reviewer.cli.$ReviewPreparationService$Definition",
       "methods": [
         {
@@ -1788,6 +1841,15 @@
       ]
     },
     {
+      "type": "dev.logicojp.reviewer.config.$CopilotConfig$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "dev.logicojp.reviewer.config.$ExecutionConfig$Definition",
       "methods": [
         {
@@ -1834,6 +1896,15 @@
     },
     {
       "type": "dev.logicojp.reviewer.config.$OrchestratorConfig$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "dev.logicojp.reviewer.config.$ResilienceConfig$Definition",
       "methods": [
         {
           "name": "<init>",

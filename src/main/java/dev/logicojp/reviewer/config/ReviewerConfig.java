@@ -18,7 +18,7 @@ public record ReviewerConfig(
     public ReviewerConfig {
         agents = agents != null ? agents : new AgentPaths(null);
         localFiles = localFiles != null ? localFiles : new LocalFiles(0, 0, null, null, null, null);
-        skills = skills != null ? skills : new Skills(null, null, 0, 0, 0, 0.0, 0, 0);
+        skills = skills != null ? skills : new Skills(null, null, 0, 0, 0, 0, 0);
     }
 
     // --- Agent path configuration ---
@@ -142,7 +142,6 @@ public record ReviewerConfig(
         int maxParameterValueLength,
         int maxExecutorCacheSize,
         int executorCacheInitialCapacity,
-        double executorCacheLoadFactor,
         int serviceShutdownTimeoutSeconds,
         int executorShutdownTimeoutSeconds
     ) {
@@ -152,7 +151,6 @@ public record ReviewerConfig(
         public static final int DEFAULT_MAX_PARAMETER_VALUE_LENGTH = 10_000;
         public static final int DEFAULT_MAX_EXECUTOR_CACHE_SIZE = 16;
         public static final int DEFAULT_EXECUTOR_CACHE_INITIAL_CAPACITY = 16;
-        public static final double DEFAULT_EXECUTOR_CACHE_LOAD_FACTOR = 0.75;
         public static final int DEFAULT_SERVICE_SHUTDOWN_TIMEOUT_SECONDS = 60;
         public static final int DEFAULT_EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS = 30;
 
@@ -165,9 +163,6 @@ public record ReviewerConfig(
                 maxExecutorCacheSize, DEFAULT_MAX_EXECUTOR_CACHE_SIZE);
             executorCacheInitialCapacity = ConfigDefaults.defaultIfNonPositive(
                 executorCacheInitialCapacity, DEFAULT_EXECUTOR_CACHE_INITIAL_CAPACITY);
-            if (executorCacheLoadFactor <= 0.0) {
-                executorCacheLoadFactor = DEFAULT_EXECUTOR_CACHE_LOAD_FACTOR;
-            }
             serviceShutdownTimeoutSeconds = ConfigDefaults.defaultIfNonPositive(
                 serviceShutdownTimeoutSeconds, DEFAULT_SERVICE_SHUTDOWN_TIMEOUT_SECONDS);
             executorShutdownTimeoutSeconds = ConfigDefaults.defaultIfNonPositive(
@@ -176,7 +171,7 @@ public record ReviewerConfig(
 
         /// Creates a Skills config with all default values.
         public static Skills defaults() {
-            return new Skills(null, null, 0, 0, 0, 0.0, 0, 0);
+            return new Skills(null, null, 0, 0, 0, 0, 0);
         }
     }
 }

@@ -7,15 +7,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.HexFormat;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -36,20 +33,6 @@ public final class ReviewResultMerger {
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewResultMerger.class);
 
-    // --- Finding parsing patterns ---
-    private static final Pattern FINDING_HEADER = Pattern.compile("(?m)^###\\s+(\\d+)\\.\\s+(.+?)\\s*$");
-    private static final Pattern TABLE_ROW_TEMPLATE = Pattern.compile(
-        "(?m)^\\|\\s*\\*\\*%s\\*\\*\\s*\\|\\s*(.*?)\\s*\\|\\s*$");
-    private static final Map<String, Pattern> TABLE_VALUE_PATTERNS = Map.of(
-        "Priority", compileTableRowPattern("Priority"),
-        "指摘の概要", compileTableRowPattern("指摘の概要"),
-        "該当箇所", compileTableRowPattern("該当箇所")
-    );
-
-    // --- Similarity constants ---
-    private static final Pattern KEYWORD_PATTERN = Pattern.compile(
-        "[a-z0-9_]+|[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}]{2,}");
-    private static final double NEAR_DUPLICATE_SIMILARITY = 0.80d;
     private static final int FALLBACK_SIMILARITY_PREFIX_LENGTH = 500;
     private static final int FALLBACK_KEY_HASH_LENGTH_BYTES = 12;
 
@@ -72,9 +55,9 @@ public final class ReviewResultMerger {
         String normalizedPriority,
         String normalizedSummary,
         String normalizedLocation,
-        Set<String> titleBigrams,
-        Set<String> summaryBigrams,
-        Set<String> locationBigrams
+        Set<Integer> titleBigrams,
+        Set<Integer> summaryBigrams,
+        Set<Integer> locationBigrams
     ) {
         AggregatedFinding {
             Objects.requireNonNull(title);
@@ -107,19 +90,19 @@ public final class ReviewResultMerger {
         }
 
         private boolean matchByLocationAndContent(NormalizedFinding incoming) {
-            if (!isSimilarText(normalizedLocation, incoming.location(),
+            if (!ReviewFindingSimilarity.isSimilarText(normalizedLocation, incoming.location(),
                 locationBigrams, incoming.locationBigrams())) return false;
-            return isSimilarText(normalizedSummary, incoming.summary(),
+            return ReviewFindingSimilarity.isSimilarText(normalizedSummary, incoming.summary(),
                 summaryBigrams, incoming.summaryBigrams())
-                || isSimilarText(normalizedTitle, incoming.title(),
+                || ReviewFindingSimilarity.isSimilarText(normalizedTitle, incoming.title(),
                 titleBigrams, incoming.titleBigrams())
-                || hasCommonKeyword(normalizedTitle, incoming.title());
+                || ReviewFindingSimilarity.hasCommonKeyword(normalizedTitle, incoming.title());
         }
 
         private boolean matchBySummaryAndTitle(NormalizedFinding incoming) {
-            return isSimilarText(normalizedSummary, incoming.summary(),
+            return ReviewFindingSimilarity.isSimilarText(normalizedSummary, incoming.summary(),
                 summaryBigrams, incoming.summaryBigrams())
-                && isSimilarText(normalizedTitle, incoming.title(),
+                && ReviewFindingSimilarity.isSimilarText(normalizedTitle, incoming.title(),
                 titleBigrams, incoming.titleBigrams());
         }
     }
@@ -130,9 +113,9 @@ public final class ReviewResultMerger {
         String priority,
         String summary,
         String location,
-        Set<String> titleBigrams,
-        Set<String> summaryBigrams,
-        Set<String> locationBigrams
+        Set<Integer> titleBigrams,
+        Set<Integer> summaryBigrams,
+        Set<Integer> locationBigrams
     ) {}
 
     // ========================================================================
@@ -214,7 +197,7 @@ public final class ReviewResultMerger {
             return;
         }
 
-        List<FindingBlock> blocks = extractFindingBlocks(content);
+        List<FindingBlock> blocks = ReviewFindingBlockParser.extractFindingBlocks(content);
         if (blocks.isEmpty()) {
             addFallbackIfAbsent(content, passNumber, aggregatedFindings, fallbackPassContents);
             return;
@@ -300,44 +283,7 @@ public final class ReviewResultMerger {
         aggregatedFindings.put(key, fromNormalized(block, normalized, passNumber));
         indexByPriority(findingKeysByPriority, normalized.priority(), key);
         indexByPriorityAndPrefix(findingKeysByPriorityAndPrefix,
-            normalized.priority(), buildPrefixKey(normalized.title()), key);
-    }
-
-    // ========================================================================
-    // Finding parsing
-    // ========================================================================
-
-    private static List<FindingBlock> extractFindingBlocks(String content) {
-        Matcher matcher = FINDING_HEADER.matcher(content);
-        List<int[]> headerPositions = new ArrayList<>();
-        List<String> titles = new ArrayList<>();
-        while (matcher.find()) {
-            headerPositions.add(new int[]{matcher.start(), matcher.end()});
-            titles.add(matcher.group(2).trim());
-        }
-        if (headerPositions.isEmpty()) return List.of();
-
-        List<FindingBlock> blocks = new ArrayList<>(headerPositions.size());
-        for (int i = 0; i < headerPositions.size(); i++) {
-            int bodyStart = headerPositions.get(i)[1];
-            int bodyEnd = i + 1 < headerPositions.size()
-                ? headerPositions.get(i + 1)[0] : content.length();
-            String body = content.substring(bodyStart, bodyEnd).trim();
-            if (!body.isEmpty()) {
-                blocks.add(new FindingBlock(titles.get(i), body));
-            }
-        }
-        return blocks;
-    }
-
-    private static Pattern compileTableRowPattern(String key) {
-        return Pattern.compile(TABLE_ROW_TEMPLATE.pattern().formatted(Pattern.quote(key)));
-    }
-
-    private static String extractTableValue(String body, String key) {
-        Pattern pattern = TABLE_VALUE_PATTERNS.getOrDefault(key, compileTableRowPattern(key));
-        Matcher matcher = pattern.matcher(body);
-        return matcher.find() ? matcher.group(1).trim() : "";
+            normalized.priority(), ReviewFindingSimilarity.buildPrefixKey(normalized.title()), key);
     }
 
     // ========================================================================
@@ -346,12 +292,14 @@ public final class ReviewResultMerger {
 
     private static NormalizedFinding normalizeFinding(FindingBlock block) {
         String normalizedTitle = normalizeText(block.title());
-        String normalizedPriority = normalizeText(extractTableValue(block.body(), "Priority"));
-        String normalizedSummary = normalizeText(extractTableValue(block.body(), "指摘の概要"));
-        String normalizedLocation = normalizeText(extractTableValue(block.body(), "該当箇所"));
+        String normalizedPriority = normalizeText(ReviewFindingBlockParser.extractTableValue(block.body(), "Priority"));
+        String normalizedSummary = normalizeText(ReviewFindingBlockParser.extractTableValue(block.body(), "指摘の概要"));
+        String normalizedLocation = normalizeText(ReviewFindingBlockParser.extractTableValue(block.body(), "該当箇所"));
         return new NormalizedFinding(
             normalizedTitle, normalizedPriority, normalizedSummary, normalizedLocation,
-            bigrams(normalizedTitle), bigrams(normalizedSummary), bigrams(normalizedLocation));
+            ReviewFindingSimilarity.bigrams(normalizedTitle),
+            ReviewFindingSimilarity.bigrams(normalizedSummary),
+            ReviewFindingSimilarity.bigrams(normalizedLocation));
     }
 
     private static String findingKeyFromNormalized(NormalizedFinding normalized, String rawBody) {
@@ -381,7 +329,9 @@ public final class ReviewResultMerger {
         return new AggregatedFinding(
             "レビュー結果", rawContent, new LinkedHashSet<>(Set.of(passNumber)),
             normalizeText("レビュー結果"), "", normalizedRaw, "",
-            bigrams(normalizeText("レビュー結果")), bigrams(similarityTarget), Set.of());
+            ReviewFindingSimilarity.bigrams(normalizeText("レビュー結果")),
+            ReviewFindingSimilarity.bigrams(similarityTarget),
+            Set.of());
     }
 
     // ========================================================================
@@ -393,7 +343,7 @@ public final class ReviewResultMerger {
                                                Map<String, Set<String>> findingKeysByPriorityAndPrefix,
                                                NormalizedFinding incoming) {
         String priorityKey = incoming.priority().isBlank() ? "" : incoming.priority();
-        String titlePrefix = buildPrefixKey(incoming.title());
+        String titlePrefix = ReviewFindingSimilarity.buildPrefixKey(incoming.title());
         Set<String> keys = findingKeysByPriorityAndPrefix.get(priorityKey + "|" + titlePrefix);
         if (keys == null || keys.isEmpty()) {
             keys = findingKeysByPriority.getOrDefault(priorityKey, Set.of());
@@ -417,87 +367,8 @@ public final class ReviewResultMerger {
         index.computeIfAbsent(priorityKey + "|" + prefix, _ -> new LinkedHashSet<>()).add(key);
     }
 
-    private static String buildPrefixKey(String title) {
-        if (title == null || title.isBlank()) return "";
-        int length = Math.min(title.length(), 8);
-        return title.substring(0, length);
-    }
-
-    // ========================================================================
-    // Text similarity
-    // ========================================================================
-
     static String normalizeText(String value) {
-        if (value == null || value.isBlank()) return "";
-        char[] chars = value.toCharArray();
-        StringBuilder sb = new StringBuilder(chars.length);
-        boolean lastWasSpace = true;
-        for (char c : chars) {
-            char lower = Character.toLowerCase(c);
-            switch (lower) {
-                case '`', '*', '_' -> { /* skip markdown formatting */ }
-                case '|', '/', '\t', '\n', '\r', ' ' -> {
-                    if (!lastWasSpace) { sb.append(' '); lastWasSpace = true; }
-                }
-                default -> {
-                    if (lower == '\u30FB') { // ・ (middle dot)
-                        if (!lastWasSpace) { sb.append(' '); lastWasSpace = true; }
-                    } else {
-                        sb.append(lower); lastWasSpace = false;
-                    }
-                }
-            }
-        }
-        return sb.toString().trim();
-    }
-
-    private static Set<String> bigrams(String text) {
-        String compact = text.replace(" ", "");
-        if (compact.length() < 2) return compact.isEmpty() ? Set.of() : Set.of(compact);
-        Set<String> grams = HashSet.newHashSet(compact.length() - 1);
-        for (int i = 0; i < compact.length() - 1; i++) {
-            grams.add(compact.substring(i, i + 2));
-        }
-        return grams;
-    }
-
-    private static boolean isSimilarText(String left, String right,
-                                         Set<String> leftBigrams, Set<String> rightBigrams) {
-        if (left.isEmpty() || right.isEmpty()) return false;
-        if (left.equals(right)) return true;
-        if (left.length() >= 8 && right.contains(left)) return true;
-        if (right.length() >= 8 && left.contains(right)) return true;
-        return diceCoefficient(leftBigrams, rightBigrams) >= NEAR_DUPLICATE_SIMILARITY;
-    }
-
-    private static boolean hasCommonKeyword(String left, String right) {
-        Set<String> leftWords = extractKeywords(left);
-        Set<String> rightWords = extractKeywords(right);
-        if (leftWords.isEmpty() || rightWords.isEmpty()) return false;
-        for (String word : leftWords) {
-            if (rightWords.contains(word)) return true;
-        }
-        return false;
-    }
-
-    private static Set<String> extractKeywords(String text) {
-        if (text == null || text.isBlank()) return Set.of();
-        Set<String> keywords = new LinkedHashSet<>();
-        Matcher matcher = KEYWORD_PATTERN.matcher(text);
-        while (matcher.find()) {
-            String token = matcher.group();
-            if (token.length() >= 2) keywords.add(token);
-        }
-        return keywords;
-    }
-
-    private static double diceCoefficient(Set<String> leftBigrams, Set<String> rightBigrams) {
-        if (leftBigrams.isEmpty() || rightBigrams.isEmpty()) return 0.0d;
-        int overlap = 0;
-        for (String gram : leftBigrams) {
-            if (rightBigrams.contains(gram)) overlap++;
-        }
-        return (2.0d * overlap) / (leftBigrams.size() + rightBigrams.size());
+        return ReviewFindingSimilarity.normalizeText(value);
     }
 
     // ========================================================================
@@ -506,42 +377,6 @@ public final class ReviewResultMerger {
 
     private static String formatMergedContent(Map<String, AggregatedFinding> aggregatedFindings,
                                               int totalPasses, int failedPasses) {
-        var sb = new StringBuilder();
-
-        if (aggregatedFindings.isEmpty()) {
-            sb.append("指摘事項なし");
-        } else {
-            int index = 1;
-            int totalFindings = aggregatedFindings.size();
-            for (AggregatedFinding finding : aggregatedFindings.values()) {
-                sb.append("### ").append(index).append(". ").append(finding.title()).append("\n\n");
-                if (finding.passNumbers().size() > 1) {
-                    sb.append("> 検出パス: ").append(formatPassNumbers(finding.passNumbers())).append("\n\n");
-                }
-                sb.append(finding.body().trim());
-                if (index < totalFindings) {
-                    sb.append("\n\n---\n\n");
-                }
-                index++;
-            }
-        }
-
-        if (failedPasses > 0) {
-            sb.append("\n\n---\n\n> **注記**: %d パス中 %d パスが失敗しました。上記は成功したパスの結果のみです。\n"
-                .formatted(totalPasses, failedPasses));
-        }
-
-        return sb.toString();
-    }
-
-    private static String formatPassNumbers(Set<Integer> passNumbers) {
-        StringBuilder sb = new StringBuilder();
-        int i = 0;
-        for (Integer passNumber : passNumbers) {
-            if (i > 0) sb.append(", ");
-            sb.append(passNumber);
-            i++;
-        }
-        return sb.toString();
+        return ReviewMergedContentFormatter.formatMergedContent(aggregatedFindings, totalPasses, failedPasses);
     }
 }

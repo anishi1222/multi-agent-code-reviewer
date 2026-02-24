@@ -48,6 +48,22 @@ public class SummaryGenerator {
         Pattern.compile("\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}");
     private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
 
+    /// Grouped configuration for SummaryGenerator construction.
+    public record SummaryConfig(
+        Path outputDirectory,
+        String summaryModel,
+        String reasoningEffort,
+        long timeoutMinutes,
+        SummarySettings summarySettings,
+        ResilienceConfig.OperationSettings resilienceSettings
+    ) {
+        public SummaryConfig {
+            summarySettings = summarySettings != null ? summarySettings : new SummarySettings(0, 0, 0, 0, 0, 0);
+            resilienceSettings = resilienceSettings != null
+                ? resilienceSettings : ResilienceConfig.OperationSettings.summaryDefaults();
+        }
+    }
+
     private final Path outputDirectory;
     private final CopilotClient client;
     private final String summaryModel;
@@ -62,39 +78,26 @@ public class SummaryGenerator {
     private final long backoffMaxMs;
 
     public SummaryGenerator(
-            Path outputDirectory,
+            SummaryConfig config,
             CopilotClient client,
-            String summaryModel,
-            String reasoningEffort,
-            long timeoutMinutes,
-            TemplateService templateService,
-            SummarySettings summarySettings,
-            ResilienceConfig.OperationSettings resilienceSettings) {
-        this(outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes,
-            templateService, summarySettings, resilienceSettings, Clock.systemDefaultZone());
+            TemplateService templateService) {
+        this(config, client, templateService, Clock.systemDefaultZone());
     }
 
     SummaryGenerator(
-            Path outputDirectory,
+            SummaryConfig config,
             CopilotClient client,
-            String summaryModel,
-            String reasoningEffort,
-            long timeoutMinutes,
             TemplateService templateService,
-            SummarySettings summarySettings,
-            ResilienceConfig.OperationSettings resilienceSettings,
             Clock clock) {
-        this.outputDirectory = outputDirectory;
+        this.outputDirectory = config.outputDirectory();
         this.client = client;
-        this.summaryModel = summaryModel;
-        this.reasoningEffort = reasoningEffort;
-        this.timeoutMinutes = timeoutMinutes;
+        this.summaryModel = config.summaryModel();
+        this.reasoningEffort = config.reasoningEffort();
+        this.timeoutMinutes = config.timeoutMinutes();
         this.templateService = templateService;
-        this.summarySettings = summarySettings;
-        this.invocationTimestamp = resolveInvocationTimestamp(outputDirectory, clock);
-        var settings = resilienceSettings != null
-            ? resilienceSettings
-            : ResilienceConfig.OperationSettings.summaryDefaults();
+        this.summarySettings = config.summarySettings();
+        this.invocationTimestamp = resolveInvocationTimestamp(config.outputDirectory(), clock);
+        var settings = config.resilienceSettings();
         this.apiCircuitBreaker = new ApiCircuitBreaker(
             settings.failureThreshold(),
             TimeUnit.SECONDS.toMillis(settings.openDurationSeconds()),
@@ -120,7 +123,15 @@ public class SummaryGenerator {
 
         String summaryContent = buildSummaryWithAI(results, repository);
         String finalReport = formatFinalReport(summaryContent, repository, results, invocationTimestamp);
-        ReportGenerator.writeSecureString(summaryPath, finalReport);
+        try {
+            ReportGenerator.writeSecureString(summaryPath, finalReport);
+        } catch (IOException e) {
+            logger.error("Failed to write summary to {}: {}. Outputting to stderr as fallback.",
+                summaryPath, e.getMessage());
+            System.err.println("=== Executive Summary (file write failed) ===");
+            System.err.println(finalReport);
+            throw e;
+        }
 
         logger.info("Generated executive summary: {}", summaryPath);
         return summaryPath;
@@ -150,7 +161,7 @@ public class SummaryGenerator {
             }
 
             try (CopilotSession session = client.createSession(sessionConfig)
-                .get(timeoutMinutes, TimeUnit.MINUTES)) {
+                .get(Math.max(1, timeoutMinutes / 4), TimeUnit.MINUTES)) {
                 var response = session
                     .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
                     .get(timeoutMinutes, TimeUnit.MINUTES);
@@ -310,16 +321,19 @@ public class SummaryGenerator {
             return "N/A";
         }
         int excerptLength = summarySettings.fallbackExcerptLength();
-        int multiplier = summarySettings.excerptNormalizationMultiplier();
         String content = result.content();
-        int prefixLength = Math.min(content.length(), excerptLength * multiplier);
-        String normalized = WHITESPACE_PATTERN.matcher(content.substring(0, prefixLength))
-            .replaceAll(" ")
-            .trim();
-        if (normalized.length() <= excerptLength) {
-            return normalized;
+        var sb = new StringBuilder(excerptLength + 4);
+        boolean lastWasSpace = true;
+        for (int i = 0; i < content.length() && sb.length() < excerptLength; i++) {
+            char c = content.charAt(i);
+            if (Character.isWhitespace(c)) {
+                if (!lastWasSpace) { sb.append(' '); lastWasSpace = true; }
+            } else {
+                sb.append(c); lastWasSpace = false;
+            }
         }
-        return normalized.substring(0, excerptLength) + "...";
+        String normalized = sb.toString().strip();
+        return normalized.length() <= excerptLength ? normalized : normalized.substring(0, excerptLength) + "...";
     }
 
     // ------------------------------------------------------------------

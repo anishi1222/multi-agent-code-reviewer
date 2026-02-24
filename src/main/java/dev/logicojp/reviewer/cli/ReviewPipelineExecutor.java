@@ -16,8 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +32,9 @@ public class ReviewPipelineExecutor {
     private final ReviewOrchestratorFactory orchestratorFactory;
     private final ReportService reportService;
     private final CliOutput output;
+    private final CheckpointLifecycleManager checkpointLifecycleManager;
 
+    @jakarta.inject.Inject
     public ReviewPipelineExecutor(ExecutionConfig executionConfig,
                                   CopilotService copilotService,
                                   ReviewOrchestratorFactory orchestratorFactory,
@@ -43,6 +45,7 @@ public class ReviewPipelineExecutor {
         this.orchestratorFactory = orchestratorFactory;
         this.reportService = reportService;
         this.output = output;
+        this.checkpointLifecycleManager = new CheckpointLifecycleManager();
     }
 
     public int execute(ReviewTarget target,
@@ -53,8 +56,10 @@ public class ReviewPipelineExecutor {
                        String outputConstraints,
                        int parallelism,
                        boolean noSummary,
+                       boolean keepCheckpoints,
                        String token) {
         output.println("Starting reviews...");
+        LocalDateTime invocationTime = LocalDateTime.now();
 
         String reasoningEffort = modelConfig.reasoningEffort();
         var effectiveConfig = executionConfig.withParallelism(parallelism);
@@ -71,6 +76,8 @@ public class ReviewPipelineExecutor {
         }
 
         printCompletionSummary(results, outputDirectory);
+        checkpointLifecycleManager.handle(
+            Path.of(executionConfig.checkpointDirectory()), keepCheckpoints, invocationTime);
         return ExitCodes.OK;
     }
 
@@ -83,7 +90,10 @@ public class ReviewPipelineExecutor {
                 output.println("  ✓ " + report.getFileName());
             }
         } catch (IOException e) {
-            throw new UncheckedIOException("Report generation failed", e);
+            logger.error("Report generation failed: {}", e.getMessage(), e);
+            output.errorln("Warning: Report generation failed: " + e.getMessage());
+            output.errorln("Review results are available in checkpoint files at: "
+                + Path.of(executionConfig.checkpointDirectory()));
         }
     }
 
@@ -115,4 +125,5 @@ public class ReviewPipelineExecutor {
         output.println("  Reports: " + outputDirectory.toAbsolutePath());
         output.println("════════════════════════════════════════════════════════════");
     }
+
 }

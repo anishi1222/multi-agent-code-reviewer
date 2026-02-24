@@ -16,6 +16,7 @@ import jakarta.inject.Singleton;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 /// Service for managing and executing skills.
 @Singleton
@@ -84,7 +85,7 @@ public class SkillService {
 
     private SkillExecutor.Result executeResolvedSkill(
             String skillId,
-            java.util.function.Function<SkillDefinition, SkillExecutor.Result> runner) {
+            Function<SkillDefinition, SkillExecutor.Result> runner) {
         Optional<SkillDefinition> skillOpt = skillRegistry.get(skillId);
         if (skillOpt.isEmpty()) {
             return SkillExecutor.Result.failure(skillId, "Skill not found: " + skillId);

@@ -84,7 +84,7 @@ class ReviewerConfigTest {
         @Test
         @DisplayName("nullフィールドはデフォルト値に設定される")
         void nullFieldsDefaulted() {
-            var skills = new ReviewerConfig.Skills(null, null, 0, 0, 0, 0.0, 0, 0);
+            var skills = new ReviewerConfig.Skills(null, null, 0, 0, 0, 0, 0);
 
             assertThat(skills.filename()).isEqualTo("SKILL.md");
             assertThat(skills.directory()).isEqualTo(".github/skills");
