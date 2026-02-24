@@ -29,7 +29,7 @@ All review findings from 2026-02-16 through 2026-02-24 have been fully addressed
 
 For the full change log, see [`RELEASE_NOTES.md`](RELEASE_NOTES.md).
 
-- Latest: [v2026.02.20-reliability](https://github.com/anishi1222/multi-agent-code-reviewer-v2/releases/tag/v2026.02.20-reliability) — WAF Reliability remediation (circuit breaker isolation, retry policy, checkpoint persistence)
+- Latest: [v2026.02.24-notes](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.02.24-notes) — Release notes consolidation and 2026-02-24 remediation rollup
 
 ## Operational Completion Check (2026-02-20)
 
