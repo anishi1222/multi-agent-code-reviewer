@@ -1,5 +1,15 @@
 # Release Notes
 
+## 2026-02-25
+
+### Test Assertion Import Style Refactor (PR #39)
+
+- replaced `import static org.assertj.core.api.Assertions.*` usage in tests with `import org.assertj.core.api.Assertions`
+- qualified assertions as `Assertions.assertThat(...)`, `Assertions.assertThatThrownBy(...)`, and `Assertions.assertThatCode(...)`
+- kept behavior unchanged (style-only refactor)
+
+PR: #39
+
 ## 2026-02-24
 
 ### Local File Orchestration Refactor + Regression Coverage (PR #37)
