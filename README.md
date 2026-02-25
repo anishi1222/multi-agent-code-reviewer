@@ -20,6 +20,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Latest Changes
 
+- 2026-02-25: PR #39 merged — AssertJ static imports in tests were replaced with `Assertions.*` qualified calls (style-only, no behavior change). See [RELEASE_NOTES.md](./RELEASE_NOTES.md).
 - 2026-02-24: PR #37 merged — local file orchestration was split into dedicated components, retry flows were unified, and regression tests were expanded. See [RELEASE_NOTES.md](./RELEASE_NOTES.md).
 
 ### Doc Sync Note
