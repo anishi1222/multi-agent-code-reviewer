@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.report;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.TemplateConfig;
 import dev.logicojp.reviewer.service.TemplateService;
@@ -16,7 +17,6 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReportGenerator")
 class ReportGeneratorTest {
@@ -30,7 +30,7 @@ class ReportGeneratorTest {
         void replacesUnsafeCharacters() {
             String sanitized = ReportGenerator.sanitizeAgentName("sec/agent:*? name");
 
-            assertThat(sanitized).isEqualTo("sec_agent____name");
+            Assertions.assertThat(sanitized).isEqualTo("sec_agent____name");
         }
     }
 
@@ -45,8 +45,8 @@ class ReportGeneratorTest {
 
             ReportGenerator.writeSecureString(nestedFile, "hello-report");
 
-            assertThat(Files.exists(nestedFile)).isTrue();
-            assertThat(Files.readString(nestedFile)).isEqualTo("hello-report");
+            Assertions.assertThat(Files.exists(nestedFile)).isTrue();
+            Assertions.assertThat(Files.readString(nestedFile)).isEqualTo("hello-report");
         }
     }
 
@@ -62,10 +62,10 @@ class ReportGeneratorTest {
 
             Path report = generator.generateReport(result);
 
-            assertThat(report.getFileName().toString()).isEqualTo("security_agent-report.md");
-            assertThat(Files.exists(report)).isTrue();
-            assertThat(Files.readString(report)).contains("review content");
-            assertThat(Files.readString(report)).contains("owner/repo");
+            Assertions.assertThat(report.getFileName().toString()).isEqualTo("security_agent-report.md");
+            Assertions.assertThat(Files.exists(report)).isTrue();
+            Assertions.assertThat(Files.readString(report)).contains("review content");
+            Assertions.assertThat(Files.readString(report)).contains("owner/repo");
         }
 
         @Test
@@ -76,10 +76,10 @@ class ReportGeneratorTest {
 
             Path report = generator.generateReport(result);
 
-            assertThat(Files.exists(report)).isTrue();
+            Assertions.assertThat(Files.exists(report)).isTrue();
             String content = Files.readString(report);
-            assertThat(content).contains("⚠️ **レビュー失敗**");
-            assertThat(content).contains("timeout reached");
+            Assertions.assertThat(content).contains("⚠️ **レビュー失敗**");
+            Assertions.assertThat(content).contains("timeout reached");
         }
     }
 
@@ -101,7 +101,7 @@ class ReportGeneratorTest {
 
             List<Path> generated = generator.generateReports(results);
 
-            assertThat(generated).isEmpty();
+            Assertions.assertThat(generated).isEmpty();
         }
     }
 

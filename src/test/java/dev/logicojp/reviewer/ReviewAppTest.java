@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.cli.CliOutput;
 import dev.logicojp.reviewer.cli.ExitCodes;
 import dev.logicojp.reviewer.cli.ListAgentsCommand;
@@ -15,7 +16,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewApp")
 class ReviewAppTest {
@@ -89,15 +89,15 @@ class ReviewAppTest {
         @DisplayName("USAGEを返し、ヘルプを表示する")
         void returnsUsage() {
             int code = app.execute(new String[]{});
-            assertThat(code).isEqualTo(ExitCodes.USAGE);
-            assertThat(stdout()).contains("Usage:");
+            Assertions.assertThat(code).isEqualTo(ExitCodes.USAGE);
+            Assertions.assertThat(stdout()).contains("Usage:");
         }
 
         @Test
         @DisplayName("nullの場合はUSAGEを返す")
         void nullArgs() {
             int code = app.execute(null);
-            assertThat(code).isEqualTo(ExitCodes.USAGE);
+            Assertions.assertThat(code).isEqualTo(ExitCodes.USAGE);
         }
     }
 
@@ -109,29 +109,29 @@ class ReviewAppTest {
         @DisplayName("runコマンドを実行する")
         void runCommand() {
             int code = app.execute(new String[]{"run"});
-            assertThat(code).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(code).isEqualTo(ExitCodes.OK);
         }
 
         @Test
         @DisplayName("listコマンドを実行する")
         void listCommand() {
             int code = app.execute(new String[]{"list"});
-            assertThat(code).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(code).isEqualTo(ExitCodes.OK);
         }
 
         @Test
         @DisplayName("skillコマンドを実行する")
         void skillCommand() {
             int code = app.execute(new String[]{"skill"});
-            assertThat(code).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(code).isEqualTo(ExitCodes.OK);
         }
 
         @Test
         @DisplayName("不明なコマンドはUSAGEを返す")
         void unknownCommand() {
             int code = app.execute(new String[]{"unknown"});
-            assertThat(code).isEqualTo(ExitCodes.USAGE);
-            assertThat(stderr()).contains("Unknown command");
+            Assertions.assertThat(code).isEqualTo(ExitCodes.USAGE);
+            Assertions.assertThat(stderr()).contains("Unknown command");
         }
     }
 
@@ -143,31 +143,31 @@ class ReviewAppTest {
         @DisplayName("--versionでバージョン情報を表示する")
         void versionFlag() {
             int code = app.execute(new String[]{"--version"});
-            assertThat(code).isEqualTo(ExitCodes.OK);
-            assertThat(stdout()).contains("Multi-Agent Reviewer");
+            Assertions.assertThat(code).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(stdout()).contains("Multi-Agent Reviewer");
         }
 
         @Test
         @DisplayName("-Vでバージョン情報を表示する")
         void shortVersionFlag() {
             int code = app.execute(new String[]{"-V"});
-            assertThat(code).isEqualTo(ExitCodes.OK);
-            assertThat(stdout()).contains("Multi-Agent Reviewer");
+            Assertions.assertThat(code).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(stdout()).contains("Multi-Agent Reviewer");
         }
 
         @Test
         @DisplayName("--helpのみでヘルプを表示する")
         void helpFlagOnly() {
             int code = app.execute(new String[]{"--help"});
-            assertThat(code).isEqualTo(ExitCodes.OK);
-            assertThat(stdout()).contains("Usage:");
+            Assertions.assertThat(code).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(stdout()).contains("Usage:");
         }
 
         @Test
         @DisplayName("--verboseフラグがサブコマンドに影響しない")
         void verboseWithSubcommand() {
             int code = app.execute(new String[]{"--verbose", "run"});
-            assertThat(code).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(code).isEqualTo(ExitCodes.OK);
         }
     }
 
@@ -179,14 +179,14 @@ class ReviewAppTest {
         @DisplayName("'review run'が動作する")
         void reviewRunPrefix() {
             int code = app.execute(new String[]{"review", "run"});
-            assertThat(code).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(code).isEqualTo(ExitCodes.OK);
         }
 
         @Test
         @DisplayName("'review'のみはUSAGEを返す")
         void reviewOnly() {
             int code = app.execute(new String[]{"review"});
-            assertThat(code).isEqualTo(ExitCodes.USAGE);
+            Assertions.assertThat(code).isEqualTo(ExitCodes.USAGE);
         }
     }
 }

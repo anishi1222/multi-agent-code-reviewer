@@ -1,10 +1,10 @@
 package dev.logicojp.reviewer.config;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ModelConfig")
 class ModelConfigTest {
@@ -18,11 +18,11 @@ class ModelConfigTest {
         void noArgConstructorSetsDefaults() {
             var config = new ModelConfig();
 
-            assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.defaultModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
+            Assertions.assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.defaultModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
         }
 
         @Test
@@ -30,10 +30,10 @@ class ModelConfigTest {
         void nullFieldsAreConvertedToDefaults() {
             var config = new ModelConfig(null, null, null, null, null);
 
-            assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
+            Assertions.assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
         }
 
         @Test
@@ -41,10 +41,10 @@ class ModelConfigTest {
         void blankFieldsAreConvertedToDefaults() {
             var config = new ModelConfig("  ", "\t", "\n", "  ", null);
 
-            assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
+            Assertions.assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
         }
 
         @Test
@@ -52,10 +52,10 @@ class ModelConfigTest {
         void emptyFieldsAreConvertedToDefaults() {
             var config = new ModelConfig("", "", "", "", null);
 
-            assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
+            Assertions.assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
         }
 
         @Test
@@ -63,10 +63,10 @@ class ModelConfigTest {
         void canonicalConstructorSetsIndividualFields() {
             var config = new ModelConfig("model-a", "model-b", "model-c", null, null);
 
-            assertThat(config.reviewModel()).isEqualTo("model-a");
-            assertThat(config.reportModel()).isEqualTo("model-b");
-            assertThat(config.summaryModel()).isEqualTo("model-c");
-            assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
+            Assertions.assertThat(config.reviewModel()).isEqualTo("model-a");
+            Assertions.assertThat(config.reportModel()).isEqualTo("model-b");
+            Assertions.assertThat(config.summaryModel()).isEqualTo("model-c");
+            Assertions.assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
         }
 
         @Test
@@ -74,7 +74,7 @@ class ModelConfigTest {
         void canonicalConstructorSetsReasoningEffort() {
             var config = new ModelConfig("model-a", "model-b", "model-c", "low", null);
 
-            assertThat(config.reasoningEffort()).isEqualTo("low");
+            Assertions.assertThat(config.reasoningEffort()).isEqualTo("low");
         }
     }
 
@@ -87,10 +87,10 @@ class ModelConfigTest {
         void defaultModelFallsBackForUnsetModels() {
             var config = new ModelConfig(null, null, null, null, "custom-fallback");
 
-            assertThat(config.defaultModel()).isEqualTo("custom-fallback");
-            assertThat(config.reviewModel()).isEqualTo("custom-fallback");
-            assertThat(config.reportModel()).isEqualTo("custom-fallback");
-            assertThat(config.summaryModel()).isEqualTo("custom-fallback");
+            Assertions.assertThat(config.defaultModel()).isEqualTo("custom-fallback");
+            Assertions.assertThat(config.reviewModel()).isEqualTo("custom-fallback");
+            Assertions.assertThat(config.reportModel()).isEqualTo("custom-fallback");
+            Assertions.assertThat(config.summaryModel()).isEqualTo("custom-fallback");
         }
 
         @Test
@@ -98,7 +98,7 @@ class ModelConfigTest {
         void nullDefaultModelFallsBackToConstant() {
             var config = new ModelConfig(null, null, null, null, null);
 
-            assertThat(config.defaultModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.defaultModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
         }
 
         @Test
@@ -106,9 +106,9 @@ class ModelConfigTest {
         void individualModelsOverrideDefaultModel() {
             var config = new ModelConfig("review-x", null, null, null, "custom-fallback");
 
-            assertThat(config.reviewModel()).isEqualTo("review-x");
-            assertThat(config.reportModel()).isEqualTo("custom-fallback");
-            assertThat(config.summaryModel()).isEqualTo("custom-fallback");
+            Assertions.assertThat(config.reviewModel()).isEqualTo("review-x");
+            Assertions.assertThat(config.reportModel()).isEqualTo("custom-fallback");
+            Assertions.assertThat(config.summaryModel()).isEqualTo("custom-fallback");
         }
     }
 
@@ -119,35 +119,35 @@ class ModelConfigTest {
         @Test
         @DisplayName("Opusモデルはreasoningモデルと判定される")
         void opusModelIsReasoning() {
-            assertThat(ModelConfig.isReasoningModel("claude-opus-4.6")).isTrue();
-            assertThat(ModelConfig.isReasoningModel("claude-opus-4.6-fast")).isTrue();
-            assertThat(ModelConfig.isReasoningModel("Claude-Opus-4.5")).isTrue();
+            Assertions.assertThat(ModelConfig.isReasoningModel("claude-opus-4.6")).isTrue();
+            Assertions.assertThat(ModelConfig.isReasoningModel("claude-opus-4.6-fast")).isTrue();
+            Assertions.assertThat(ModelConfig.isReasoningModel("Claude-Opus-4.5")).isTrue();
         }
 
         @Test
         @DisplayName("o3モデルはreasoningモデルと判定される")
         void o3ModelIsReasoning() {
-            assertThat(ModelConfig.isReasoningModel("o3")).isTrue();
-            assertThat(ModelConfig.isReasoningModel("o3-mini")).isTrue();
+            Assertions.assertThat(ModelConfig.isReasoningModel("o3")).isTrue();
+            Assertions.assertThat(ModelConfig.isReasoningModel("o3-mini")).isTrue();
         }
 
         @Test
         @DisplayName("o4-miniモデルはreasoningモデルと判定される")
         void o4MiniModelIsReasoning() {
-            assertThat(ModelConfig.isReasoningModel("o4-mini")).isTrue();
+            Assertions.assertThat(ModelConfig.isReasoningModel("o4-mini")).isTrue();
         }
 
         @Test
         @DisplayName("非reasoningモデルはfalseを返す")
         void nonReasoningModelReturnsFalse() {
-            assertThat(ModelConfig.isReasoningModel("claude-sonnet-4")).isFalse();
-            assertThat(ModelConfig.isReasoningModel("gpt-4o")).isFalse();
+            Assertions.assertThat(ModelConfig.isReasoningModel("claude-sonnet-4")).isFalse();
+            Assertions.assertThat(ModelConfig.isReasoningModel("gpt-4o")).isFalse();
         }
 
         @Test
         @DisplayName("nullの場合はfalseを返す")
         void nullReturnsFalse() {
-            assertThat(ModelConfig.isReasoningModel(null)).isFalse();
+            Assertions.assertThat(ModelConfig.isReasoningModel(null)).isFalse();
         }
     }
 
@@ -158,27 +158,27 @@ class ModelConfigTest {
         @Test
         @DisplayName("推論モデルの場合は設定されたeffortを返す")
         void reasoningModelReturnsConfiguredEffort() {
-            assertThat(ModelConfig.resolveReasoningEffort("claude-opus-4.6", "medium"))
+            Assertions.assertThat(ModelConfig.resolveReasoningEffort("claude-opus-4.6", "medium"))
                 .isEqualTo("medium");
         }
 
         @Test
         @DisplayName("推論モデルでeffortがnullの場合はデフォルトeffortを返す")
         void reasoningModelWithNullEffortReturnsDefault() {
-            assertThat(ModelConfig.resolveReasoningEffort("o3", null))
+            Assertions.assertThat(ModelConfig.resolveReasoningEffort("o3", null))
                 .isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
         }
 
         @Test
         @DisplayName("非推論モデルの場合はnullを返す")
         void nonReasoningModelReturnsNull() {
-            assertThat(ModelConfig.resolveReasoningEffort("claude-sonnet-4", "high")).isNull();
+            Assertions.assertThat(ModelConfig.resolveReasoningEffort("claude-sonnet-4", "high")).isNull();
         }
 
         @Test
         @DisplayName("nullモデルの場合はnullを返す")
         void nullModelReturnsNull() {
-            assertThat(ModelConfig.resolveReasoningEffort(null, "high")).isNull();
+            Assertions.assertThat(ModelConfig.resolveReasoningEffort(null, "high")).isNull();
         }
     }
 
@@ -191,10 +191,10 @@ class ModelConfigTest {
         void defaultBuilderBuildsWithDefaults() {
             var config = ModelConfig.builder().build();
 
-            assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
-            assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
+            Assertions.assertThat(config.reviewModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reportModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.summaryModel()).isEqualTo(ModelConfig.DEFAULT_MODEL);
+            Assertions.assertThat(config.reasoningEffort()).isEqualTo(ModelConfig.DEFAULT_REASONING_EFFORT);
         }
 
         @Test
@@ -202,10 +202,10 @@ class ModelConfigTest {
         void allModelsSetsAllFields() {
             var config = ModelConfig.builder().allModels("unified-model").build();
 
-            assertThat(config.reviewModel()).isEqualTo("unified-model");
-            assertThat(config.reportModel()).isEqualTo("unified-model");
-            assertThat(config.summaryModel()).isEqualTo("unified-model");
-            assertThat(config.defaultModel()).isEqualTo("unified-model");
+            Assertions.assertThat(config.reviewModel()).isEqualTo("unified-model");
+            Assertions.assertThat(config.reportModel()).isEqualTo("unified-model");
+            Assertions.assertThat(config.summaryModel()).isEqualTo("unified-model");
+            Assertions.assertThat(config.defaultModel()).isEqualTo("unified-model");
         }
 
         @Test
@@ -218,10 +218,10 @@ class ModelConfigTest {
                 .reasoningEffort("low")
                 .build();
 
-            assertThat(config.reviewModel()).isEqualTo("review");
-            assertThat(config.reportModel()).isEqualTo("report");
-            assertThat(config.summaryModel()).isEqualTo("summary");
-            assertThat(config.reasoningEffort()).isEqualTo("low");
+            Assertions.assertThat(config.reviewModel()).isEqualTo("review");
+            Assertions.assertThat(config.reportModel()).isEqualTo("report");
+            Assertions.assertThat(config.summaryModel()).isEqualTo("summary");
+            Assertions.assertThat(config.reasoningEffort()).isEqualTo("low");
         }
     }
 
@@ -235,7 +235,7 @@ class ModelConfigTest {
             var config = new ModelConfig("r-model", "p-model", "s-model", "medium", null);
             var result = config.toString();
 
-            assertThat(result).contains("r-model", "p-model", "s-model", "medium");
+            Assertions.assertThat(result).contains("r-model", "p-model", "s-model", "medium");
         }
     }
 }

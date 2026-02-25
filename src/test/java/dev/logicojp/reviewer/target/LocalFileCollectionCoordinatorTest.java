@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.target;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -11,8 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("LocalFileCollectionCoordinator")
 class LocalFileCollectionCoordinatorTest {
@@ -31,7 +30,7 @@ class LocalFileCollectionCoordinatorTest {
             Files.delete(baseDir);
 
             var files = coordinator.collectFiles();
-            assertThat(files).isEmpty();
+            Assertions.assertThat(files).isEmpty();
         }
 
         @Test
@@ -44,8 +43,8 @@ class LocalFileCollectionCoordinatorTest {
 
             var files = coordinator.collectFiles();
 
-            assertThat(files).hasSize(1);
-            assertThatThrownBy(() -> files.add(new LocalFileProvider.LocalFile("x", "y", 1)))
+            Assertions.assertThat(files).hasSize(1);
+            Assertions.assertThatThrownBy(() -> files.add(new LocalFileProvider.LocalFile("x", "y", 1)))
                 .isInstanceOf(UnsupportedOperationException.class);
         }
     }
@@ -65,10 +64,10 @@ class LocalFileCollectionCoordinatorTest {
 
             var result = coordinator.collectAndGenerate();
 
-            assertThat(result.fileCount()).isZero();
-            assertThat(result.totalSizeBytes()).isZero();
-            assertThat(result.reviewContent()).isEqualTo("(no source files found)");
-            assertThat(result.directorySummary()).contains("No source files found in:");
+            Assertions.assertThat(result.fileCount()).isZero();
+            Assertions.assertThat(result.totalSizeBytes()).isZero();
+            Assertions.assertThat(result.reviewContent()).isEqualTo("(no source files found)");
+            Assertions.assertThat(result.directorySummary()).contains("No source files found in:");
         }
 
         @Test
@@ -82,11 +81,11 @@ class LocalFileCollectionCoordinatorTest {
             var coordinator = newCoordinator(baseDir);
             var result = coordinator.collectAndGenerate();
 
-            assertThat(result.fileCount()).isEqualTo(2);
-            assertThat(result.totalSizeBytes()).isPositive();
-            assertThat(result.reviewContent()).contains("Main.java");
-            assertThat(result.reviewContent()).contains("README.md");
-            assertThat(result.directorySummary()).contains("Files: 2");
+            Assertions.assertThat(result.fileCount()).isEqualTo(2);
+            Assertions.assertThat(result.totalSizeBytes()).isPositive();
+            Assertions.assertThat(result.reviewContent()).contains("Main.java");
+            Assertions.assertThat(result.reviewContent()).contains("README.md");
+            Assertions.assertThat(result.directorySummary()).contains("Files: 2");
         }
     }
 

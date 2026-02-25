@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.cli;
 
+import org.assertj.core.api.Assertions;
 import com.github.copilot.sdk.CopilotClient;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
@@ -28,7 +29,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewPipelineExecutor")
 class ReviewPipelineExecutorTest {
@@ -68,13 +68,13 @@ class ReviewPipelineExecutorTest {
             );
 
             String stdout = outputCapture.out.toString(StandardCharsets.UTF_8);
-            assertThat(exitCode).isEqualTo(ExitCodes.OK);
-            assertThat(stdout).contains("Starting reviews...");
-            assertThat(stdout).contains("Generating reports...");
-            assertThat(stdout).contains("Review completed!");
-            assertThat(stdout).contains("Successful: 1");
-            assertThat(stdout).contains("Failed: 1");
-            assertThat(stdout).doesNotContain("Generating executive summary...");
+            Assertions.assertThat(exitCode).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(stdout).contains("Starting reviews...");
+            Assertions.assertThat(stdout).contains("Generating reports...");
+            Assertions.assertThat(stdout).contains("Review completed!");
+            Assertions.assertThat(stdout).contains("Successful: 1");
+            Assertions.assertThat(stdout).contains("Failed: 1");
+            Assertions.assertThat(stdout).doesNotContain("Generating executive summary...");
         }
     }
 
@@ -110,9 +110,9 @@ class ReviewPipelineExecutorTest {
             );
 
             String stderr = outputCapture.err.toString(StandardCharsets.UTF_8);
-            assertThat(exitCode).isEqualTo(ExitCodes.OK);
-            assertThat(stderr).contains("Warning: Report generation failed:");
-            assertThat(stderr).contains(checkpointDir.toString());
+            Assertions.assertThat(exitCode).isEqualTo(ExitCodes.OK);
+            Assertions.assertThat(stderr).contains("Warning: Report generation failed:");
+            Assertions.assertThat(stderr).contains(checkpointDir.toString());
         }
     }
 

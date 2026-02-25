@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.report;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -8,7 +9,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("SummaryGenerator timestamp resolution")
 class SummaryGeneratorTimestampTest {
@@ -21,7 +21,7 @@ class SummaryGeneratorTimestampTest {
 
         String timestamp = SummaryGenerator.resolveInvocationTimestamp(outputDirectory, clock);
 
-        assertThat(timestamp).isEqualTo("2026-02-24-13-15-18");
+        Assertions.assertThat(timestamp).isEqualTo("2026-02-24-13-15-18");
     }
 
     @Test
@@ -32,6 +32,6 @@ class SummaryGeneratorTimestampTest {
 
         String timestamp = SummaryGenerator.resolveInvocationTimestamp(outputDirectory, clock);
 
-        assertThat(timestamp).isEqualTo("2026-02-24-13-27-25");
+        Assertions.assertThat(timestamp).isEqualTo("2026-02-24-13-27-25");
     }
 }

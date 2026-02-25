@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.util;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -9,7 +10,6 @@ import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("RetryExecutor")
 class RetryExecutorTest {
@@ -45,9 +45,9 @@ class RetryExecutorTest {
                 "review-op"
             );
 
-            assertThat(attempts.get()).isEqualTo(2);
-            assertThat(result.success()).isTrue();
-            assertThat(circuitBreaker.isRequestAllowed()).isTrue();
+            Assertions.assertThat(attempts.get()).isEqualTo(2);
+            Assertions.assertThat(result.success()).isTrue();
+            Assertions.assertThat(circuitBreaker.isRequestAllowed()).isTrue();
         }
 
         @Test
@@ -72,9 +72,9 @@ class RetryExecutorTest {
                 "review-op"
             );
 
-            assertThat(attempts.get()).isEqualTo(1);
-            assertThat(result.success()).isFalse();
-            assertThat(result.errorMessage()).contains("invalid input");
+            Assertions.assertThat(attempts.get()).isEqualTo(1);
+            Assertions.assertThat(result.success()).isFalse();
+            Assertions.assertThat(result.errorMessage()).contains("invalid input");
         }
 
         @Test
@@ -101,8 +101,8 @@ class RetryExecutorTest {
                 "review-op"
             );
 
-            assertThat(attempts.get()).isEqualTo(2);
-            assertThat(result.success()).isTrue();
+            Assertions.assertThat(attempts.get()).isEqualTo(2);
+            Assertions.assertThat(result.success()).isTrue();
         }
 
         @Test
@@ -127,9 +127,9 @@ class RetryExecutorTest {
                 "review-op"
             );
 
-            assertThat(attempts.get()).isEqualTo(1);
-            assertThat(result.success()).isFalse();
-            assertThat(result.errorMessage()).contains("validation error");
+            Assertions.assertThat(attempts.get()).isEqualTo(1);
+            Assertions.assertThat(result.success()).isFalse();
+            Assertions.assertThat(result.errorMessage()).contains("validation error");
         }
     }
 }

@@ -1,12 +1,12 @@
 package dev.logicojp.reviewer.config;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ConfigDefaults")
 class ConfigDefaultsTest {
@@ -18,25 +18,25 @@ class ConfigDefaultsTest {
         @Test
         @DisplayName("nullの場合はデフォルト値を返す")
         void returnsDefaultForNull() {
-            assertThat(ConfigDefaults.defaultIfBlank(null, "default")).isEqualTo("default");
+            Assertions.assertThat(ConfigDefaults.defaultIfBlank(null, "default")).isEqualTo("default");
         }
 
         @Test
         @DisplayName("空文字列の場合はデフォルト値を返す")
         void returnsDefaultForEmpty() {
-            assertThat(ConfigDefaults.defaultIfBlank("", "default")).isEqualTo("default");
+            Assertions.assertThat(ConfigDefaults.defaultIfBlank("", "default")).isEqualTo("default");
         }
 
         @Test
         @DisplayName("空白のみの場合はデフォルト値を返す")
         void returnsDefaultForBlank() {
-            assertThat(ConfigDefaults.defaultIfBlank("   ", "default")).isEqualTo("default");
+            Assertions.assertThat(ConfigDefaults.defaultIfBlank("   ", "default")).isEqualTo("default");
         }
 
         @Test
         @DisplayName("値がある場合はそのまま返す")
         void returnsValueWhenPresent() {
-            assertThat(ConfigDefaults.defaultIfBlank("value", "default")).isEqualTo("value");
+            Assertions.assertThat(ConfigDefaults.defaultIfBlank("value", "default")).isEqualTo("value");
         }
     }
 
@@ -47,19 +47,19 @@ class ConfigDefaultsTest {
         @Test
         @DisplayName("0の場合はデフォルト値を返す")
         void returnsDefaultForZero() {
-            assertThat(ConfigDefaults.defaultIfNonPositive(0, 10)).isEqualTo(10);
+            Assertions.assertThat(ConfigDefaults.defaultIfNonPositive(0, 10)).isEqualTo(10);
         }
 
         @Test
         @DisplayName("負数の場合はデフォルト値を返す")
         void returnsDefaultForNegative() {
-            assertThat(ConfigDefaults.defaultIfNonPositive(-5, 10)).isEqualTo(10);
+            Assertions.assertThat(ConfigDefaults.defaultIfNonPositive(-5, 10)).isEqualTo(10);
         }
 
         @Test
         @DisplayName("正数の場合はそのまま返す")
         void returnsValueWhenPositive() {
-            assertThat(ConfigDefaults.defaultIfNonPositive(7, 10)).isEqualTo(7);
+            Assertions.assertThat(ConfigDefaults.defaultIfNonPositive(7, 10)).isEqualTo(7);
         }
     }
 
@@ -70,19 +70,19 @@ class ConfigDefaultsTest {
         @Test
         @DisplayName("0の場合はデフォルト値を返す")
         void returnsDefaultForZero() {
-            assertThat(ConfigDefaults.defaultIfNonPositive(0L, 10L)).isEqualTo(10L);
+            Assertions.assertThat(ConfigDefaults.defaultIfNonPositive(0L, 10L)).isEqualTo(10L);
         }
 
         @Test
         @DisplayName("負数の場合はデフォルト値を返す")
         void returnsDefaultForNegative() {
-            assertThat(ConfigDefaults.defaultIfNonPositive(-5L, 10L)).isEqualTo(10L);
+            Assertions.assertThat(ConfigDefaults.defaultIfNonPositive(-5L, 10L)).isEqualTo(10L);
         }
 
         @Test
         @DisplayName("正数の場合はそのまま返す")
         void returnsValueWhenPositive() {
-            assertThat(ConfigDefaults.defaultIfNonPositive(7L, 10L)).isEqualTo(7L);
+            Assertions.assertThat(ConfigDefaults.defaultIfNonPositive(7L, 10L)).isEqualTo(7L);
         }
     }
 
@@ -93,19 +93,19 @@ class ConfigDefaultsTest {
         @Test
         @DisplayName("0の場合はそのまま返す")
         void returnsValueForZero() {
-            assertThat(ConfigDefaults.defaultIfNegative(0, 10)).isEqualTo(0);
+            Assertions.assertThat(ConfigDefaults.defaultIfNegative(0, 10)).isEqualTo(0);
         }
 
         @Test
         @DisplayName("負数の場合はデフォルト値を返す")
         void returnsDefaultForNegative() {
-            assertThat(ConfigDefaults.defaultIfNegative(-1, 10)).isEqualTo(10);
+            Assertions.assertThat(ConfigDefaults.defaultIfNegative(-1, 10)).isEqualTo(10);
         }
 
         @Test
         @DisplayName("正数の場合はそのまま返す")
         void returnsValueWhenPositive() {
-            assertThat(ConfigDefaults.defaultIfNegative(5, 10)).isEqualTo(5);
+            Assertions.assertThat(ConfigDefaults.defaultIfNegative(5, 10)).isEqualTo(5);
         }
     }
 
@@ -118,27 +118,27 @@ class ConfigDefaultsTest {
         @Test
         @DisplayName("nullの場合はデフォルトリストを返す")
         void returnsDefaultForNull() {
-            assertThat(ConfigDefaults.defaultListIfEmpty(null, DEFAULT_LIST)).isEqualTo(DEFAULT_LIST);
+            Assertions.assertThat(ConfigDefaults.defaultListIfEmpty(null, DEFAULT_LIST)).isEqualTo(DEFAULT_LIST);
         }
 
         @Test
         @DisplayName("空リストの場合はデフォルトリストを返す")
         void returnsDefaultForEmpty() {
-            assertThat(ConfigDefaults.defaultListIfEmpty(List.of(), DEFAULT_LIST)).isEqualTo(DEFAULT_LIST);
+            Assertions.assertThat(ConfigDefaults.defaultListIfEmpty(List.of(), DEFAULT_LIST)).isEqualTo(DEFAULT_LIST);
         }
 
         @Test
         @DisplayName("要素がある場合はそのまま返す")
         void returnsValueWhenNotEmpty() {
             var values = List.of("x", "y");
-            assertThat(ConfigDefaults.defaultListIfEmpty(values, DEFAULT_LIST)).isEqualTo(values);
+            Assertions.assertThat(ConfigDefaults.defaultListIfEmpty(values, DEFAULT_LIST)).isEqualTo(values);
         }
 
         @Test
         @DisplayName("返却されるリストは不変である")
         void returnedListIsImmutable() {
             var result = ConfigDefaults.defaultListIfEmpty(List.of("x"), DEFAULT_LIST);
-            assertThat(result).isUnmodifiable();
+            Assertions.assertThat(result).isUnmodifiable();
         }
     }
 
@@ -154,8 +154,8 @@ class ConfigDefaultsTest {
             var result = ConfigDefaults.loadListFromResource(
                 "defaults/ignored-directories.txt", FALLBACK);
 
-            assertThat(result).isNotEmpty();
-            assertThat(result).doesNotContainNull();
+            Assertions.assertThat(result).isNotEmpty();
+            Assertions.assertThat(result).doesNotContainNull();
         }
 
         @Test
@@ -164,7 +164,7 @@ class ConfigDefaultsTest {
             var result = ConfigDefaults.loadListFromResource(
                 "nonexistent/resource.txt", FALLBACK);
 
-            assertThat(result).isEqualTo(FALLBACK);
+            Assertions.assertThat(result).isEqualTo(FALLBACK);
         }
 
         @Test
@@ -174,8 +174,8 @@ class ConfigDefaultsTest {
                 "defaults/ignored-directories.txt", FALLBACK);
 
             for (String item : result) {
-                assertThat(item).doesNotStartWith("#");
-                assertThat(item).isNotBlank();
+                Assertions.assertThat(item).doesNotStartWith("#");
+                Assertions.assertThat(item).isNotBlank();
             }
         }
 
@@ -185,7 +185,7 @@ class ConfigDefaultsTest {
             var result = ConfigDefaults.loadListFromResource(
                 "defaults/ignored-directories.txt", FALLBACK);
 
-            assertThat(result).isUnmodifiable();
+            Assertions.assertThat(result).isUnmodifiable();
         }
     }
 }

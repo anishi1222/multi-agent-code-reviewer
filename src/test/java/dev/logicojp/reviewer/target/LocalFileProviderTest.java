@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.target;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.config.ReviewerConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -10,8 +11,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("LocalFileProvider")
 class LocalFileProviderTest {
@@ -23,7 +22,7 @@ class LocalFileProviderTest {
         @Test
         @DisplayName("nullのベースディレクトリは例外をスローする")
         void throwsForNullDirectory() {
-            assertThatThrownBy(() -> new LocalFileProvider(null))
+            Assertions.assertThatThrownBy(() -> new LocalFileProvider(null))
                 .isInstanceOf(IllegalArgumentException.class);
         }
 
@@ -31,7 +30,7 @@ class LocalFileProviderTest {
         @DisplayName("有効なディレクトリでインスタンス化できる")
         void createsWithValidDirectory(@TempDir Path tempDir) {
             var provider = new LocalFileProvider(tempDir);
-            assertThat(provider).isNotNull();
+            Assertions.assertThat(provider).isNotNull();
         }
     }
 
@@ -45,9 +44,9 @@ class LocalFileProviderTest {
             var provider = new LocalFileProvider(tempDir);
             var result = provider.collectAndGenerate();
 
-            assertThat(result.fileCount()).isZero();
-            assertThat(result.totalSizeBytes()).isZero();
-            assertThat(result.reviewContent()).contains("no source files");
+            Assertions.assertThat(result.fileCount()).isZero();
+            Assertions.assertThat(result.totalSizeBytes()).isZero();
+            Assertions.assertThat(result.reviewContent()).contains("no source files");
         }
 
         @Test
@@ -59,10 +58,10 @@ class LocalFileProviderTest {
             var provider = new LocalFileProvider(tempDir);
             var result = provider.collectAndGenerate();
 
-            assertThat(result.fileCount()).isEqualTo(2);
-            assertThat(result.totalSizeBytes()).isPositive();
-            assertThat(result.reviewContent()).contains("Main.java");
-            assertThat(result.reviewContent()).contains("App.java");
+            Assertions.assertThat(result.fileCount()).isEqualTo(2);
+            Assertions.assertThat(result.totalSizeBytes()).isPositive();
+            Assertions.assertThat(result.reviewContent()).contains("Main.java");
+            Assertions.assertThat(result.reviewContent()).contains("App.java");
         }
 
         @Test
@@ -76,15 +75,15 @@ class LocalFileProviderTest {
             var provider = new LocalFileProvider(tempDir);
             var result = provider.collectAndGenerate();
 
-            assertThat(result.reviewContent()).contains("index.js");
-            assertThat(result.reviewContent()).doesNotContain("lib.js");
+            Assertions.assertThat(result.reviewContent()).contains("index.js");
+            Assertions.assertThat(result.reviewContent()).doesNotContain("lib.js");
         }
 
         @Test
         @DisplayName("存在しないディレクトリではUncheckedIOExceptionをスローする")
         void nonExistentDirectoryReturnsEmpty(@TempDir Path tempDir) {
             Path nonExistent = tempDir.resolve("does-not-exist");
-            assertThatThrownBy(() -> new LocalFileProvider(nonExistent))
+            Assertions.assertThatThrownBy(() -> new LocalFileProvider(nonExistent))
                     .isInstanceOf(java.io.UncheckedIOException.class);
         }
     }
@@ -97,7 +96,7 @@ class LocalFileProviderTest {
         @DisplayName("nullリストでは'no source files'を返す")
         void nullListReturnsNoFiles(@TempDir Path tempDir) {
             var provider = new LocalFileProvider(tempDir);
-            assertThat(provider.generateReviewContent(null)).contains("no source files");
+            Assertions.assertThat(provider.generateReviewContent(null)).contains("no source files");
         }
     }
 
@@ -109,7 +108,7 @@ class LocalFileProviderTest {
         @DisplayName("空のリストでは'No source files'を返す")
         void emptyListReturnsNoFiles(@TempDir Path tempDir) {
             var provider = new LocalFileProvider(tempDir);
-            assertThat(provider.generateDirectorySummary(java.util.List.of()))
+            Assertions.assertThat(provider.generateDirectorySummary(java.util.List.of()))
                 .contains("No source files");
         }
     }

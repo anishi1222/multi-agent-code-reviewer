@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.cli;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
 import org.junit.jupiter.api.DisplayName;
@@ -9,7 +10,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewCommand")
 class ReviewCommandTest {
@@ -44,8 +44,8 @@ class ReviewCommandTest {
 
         int exitCode = command.execute(new String[]{"--help"});
 
-        assertThat(exitCode).isEqualTo(ExitCodes.OK);
-        assertThat(out.toString(StandardCharsets.UTF_8)).contains("Usage: review run");
+        Assertions.assertThat(exitCode).isEqualTo(ExitCodes.OK);
+        Assertions.assertThat(out.toString(StandardCharsets.UTF_8)).contains("Usage: review run");
     }
 
     @Test
@@ -64,8 +64,8 @@ class ReviewCommandTest {
             "--all"
         });
 
-        assertThat(exitCode).isEqualTo(ExitCodes.USAGE);
-        assertThat(err.toString(StandardCharsets.UTF_8)).contains("Specify either --repo or --local");
+        Assertions.assertThat(exitCode).isEqualTo(ExitCodes.USAGE);
+        Assertions.assertThat(err.toString(StandardCharsets.UTF_8)).contains("Specify either --repo or --local");
     }
 
     @Test
@@ -84,7 +84,7 @@ class ReviewCommandTest {
             "--agents", "security"
         });
 
-        assertThat(exitCode).isEqualTo(ExitCodes.USAGE);
-        assertThat(err.toString(StandardCharsets.UTF_8)).contains("Specify either --all or --agents");
+        Assertions.assertThat(exitCode).isEqualTo(ExitCodes.USAGE);
+        Assertions.assertThat(err.toString(StandardCharsets.UTF_8)).contains("Specify either --all or --agents");
     }
 }

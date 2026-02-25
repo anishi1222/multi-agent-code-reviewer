@@ -1,11 +1,11 @@
 package dev.logicojp.reviewer.orchestrator;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.report.ReviewResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewFindingDeduplicator")
 class ReviewFindingDeduplicatorTest {
@@ -19,9 +19,9 @@ class ReviewFindingDeduplicatorTest {
         deduplicator.processPassResult(successResult(findingContent("SQLインジェクション")), 2);
 
         var findings = deduplicator.aggregatedFindings();
-        assertThat(findings).hasSize(1);
+        Assertions.assertThat(findings).hasSize(1);
         var aggregated = findings.values().iterator().next();
-        assertThat(aggregated.passNumbers()).containsExactlyInAnyOrder(1, 2);
+        Assertions.assertThat(aggregated.passNumbers()).containsExactlyInAnyOrder(1, 2);
     }
 
     @Test
@@ -32,7 +32,7 @@ class ReviewFindingDeduplicatorTest {
         deduplicator.processPassResult(successResult("問題は見つかりませんでした。"), 1);
         deduplicator.processPassResult(successResult("問題は見つかりませんでした。"), 2);
 
-        assertThat(deduplicator.aggregatedFindings()).hasSize(1);
+        Assertions.assertThat(deduplicator.aggregatedFindings()).hasSize(1);
     }
 
     private static ReviewResult successResult(String content) {

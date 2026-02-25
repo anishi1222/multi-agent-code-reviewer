@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.config;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("CopilotConfig")
 class CopilotConfigTest {
@@ -13,11 +13,11 @@ class CopilotConfigTest {
     void defaultsApplied() {
         var config = new CopilotConfig(" ", " ", 0, -1, 0);
 
-        assertThat(config.cliPath()).isEmpty();
-        assertThat(config.githubToken()).isEmpty();
-        assertThat(config.healthcheckSeconds()).isEqualTo(CopilotConfig.DEFAULT_HEALTHCHECK_SECONDS);
-        assertThat(config.authcheckSeconds()).isEqualTo(CopilotConfig.DEFAULT_AUTHCHECK_SECONDS);
-        assertThat(config.startTimeoutSeconds()).isEqualTo(CopilotConfig.DEFAULT_START_TIMEOUT_SECONDS);
+        Assertions.assertThat(config.cliPath()).isEmpty();
+        Assertions.assertThat(config.githubToken()).isEmpty();
+        Assertions.assertThat(config.healthcheckSeconds()).isEqualTo(CopilotConfig.DEFAULT_HEALTHCHECK_SECONDS);
+        Assertions.assertThat(config.authcheckSeconds()).isEqualTo(CopilotConfig.DEFAULT_AUTHCHECK_SECONDS);
+        Assertions.assertThat(config.startTimeoutSeconds()).isEqualTo(CopilotConfig.DEFAULT_START_TIMEOUT_SECONDS);
     }
 
     @Test
@@ -25,10 +25,10 @@ class CopilotConfigTest {
     void explicitValuesPreserved() {
         var config = new CopilotConfig(" /usr/local/bin/copilot ", " token ", 12, 20, 90);
 
-        assertThat(config.cliPath()).isEqualTo("/usr/local/bin/copilot");
-        assertThat(config.githubToken()).isEqualTo("token");
-        assertThat(config.healthcheckSeconds()).isEqualTo(12);
-        assertThat(config.authcheckSeconds()).isEqualTo(20);
-        assertThat(config.startTimeoutSeconds()).isEqualTo(90);
+        Assertions.assertThat(config.cliPath()).isEqualTo("/usr/local/bin/copilot");
+        Assertions.assertThat(config.githubToken()).isEqualTo("token");
+        Assertions.assertThat(config.healthcheckSeconds()).isEqualTo(12);
+        Assertions.assertThat(config.authcheckSeconds()).isEqualTo(20);
+        Assertions.assertThat(config.startTimeoutSeconds()).isEqualTo(90);
     }
 }

@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.agent;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -7,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewAgent")
 class ReviewAgentTest {
@@ -23,7 +23,7 @@ class ReviewAgentTest {
 
             String result = ReviewAgent.resolveLocalSourceContentForPass(target, "cached-content", 2);
 
-            assertThat(result).isNull();
+            Assertions.assertThat(result).isNull();
         }
 
         @Test
@@ -33,7 +33,7 @@ class ReviewAgentTest {
 
             String result = ReviewAgent.resolveLocalSourceContentForPass(target, "cached-content", 1);
 
-            assertThat(result).isEqualTo("cached-content");
+            Assertions.assertThat(result).isEqualTo("cached-content");
         }
 
         @Test
@@ -43,7 +43,7 @@ class ReviewAgentTest {
 
             String result = ReviewAgent.resolveLocalSourceContentForPass(target, "cached-content", 3);
 
-            assertThat(result).isEqualTo("cached-content");
+            Assertions.assertThat(result).isEqualTo("cached-content");
         }
     }
 }

@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.agent;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -7,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("ContentCollector")
 class ContentCollectorTest {
@@ -26,7 +25,7 @@ class ContentCollectorTest {
             collector.onIdle();
 
             String result = collector.awaitResult(1000);
-            assertThat(result).isEqualTo("Last message");
+            Assertions.assertThat(result).isEqualTo("Last message");
         }
 
         @Test
@@ -36,7 +35,7 @@ class ContentCollectorTest {
             collector.onIdle();
 
             String result = collector.awaitResult(1000);
-            assertThat(result).isNull();
+            Assertions.assertThat(result).isNull();
         }
     }
 
@@ -50,7 +49,7 @@ class ContentCollectorTest {
             var collector = new ContentCollector("test-agent");
             collector.onError("Something failed");
 
-            assertThatThrownBy(() -> collector.awaitResult(1000))
+            Assertions.assertThatThrownBy(() -> collector.awaitResult(1000))
                 .hasCauseInstanceOf(SessionEventException.class)
                 .hasMessageContaining("Something failed");
         }
@@ -68,7 +67,7 @@ class ContentCollectorTest {
             collector.onIdleTimeout(5000, 5000);
 
             String result = collector.awaitResult(1000);
-            assertThat(result).isEqualTo("Partial content");
+            Assertions.assertThat(result).isEqualTo("Partial content");
         }
 
         @Test
@@ -77,7 +76,7 @@ class ContentCollectorTest {
             var collector = new ContentCollector("test-agent");
             collector.onIdleTimeout(5000, 5000);
 
-            assertThatThrownBy(() -> collector.awaitResult(1000))
+            Assertions.assertThatThrownBy(() -> collector.awaitResult(1000))
                 .hasCauseInstanceOf(TimeoutException.class);
         }
     }
@@ -93,14 +92,14 @@ class ContentCollectorTest {
             collector.onMessage("A", 0);
             collector.onMessage("B", 0);
 
-            assertThat(collector.getAccumulatedContent()).isEqualTo("AB");
+            Assertions.assertThat(collector.getAccumulatedContent()).isEqualTo("AB");
         }
 
         @Test
         @DisplayName("メッセージなしの場合は空文字列を返す")
         void emptyWhenNoMessages() {
             var collector = new ContentCollector("test-agent");
-            assertThat(collector.getAccumulatedContent()).isEmpty();
+            Assertions.assertThat(collector.getAccumulatedContent()).isEmpty();
         }
     }
 
@@ -115,10 +114,10 @@ class ContentCollectorTest {
             var collector = new ContentCollector("test-agent", clock::get);
 
             clock.set(1500L);
-            assertThat(collector.getElapsedSinceLastActivity()).isEqualTo(500L);
+            Assertions.assertThat(collector.getElapsedSinceLastActivity()).isEqualTo(500L);
 
             collector.onActivity();
-            assertThat(collector.getElapsedSinceLastActivity()).isZero();
+            Assertions.assertThat(collector.getElapsedSinceLastActivity()).isZero();
         }
     }
 }

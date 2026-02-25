@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.report;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -7,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("FindingsExtractor")
 class FindingsExtractorTest {
@@ -31,11 +31,11 @@ class FindingsExtractorTest {
 
             var findings = FindingsExtractor.extractFindings(content, "security");
 
-            assertThat(findings).hasSize(2);
-            assertThat(findings.get(0).title()).isEqualTo("SQL Injection Risk");
-            assertThat(findings.get(0).priority()).isEqualTo("Critical");
-            assertThat(findings.get(0).agent()).isEqualTo("security");
-            assertThat(findings.get(1).priority()).isEqualTo("High");
+            Assertions.assertThat(findings).hasSize(2);
+            Assertions.assertThat(findings.get(0).title()).isEqualTo("SQL Injection Risk");
+            Assertions.assertThat(findings.get(0).priority()).isEqualTo("Critical");
+            Assertions.assertThat(findings.get(0).agent()).isEqualTo("security");
+            Assertions.assertThat(findings.get(1).priority()).isEqualTo("High");
         }
 
         @Test
@@ -43,7 +43,7 @@ class FindingsExtractorTest {
         void emptyForNoFindings() {
             String content = "指摘事項なし";
             var findings = FindingsExtractor.extractFindings(content, "agent");
-            assertThat(findings).isEmpty();
+            Assertions.assertThat(findings).isEmpty();
         }
 
         @Test
@@ -58,9 +58,9 @@ class FindingsExtractorTest {
 
             var findings = FindingsExtractor.extractFindings(content, "agent");
 
-            assertThat(findings).hasSize(2);
-            assertThat(findings.get(0).title()).startsWith("Finding");
-            assertThat(findings.get(0).priority()).isEqualTo("Medium");
+            Assertions.assertThat(findings).hasSize(2);
+            Assertions.assertThat(findings.get(0).title()).startsWith("Finding");
+            Assertions.assertThat(findings.get(0).priority()).isEqualTo("Medium");
         }
 
         @Test
@@ -73,8 +73,8 @@ class FindingsExtractorTest {
 
             var findings = FindingsExtractor.extractFindings(content, "agent");
 
-            assertThat(findings).hasSize(1);
-            assertThat(findings.getFirst().priority()).isEqualTo("Unknown");
+            Assertions.assertThat(findings).hasSize(1);
+            Assertions.assertThat(findings.getFirst().priority()).isEqualTo("Unknown");
         }
     }
 
@@ -101,22 +101,22 @@ class FindingsExtractorTest {
 
             String summary = FindingsExtractor.buildFindingsSummary(List.of(result));
 
-            assertThat(summary).contains("#### Critical (1)");
-            assertThat(summary).contains("#### Low (1)");
-            assertThat(summary).contains("Critical Bug");
-            assertThat(summary).contains("Minor Issue");
+            Assertions.assertThat(summary).contains("#### Critical (1)");
+            Assertions.assertThat(summary).contains("#### Low (1)");
+            Assertions.assertThat(summary).contains("Critical Bug");
+            Assertions.assertThat(summary).contains("Minor Issue");
         }
 
         @Test
         @DisplayName("結果がnullの場合は空文字列を返す")
         void emptyForNull() {
-            assertThat(FindingsExtractor.buildFindingsSummary(null)).isEmpty();
+            Assertions.assertThat(FindingsExtractor.buildFindingsSummary(null)).isEmpty();
         }
 
         @Test
         @DisplayName("空の結果リストの場合は空文字列を返す")
         void emptyForEmptyList() {
-            assertThat(FindingsExtractor.buildFindingsSummary(List.of())).isEmpty();
+            Assertions.assertThat(FindingsExtractor.buildFindingsSummary(List.of())).isEmpty();
         }
 
         @Test
@@ -126,7 +126,7 @@ class FindingsExtractorTest {
                 .success(false)
                 .errorMessage("timeout")
                 .build();
-            assertThat(FindingsExtractor.buildFindingsSummary(List.of(result))).isEmpty();
+            Assertions.assertThat(FindingsExtractor.buildFindingsSummary(List.of(result))).isEmpty();
         }
     }
 }

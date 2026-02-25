@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.skill;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -7,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("SkillRegistry")
 class SkillRegistryTest {
@@ -29,14 +29,14 @@ class SkillRegistryTest {
             var skill = SkillDefinition.of("test-skill", "Test", "desc", "prompt");
             registry.register(skill);
 
-            assertThat(registry.get("test-skill")).isPresent()
-                .hasValueSatisfying(s -> assertThat(s.name()).isEqualTo("Test"));
+            Assertions.assertThat(registry.get("test-skill")).isPresent()
+                .hasValueSatisfying(s -> Assertions.assertThat(s.name()).isEqualTo("Test"));
         }
 
         @Test
         @DisplayName("存在しないIDの場合はemptyを返す")
         void emptyForUnknown() {
-            assertThat(registry.get("unknown")).isEmpty();
+            Assertions.assertThat(registry.get("unknown")).isEmpty();
         }
     }
 
@@ -52,9 +52,9 @@ class SkillRegistryTest {
 
             registry.registerAll(List.of(skill1, skill2));
 
-            assertThat(registry.size()).isEqualTo(2);
-            assertThat(registry.get("s1")).isPresent();
-            assertThat(registry.get("s2")).isPresent();
+            Assertions.assertThat(registry.size()).isEqualTo(2);
+            Assertions.assertThat(registry.get("s1")).isPresent();
+            Assertions.assertThat(registry.get("s2")).isPresent();
         }
     }
 
@@ -68,13 +68,13 @@ class SkillRegistryTest {
             registry.register(SkillDefinition.of("a", "A", "", "p1"));
             registry.register(SkillDefinition.of("b", "B", "", "p2"));
 
-            assertThat(registry.getAll()).hasSize(2);
+            Assertions.assertThat(registry.getAll()).hasSize(2);
         }
 
         @Test
         @DisplayName("空の場合は空リストを返す")
         void emptyWhenNone() {
-            assertThat(registry.getAll()).isEmpty();
+            Assertions.assertThat(registry.getAll()).isEmpty();
         }
     }
 
@@ -85,9 +85,9 @@ class SkillRegistryTest {
         @Test
         @DisplayName("登録数を返す")
         void returnsCount() {
-            assertThat(registry.size()).isZero();
+            Assertions.assertThat(registry.size()).isZero();
             registry.register(SkillDefinition.of("s1", "S1", "", "p"));
-            assertThat(registry.size()).isEqualTo(1);
+            Assertions.assertThat(registry.size()).isEqualTo(1);
         }
     }
 
@@ -101,7 +101,7 @@ class SkillRegistryTest {
             registry.register(SkillDefinition.of("alpha", "A", "", "p"));
             registry.register(SkillDefinition.of("beta", "B", "", "p"));
 
-            assertThat(registry.getSkillIds()).containsExactlyInAnyOrder("alpha", "beta");
+            Assertions.assertThat(registry.getSkillIds()).containsExactlyInAnyOrder("alpha", "beta");
         }
 
         @Test
@@ -109,18 +109,18 @@ class SkillRegistryTest {
         void hasSkill() {
             registry.register(SkillDefinition.of("exists", "E", "", "p"));
 
-            assertThat(registry.hasSkill("exists")).isTrue();
-            assertThat(registry.hasSkill("nope")).isFalse();
+            Assertions.assertThat(registry.hasSkill("exists")).isTrue();
+            Assertions.assertThat(registry.hasSkill("nope")).isFalse();
         }
 
         @Test
         @DisplayName("unregisterでスキルを削除できる")
         void unregister() {
             registry.register(SkillDefinition.of("remove-me", "R", "", "p"));
-            assertThat(registry.hasSkill("remove-me")).isTrue();
+            Assertions.assertThat(registry.hasSkill("remove-me")).isTrue();
 
             registry.unregister("remove-me");
-            assertThat(registry.hasSkill("remove-me")).isFalse();
+            Assertions.assertThat(registry.hasSkill("remove-me")).isFalse();
         }
 
         @Test
@@ -130,7 +130,7 @@ class SkillRegistryTest {
             registry.register(SkillDefinition.of("s2", "S2", "", "p"));
 
             registry.clear();
-            assertThat(registry.size()).isZero();
+            Assertions.assertThat(registry.size()).isZero();
         }
     }
 }

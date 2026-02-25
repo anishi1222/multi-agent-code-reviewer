@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.service;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.config.TemplateConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,8 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("TemplateService")
 class TemplateServiceTest {
@@ -24,7 +23,7 @@ class TemplateServiceTest {
 
         String content = service.loadTemplateContent("report.md");
 
-        assertThat(content).isEqualTo("Hello {{name}}");
+        Assertions.assertThat(content).isEqualTo("Hello {{name}}");
     }
 
     @Test
@@ -38,8 +37,8 @@ class TemplateServiceTest {
         Files.writeString(template, "v2");
         String second = service.loadTemplateContent("cached.md");
 
-        assertThat(first).isEqualTo("v1");
-        assertThat(second).isEqualTo("v1");
+        Assertions.assertThat(first).isEqualTo("v1");
+        Assertions.assertThat(second).isEqualTo("v1");
     }
 
     @Test
@@ -47,7 +46,7 @@ class TemplateServiceTest {
     void rejectsInvalidTemplateName(@TempDir Path tempDir) {
         var service = newService(tempDir);
 
-        assertThatThrownBy(() -> service.loadTemplateContent("../secret.md"))
+        Assertions.assertThatThrownBy(() -> service.loadTemplateContent("../secret.md"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Invalid template name");
     }
@@ -57,7 +56,7 @@ class TemplateServiceTest {
     void throwsWhenTemplateNotFound(@TempDir Path tempDir) {
         var service = newService(tempDir);
 
-        assertThatThrownBy(() -> service.loadTemplateContent("missing.md"))
+        Assertions.assertThatThrownBy(() -> service.loadTemplateContent("missing.md"))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("Template not found");
     }
@@ -72,7 +71,7 @@ class TemplateServiceTest {
             Map.of("name", "Copilot")
         );
 
-        assertThat(rendered).isEqualTo("Hello Copilot {{unknown}}");
+        Assertions.assertThat(rendered).isEqualTo("Hello Copilot {{unknown}}");
     }
 
     private static TemplateService newService(Path templateDir) {

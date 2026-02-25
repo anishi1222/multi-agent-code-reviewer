@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.orchestrator;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.agent.ReviewAgent;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.ResilienceConfig;
@@ -12,8 +13,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("ReviewOrchestrator.Config")
 class ReviewOrchestratorConfigTest {
@@ -25,7 +24,7 @@ class ReviewOrchestratorConfigTest {
         @Test
         @DisplayName("executionConfigがnullの場合は例外")
         void throwsWhenExecutionConfigIsNull() {
-            assertThatThrownBy(() -> new ReviewOrchestrator.Config(
+            Assertions.assertThatThrownBy(() -> new ReviewOrchestrator.Config(
                 null,
                 null,
                 null,
@@ -54,11 +53,11 @@ class ReviewOrchestratorConfigTest {
                 null
             );
 
-            assertThat(config.localFileConfig()).isNotNull();
-            assertThat(config.customInstructions()).isEmpty();
-            assertThat(config.promptTemplates()).isNull();
-            assertThat(config.resilienceConfig()).isNotNull();
-            assertThat(config.resilienceConfig().review()).isNotNull();
+            Assertions.assertThat(config.localFileConfig()).isNotNull();
+            Assertions.assertThat(config.customInstructions()).isEmpty();
+            Assertions.assertThat(config.promptTemplates()).isNull();
+            Assertions.assertThat(config.resilienceConfig()).isNotNull();
+            Assertions.assertThat(config.resilienceConfig().review()).isNotNull();
         }
 
         @Test
@@ -82,8 +81,8 @@ class ReviewOrchestratorConfigTest {
 
             source.clear();
 
-            assertThat(config.customInstructions()).hasSize(1);
-            assertThatThrownBy(() -> config.customInstructions().add(
+            Assertions.assertThat(config.customInstructions()).hasSize(1);
+            Assertions.assertThatThrownBy(() -> config.customInstructions().add(
                 new CustomInstruction("x", "y", CustomInstruction.Source.LOCAL_FILE, null, null)
             )).isInstanceOf(UnsupportedOperationException.class);
         }

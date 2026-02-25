@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.orchestrator;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.report.ReviewResult;
 import org.junit.jupiter.api.DisplayName;
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewResultMerger")
 class ReviewResultMergerTest {
@@ -53,13 +53,13 @@ class ReviewResultMergerTest {
         @Test
         @DisplayName("nullの場合は空リストを返す")
         void nullReturnsEmpty() {
-            assertThat(ReviewResultMerger.mergeByAgent(null)).isEmpty();
+            Assertions.assertThat(ReviewResultMerger.mergeByAgent(null)).isEmpty();
         }
 
         @Test
         @DisplayName("空リストの場合は空リストを返す")
         void emptyReturnsEmpty() {
-            assertThat(ReviewResultMerger.mergeByAgent(List.of())).isEmpty();
+            Assertions.assertThat(ReviewResultMerger.mergeByAgent(List.of())).isEmpty();
         }
 
         @Test
@@ -71,9 +71,9 @@ class ReviewResultMergerTest {
 
             var merged = ReviewResultMerger.mergeByAgent(results);
 
-            assertThat(merged).hasSize(2);
-            assertThat(merged.get(0).agentConfig().name()).isEqualTo("security");
-            assertThat(merged.get(1).agentConfig().name()).isEqualTo("quality");
+            Assertions.assertThat(merged).hasSize(2);
+            Assertions.assertThat(merged.get(0).agentConfig().name()).isEqualTo("security");
+            Assertions.assertThat(merged.get(1).agentConfig().name()).isEqualTo("quality");
         }
 
         @Test
@@ -104,10 +104,10 @@ class ReviewResultMergerTest {
 
             var merged = ReviewResultMerger.mergeByAgent(results);
 
-            assertThat(merged).hasSize(1);
-            assertThat(merged.getFirst().success()).isTrue();
+            Assertions.assertThat(merged).hasSize(1);
+            Assertions.assertThat(merged.getFirst().success()).isTrue();
             // Duplicate findings should be deduplicated
-            assertThat(merged.getFirst().content()).contains("### 1.");
+            Assertions.assertThat(merged.getFirst().content()).contains("### 1.");
         }
 
         @Test
@@ -119,9 +119,9 @@ class ReviewResultMergerTest {
 
             var merged = ReviewResultMerger.mergeByAgent(results);
 
-            assertThat(merged).hasSize(1);
-            assertThat(merged.getFirst().success()).isFalse();
-            assertThat(merged.getFirst().errorMessage()).isEqualTo("error2");
+            Assertions.assertThat(merged).hasSize(1);
+            Assertions.assertThat(merged.getFirst().success()).isFalse();
+            Assertions.assertThat(merged.getFirst().errorMessage()).isEqualTo("error2");
         }
 
         @Test
@@ -152,8 +152,8 @@ class ReviewResultMergerTest {
 
             var merged = ReviewResultMerger.mergeByAgent(results);
 
-            assertThat(merged).hasSize(1);
-            assertThat(merged.getFirst().content())
+            Assertions.assertThat(merged).hasSize(1);
+            Assertions.assertThat(merged.getFirst().content())
                     .contains("SQLインジェクション")
                     .contains("XSS脆弱性");
         }
@@ -169,7 +169,7 @@ class ReviewResultMergerTest {
                     .build();
 
             var merged = ReviewResultMerger.mergeByAgent(List.of(result));
-            assertThat(merged).hasSize(1);
+            Assertions.assertThat(merged).hasSize(1);
         }
 
         @Test
@@ -181,8 +181,8 @@ class ReviewResultMergerTest {
 
             var merged = ReviewResultMerger.mergeByAgent(results);
 
-            assertThat(merged).hasSize(1);
-            assertThat(merged.getFirst().success()).isTrue();
+            Assertions.assertThat(merged).hasSize(1);
+            Assertions.assertThat(merged.getFirst().success()).isTrue();
         }
     }
 
@@ -196,47 +196,47 @@ class ReviewResultMergerTest {
         @Test
         @DisplayName("nullの場合は空文字列を返す")
         void nullReturnsEmpty() {
-            assertThat(ReviewResultMerger.normalizeText(null)).isEmpty();
+            Assertions.assertThat(ReviewResultMerger.normalizeText(null)).isEmpty();
         }
 
         @Test
         @DisplayName("空白のみの場合は空文字列を返す")
         void blankReturnsEmpty() {
-            assertThat(ReviewResultMerger.normalizeText("   ")).isEmpty();
+            Assertions.assertThat(ReviewResultMerger.normalizeText("   ")).isEmpty();
         }
 
         @Test
         @DisplayName("小文字に正規化される")
         void lowercased() {
-            assertThat(ReviewResultMerger.normalizeText("Hello WORLD"))
+            Assertions.assertThat(ReviewResultMerger.normalizeText("Hello WORLD"))
                     .isEqualTo("hello world");
         }
 
         @Test
         @DisplayName("Markdownのフォーマット文字が除去される")
         void markdownCharsRemoved() {
-            assertThat(ReviewResultMerger.normalizeText("`code` **bold** _italic_"))
+            Assertions.assertThat(ReviewResultMerger.normalizeText("`code` **bold** _italic_"))
                     .isEqualTo("code bold italic");
         }
 
         @Test
         @DisplayName("パイプとスラッシュがスペースに正規化される")
         void pipeAndSlashNormalized() {
-            assertThat(ReviewResultMerger.normalizeText("a|b/c"))
+            Assertions.assertThat(ReviewResultMerger.normalizeText("a|b/c"))
                     .isEqualTo("a b c");
         }
 
         @Test
         @DisplayName("中黒（・）がスペースに正規化される")
         void middleDotNormalized() {
-            assertThat(ReviewResultMerger.normalizeText("セキュリティ・レビュー"))
+            Assertions.assertThat(ReviewResultMerger.normalizeText("セキュリティ・レビュー"))
                     .isEqualTo("セキュリティ レビュー");
         }
 
         @Test
         @DisplayName("連続する空白が1つに圧縮される")
         void consecutiveWhitespaceCollapsed() {
-            assertThat(ReviewResultMerger.normalizeText("a   b\t\tc\n\nd"))
+            Assertions.assertThat(ReviewResultMerger.normalizeText("a   b\t\tc\n\nd"))
                     .isEqualTo("a b c d");
         }
     }
@@ -252,8 +252,8 @@ class ReviewResultMergerTest {
         @DisplayName("titleとbodyが正しく保持される")
         void recordFields() {
             var block = new ReviewResultMerger.FindingBlock("title", "body");
-            assertThat(block.title()).isEqualTo("title");
-            assertThat(block.body()).isEqualTo("body");
+            Assertions.assertThat(block.title()).isEqualTo("title");
+            Assertions.assertThat(block.body()).isEqualTo("body");
         }
     }
 
@@ -272,7 +272,7 @@ class ReviewResultMergerTest {
                     "title", "high", "summary", "location",
                     Set.of(1), Set.of(2), Set.of(3));
 
-            assertThat(finding.passNumbers()).containsExactly(1);
+            Assertions.assertThat(finding.passNumbers()).containsExactly(1);
         }
 
         @Test
@@ -285,9 +285,9 @@ class ReviewResultMergerTest {
 
             var updated = finding.withPass(2);
 
-            assertThat(updated.passNumbers()).containsExactlyInAnyOrder(1, 2);
+            Assertions.assertThat(updated.passNumbers()).containsExactlyInAnyOrder(1, 2);
             // Original unchanged
-            assertThat(finding.passNumbers()).containsExactly(1);
+            Assertions.assertThat(finding.passNumbers()).containsExactly(1);
         }
     }
 }

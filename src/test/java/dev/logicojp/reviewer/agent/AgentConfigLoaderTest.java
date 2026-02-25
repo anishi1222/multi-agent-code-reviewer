@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.agent;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.config.ReviewerConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -11,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("AgentConfigLoader")
 class AgentConfigLoaderTest {
@@ -35,8 +35,8 @@ class AgentConfigLoaderTest {
 
             var agents = loader.loadAllAgents();
 
-            assertThat(agents).hasSize(2);
-            assertThat(agents).containsKeys("security", "quality");
+            Assertions.assertThat(agents).hasSize(2);
+            Assertions.assertThat(agents).containsKeys("security", "quality");
         }
 
         @Test
@@ -51,9 +51,9 @@ class AgentConfigLoaderTest {
 
             var agents = loader.loadAllAgents();
 
-            assertThat(agents).hasSize(1);
-            assertThat(agents).containsKey("safe");
-            assertThat(agents).doesNotContainKey("unsafe");
+            Assertions.assertThat(agents).hasSize(1);
+            Assertions.assertThat(agents).containsKey("safe");
+            Assertions.assertThat(agents).doesNotContainKey("unsafe");
         }
     }
 
@@ -72,9 +72,9 @@ class AgentConfigLoaderTest {
 
             var agents = loader.loadAgents(List.of("quality"));
 
-            assertThat(agents).hasSize(1);
-            assertThat(agents).containsKey("quality");
-            assertThat(agents).doesNotContainKey("security");
+            Assertions.assertThat(agents).hasSize(1);
+            Assertions.assertThat(agents).containsKey("quality");
+            Assertions.assertThat(agents).doesNotContainKey("security");
         }
     }
 
@@ -93,7 +93,7 @@ class AgentConfigLoaderTest {
 
             var names = loader.listAvailableAgents();
 
-            assertThat(names).containsExactly("alpha", "zeta");
+            Assertions.assertThat(names).containsExactly("alpha", "zeta");
         }
     }
 

@@ -1,12 +1,12 @@
 package dev.logicojp.reviewer.util;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("FrontmatterParser")
 class FrontmatterParserTest {
@@ -27,10 +27,10 @@ class FrontmatterParserTest {
 
             var parsed = FrontmatterParser.parse(content);
 
-            assertThat(parsed.hasFrontmatter()).isTrue();
-            assertThat(parsed.metadata()).containsEntry("name", "test");
-            assertThat(parsed.metadata()).containsEntry("description", "テスト説明");
-            assertThat(parsed.body()).isEqualTo("Body content here.");
+            Assertions.assertThat(parsed.hasFrontmatter()).isTrue();
+            Assertions.assertThat(parsed.metadata()).containsEntry("name", "test");
+            Assertions.assertThat(parsed.metadata()).containsEntry("description", "テスト説明");
+            Assertions.assertThat(parsed.body()).isEqualTo("Body content here.");
         }
 
         @Test
@@ -44,7 +44,7 @@ class FrontmatterParserTest {
 
             var parsed = FrontmatterParser.parse(content);
 
-            assertThat(parsed.get("model")).isEqualTo("claude-sonnet-4");
+            Assertions.assertThat(parsed.get("model")).isEqualTo("claude-sonnet-4");
         }
     }
 
@@ -59,16 +59,16 @@ class FrontmatterParserTest {
 
             var parsed = FrontmatterParser.parse(content);
 
-            assertThat(parsed.hasFrontmatter()).isFalse();
-            assertThat(parsed.metadata()).isEmpty();
-            assertThat(parsed.body()).isEqualTo(content);
+            Assertions.assertThat(parsed.hasFrontmatter()).isFalse();
+            Assertions.assertThat(parsed.metadata()).isEmpty();
+            Assertions.assertThat(parsed.body()).isEqualTo(content);
         }
 
         @Test
         @DisplayName("閉じ---がない場合はフロントマターなしとして扱う")
         void noFrontmatterWhenNoClosingDelimiter() {
             var parsed = FrontmatterParser.parse("---\nname: test\nNo closing delimiter.");
-            assertThat(parsed.hasFrontmatter()).isFalse();
+            Assertions.assertThat(parsed.hasFrontmatter()).isFalse();
         }
 
         @Test
@@ -76,8 +76,8 @@ class FrontmatterParserTest {
         void handlesNullInput() {
             var parsed = FrontmatterParser.parse(null);
 
-            assertThat(parsed.hasFrontmatter()).isFalse();
-            assertThat(parsed.body()).isEmpty();
+            Assertions.assertThat(parsed.hasFrontmatter()).isFalse();
+            Assertions.assertThat(parsed.body()).isEmpty();
         }
     }
 
@@ -97,8 +97,8 @@ class FrontmatterParserTest {
 
             Map<String, String> metadata = FrontmatterParser.parseNestedBlock(frontmatter, "metadata");
 
-            assertThat(metadata).containsEntry("agent", "security");
-            assertThat(metadata).containsEntry("version", "1.0");
+            Assertions.assertThat(metadata).containsEntry("agent", "security");
+            Assertions.assertThat(metadata).containsEntry("version", "1.0");
         }
 
         @Test
@@ -107,7 +107,7 @@ class FrontmatterParserTest {
             Map<String, String> result = FrontmatterParser.parseNestedBlock(
                 "name: test\ndescription: desc", "metadata");
 
-            assertThat(result).isEmpty();
+            Assertions.assertThat(result).isEmpty();
         }
     }
 
@@ -127,15 +127,15 @@ class FrontmatterParserTest {
 
             String raw = FrontmatterParser.extractRawFrontmatter(content);
 
-            assertThat(raw).contains("name: test");
-            assertThat(raw).contains("model: gpt-4");
-            assertThat(raw).doesNotContain("Body.");
+            Assertions.assertThat(raw).contains("name: test");
+            Assertions.assertThat(raw).contains("model: gpt-4");
+            Assertions.assertThat(raw).doesNotContain("Body.");
         }
 
         @Test
         @DisplayName("フロントマターがない場合はnullを返す")
         void returnsNullWhenMissing() {
-            assertThat(FrontmatterParser.extractRawFrontmatter("No frontmatter")).isNull();
+            Assertions.assertThat(FrontmatterParser.extractRawFrontmatter("No frontmatter")).isNull();
         }
     }
 
@@ -154,7 +154,7 @@ class FrontmatterParserTest {
 
             var parsed = FrontmatterParser.parse(content);
 
-            assertThat(parsed.getOrDefault("name", "default")).isEqualTo("test");
+            Assertions.assertThat(parsed.getOrDefault("name", "default")).isEqualTo("test");
         }
 
         @Test
@@ -168,7 +168,7 @@ class FrontmatterParserTest {
 
             var parsed = FrontmatterParser.parse(content);
 
-            assertThat(parsed.getOrDefault("missing", "fallback")).isEqualTo("fallback");
+            Assertions.assertThat(parsed.getOrDefault("missing", "fallback")).isEqualTo("fallback");
         }
     }
 
@@ -179,8 +179,8 @@ class FrontmatterParserTest {
         @Test
         @DisplayName("LoaderOptions制限値が明示設定されている")
         void hasExplicitLoaderLimits() {
-            assertThat(FrontmatterParser.MAX_ALIASES_FOR_COLLECTIONS).isEqualTo(10);
-            assertThat(FrontmatterParser.FRONTMATTER_CODEPOINT_LIMIT).isEqualTo(64 * 1024);
+            Assertions.assertThat(FrontmatterParser.MAX_ALIASES_FOR_COLLECTIONS).isEqualTo(10);
+            Assertions.assertThat(FrontmatterParser.FRONTMATTER_CODEPOINT_LIMIT).isEqualTo(64 * 1024);
         }
 
         @Test
@@ -196,9 +196,9 @@ class FrontmatterParserTest {
 
             var parsed = FrontmatterParser.parse(content);
 
-            assertThat(parsed.hasFrontmatter()).isTrue();
-            assertThat(parsed.get("name")).isEqualTo("test");
-            assertThat(parsed.body()).isEqualTo("Body content here.");
+            Assertions.assertThat(parsed.hasFrontmatter()).isTrue();
+            Assertions.assertThat(parsed.get("name")).isEqualTo("test");
+            Assertions.assertThat(parsed.body()).isEqualTo("Body content here.");
         }
     }
 }

@@ -1,10 +1,10 @@
 package dev.logicojp.reviewer.report;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ContentSanitizer")
 class ContentSanitizerTest {
@@ -16,14 +16,14 @@ class ContentSanitizerTest {
         @Test
         @DisplayName("nullの場合はnullを返す")
         void returnsNullForNull() {
-            assertThat(ContentSanitizer.sanitize(null)).isNull();
+            Assertions.assertThat(ContentSanitizer.sanitize(null)).isNull();
         }
 
         @Test
         @DisplayName("通常のコンテンツはそのまま返す")
         void passesNormalContent() {
             String input = "# Review\n\n## Findings\n\nNo issues found.";
-            assertThat(ContentSanitizer.sanitize(input)).isEqualTo(input);
+            Assertions.assertThat(ContentSanitizer.sanitize(input)).isEqualTo(input);
         }
 
         @Test
@@ -31,9 +31,9 @@ class ContentSanitizerTest {
         void removesThinkingBlocks() {
             String input = "<thinking>Internal reasoning here</thinking>\n\nActual review content.";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("<thinking>");
-            assertThat(result).doesNotContain("Internal reasoning");
-            assertThat(result).contains("Actual review content.");
+            Assertions.assertThat(result).doesNotContain("<thinking>");
+            Assertions.assertThat(result).doesNotContain("Internal reasoning");
+            Assertions.assertThat(result).contains("Actual review content.");
         }
 
         @Test
@@ -41,8 +41,8 @@ class ContentSanitizerTest {
         void removesAntThinkingBlocks() {
             String input = "<antThinking>reasoning</antThinking>\nReview.";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("antThinking");
-            assertThat(result).contains("Review.");
+            Assertions.assertThat(result).doesNotContain("antThinking");
+            Assertions.assertThat(result).contains("Review.");
         }
 
         @Test
@@ -50,8 +50,8 @@ class ContentSanitizerTest {
         void removesScriptTags() {
             String input = "Review <script>alert('xss')</script> content.";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("<script>");
-            assertThat(result).doesNotContain("alert");
+            Assertions.assertThat(result).doesNotContain("<script>");
+            Assertions.assertThat(result).doesNotContain("alert");
         }
 
         @Test
@@ -59,7 +59,7 @@ class ContentSanitizerTest {
         void removesIframeTags() {
             String input = "Content <iframe src='evil.com'></iframe> here.";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("<iframe");
+            Assertions.assertThat(result).doesNotContain("<iframe");
         }
 
         @Test
@@ -67,7 +67,7 @@ class ContentSanitizerTest {
         void collapsesExcessiveBlankLines() {
             String input = "Line 1\n\n\n\n\nLine 2";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).isEqualTo("Line 1\n\nLine 2");
+            Assertions.assertThat(result).isEqualTo("Line 1\n\nLine 2");
         }
 
         @Test
@@ -75,7 +75,7 @@ class ContentSanitizerTest {
         void removesJavascriptProtocol() {
             String input = "Link: javascript:alert(1)";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("javascript:");
+            Assertions.assertThat(result).doesNotContain("javascript:");
         }
 
         @Test
@@ -83,8 +83,8 @@ class ContentSanitizerTest {
         void removesEncodedJavascriptProtocol() {
             String input = "<a href=\"jav&#97;script:alert(1)\">click</a>";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("javascript:");
-            assertThat(result).doesNotContain("alert(1)");
+            Assertions.assertThat(result).doesNotContain("javascript:");
+            Assertions.assertThat(result).doesNotContain("alert(1)");
         }
 
         @Test
@@ -92,8 +92,8 @@ class ContentSanitizerTest {
         void removesEncodedEventHandler() {
             String input = "<img src=x on&#101;rror=alert(1)>";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("onerror=");
-            assertThat(result).doesNotContain("alert(1)");
+            Assertions.assertThat(result).doesNotContain("onerror=");
+            Assertions.assertThat(result).doesNotContain("alert(1)");
         }
 
         @Test
@@ -101,8 +101,8 @@ class ContentSanitizerTest {
         void removesNamedEntityEncodedScriptTag() {
             String input = "&lt;script&gt;alert(1)&lt;/script&gt;";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("<script>");
-            assertThat(result).doesNotContain("alert(1)");
+            Assertions.assertThat(result).doesNotContain("<script>");
+            Assertions.assertThat(result).doesNotContain("alert(1)");
         }
 
         @Test
@@ -110,8 +110,8 @@ class ContentSanitizerTest {
         void removesNamedEntityEncodedJavascriptProtocol() {
             String input = "&lt;a href=&quot;javascript:alert(1)&quot;&gt;x&lt;/a&gt;";
             String result = ContentSanitizer.sanitize(input);
-            assertThat(result).doesNotContain("javascript:");
-            assertThat(result).doesNotContain("alert(1)");
+            Assertions.assertThat(result).doesNotContain("javascript:");
+            Assertions.assertThat(result).doesNotContain("alert(1)");
         }
     }
 }

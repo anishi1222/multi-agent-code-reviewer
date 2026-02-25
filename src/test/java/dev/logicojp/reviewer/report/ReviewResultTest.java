@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.report;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -9,7 +10,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewResult")
 class ReviewResultTest {
@@ -29,11 +29,11 @@ class ReviewResultTest {
                 .success(true)
                 .build();
 
-            assertThat(result.success()).isTrue();
-            assertThat(result.content()).isEqualTo("Review content");
-            assertThat(result.repository()).isEqualTo("owner/repo");
-            assertThat(result.agentConfig().name()).isEqualTo("agent");
-            assertThat(result.timestamp()).isNotNull();
+            Assertions.assertThat(result.success()).isTrue();
+            Assertions.assertThat(result.content()).isEqualTo("Review content");
+            Assertions.assertThat(result.repository()).isEqualTo("owner/repo");
+            Assertions.assertThat(result.agentConfig().name()).isEqualTo("agent");
+            Assertions.assertThat(result.timestamp()).isNotNull();
         }
 
         @Test
@@ -44,8 +44,8 @@ class ReviewResultTest {
                 .errorMessage("Timeout occurred")
                 .build();
 
-            assertThat(result.success()).isFalse();
-            assertThat(result.errorMessage()).isEqualTo("Timeout occurred");
+            Assertions.assertThat(result.success()).isFalse();
+            Assertions.assertThat(result.errorMessage()).isEqualTo("Timeout occurred");
         }
 
         @Test
@@ -55,7 +55,7 @@ class ReviewResultTest {
             Clock clock = Clock.fixed(fixed, ZoneOffset.UTC);
 
             var result = ReviewResult.builder(clock).build();
-            assertThat(result.timestamp()).isEqualTo(fixed);
+            Assertions.assertThat(result.timestamp()).isEqualTo(fixed);
         }
     }
 
@@ -69,10 +69,10 @@ class ReviewResultTest {
             var config = AgentConfig.builder().name("agent").build();
             var results = ReviewResult.failedResults(config, "owner/repo", 3, "Error");
 
-            assertThat(results).hasSize(3);
-            assertThat(results).allSatisfy(r -> {
-                assertThat(r.success()).isFalse();
-                assertThat(r.errorMessage()).isEqualTo("Error");
+            Assertions.assertThat(results).hasSize(3);
+            Assertions.assertThat(results).allSatisfy(r -> {
+                Assertions.assertThat(r.success()).isFalse();
+                Assertions.assertThat(r.errorMessage()).isEqualTo("Error");
             });
         }
 
@@ -80,14 +80,14 @@ class ReviewResultTest {
         @DisplayName("countが0の場合は空リストを返す")
         void emptyForZeroCount() {
             var results = ReviewResult.failedResults(null, null, 0, "err");
-            assertThat(results).isEmpty();
+            Assertions.assertThat(results).isEmpty();
         }
 
         @Test
         @DisplayName("負のcountの場合は空リストを返す")
         void emptyForNegativeCount() {
             var results = ReviewResult.failedResults(null, null, -1, "err");
-            assertThat(results).isEmpty();
+            Assertions.assertThat(results).isEmpty();
         }
     }
 }

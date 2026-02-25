@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.cli;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ExitCodes")
 class ExitCodesTest {
@@ -11,18 +11,18 @@ class ExitCodesTest {
     @Test
     @DisplayName("OKは0")
     void okIsZero() {
-        assertThat(ExitCodes.OK).isZero();
+        Assertions.assertThat(ExitCodes.OK).isZero();
     }
 
     @Test
     @DisplayName("USAGEは2")
     void usageIsTwo() {
-        assertThat(ExitCodes.USAGE).isEqualTo(2);
+        Assertions.assertThat(ExitCodes.USAGE).isEqualTo(2);
     }
 
     @Test
     @DisplayName("SOFTWAREは1")
     void softwareIsOne() {
-        assertThat(ExitCodes.SOFTWARE).isEqualTo(1);
+        Assertions.assertThat(ExitCodes.SOFTWARE).isEqualTo(1);
     }
 }

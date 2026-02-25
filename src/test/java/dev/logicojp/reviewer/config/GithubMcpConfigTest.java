@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.config;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -7,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("GithubMcpConfig")
 class GithubMcpConfigTest {
@@ -22,12 +21,12 @@ class GithubMcpConfigTest {
         void allNullsUseDefaults() {
             var config = new GithubMcpConfig(null, null, null, null, null, null);
 
-            assertThat(config.type()).isEqualTo("http");
-            assertThat(config.url()).isEqualTo("https://api.githubcopilot.com/mcp/");
-            assertThat(config.tools()).containsExactly("*");
-            assertThat(config.headers()).isEmpty();
-            assertThat(config.authHeaderName()).isEqualTo("Authorization");
-            assertThat(config.authHeaderTemplate()).isEqualTo("Bearer {token}");
+            Assertions.assertThat(config.type()).isEqualTo("http");
+            Assertions.assertThat(config.url()).isEqualTo("https://api.githubcopilot.com/mcp/");
+            Assertions.assertThat(config.tools()).containsExactly("*");
+            Assertions.assertThat(config.headers()).isEmpty();
+            Assertions.assertThat(config.authHeaderName()).isEqualTo("Authorization");
+            Assertions.assertThat(config.authHeaderTemplate()).isEqualTo("Bearer {token}");
         }
     }
 
@@ -38,7 +37,7 @@ class GithubMcpConfigTest {
         @Test
         @DisplayName("http URL は拒否される")
         void rejectsNonHttpsUrl() {
-            assertThatThrownBy(() -> new GithubMcpConfig(
+            Assertions.assertThatThrownBy(() -> new GithubMcpConfig(
                 "http", "http://api.example.com/mcp/", List.of("*"),
                 Map.of(), "Authorization", "Bearer {token}"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -58,13 +57,13 @@ class GithubMcpConfigTest {
                 List.of("tool1"), Map.of(), "Authorization", "Bearer {token}");
             var server = config.toMcpServer("my-token");
 
-            assertThat(server).containsEntry("type", "http");
-            assertThat(server).containsEntry("url", "https://api.example.com/mcp/");
-            assertThat(server).containsEntry("tools", List.of("tool1"));
+            Assertions.assertThat(server).containsEntry("type", "http");
+            Assertions.assertThat(server).containsEntry("url", "https://api.example.com/mcp/");
+            Assertions.assertThat(server).containsEntry("tools", List.of("tool1"));
 
             @SuppressWarnings("unchecked")
             var headers = (Map<String, String>) server.get("headers");
-            assertThat(headers).containsEntry("Authorization", "Bearer my-token");
+            Assertions.assertThat(headers).containsEntry("Authorization", "Bearer my-token");
         }
 
         @Test
@@ -75,7 +74,7 @@ class GithubMcpConfigTest {
 
             @SuppressWarnings("unchecked")
             var headers = (Map<String, String>) server.get("headers");
-            assertThat(headers).doesNotContainKey("Authorization");
+            Assertions.assertThat(headers).doesNotContainKey("Authorization");
         }
 
         @Test
@@ -86,7 +85,7 @@ class GithubMcpConfigTest {
 
             @SuppressWarnings("unchecked")
             var headers = (Map<String, String>) server.get("headers");
-            assertThat(headers).doesNotContainKey("Authorization");
+            Assertions.assertThat(headers).doesNotContainKey("Authorization");
         }
 
         @Test
@@ -100,8 +99,8 @@ class GithubMcpConfigTest {
 
             @SuppressWarnings("unchecked")
             var headers = (Map<String, String>) server.get("headers");
-            assertThat(headers).containsEntry("X-Custom", "value");
-            assertThat(headers).containsEntry("Authorization", "Bearer tok");
+            Assertions.assertThat(headers).containsEntry("X-Custom", "value");
+            Assertions.assertThat(headers).containsEntry("Authorization", "Bearer tok");
         }
 
         @Test
@@ -114,8 +113,8 @@ class GithubMcpConfigTest {
             var server = config.toMcpServer("ghp_secret456");
 
             var str = server.toString();
-            assertThat(str).contains("Bearer ***");
-            assertThat(str).doesNotContain("ghp_secret456");
+            Assertions.assertThat(str).contains("Bearer ***");
+            Assertions.assertThat(str).doesNotContain("ghp_secret456");
         }
     }
 
@@ -129,21 +128,21 @@ class GithubMcpConfigTest {
             var config = new GithubMcpConfig(null, null, null, null, null, null);
             var servers = GithubMcpConfig.buildMcpServers("ghp_token", config);
 
-            assertThat(servers).isPresent();
-            assertThat(servers.orElseThrow()).containsKey("github");
+            Assertions.assertThat(servers).isPresent();
+            Assertions.assertThat(servers.orElseThrow()).containsKey("github");
         }
 
         @Test
         @DisplayName("トークンが空の場合はemptyを返す")
         void returnsEmptyWhenTokenEmpty() {
-            assertThat(GithubMcpConfig.buildMcpServers("",
+            Assertions.assertThat(GithubMcpConfig.buildMcpServers("",
                 new GithubMcpConfig(null, null, null, null, null, null))).isEmpty();
         }
 
         @Test
         @DisplayName("設定がnullの場合はemptyを返す")
         void returnsEmptyWhenConfigNull() {
-            assertThat(GithubMcpConfig.buildMcpServers("ghp_token", null)).isEmpty();
+            Assertions.assertThat(GithubMcpConfig.buildMcpServers("ghp_token", null)).isEmpty();
         }
     }
 }

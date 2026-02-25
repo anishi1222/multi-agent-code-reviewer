@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.performance;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.orchestrator.ReviewResultMerger;
 import dev.logicojp.reviewer.report.ReviewResult;
@@ -17,7 +18,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @Disabled("手動実行のパフォーマンスベンチ用")
 @DisplayName("PerformanceBenchmark")
@@ -44,8 +44,8 @@ class PerformanceBenchmarkTest {
         List<ReviewResult> merged = ReviewResultMerger.mergeByAgent(results);
         Duration elapsed = Duration.between(started, Instant.now());
 
-        assertThat(merged).hasSize(10);
-        assertThat(elapsed.toMillis()).isLessThan(5000);
+        Assertions.assertThat(merged).hasSize(10);
+        Assertions.assertThat(elapsed.toMillis()).isLessThan(5000);
     }
 
     @Test
@@ -61,9 +61,9 @@ class PerformanceBenchmarkTest {
         LocalFileProvider.CollectionResult result = provider.collectAndGenerate();
         Duration elapsed = Duration.between(started, Instant.now());
 
-        assertThat(result.fileCount()).isPositive();
-        assertThat(result.reviewContent()).contains("File0.java");
-        assertThat(elapsed.toMillis()).isLessThan(5000);
+        Assertions.assertThat(result.fileCount()).isPositive();
+        Assertions.assertThat(result.reviewContent()).contains("File0.java");
+        Assertions.assertThat(elapsed.toMillis()).isLessThan(5000);
     }
 
     private static String sampleFinding(int seed) {

@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.config;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ResilienceConfig")
 class ResilienceConfigTest {
@@ -13,15 +13,15 @@ class ResilienceConfigTest {
     void defaultsWhenNull() {
         var config = new ResilienceConfig(null, null, null);
 
-        assertThat(config.review().failureThreshold()).isEqualTo(5);
-        assertThat(config.review().openDurationSeconds()).isEqualTo(30);
-        assertThat(config.review().maxAttempts()).isEqualTo(3);
+        Assertions.assertThat(config.review().failureThreshold()).isEqualTo(5);
+        Assertions.assertThat(config.review().openDurationSeconds()).isEqualTo(30);
+        Assertions.assertThat(config.review().maxAttempts()).isEqualTo(3);
 
-        assertThat(config.summary().failureThreshold()).isEqualTo(3);
-        assertThat(config.summary().openDurationSeconds()).isEqualTo(20);
+        Assertions.assertThat(config.summary().failureThreshold()).isEqualTo(3);
+        Assertions.assertThat(config.summary().openDurationSeconds()).isEqualTo(20);
 
-        assertThat(config.skill().failureThreshold()).isEqualTo(3);
-        assertThat(config.skill().openDurationSeconds()).isEqualTo(20);
+        Assertions.assertThat(config.skill().failureThreshold()).isEqualTo(3);
+        Assertions.assertThat(config.skill().openDurationSeconds()).isEqualTo(20);
     }
 
     @Test
@@ -29,8 +29,8 @@ class ResilienceConfigTest {
     void normalizesBackoffRange() {
         var settings = new ResilienceConfig.OperationSettings(2, 10, 2, 500, 100);
 
-        assertThat(settings.backoffBaseMs()).isEqualTo(500);
-        assertThat(settings.backoffMaxMs()).isEqualTo(500);
+        Assertions.assertThat(settings.backoffBaseMs()).isEqualTo(500);
+        Assertions.assertThat(settings.backoffMaxMs()).isEqualTo(500);
     }
 
     @Test
@@ -39,10 +39,10 @@ class ResilienceConfigTest {
         var partialSummary = new ResilienceConfig.OperationSettings(0, 15, 0, 0, 0);
         var config = new ResilienceConfig(null, partialSummary, null);
 
-        assertThat(config.summary().failureThreshold()).isEqualTo(3);
-        assertThat(config.summary().openDurationSeconds()).isEqualTo(15);
-        assertThat(config.summary().maxAttempts()).isEqualTo(3);
-        assertThat(config.summary().backoffBaseMs()).isEqualTo(500);
-        assertThat(config.summary().backoffMaxMs()).isEqualTo(4000);
+        Assertions.assertThat(config.summary().failureThreshold()).isEqualTo(3);
+        Assertions.assertThat(config.summary().openDurationSeconds()).isEqualTo(15);
+        Assertions.assertThat(config.summary().maxAttempts()).isEqualTo(3);
+        Assertions.assertThat(config.summary().backoffBaseMs()).isEqualTo(500);
+        Assertions.assertThat(config.summary().backoffMaxMs()).isEqualTo(4000);
     }
 }

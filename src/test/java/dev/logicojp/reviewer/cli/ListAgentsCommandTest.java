@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.cli;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -7,7 +8,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ListAgentsCommand")
 class ListAgentsCommandTest {
@@ -28,9 +28,9 @@ class ListAgentsCommandTest {
 
         int exitCode = command.execute(new String[]{"--help"});
 
-        assertThat(exitCode).isEqualTo(ExitCodes.OK);
-        assertThat(out.toString(StandardCharsets.UTF_8)).contains("Usage: review list");
-        assertThat(err.toString(StandardCharsets.UTF_8)).isEmpty();
+        Assertions.assertThat(exitCode).isEqualTo(ExitCodes.OK);
+        Assertions.assertThat(out.toString(StandardCharsets.UTF_8)).contains("Usage: review list");
+        Assertions.assertThat(err.toString(StandardCharsets.UTF_8)).isEmpty();
     }
 
     @Test
@@ -42,8 +42,8 @@ class ListAgentsCommandTest {
 
         int exitCode = command.execute(new String[]{"--unknown"});
 
-        assertThat(exitCode).isEqualTo(ExitCodes.USAGE);
-        assertThat(err.toString(StandardCharsets.UTF_8)).contains("Unknown option: --unknown");
-        assertThat(out.toString(StandardCharsets.UTF_8)).contains("Usage: review list");
+        Assertions.assertThat(exitCode).isEqualTo(ExitCodes.USAGE);
+        Assertions.assertThat(err.toString(StandardCharsets.UTF_8)).contains("Unknown option: --unknown");
+        Assertions.assertThat(out.toString(StandardCharsets.UTF_8)).contains("Usage: review list");
     }
 }

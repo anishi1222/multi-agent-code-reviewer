@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.skill;
 
+import org.assertj.core.api.Assertions;
 import com.github.copilot.sdk.CopilotClient;
 import dev.logicojp.reviewer.util.ApiCircuitBreaker;
 import org.junit.jupiter.api.DisplayName;
@@ -11,8 +12,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("SkillExecutor")
 class SkillExecutorTest {
@@ -26,11 +25,11 @@ class SkillExecutorTest {
         void successFactoryCreatesSuccessResult() {
             var result = SkillExecutor.Result.success("skill-a", "ok-content");
 
-            assertThat(result.skillId()).isEqualTo("skill-a");
-            assertThat(result.success()).isTrue();
-            assertThat(result.content()).isEqualTo("ok-content");
-            assertThat(result.errorMessage()).isNull();
-            assertThat(result.timestamp()).isNotNull();
+            Assertions.assertThat(result.skillId()).isEqualTo("skill-a");
+            Assertions.assertThat(result.success()).isTrue();
+            Assertions.assertThat(result.content()).isEqualTo("ok-content");
+            Assertions.assertThat(result.errorMessage()).isNull();
+            Assertions.assertThat(result.timestamp()).isNotNull();
         }
 
         @Test
@@ -38,11 +37,11 @@ class SkillExecutorTest {
         void failureFactoryCreatesFailureResult() {
             var result = SkillExecutor.Result.failure("skill-a", "boom");
 
-            assertThat(result.skillId()).isEqualTo("skill-a");
-            assertThat(result.success()).isFalse();
-            assertThat(result.content()).isNull();
-            assertThat(result.errorMessage()).isEqualTo("boom");
-            assertThat(result.timestamp()).isBeforeOrEqualTo(Instant.now());
+            Assertions.assertThat(result.skillId()).isEqualTo("skill-a");
+            Assertions.assertThat(result.success()).isFalse();
+            Assertions.assertThat(result.content()).isNull();
+            Assertions.assertThat(result.errorMessage()).isEqualTo("boom");
+            Assertions.assertThat(result.timestamp()).isBeforeOrEqualTo(Instant.now());
         }
     }
 
@@ -59,8 +58,8 @@ class SkillExecutorTest {
 
                 var result = fixture.executor.execute(skill, Map.of());
 
-                assertThat(result.success()).isFalse();
-                assertThat(result.errorMessage()).contains("circuit breaker is open");
+                Assertions.assertThat(result.success()).isFalse();
+                Assertions.assertThat(result.errorMessage()).contains("circuit breaker is open");
             }
         }
 
@@ -79,8 +78,8 @@ class SkillExecutorTest {
 
                 var result = fixture.executor.execute(skill, Map.of());
 
-                assertThat(result.success()).isFalse();
-                assertThat(result.errorMessage()).contains("Missing required parameter: name");
+                Assertions.assertThat(result.success()).isFalse();
+                Assertions.assertThat(result.errorMessage()).contains("Missing required parameter: name");
             }
         }
 
@@ -99,8 +98,8 @@ class SkillExecutorTest {
 
                 var result = fixture.executor.execute(skill, Map.of("name", "too-long-value"));
 
-                assertThat(result.success()).isFalse();
-                assertThat(result.errorMessage()).contains("Parameter value too long for: name");
+                Assertions.assertThat(result.success()).isFalse();
+                Assertions.assertThat(result.errorMessage()).contains("Parameter value too long for: name");
             }
         }
     }
@@ -112,7 +111,7 @@ class SkillExecutorTest {
         @Test
         @DisplayName("defaultModelがnullなら例外")
         void throwsWhenDefaultModelNull() {
-            assertThatThrownBy(() -> new SkillExecutor.Config(
+            Assertions.assertThatThrownBy(() -> new SkillExecutor.Config(
                 null, 1, 100, 10, 1, 10, 2, 1, 2
             )).isInstanceOf(NullPointerException.class)
                 .hasMessage("defaultModel must not be null");
@@ -138,8 +137,8 @@ class SkillExecutorTest {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> cached = (Map<String, Object>) field.get(executor);
 
-                assertThat(cached).containsKey("github");
-                assertThatThrownBy(() -> cached.put("x", "y"))
+                Assertions.assertThat(cached).containsKey("github");
+                Assertions.assertThatThrownBy(() -> cached.put("x", "y"))
                     .isInstanceOf(UnsupportedOperationException.class);
             }
         }

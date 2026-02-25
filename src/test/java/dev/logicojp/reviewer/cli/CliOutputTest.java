@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.cli;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -8,7 +9,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("CliOutput")
 class CliOutputTest {
@@ -27,7 +27,7 @@ class CliOutputTest {
         @DisplayName("標準出力に書き込まれる")
         void writesToStdout() {
             output.println("hello");
-            assertThat(outStream.toString(StandardCharsets.UTF_8)).contains("hello");
+            Assertions.assertThat(outStream.toString(StandardCharsets.UTF_8)).contains("hello");
         }
     }
 
@@ -39,7 +39,7 @@ class CliOutputTest {
         @DisplayName("標準エラーに書き込まれる")
         void writesToStderr() {
             output.errorln("error message");
-            assertThat(errStream.toString(StandardCharsets.UTF_8)).contains("error message");
+            Assertions.assertThat(errStream.toString(StandardCharsets.UTF_8)).contains("error message");
         }
     }
 
@@ -50,17 +50,17 @@ class CliOutputTest {
         @Test
         @DisplayName("outでPrintStreamが取得できる")
         void outReturnsStream() {
-            assertThat(output.out()).isNotNull();
+            Assertions.assertThat(output.out()).isNotNull();
             output.out().print("direct");
-            assertThat(outStream.toString(StandardCharsets.UTF_8)).contains("direct");
+            Assertions.assertThat(outStream.toString(StandardCharsets.UTF_8)).contains("direct");
         }
 
         @Test
         @DisplayName("errでPrintStreamが取得できる")
         void errReturnsStream() {
-            assertThat(output.err()).isNotNull();
+            Assertions.assertThat(output.err()).isNotNull();
             output.err().print("direct-err");
-            assertThat(errStream.toString(StandardCharsets.UTF_8)).contains("direct-err");
+            Assertions.assertThat(errStream.toString(StandardCharsets.UTF_8)).contains("direct-err");
         }
     }
 }

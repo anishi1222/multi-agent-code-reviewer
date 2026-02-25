@@ -1,13 +1,12 @@
 package dev.logicojp.reviewer.cli;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("CliParsing")
 class CliParsingTest {
@@ -22,31 +21,31 @@ class CliParsingTest {
         @Test
         @DisplayName("nullの場合はfalse")
         void nullReturnsFalse() {
-            assertThat(CliParsing.hasHelpFlag(null)).isFalse();
+            Assertions.assertThat(CliParsing.hasHelpFlag(null)).isFalse();
         }
 
         @Test
         @DisplayName("空配列の場合はfalse")
         void emptyReturnsFalse() {
-            assertThat(CliParsing.hasHelpFlag(new String[]{})).isFalse();
+            Assertions.assertThat(CliParsing.hasHelpFlag(new String[]{})).isFalse();
         }
 
         @Test
         @DisplayName("-hフラグで検出される")
         void shortFlag() {
-            assertThat(CliParsing.hasHelpFlag(new String[]{"run", "-h"})).isTrue();
+            Assertions.assertThat(CliParsing.hasHelpFlag(new String[]{"run", "-h"})).isTrue();
         }
 
         @Test
         @DisplayName("--helpフラグで検出される")
         void longFlag() {
-            assertThat(CliParsing.hasHelpFlag(new String[]{"--help"})).isTrue();
+            Assertions.assertThat(CliParsing.hasHelpFlag(new String[]{"--help"})).isTrue();
         }
 
         @Test
         @DisplayName("ヘルプフラグがない場合はfalse")
         void noHelpFlag() {
-            assertThat(CliParsing.hasHelpFlag(new String[]{"run", "--repo", "owner/repo"})).isFalse();
+            Assertions.assertThat(CliParsing.hasHelpFlag(new String[]{"run", "--repo", "owner/repo"})).isFalse();
         }
     }
 
@@ -62,8 +61,8 @@ class CliParsingTest {
         void inlineValue() {
             String[] args = {"--repo=owner/repo"};
             var result = CliParsing.readSingleValue(args[0], args, 0, "--repo");
-            assertThat(result.value()).isEqualTo("owner/repo");
-            assertThat(result.newIndex()).isZero();
+            Assertions.assertThat(result.value()).isEqualTo("owner/repo");
+            Assertions.assertThat(result.newIndex()).isZero();
         }
 
         @Test
@@ -71,15 +70,15 @@ class CliParsingTest {
         void nextArgValue() {
             String[] args = {"--repo", "owner/repo"};
             var result = CliParsing.readSingleValue(args[0], args, 0, "--repo");
-            assertThat(result.value()).isEqualTo("owner/repo");
-            assertThat(result.newIndex()).isEqualTo(1);
+            Assertions.assertThat(result.value()).isEqualTo("owner/repo");
+            Assertions.assertThat(result.newIndex()).isEqualTo(1);
         }
 
         @Test
         @DisplayName("値がない場合はCliValidationExceptionが投げられる")
         void missingValueThrows() {
             String[] args = {"--repo"};
-            assertThatThrownBy(() -> CliParsing.readSingleValue(args[0], args, 0, "--repo"))
+            Assertions.assertThatThrownBy(() -> CliParsing.readSingleValue(args[0], args, 0, "--repo"))
                     .isInstanceOf(CliValidationException.class)
                     .hasMessageContaining("--repo");
         }
@@ -88,7 +87,7 @@ class CliParsingTest {
         @DisplayName("次の引数がオプションの場合はCliValidationExceptionが投げられる")
         void nextArgIsOptionThrows() {
             String[] args = {"--repo", "--verbose"};
-            assertThatThrownBy(() -> CliParsing.readSingleValue(args[0], args, 0, "--repo"))
+            Assertions.assertThatThrownBy(() -> CliParsing.readSingleValue(args[0], args, 0, "--repo"))
                     .isInstanceOf(CliValidationException.class);
         }
     }
@@ -105,8 +104,8 @@ class CliParsingTest {
         void collectsMultipleValues() {
             String[] args = {"--agents", "security", "quality", "performance"};
             var result = CliParsing.readMultiValues(args[0], args, 0, "--agents");
-            assertThat(result.values()).containsExactly("security", "quality", "performance");
-            assertThat(result.newIndex()).isEqualTo(3);
+            Assertions.assertThat(result.values()).containsExactly("security", "quality", "performance");
+            Assertions.assertThat(result.newIndex()).isEqualTo(3);
         }
 
         @Test
@@ -114,14 +113,14 @@ class CliParsingTest {
         void inlineAndFollowing() {
             String[] args = {"--agents=security", "quality"};
             var result = CliParsing.readMultiValues(args[0], args, 0, "--agents");
-            assertThat(result.values()).containsExactly("security", "quality");
+            Assertions.assertThat(result.values()).containsExactly("security", "quality");
         }
 
         @Test
         @DisplayName("値がない場合はCliValidationExceptionが投げられる")
         void noValuesThrows() {
             String[] args = {"--agents", "--verbose"};
-            assertThatThrownBy(() -> CliParsing.readMultiValues(args[0], args, 0, "--agents"))
+            Assertions.assertThatThrownBy(() -> CliParsing.readMultiValues(args[0], args, 0, "--agents"))
                     .isInstanceOf(CliValidationException.class);
         }
     }
@@ -136,26 +135,26 @@ class CliParsingTest {
         @Test
         @DisplayName("nullの場合は空リスト")
         void nullReturnsEmpty() {
-            assertThat(CliParsing.splitComma(null)).isEmpty();
+            Assertions.assertThat(CliParsing.splitComma(null)).isEmpty();
         }
 
         @Test
         @DisplayName("空文字の場合は空リスト")
         void blankReturnsEmpty() {
-            assertThat(CliParsing.splitComma("  ")).isEmpty();
+            Assertions.assertThat(CliParsing.splitComma("  ")).isEmpty();
         }
 
         @Test
         @DisplayName("カンマ区切りで分割される")
         void splitsByComma() {
-            assertThat(CliParsing.splitComma("a, b , c"))
+            Assertions.assertThat(CliParsing.splitComma("a, b , c"))
                     .containsExactly("a", "b", "c");
         }
 
         @Test
         @DisplayName("単一の値もリストに変換される")
         void singleValue() {
-            assertThat(CliParsing.splitComma("security"))
+            Assertions.assertThat(CliParsing.splitComma("security"))
                     .containsExactly("security");
         }
     }
@@ -170,13 +169,13 @@ class CliParsingTest {
         @Test
         @DisplayName("'-'は許可される")
         void stdinSentinelAllowed() {
-            assertThat(CliParsing.readTokenWithWarning("-")).isEqualTo("-");
+            Assertions.assertThat(CliParsing.readTokenWithWarning("-")).isEqualTo("-");
         }
 
         @Test
         @DisplayName("直接トークン値は拒否される")
         void directTokenRejected() {
-            assertThatThrownBy(() -> CliParsing.readTokenWithWarning("ghp_abc123"))
+            Assertions.assertThatThrownBy(() -> CliParsing.readTokenWithWarning("ghp_abc123"))
                     .isInstanceOf(CliValidationException.class)
                     .hasMessageContaining("security");
         }
@@ -204,7 +203,7 @@ class CliParsingTest {
                 }
             };
 
-            assertThat(CliParsing.readToken("-", input)).isEqualTo("ghp_test_token");
+            Assertions.assertThat(CliParsing.readToken("-", input)).isEqualTo("ghp_test_token");
         }
 
         @Test
@@ -222,13 +221,13 @@ class CliParsingTest {
                 }
             };
 
-            assertThat(CliParsing.readToken("-", input)).isEqualTo("ghp_stdin_token");
+            Assertions.assertThat(CliParsing.readToken("-", input)).isEqualTo("ghp_stdin_token");
         }
 
         @Test
         @DisplayName("非センチネル値はそのまま返される")
         void nonSentinelPassedThrough() {
-            assertThat(CliParsing.readToken("some_value")).isEqualTo("some_value");
+            Assertions.assertThat(CliParsing.readToken("some_value")).isEqualTo("some_value");
         }
     }
 
@@ -243,15 +242,15 @@ class CliParsingTest {
         @DisplayName("showUsageフラグが保持される")
         void showUsagePreserved() {
             var ex = new CliValidationException("bad input", true);
-            assertThat(ex.showUsage()).isTrue();
-            assertThat(ex.getMessage()).isEqualTo("bad input");
+            Assertions.assertThat(ex.showUsage()).isTrue();
+            Assertions.assertThat(ex.getMessage()).isEqualTo("bad input");
         }
 
         @Test
         @DisplayName("nullメッセージは空文字列に変換される")
         void nullMessageDefaultsToEmpty() {
             var ex = new CliValidationException(null, false);
-            assertThat(ex.getMessage()).isEmpty();
+            Assertions.assertThat(ex.getMessage()).isEmpty();
         }
 
         @Test
@@ -259,7 +258,7 @@ class CliParsingTest {
         void withCause() {
             var cause = new RuntimeException("root cause");
             var ex = new CliValidationException("wrapped", false, cause);
-            assertThat(ex.getCause()).isSameAs(cause);
+            Assertions.assertThat(ex.getCause()).isSameAs(cause);
         }
     }
 }

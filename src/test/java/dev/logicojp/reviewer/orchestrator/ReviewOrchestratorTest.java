@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.orchestrator;
 
+import org.assertj.core.api.Assertions;
 import com.github.copilot.sdk.CopilotClient;
 import dev.logicojp.reviewer.agent.ReviewAgent;
 import dev.logicojp.reviewer.config.ExecutionConfig;
@@ -17,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewOrchestrator")
 class ReviewOrchestratorTest {
@@ -37,7 +37,7 @@ class ReviewOrchestratorTest {
                     2
                 );
 
-                assertThat(timeoutMinutes).isEqualTo(12L);
+                Assertions.assertThat(timeoutMinutes).isEqualTo(12L);
             }
         }
     }
@@ -61,7 +61,7 @@ class ReviewOrchestratorTest {
                     ReviewTarget.local(sourceDir)
                 );
 
-                assertThat(content).contains("Main.java");
+                Assertions.assertThat(content).contains("Main.java");
             }
         }
 
@@ -76,7 +76,7 @@ class ReviewOrchestratorTest {
                     ReviewTarget.gitHub("owner/repo")
                 );
 
-                assertThat(content).isNull();
+                Assertions.assertThat(content).isNull();
             }
         }
     }
@@ -97,7 +97,7 @@ class ReviewOrchestratorTest {
                 input
             );
 
-            assertThat(result).isSameAs(input);
+            Assertions.assertThat(result).isSameAs(input);
         }
 
         @Test
@@ -112,7 +112,7 @@ class ReviewOrchestratorTest {
                 input
             );
 
-            assertThat(result).hasCause(input);
+            Assertions.assertThat(result).hasCause(input);
         }
 
         @Test
@@ -125,7 +125,7 @@ class ReviewOrchestratorTest {
                 (Object) null
             );
 
-            assertThat(result)
+            Assertions.assertThat(result)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Unknown execution failure");
         }

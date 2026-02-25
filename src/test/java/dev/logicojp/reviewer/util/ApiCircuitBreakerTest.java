@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.util;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -9,7 +10,6 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ApiCircuitBreaker")
 class ApiCircuitBreakerTest {
@@ -56,7 +56,7 @@ class ApiCircuitBreakerTest {
             var first = ApiCircuitBreaker.forReview();
             var second = ApiCircuitBreaker.forReview();
 
-            assertThat(first).isNotSameAs(second);
+            Assertions.assertThat(first).isNotSameAs(second);
 
             first.recordFailure();
             first.recordFailure();
@@ -64,14 +64,14 @@ class ApiCircuitBreakerTest {
             first.recordFailure();
             first.recordFailure();
 
-            assertThat(second.isRequestAllowed()).isTrue();
+            Assertions.assertThat(second.isRequestAllowed()).isTrue();
         }
 
         @Test
         @DisplayName("forSummaryとforSkillも毎回新しいインスタンスを返す")
         void summaryAndSkillFactoriesReturnNewInstances() {
-            assertThat(ApiCircuitBreaker.forSummary()).isNotSameAs(ApiCircuitBreaker.forSummary());
-            assertThat(ApiCircuitBreaker.forSkill()).isNotSameAs(ApiCircuitBreaker.forSkill());
+            Assertions.assertThat(ApiCircuitBreaker.forSummary()).isNotSameAs(ApiCircuitBreaker.forSummary());
+            Assertions.assertThat(ApiCircuitBreaker.forSkill()).isNotSameAs(ApiCircuitBreaker.forSkill());
         }
     }
 
@@ -87,7 +87,7 @@ class ApiCircuitBreakerTest {
 
             breaker.recordFailure();
 
-            assertThat(breaker.isRequestAllowed()).isFalse();
+            Assertions.assertThat(breaker.isRequestAllowed()).isFalse();
         }
 
         @Test
@@ -98,8 +98,8 @@ class ApiCircuitBreakerTest {
             breaker.recordFailure();
             clock.advanceMillis(2_000);
 
-            assertThat(breaker.isRequestAllowed()).isTrue();
-            assertThat(breaker.isRequestAllowed()).isFalse();
+            Assertions.assertThat(breaker.isRequestAllowed()).isTrue();
+            Assertions.assertThat(breaker.isRequestAllowed()).isFalse();
         }
     }
 
@@ -114,12 +114,12 @@ class ApiCircuitBreakerTest {
             var breaker = new ApiCircuitBreaker(1, 1, clock);
             breaker.recordFailure();
 
-            assertThat(breaker.isRequestAllowed()).isFalse();
+            Assertions.assertThat(breaker.isRequestAllowed()).isFalse();
             clock.advanceMillis(10);
 
-            assertThat(breaker.isRequestAllowed()).isTrue();
+            Assertions.assertThat(breaker.isRequestAllowed()).isTrue();
             breaker.recordFailure();
-            assertThat(breaker.isRequestAllowed()).isFalse();
+            Assertions.assertThat(breaker.isRequestAllowed()).isFalse();
         }
 
         @Test
@@ -130,18 +130,18 @@ class ApiCircuitBreakerTest {
 
             breaker.recordFailure();
             clock.advanceMillis(1000);
-            assertThat(breaker.isRequestAllowed()).isTrue();
+            Assertions.assertThat(breaker.isRequestAllowed()).isTrue();
             breaker.recordFailure();
 
             clock.advanceMillis(1000);
-            assertThat(breaker.isRequestAllowed()).isTrue();
+            Assertions.assertThat(breaker.isRequestAllowed()).isTrue();
             breaker.recordFailure();
 
             clock.advanceMillis(1000);
-            assertThat(breaker.isRequestAllowed()).isFalse();
+            Assertions.assertThat(breaker.isRequestAllowed()).isFalse();
 
             clock.advanceMillis(1000);
-            assertThat(breaker.isRequestAllowed()).isTrue();
+            Assertions.assertThat(breaker.isRequestAllowed()).isTrue();
         }
     }
 }

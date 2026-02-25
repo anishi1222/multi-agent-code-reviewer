@@ -1,12 +1,11 @@
 package dev.logicojp.reviewer.util;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 @DisplayName("BackoffUtils")
 class BackoffUtilsTest {
@@ -16,9 +15,9 @@ class BackoffUtilsTest {
     void quietlyRestoresInterruptedFlag() {
         Thread.currentThread().interrupt();
         try {
-            assertThatCode(() -> BackoffUtils.sleepWithJitterQuietly(1, 1, 1))
+            Assertions.assertThatCode(() -> BackoffUtils.sleepWithJitterQuietly(1, 1, 1))
                 .doesNotThrowAnyException();
-            assertThatCode(() -> {
+            Assertions.assertThatCode(() -> {
                 if (!Thread.currentThread().isInterrupted()) {
                     throw new IllegalStateException("interrupt flag should be restored");
                 }
@@ -31,7 +30,7 @@ class BackoffUtilsTest {
     @Test
     @DisplayName("attemptが0以下でもsleepWithJitterは実行できる")
     void sleepWithJitterAcceptsNonPositiveAttempt() {
-        assertThatCode(() -> BackoffUtils.sleepWithJitter(0, 1, 1))
+        Assertions.assertThatCode(() -> BackoffUtils.sleepWithJitter(0, 1, 1))
             .doesNotThrowAnyException();
     }
 
@@ -42,23 +41,23 @@ class BackoffUtilsTest {
         BackoffUtils.sleepWithJitter(3, 8, 32);
         long elapsedNs = System.nanoTime() - start;
 
-        assertThat(elapsedNs).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(14));
+        Assertions.assertThat(elapsedNs).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(14));
     }
 
     @Test
     @DisplayName("retryableメッセージの代表パターンを検出する")
     void detectsRetryableMessages() {
-        assertThat(BackoffUtils.isRetryableMessage("network timeout while calling API")).isTrue();
-        assertThat(BackoffUtils.isRetryableMessage("HTTP 429 Too Many Requests")).isTrue();
-        assertThat(BackoffUtils.isRetryableMessage("Service temporarily unavailable")).isTrue();
-        assertThat(BackoffUtils.isRetryableMessage("CONNECTION RESET")).isTrue();
+        Assertions.assertThat(BackoffUtils.isRetryableMessage("network timeout while calling API")).isTrue();
+        Assertions.assertThat(BackoffUtils.isRetryableMessage("HTTP 429 Too Many Requests")).isTrue();
+        Assertions.assertThat(BackoffUtils.isRetryableMessage("Service temporarily unavailable")).isTrue();
+        Assertions.assertThat(BackoffUtils.isRetryableMessage("CONNECTION RESET")).isTrue();
     }
 
     @Test
     @DisplayName("retryableでないメッセージはfalseを返す")
     void returnsFalseForNonRetryableMessages() {
-        assertThat(BackoffUtils.isRetryableMessage(null)).isFalse();
-        assertThat(BackoffUtils.isRetryableMessage("validation error: missing required field")).isFalse();
-        assertThat(BackoffUtils.isRetryableMessage("permission denied")).isFalse();
+        Assertions.assertThat(BackoffUtils.isRetryableMessage(null)).isFalse();
+        Assertions.assertThat(BackoffUtils.isRetryableMessage("validation error: missing required field")).isFalse();
+        Assertions.assertThat(BackoffUtils.isRetryableMessage("permission denied")).isFalse();
     }
 }

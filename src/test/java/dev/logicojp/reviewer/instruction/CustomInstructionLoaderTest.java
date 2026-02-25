@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.instruction;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -12,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("CustomInstructionLoader")
 class CustomInstructionLoaderTest {
@@ -27,7 +27,7 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             var target = ReviewTarget.gitHub("owner/repo");
 
-            assertThat(loader.loadForTarget(target)).isEmpty();
+            Assertions.assertThat(loader.loadForTarget(target)).isEmpty();
         }
     }
 
@@ -41,7 +41,7 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             var target = ReviewTarget.local(tempDir.resolve("nonexistent"));
 
-            assertThat(loader.loadForTarget(target)).isEmpty();
+            Assertions.assertThat(loader.loadForTarget(target)).isEmpty();
         }
 
         @Test
@@ -50,7 +50,7 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             var target = ReviewTarget.local(tempDir);
 
-            assertThat(loader.loadForTarget(target)).isEmpty();
+            Assertions.assertThat(loader.loadForTarget(target)).isEmpty();
         }
     }
 
@@ -67,9 +67,9 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             List<CustomInstruction> result = loader.loadFromLocalDirectory(tempDir);
 
-            assertThat(result).hasSize(1);
-            assertThat(result.getFirst().content()).isEqualTo("Review all code carefully.");
-            assertThat(result.getFirst().source()).isEqualTo(CustomInstruction.Source.LOCAL_FILE);
+            Assertions.assertThat(result).hasSize(1);
+            Assertions.assertThat(result.getFirst().content()).isEqualTo("Review all code carefully.");
+            Assertions.assertThat(result.getFirst().source()).isEqualTo(CustomInstruction.Source.LOCAL_FILE);
         }
 
         @Test
@@ -83,8 +83,8 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             List<CustomInstruction> result = loader.loadFromLocalDirectory(tempDir);
 
-            assertThat(result).anySatisfy(ci ->
-                assertThat(ci.content()).isEqualTo("GitHub instructions."));
+            Assertions.assertThat(result).anySatisfy(ci ->
+                Assertions.assertThat(ci.content()).isEqualTo("GitHub instructions."));
         }
 
         @Test
@@ -96,14 +96,14 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             List<CustomInstruction> result = loader.loadFromLocalDirectory(tempDir);
 
-            assertThat(result).isEmpty();
+            Assertions.assertThat(result).isEmpty();
         }
 
         @Test
         @DisplayName("nullディレクトリの場合は空リストを返す")
         void emptyForNull() {
             var loader = new CustomInstructionLoader(null, true);
-            assertThat(loader.loadFromLocalDirectory(null)).isEmpty();
+            Assertions.assertThat(loader.loadFromLocalDirectory(null)).isEmpty();
         }
     }
 
@@ -130,10 +130,10 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             List<CustomInstruction> result = loader.loadFromLocalDirectory(tempDir);
 
-            assertThat(result).anySatisfy(ci -> {
-                assertThat(ci.content()).contains("Follow Java conventions.");
-                assertThat(ci.applyTo()).isEqualTo("**/*.java");
-                assertThat(ci.description()).isEqualTo("Java guidelines");
+            Assertions.assertThat(result).anySatisfy(ci -> {
+                Assertions.assertThat(ci.content()).contains("Follow Java conventions.");
+                Assertions.assertThat(ci.applyTo()).isEqualTo("**/*.java");
+                Assertions.assertThat(ci.description()).isEqualTo("Java guidelines");
             });
         }
 
@@ -149,7 +149,7 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             List<CustomInstruction> result = loader.loadFromLocalDirectory(tempDir);
 
-            assertThat(result).noneMatch(ci -> ci.content().contains("Not an instruction."));
+            Assertions.assertThat(result).noneMatch(ci -> ci.content().contains("Not an instruction."));
         }
     }
 
@@ -169,8 +169,8 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, true);
             List<CustomInstruction> result = loader.loadFromLocalDirectory(tempDir);
 
-            assertThat(result).anySatisfy(ci ->
-                assertThat(ci.content()).isEqualTo("Review prompt content."));
+            Assertions.assertThat(result).anySatisfy(ci ->
+                Assertions.assertThat(ci.content()).isEqualTo("Review prompt content."));
         }
 
         @Test
@@ -185,7 +185,7 @@ class CustomInstructionLoaderTest {
             var loader = new CustomInstructionLoader(null, false);
             List<CustomInstruction> result = loader.loadFromLocalDirectory(tempDir);
 
-            assertThat(result).noneMatch(ci -> ci.content().contains("Review prompt content."));
+            Assertions.assertThat(result).noneMatch(ci -> ci.content().contains("Review prompt content."));
         }
     }
 
@@ -198,9 +198,9 @@ class CustomInstructionLoaderTest {
         void noFrontmatter() {
             var parsed = CustomInstructionLoader.parseFrontmatter("Plain content");
 
-            assertThat(parsed.content()).isEqualTo("Plain content");
-            assertThat(parsed.applyTo()).isNull();
-            assertThat(parsed.description()).isNull();
+            Assertions.assertThat(parsed.content()).isEqualTo("Plain content");
+            Assertions.assertThat(parsed.applyTo()).isNull();
+            Assertions.assertThat(parsed.description()).isNull();
         }
 
         @Test
@@ -216,9 +216,9 @@ class CustomInstructionLoaderTest {
 
             var parsed = CustomInstructionLoader.parseFrontmatter(raw);
 
-            assertThat(parsed.content()).contains("Use strict mode.");
-            assertThat(parsed.applyTo()).isEqualTo("**/*.ts");
-            assertThat(parsed.description()).isEqualTo("TypeScript rules");
+            Assertions.assertThat(parsed.content()).contains("Use strict mode.");
+            Assertions.assertThat(parsed.applyTo()).isEqualTo("**/*.ts");
+            Assertions.assertThat(parsed.description()).isEqualTo("TypeScript rules");
         }
     }
 }

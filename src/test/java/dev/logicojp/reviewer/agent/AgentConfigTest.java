@@ -1,13 +1,12 @@
 package dev.logicojp.reviewer.agent;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("AgentConfig")
 class AgentConfigTest {
@@ -23,7 +22,7 @@ class AgentConfigTest {
                 .systemPrompt("prompt")
                 .instruction("inst")
                 .build();
-            assertThat(config.name()).isEmpty();
+            Assertions.assertThat(config.name()).isEmpty();
         }
 
         @Test
@@ -32,28 +31,28 @@ class AgentConfigTest {
             var config = AgentConfig.builder()
                 .name("test-agent")
                 .build();
-            assertThat(config.displayName()).isEqualTo("test-agent");
+            Assertions.assertThat(config.displayName()).isEqualTo("test-agent");
         }
 
         @Test
         @DisplayName("modelがnullの場合はデフォルトモデルが使用される")
         void nullModelUsesDefault() {
             var config = AgentConfig.builder().build();
-            assertThat(config.model()).isNotBlank();
+            Assertions.assertThat(config.model()).isNotBlank();
         }
 
         @Test
         @DisplayName("focusAreasがnullの場合は空リストになる")
         void nullFocusAreasDefaultsToEmpty() {
             var config = AgentConfig.builder().build();
-            assertThat(config.focusAreas()).isEmpty();
+            Assertions.assertThat(config.focusAreas()).isEmpty();
         }
 
         @Test
         @DisplayName("skillsがnullの場合は空リストになる")
         void nullSkillsDefaultsToEmpty() {
             var config = AgentConfig.builder().build();
-            assertThat(config.skills()).isEmpty();
+            Assertions.assertThat(config.skills()).isEmpty();
         }
     }
 
@@ -75,10 +74,10 @@ class AgentConfigTest {
                 .skills(List.of())
                 .build();
 
-            assertThat(config.name()).isEqualTo("security");
-            assertThat(config.displayName()).isEqualTo("Security Reviewer");
-            assertThat(config.model()).isEqualTo("gpt-4o");
-            assertThat(config.focusAreas()).containsExactly("SQL Injection", "XSS");
+            Assertions.assertThat(config.name()).isEqualTo("security");
+            Assertions.assertThat(config.displayName()).isEqualTo("Security Reviewer");
+            Assertions.assertThat(config.model()).isEqualTo("gpt-4o");
+            Assertions.assertThat(config.focusAreas()).containsExactly("SQL Injection", "XSS");
         }
 
         @Test
@@ -94,9 +93,9 @@ class AgentConfigTest {
 
             var copy = AgentConfig.Builder.from(original).name("copy").build();
 
-            assertThat(copy.name()).isEqualTo("copy");
-            assertThat(copy.displayName()).isEqualTo("Original Agent");
-            assertThat(copy.model()).isEqualTo("gpt-4o");
+            Assertions.assertThat(copy.name()).isEqualTo("copy");
+            Assertions.assertThat(copy.displayName()).isEqualTo("Original Agent");
+            Assertions.assertThat(copy.model()).isEqualTo("gpt-4o");
         }
     }
 
@@ -114,9 +113,9 @@ class AgentConfigTest {
 
             var updated = config.withModel("new-model");
 
-            assertThat(updated.model()).isEqualTo("new-model");
-            assertThat(updated.name()).isEqualTo("agent");
-            assertThat(config.model()).isEqualTo("old-model"); // original unchanged
+            Assertions.assertThat(updated.model()).isEqualTo("new-model");
+            Assertions.assertThat(updated.name()).isEqualTo("agent");
+            Assertions.assertThat(config.model()).isEqualTo("old-model"); // original unchanged
         }
     }
 
@@ -143,7 +142,7 @@ class AgentConfigTest {
                 .systemPrompt("sys")
                 .instruction("inst")
                 .build();
-            assertThatThrownBy(config::validateRequired)
+            Assertions.assertThatThrownBy(config::validateRequired)
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("name");
         }
@@ -155,7 +154,7 @@ class AgentConfigTest {
                 .name("agent")
                 .instruction("inst")
                 .build();
-            assertThatThrownBy(config::validateRequired)
+            Assertions.assertThatThrownBy(config::validateRequired)
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("systemPrompt");
         }
@@ -169,7 +168,7 @@ class AgentConfigTest {
         @DisplayName("nullの場合はnullのまま")
         void nullRemainsNull() {
             var config = AgentConfig.builder().outputFormat(null).build();
-            assertThat(config.outputFormat()).isNull();
+            Assertions.assertThat(config.outputFormat()).isNull();
         }
 
         @Test
@@ -178,7 +177,7 @@ class AgentConfigTest {
             var config = AgentConfig.builder()
                 .outputFormat("## Output Format\n\nDetails")
                 .build();
-            assertThat(config.outputFormat()).startsWith("## Output Format");
+            Assertions.assertThat(config.outputFormat()).startsWith("## Output Format");
         }
 
         @Test
@@ -187,8 +186,8 @@ class AgentConfigTest {
             var config = AgentConfig.builder()
                 .outputFormat("Report findings as a list.")
                 .build();
-            assertThat(config.outputFormat()).startsWith("## Output Format");
-            assertThat(config.outputFormat()).contains("Report findings as a list.");
+            Assertions.assertThat(config.outputFormat()).startsWith("## Output Format");
+            Assertions.assertThat(config.outputFormat()).contains("Report findings as a list.");
         }
     }
 }

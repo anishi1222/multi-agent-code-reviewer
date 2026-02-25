@@ -1,10 +1,10 @@
 package dev.logicojp.reviewer.agent;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("AgentMarkdownParser")
 class AgentMarkdownParserTest {
@@ -42,12 +42,12 @@ class AgentMarkdownParserTest {
 
             AgentConfig config = parser.parseContent(content, "security.agent.md");
 
-            assertThat(config.name()).isEqualTo("security-reviewer");
-            assertThat(config.displayName()).isEqualTo("Security code review agent");
-            assertThat(config.model()).isEqualTo("gpt-4o");
-            assertThat(config.systemPrompt()).contains("security expert");
-            assertThat(config.instruction()).contains("${repository}");
-            assertThat(config.focusAreas()).contains("SQL Injection", "XSS");
+            Assertions.assertThat(config.name()).isEqualTo("security-reviewer");
+            Assertions.assertThat(config.displayName()).isEqualTo("Security code review agent");
+            Assertions.assertThat(config.model()).isEqualTo("gpt-4o");
+            Assertions.assertThat(config.systemPrompt()).contains("security expert");
+            Assertions.assertThat(config.instruction()).contains("${repository}");
+            Assertions.assertThat(config.focusAreas()).contains("SQL Injection", "XSS");
         }
 
         @Test
@@ -66,8 +66,8 @@ class AgentMarkdownParserTest {
 
             AgentConfig config = parser.parseContent(content, "quality.agent.md");
 
-            assertThat(config.name()).isEqualTo("quality");
-            assertThat(config.systemPrompt()).contains("code reviewer");
+            Assertions.assertThat(config.name()).isEqualTo("quality");
+            Assertions.assertThat(config.systemPrompt()).contains("code reviewer");
         }
     }
 
@@ -78,21 +78,21 @@ class AgentMarkdownParserTest {
         @Test
         @DisplayName(".agent.md拡張子を除去する")
         void removesAgentMdExtension() {
-            assertThat(AgentMarkdownParser.extractNameFromFilename("security.agent.md"))
+            Assertions.assertThat(AgentMarkdownParser.extractNameFromFilename("security.agent.md"))
                 .isEqualTo("security");
         }
 
         @Test
         @DisplayName(".md拡張子を除去する")
         void removesMdExtension() {
-            assertThat(AgentMarkdownParser.extractNameFromFilename("review.md"))
+            Assertions.assertThat(AgentMarkdownParser.extractNameFromFilename("review.md"))
                 .isEqualTo("review");
         }
 
         @Test
         @DisplayName("拡張子なしの場合はそのまま返す")
         void noExtension() {
-            assertThat(AgentMarkdownParser.extractNameFromFilename("agent"))
+            Assertions.assertThat(AgentMarkdownParser.extractNameFromFilename("agent"))
                 .isEqualTo("agent");
         }
     }
@@ -123,7 +123,7 @@ class AgentMarkdownParserTest {
 
             AgentConfig config = parserWithDefault.parseContent(content, "test.agent.md");
 
-            assertThat(config.outputFormat()).contains("Default Output");
+            Assertions.assertThat(config.outputFormat()).contains("Default Output");
         }
     }
 }

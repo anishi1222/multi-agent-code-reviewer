@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.report;
 
+import org.assertj.core.api.Assertions;
 import com.github.copilot.sdk.CopilotClient;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig.SummarySettings;
@@ -18,7 +19,6 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("SummaryGenerator")
 class SummaryGeneratorTest {
@@ -42,7 +42,7 @@ class SummaryGeneratorTest {
                     8
                 );
 
-                assertThat(clipped)
+                Assertions.assertThat(clipped)
                     .startsWith("abcdefgh")
                     .contains("... (truncated for summary)");
             }
@@ -70,10 +70,10 @@ class SummaryGeneratorTest {
                     "owner/repo"
                 );
 
-                assertThat(prompt).contains("owner/repo");
-                assertThat(prompt).contains("agent-a");
-                assertThat(prompt).contains("agent-b");
-                assertThat(prompt).contains("... (truncated for summary)");
+                Assertions.assertThat(prompt).contains("owner/repo");
+                Assertions.assertThat(prompt).contains("agent-a");
+                Assertions.assertThat(prompt).contains("agent-b");
+                Assertions.assertThat(prompt).contains("... (truncated for summary)");
             }
         }
     }
@@ -100,9 +100,9 @@ class SummaryGeneratorTest {
                     "owner/repo"
                 );
 
-                assertThat(summary).contains("生成タイムアウトのため、簡易サマリーを出力します。");
-                assertThat(summary).contains("agent-a");
-                assertThat(summary).contains("agent-b");
+                Assertions.assertThat(summary).contains("生成タイムアウトのため、簡易サマリーを出力します。");
+                Assertions.assertThat(summary).contains("agent-a");
+                Assertions.assertThat(summary).contains("agent-b");
             }
         }
     }

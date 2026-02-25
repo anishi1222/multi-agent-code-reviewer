@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.service;
 
+import org.assertj.core.api.Assertions;
 import dev.logicojp.reviewer.config.CopilotConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -9,8 +10,6 @@ import java.lang.reflect.Method;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("CopilotService")
 class CopilotServiceTest {
@@ -26,7 +25,7 @@ class CopilotServiceTest {
         void isInitializedReturnsFalseBeforeInitialization() {
             var service = new CopilotService(new CopilotConfig(null, null, 0, 0, 0));
 
-            assertThat(service.isInitialized()).isFalse();
+            Assertions.assertThat(service.isInitialized()).isFalse();
         }
 
         @Test
@@ -34,7 +33,7 @@ class CopilotServiceTest {
         void getClientThrowsWhenNotInitialized() {
             var service = new CopilotService(new CopilotConfig(null, null, 0, 0, 0));
 
-            assertThatThrownBy(service::getClient)
+            Assertions.assertThatThrownBy(service::getClient)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("CopilotService not initialized. Call initialize() first.");
         }
@@ -49,15 +48,15 @@ class CopilotServiceTest {
         void shouldUseTokenAcceptsOnlyUsableToken() throws Exception {
             var service = new CopilotService(new CopilotConfig(null, null, 0, 0, 0));
 
-            assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class}, "ghp_abc"))
+            Assertions.assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class}, "ghp_abc"))
                 .isTrue();
-            assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class}, ""))
+            Assertions.assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class}, ""))
                 .isFalse();
-            assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class}, "   "))
+            Assertions.assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class}, "   "))
                 .isFalse();
-            assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class}, (Object) null))
+            Assertions.assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class}, (Object) null))
                 .isFalse();
-            assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class},
+            Assertions.assertThat((boolean) invokeInstance(service, "shouldUseToken", new Class[]{String.class},
                 UNRESOLVED_TOKEN_PLACEHOLDER)).isFalse();
         }
 
@@ -66,11 +65,11 @@ class CopilotServiceTest {
         void normalizeTokenConvertsInvalidValuesToNull() throws Exception {
             var service = new CopilotService(new CopilotConfig(null, null, 0, 0, 0));
 
-            assertThat((String) invokeInstance(service, "normalizeToken", new Class[]{String.class}, "ghp_ok"))
+            Assertions.assertThat((String) invokeInstance(service, "normalizeToken", new Class[]{String.class}, "ghp_ok"))
                 .isEqualTo("ghp_ok");
-            assertThat((String) invokeInstance(service, "normalizeToken", new Class[]{String.class}, ""))
+            Assertions.assertThat((String) invokeInstance(service, "normalizeToken", new Class[]{String.class}, ""))
                 .isNull();
-            assertThat((String) invokeInstance(service, "normalizeToken", new Class[]{String.class},
+            Assertions.assertThat((String) invokeInstance(service, "normalizeToken", new Class[]{String.class},
                 UNRESOLVED_TOKEN_PLACEHOLDER)).isNull();
         }
     }
@@ -85,7 +84,7 @@ class CopilotServiceTest {
             String value = (String) invokeStatic(CopilotService.class,
                 "shortFingerprint", new Class[]{String.class}, "abc123");
 
-            assertThat(value).isEqualTo("abc123");
+            Assertions.assertThat(value).isEqualTo("abc123");
         }
 
         @Test
@@ -94,15 +93,15 @@ class CopilotServiceTest {
             String value = (String) invokeStatic(CopilotService.class,
                 "shortFingerprint", new Class[]{String.class}, "1234567890abcdef");
 
-            assertThat(value).isEqualTo("1234567890ab");
+            Assertions.assertThat(value).isEqualTo("1234567890ab");
         }
 
         @Test
         @DisplayName("nullまたは空のフィンガープリントはnone")
         void shortFingerprintReturnsNoneForBlank() throws Exception {
-            assertThat((String) invokeStatic(CopilotService.class,
+            Assertions.assertThat((String) invokeStatic(CopilotService.class,
                 "shortFingerprint", new Class[]{String.class}, (Object) null)).isEqualTo("none");
-            assertThat((String) invokeStatic(CopilotService.class,
+            Assertions.assertThat((String) invokeStatic(CopilotService.class,
                 "shortFingerprint", new Class[]{String.class}, "   ")).isEqualTo("none");
         }
 
@@ -119,7 +118,7 @@ class CopilotServiceTest {
                 input
             );
 
-            assertThat(ex.getMessage()).contains("Copilot CLI ping timed out");
+            Assertions.assertThat(ex.getMessage()).contains("Copilot CLI ping timed out");
         }
 
         @Test
@@ -135,7 +134,7 @@ class CopilotServiceTest {
                 input
             );
 
-            assertThat(ex.getMessage()).contains("Copilot client start failed: boom");
+            Assertions.assertThat(ex.getMessage()).contains("Copilot client start failed: boom");
         }
     }
 

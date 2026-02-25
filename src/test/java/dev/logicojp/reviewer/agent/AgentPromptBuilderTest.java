@@ -1,13 +1,12 @@
 package dev.logicojp.reviewer.agent;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("AgentPromptBuilder")
 class AgentPromptBuilderTest {
@@ -28,11 +27,11 @@ class AgentPromptBuilderTest {
 
             String result = AgentPromptBuilder.buildFullSystemPrompt(config);
 
-            assertThat(result).contains("expert reviewer");
-            assertThat(result).contains("## Focus Areas");
-            assertThat(result).contains("- Security");
-            assertThat(result).contains("- Performance");
-            assertThat(result).contains("Report in table format.");
+            Assertions.assertThat(result).contains("expert reviewer");
+            Assertions.assertThat(result).contains("## Focus Areas");
+            Assertions.assertThat(result).contains("- Security");
+            Assertions.assertThat(result).contains("- Performance");
+            Assertions.assertThat(result).contains("Report in table format.");
         }
 
         @Test
@@ -44,7 +43,7 @@ class AgentPromptBuilderTest {
                 .build();
 
             String result = AgentPromptBuilder.buildFullSystemPrompt(config);
-            assertThat(result).doesNotContain("## Focus Areas");
+            Assertions.assertThat(result).doesNotContain("## Focus Areas");
         }
 
         @Test
@@ -57,7 +56,7 @@ class AgentPromptBuilderTest {
                 .build();
 
             String result = AgentPromptBuilder.buildFullSystemPrompt(config, "Custom guidance text.");
-            assertThat(result).contains("Custom guidance text.");
+            Assertions.assertThat(result).contains("Custom guidance text.");
         }
     }
 
@@ -77,16 +76,16 @@ class AgentPromptBuilderTest {
 
             String result = AgentPromptBuilder.buildInstruction(config, "owner/repo");
 
-            assertThat(result).contains("owner/repo");
-            assertThat(result).contains("Security Agent");
-            assertThat(result).contains("security");
+            Assertions.assertThat(result).contains("owner/repo");
+            Assertions.assertThat(result).contains("Security Agent");
+            Assertions.assertThat(result).contains("security");
         }
 
         @Test
         @DisplayName("instructionが空の場合はIllegalStateExceptionをスローする")
         void throwsOnMissingInstruction() {
             var config = AgentConfig.builder().name("agent").build();
-            assertThatThrownBy(() -> AgentPromptBuilder.buildInstruction(config, "repo"))
+            Assertions.assertThatThrownBy(() -> AgentPromptBuilder.buildInstruction(config, "repo"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("not configured");
         }
@@ -108,10 +107,10 @@ class AgentPromptBuilderTest {
             String result = AgentPromptBuilder.buildLocalInstruction(
                 config, "my-project", "public class Main {}");
 
-            assertThat(result).contains("<source_code");
-            assertThat(result).contains("public class Main {}");
-            assertThat(result).contains("</source_code>");
-            assertThat(result).contains("trust_level=\"untrusted\"");
+            Assertions.assertThat(result).contains("<source_code");
+            Assertions.assertThat(result).contains("public class Main {}");
+            Assertions.assertThat(result).contains("</source_code>");
+            Assertions.assertThat(result).contains("trust_level=\"untrusted\"");
         }
 
         @Test
@@ -125,7 +124,7 @@ class AgentPromptBuilderTest {
             String result = AgentPromptBuilder.buildLocalInstruction(
                 config, "project", "code", "Custom header text.");
 
-            assertThat(result).contains("Custom header text.");
+            Assertions.assertThat(result).contains("Custom header text.");
         }
     }
 }

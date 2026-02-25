@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.config;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("TemplateConfig")
 class TemplateConfigTest {
@@ -13,23 +13,23 @@ class TemplateConfigTest {
     void nullValuesAreDefaulted() {
         var config = new TemplateConfig(null, null, null, null, null, null, null, null);
 
-        assertThat(config.directory()).isEqualTo("templates");
-        assertThat(config.defaultOutputFormat()).isEqualTo("default-output-format.md");
-        assertThat(config.report()).isEqualTo("report.md");
-        assertThat(config.localReviewContent()).isEqualTo("local-review-content.md");
-        assertThat(config.outputConstraints()).isEqualTo("output-constraints.md");
-        assertThat(config.reportLinkEntry()).isEqualTo("report-link-entry.md");
+        Assertions.assertThat(config.directory()).isEqualTo("templates");
+        Assertions.assertThat(config.defaultOutputFormat()).isEqualTo("default-output-format.md");
+        Assertions.assertThat(config.report()).isEqualTo("report.md");
+        Assertions.assertThat(config.localReviewContent()).isEqualTo("local-review-content.md");
+        Assertions.assertThat(config.outputConstraints()).isEqualTo("output-constraints.md");
+        Assertions.assertThat(config.reportLinkEntry()).isEqualTo("report-link-entry.md");
 
-        assertThat(config.summary().systemPrompt()).isEqualTo("summary-system.md");
-        assertThat(config.summary().userPrompt()).isEqualTo("summary-prompt.md");
-        assertThat(config.summary().executiveSummary()).isEqualTo("executive-summary.md");
-        assertThat(config.summary().resultEntry()).isEqualTo("summary-result-entry.md");
-        assertThat(config.summary().resultErrorEntry()).isEqualTo("summary-result-error-entry.md");
+        Assertions.assertThat(config.summary().systemPrompt()).isEqualTo("summary-system.md");
+        Assertions.assertThat(config.summary().userPrompt()).isEqualTo("summary-prompt.md");
+        Assertions.assertThat(config.summary().executiveSummary()).isEqualTo("executive-summary.md");
+        Assertions.assertThat(config.summary().resultEntry()).isEqualTo("summary-result-entry.md");
+        Assertions.assertThat(config.summary().resultErrorEntry()).isEqualTo("summary-result-error-entry.md");
 
-        assertThat(config.fallback().summary()).isEqualTo("fallback-summary.md");
-        assertThat(config.fallback().agentRow()).isEqualTo("fallback-agent-row.md");
-        assertThat(config.fallback().agentSuccess()).isEqualTo("fallback-agent-success.md");
-        assertThat(config.fallback().agentFailure()).isEqualTo("fallback-agent-failure.md");
+        Assertions.assertThat(config.fallback().summary()).isEqualTo("fallback-summary.md");
+        Assertions.assertThat(config.fallback().agentRow()).isEqualTo("fallback-agent-row.md");
+        Assertions.assertThat(config.fallback().agentSuccess()).isEqualTo("fallback-agent-success.md");
+        Assertions.assertThat(config.fallback().agentFailure()).isEqualTo("fallback-agent-failure.md");
     }
 
     @Test
@@ -41,8 +41,8 @@ class TemplateConfigTest {
             new TemplateConfig.FallbackTemplates(" ", " ", " ", " ")
         );
 
-        assertThat(config.directory()).isEqualTo("templates");
-        assertThat(config.summary().systemPrompt()).isEqualTo("summary-system.md");
-        assertThat(config.fallback().summary()).isEqualTo("fallback-summary.md");
+        Assertions.assertThat(config.directory()).isEqualTo("templates");
+        Assertions.assertThat(config.summary().systemPrompt()).isEqualTo("summary-system.md");
+        Assertions.assertThat(config.fallback().summary()).isEqualTo("fallback-summary.md");
     }
 }

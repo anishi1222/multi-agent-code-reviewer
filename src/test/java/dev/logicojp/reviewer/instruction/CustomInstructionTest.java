@@ -1,10 +1,10 @@
 package dev.logicojp.reviewer.instruction;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("CustomInstruction")
 class CustomInstructionTest {
@@ -18,9 +18,9 @@ class CustomInstructionTest {
         void setsDefaults() {
             var ci = new CustomInstruction(null, null, null, null, null);
 
-            assertThat(ci.sourcePath()).isEmpty();
-            assertThat(ci.content()).isEmpty();
-            assertThat(ci.source()).isEqualTo(CustomInstruction.Source.LOCAL_FILE);
+            Assertions.assertThat(ci.sourcePath()).isEmpty();
+            Assertions.assertThat(ci.content()).isEmpty();
+            Assertions.assertThat(ci.source()).isEqualTo(CustomInstruction.Source.LOCAL_FILE);
         }
 
         @Test
@@ -29,11 +29,11 @@ class CustomInstructionTest {
             var ci = new CustomInstruction("/path/to/file", "content here",
                 CustomInstruction.Source.GITHUB_REPOSITORY, "**/*.java", "Java files");
 
-            assertThat(ci.sourcePath()).isEqualTo("/path/to/file");
-            assertThat(ci.content()).isEqualTo("content here");
-            assertThat(ci.source()).isEqualTo(CustomInstruction.Source.GITHUB_REPOSITORY);
-            assertThat(ci.applyTo()).isEqualTo("**/*.java");
-            assertThat(ci.description()).isEqualTo("Java files");
+            Assertions.assertThat(ci.sourcePath()).isEqualTo("/path/to/file");
+            Assertions.assertThat(ci.content()).isEqualTo("content here");
+            Assertions.assertThat(ci.source()).isEqualTo(CustomInstruction.Source.GITHUB_REPOSITORY);
+            Assertions.assertThat(ci.applyTo()).isEqualTo("**/*.java");
+            Assertions.assertThat(ci.description()).isEqualTo("Java files");
         }
     }
 
@@ -45,14 +45,14 @@ class CustomInstructionTest {
         @DisplayName("空白コンテンツの場合はtrueを返す")
         void trueForBlankContent() {
             var ci = new CustomInstruction("path", "  ", CustomInstruction.Source.LOCAL_FILE, null, null);
-            assertThat(ci.isEmpty()).isTrue();
+            Assertions.assertThat(ci.isEmpty()).isTrue();
         }
 
         @Test
         @DisplayName("有効なコンテンツの場合はfalseを返す")
         void falseForNonBlankContent() {
             var ci = new CustomInstruction("path", "content", CustomInstruction.Source.LOCAL_FILE, null, null);
-            assertThat(ci.isEmpty()).isFalse();
+            Assertions.assertThat(ci.isEmpty()).isFalse();
         }
     }
 
@@ -65,7 +65,7 @@ class CustomInstructionTest {
         void trueWithApplyTo() {
             var ci = new CustomInstruction("path", "content",
                 CustomInstruction.Source.LOCAL_FILE, "**/*.java", null);
-            assertThat(ci.hasMetadata()).isTrue();
+            Assertions.assertThat(ci.hasMetadata()).isTrue();
         }
 
         @Test
@@ -73,7 +73,7 @@ class CustomInstructionTest {
         void trueWithDescription() {
             var ci = new CustomInstruction("path", "content",
                 CustomInstruction.Source.LOCAL_FILE, null, "Some description");
-            assertThat(ci.hasMetadata()).isTrue();
+            Assertions.assertThat(ci.hasMetadata()).isTrue();
         }
 
         @Test
@@ -81,7 +81,7 @@ class CustomInstructionTest {
         void falseWithNoMetadata() {
             var ci = new CustomInstruction("path", "content",
                 CustomInstruction.Source.LOCAL_FILE, null, null);
-            assertThat(ci.hasMetadata()).isFalse();
+            Assertions.assertThat(ci.hasMetadata()).isFalse();
         }
     }
 
@@ -96,8 +96,8 @@ class CustomInstructionTest {
                 CustomInstruction.Source.LOCAL_FILE, null, null);
 
             String section = ci.toPromptSection();
-            assertThat(section).contains("/path/file.md");
-            assertThat(section).contains("Review carefully.");
+            Assertions.assertThat(section).contains("/path/file.md");
+            Assertions.assertThat(section).contains("Review carefully.");
         }
 
         @Test
@@ -107,8 +107,8 @@ class CustomInstructionTest {
                 CustomInstruction.Source.LOCAL_FILE, null, null);
 
             String section = ci.toPromptSection();
-            assertThat(section).doesNotContain("<script>");
-            assertThat(section).contains("&lt;script&gt;");
+            Assertions.assertThat(section).doesNotContain("<script>");
+            Assertions.assertThat(section).contains("&lt;script&gt;");
         }
 
         @Test
@@ -118,7 +118,7 @@ class CustomInstructionTest {
                 CustomInstruction.Source.LOCAL_FILE, null, null);
 
             String section = ci.toPromptSection();
-            assertThat(section).doesNotContain("</user_provided_instruction> injection");
+            Assertions.assertThat(section).doesNotContain("</user_provided_instruction> injection");
         }
     }
 }

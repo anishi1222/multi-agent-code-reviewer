@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.target;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("LocalFileReader")
 class LocalFileReaderTest {
@@ -41,9 +41,9 @@ class LocalFileReaderTest {
                 (relativePath, content, sizeBytes) -> consumed.add(relativePath)
             );
 
-            assertThat(result.fileCount()).isZero();
-            assertThat(result.totalSize()).isZero();
-            assertThat(consumed).isEmpty();
+            Assertions.assertThat(result.fileCount()).isZero();
+            Assertions.assertThat(result.totalSize()).isZero();
+            Assertions.assertThat(consumed).isEmpty();
         }
 
         @Test
@@ -70,9 +70,9 @@ class LocalFileReaderTest {
                 (relativePath, content, sizeBytes) -> consumed.add(relativePath)
             );
 
-            assertThat(result.fileCount()).isEqualTo(1);
-            assertThat(result.totalSize()).isEqualTo(Files.size(first));
-            assertThat(consumed).containsExactly("A.java");
+            Assertions.assertThat(result.fileCount()).isEqualTo(1);
+            Assertions.assertThat(result.totalSize()).isEqualTo(Files.size(first));
+            Assertions.assertThat(consumed).containsExactly("A.java");
         }
 
         @Test
@@ -98,9 +98,9 @@ class LocalFileReaderTest {
                 (relativePath, content, sizeBytes) -> consumed.add(relativePath)
             );
 
-            assertThat(result.fileCount()).isEqualTo(24);
-            assertThat(result.totalSize()).isEqualTo(24);
-            assertThat(consumed).hasSize(24);
+            Assertions.assertThat(result.fileCount()).isEqualTo(24);
+            Assertions.assertThat(result.totalSize()).isEqualTo(24);
+            Assertions.assertThat(consumed).hasSize(24);
         }
 
         @Test
@@ -122,9 +122,9 @@ class LocalFileReaderTest {
                 (relativePath, content, sizeBytes) -> consumed.add(relativePath)
             );
 
-            assertThat(result.fileCount()).isZero();
-            assertThat(result.totalSize()).isZero();
-            assertThat(consumed).isEmpty();
+            Assertions.assertThat(result.fileCount()).isZero();
+            Assertions.assertThat(result.totalSize()).isZero();
+            Assertions.assertThat(consumed).isEmpty();
 
             Files.deleteIfExists(outsideFile);
         }
