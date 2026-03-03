@@ -24,7 +24,7 @@ class ReviewContextFactoryTest {
         CopilotClient client = new CopilotClient(new CopilotClientOptions());
         var scheduler = Executors.newSingleThreadScheduledExecutor();
         try {
-            var executionConfig = new ExecutionConfig(2, 1, 10, 5, 3, 5, 5, 10, 2, 0, 0, 0);
+            var executionConfig = ExecutionConfig.ofFlat(2, 1, 10, 5, 3, 5, 5, 10, 2, 0, 0, 0);
             var customInstructions = List.of(new CustomInstruction(
                 ".github/instructions/test.instructions.md",
                 "rule",

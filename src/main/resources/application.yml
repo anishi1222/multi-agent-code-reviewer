@@ -8,18 +8,22 @@ reviewer:
       - ./agents
       - ./.github/agents
   execution:
-    parallelism: 4
-    review-passes: 3
-    orchestrator-timeout-minutes: 45
-    agent-timeout-minutes: 20
-    idle-timeout-minutes: 5
-    skill-timeout-minutes: 20
-    summary-timeout-minutes: 20
-    gh-auth-timeout-seconds: 30
-    max-retries: 2
-    max-accumulated-size: 4194304
-    initial-accumulated-capacity: 4096
-    instruction-buffer-extra-capacity: 32
+    concurrency:
+      parallelism: 4
+      review-passes: 3
+    timeouts:
+      orchestrator-timeout-minutes: 45
+      agent-timeout-minutes: 20
+      idle-timeout-minutes: 5
+      skill-timeout-minutes: 20
+      summary-timeout-minutes: 20
+      gh-auth-timeout-seconds: 30
+    retry:
+      max-retries: 2
+    buffers:
+      max-accumulated-size: 4194304
+      initial-accumulated-capacity: 4096
+      instruction-buffer-extra-capacity: 32
   circuit-breaker:
     failure-threshold: 8
     reset-timeout-ms: 30000

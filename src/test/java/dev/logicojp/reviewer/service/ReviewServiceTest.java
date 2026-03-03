@@ -36,7 +36,7 @@ class ReviewServiceTest {
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
             null, null, null, "output-constraints.md", null, null, null));
 
-        ExecutionConfig executionConfig = new ExecutionConfig(4, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0);
+        ExecutionConfig executionConfig = ExecutionConfig.ofFlat(4, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0);
         AtomicReference<ExecutionConfig> capturedExecution = new AtomicReference<>();
         AtomicReference<List<CustomInstruction>> capturedInstructions = new AtomicReference<>();
         AtomicReference<String> capturedOutputConstraints = new AtomicReference<>();
@@ -75,7 +75,7 @@ class ReviewServiceTest {
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
             null, null, null, "output-constraints.md", null, null, null));
 
-        ExecutionConfig executionConfig = new ExecutionConfig(4, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0);
+        ExecutionConfig executionConfig = ExecutionConfig.ofFlat(4, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0);
         AtomicReference<List<CustomInstruction>> capturedInstructions = new AtomicReference<>();
         AtomicInteger invocationCount = new AtomicInteger();
 
@@ -114,7 +114,7 @@ class ReviewServiceTest {
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
             null, null, null, "output-constraints.md", null, null, null));
 
-        ExecutionConfig executionConfig = new ExecutionConfig(4, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0);
+        ExecutionConfig executionConfig = ExecutionConfig.ofFlat(4, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0);
         AtomicReference<List<CustomInstruction>> capturedInstructions = new AtomicReference<>();
 
         ReviewService service = new ReviewService(

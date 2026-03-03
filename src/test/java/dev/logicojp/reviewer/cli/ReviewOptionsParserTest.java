@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ReviewOptionsParserTest {
 
     private static final ExecutionConfig EXECUTION_CONFIG =
-        new ExecutionConfig(7, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0);
+        ExecutionConfig.ofFlat(7, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0);
 
     @Test
     @DisplayName("--help指定時はemptyを返す")

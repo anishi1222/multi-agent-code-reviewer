@@ -178,6 +178,27 @@ public class SummaryGenerator {
                             String reasoningEffort,
                             long timeoutMinutes,
                             TemplateService templateService,
+                            SummaryConfig summaryConfig) {
+        this(
+            outputDirectory,
+            client,
+            summaryModel,
+            reasoningEffort,
+            timeoutMinutes,
+            templateService,
+            summaryConfig,
+            null,
+            Clock.systemDefaultZone(),
+            SharedCircuitBreaker.withDefaultConfig()
+        );
+    }
+
+    public SummaryGenerator(Path outputDirectory,
+                            CopilotClient client,
+                            String summaryModel,
+                            String reasoningEffort,
+                            long timeoutMinutes,
+                            TemplateService templateService,
                             SummaryConfig summaryConfig,
                             SharedCircuitBreaker circuitBreaker) {
         this(
@@ -194,40 +215,7 @@ public class SummaryGenerator {
         );
     }
 
-    public SummaryGenerator(Path outputDirectory,
-                            CopilotClient client,
-                            String summaryModel,
-                            String reasoningEffort,
-                            long timeoutMinutes,
-                            TemplateService templateService,
-                            SummaryConfig summaryConfig) {
-        this(
-            outputDirectory,
-            client,
-            summaryModel,
-            reasoningEffort,
-            timeoutMinutes,
-            templateService,
-            summaryConfig,
-            SharedCircuitBreaker.withDefaultConfig()
-        );
-    }
-
     /// Full-parameter constructor for testing — all collaborators are injectable.
-    SummaryGenerator(
-            Path outputDirectory,
-            CopilotClient client,
-            String summaryModel,
-            String reasoningEffort,
-            long timeoutMinutes,
-            TemplateService templateService,
-            SummaryConfig summaryConfig,
-            SummaryCollaborators collaborators,
-            Clock clock) {
-        this(outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, templateService,
-            summaryConfig, collaborators, clock, SharedCircuitBreaker.withDefaultConfig());
-    }
-
     SummaryGenerator(
             Path outputDirectory,
             CopilotClient client,

@@ -35,7 +35,7 @@ class SkillCommandTest {
     }
 
     private static final ExecutionConfig EXECUTION_CONFIG =
-        new ExecutionConfig(2, 1, 5, 5, 5, 5, 5, 5, 0, 1024, 256, 32);
+        ExecutionConfig.ofFlat(2, 1, 5, 5, 5, 5, 5, 5, 0, 1024, 256, 32);
 
     @Test
     @DisplayName("正常フローで終了コード0を返す")

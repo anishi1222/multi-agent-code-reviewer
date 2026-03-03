@@ -14,7 +14,6 @@ import dev.logicojp.reviewer.config.TemplateConfig;
 import dev.logicojp.reviewer.report.core.ReportGenerator;
 import dev.logicojp.reviewer.report.factory.ReportGeneratorFactory;
 import dev.logicojp.reviewer.report.core.ReviewResult;
-import dev.logicojp.reviewer.report.summary.SummaryGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -57,8 +56,11 @@ class ReportServiceTest {
                                                            String summaryModel,
                                                            String reasoningEffort,
                                                            long timeoutMinutes) {
-                return new SummaryGenerator(outputDirectory, copilotClient, summaryModel, reasoningEffort, timeoutMinutes,
-                    templateService, new SummaryConfig(0, 0, 0, 0, 0, 0));
+                return SummaryGenerator.builder(outputDirectory, copilotClient, summaryModel, templateService)
+                    .reasoningEffort(reasoningEffort)
+                    .timeoutMinutes(timeoutMinutes)
+                    .summaryConfig(new SummaryConfig(0, 0, 0, 0, 0, 0))
+                    .build();
             }
         };
 
@@ -77,7 +79,7 @@ class ReportServiceTest {
 
         ReportService service = new ReportService(
             copilotService,
-            new ExecutionConfig(1, 1, 1, 1, 1, 1, 3, 1, 0, 0, 0, 0),
+            ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 3, 1, 0, 0, 0, 0),
             factory
         );
 
@@ -107,9 +109,9 @@ class ReportServiceTest {
                                                            String summaryModel,
                                                            String reasoningEffort,
                                                            long timeoutMinutes) {
-                return new SummaryGenerator(outputDirectory, copilotClient, summaryModel, reasoningEffort, timeoutMinutes,
-                    templateService, new SummaryConfig(0, 0, 0, 0, 0, 0)) {
-                @Override
+                return new SummaryGenerator(outputDirectory, copilotClient, summaryModel, reasoningEffort,
+                    timeoutMinutes, templateService, new SummaryConfig(0, 0, 0, 0, 0, 0)) {
+                    @Override
                     public Path generateSummary(List<ReviewResult> results, String repository) {
                         capturedTimeout.set(timeoutMinutes);
                         capturedModel.set(summaryModel);
@@ -134,7 +136,7 @@ class ReportServiceTest {
 
         ReportService service = new ReportService(
             copilotService,
-            new ExecutionConfig(1, 1, 1, 1, 1, 1, 7, 1, 0, 0, 0, 0),
+            ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 7, 1, 0, 0, 0, 0),
             factory
         );
 

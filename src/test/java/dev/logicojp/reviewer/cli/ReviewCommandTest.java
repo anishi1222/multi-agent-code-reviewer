@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ReviewCommandTest {
 
     private static final ExecutionConfig EXECUTION_CONFIG =
-        new ExecutionConfig(2, 1, 5, 5, 5, 5, 5, 5, 0, 1024, 256, 32);
+        ExecutionConfig.ofFlat(2, 1, 5, 5, 5, 5, 5, 5, 0, 1024, 256, 32);
 
     @TempDir
     Path tempDir;

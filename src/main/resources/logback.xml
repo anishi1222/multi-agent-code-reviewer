@@ -14,6 +14,7 @@
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>logs/security-audit.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>14</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{ISO8601} level=%-5level category=%X{event.category} action=%X{event.action} mdc=%X %replace(%msg){'${MASK_PATTERN}','$1***'}%n</pattern>

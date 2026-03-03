@@ -39,31 +39,6 @@ public record ReviewContext(
     SharedCircuitBreaker reviewCircuitBreaker
 ) {
 
-    public ReviewContext(
-        CopilotClient client,
-        TimeoutConfig timeoutConfig,
-        List<CustomInstruction> customInstructions,
-        @Nullable String reasoningEffort,
-        @Nullable String outputConstraints,
-        CachedResources cachedResources,
-        LocalFileConfig localFileConfig,
-        ScheduledExecutorService sharedScheduler,
-        AgentTuningConfig agentTuningConfig
-    ) {
-        this(
-            client,
-            timeoutConfig,
-            customInstructions,
-            reasoningEffort,
-            outputConstraints,
-            cachedResources,
-            localFileConfig,
-            sharedScheduler,
-            agentTuningConfig,
-            SharedCircuitBreaker.withDefaultConfig()
-        );
-    }
-
     /// Groups timeout and retry parameters.
     public record TimeoutConfig(long timeoutMinutes, long idleTimeoutMinutes, int maxRetries) {}
 

@@ -52,7 +52,13 @@ public class ReportGeneratorFactory {
             templateService,
             summaryConfig,
             ReportGenerator::new,
-            SummaryGenerator::new,
+            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, cfg, breaker) ->
+                SummaryGenerator.builder(outputDirectory, client, summaryModel, ts)
+                    .reasoningEffort(reasoningEffort)
+                    .timeoutMinutes(timeoutMinutes)
+                    .summaryConfig(cfg)
+                    .circuitBreaker(breaker)
+                    .build(),
             circuitBreakerFactory.forSummary()
         );
     }
@@ -63,7 +69,13 @@ public class ReportGeneratorFactory {
             templateService,
             summaryConfig,
             ReportGenerator::new,
-            SummaryGenerator::new,
+            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, cfg, breaker) ->
+                SummaryGenerator.builder(outputDirectory, client, summaryModel, ts)
+                    .reasoningEffort(reasoningEffort)
+                    .timeoutMinutes(timeoutMinutes)
+                    .summaryConfig(cfg)
+                    .circuitBreaker(breaker)
+                    .build(),
             SharedCircuitBreaker.withDefaultConfig()
         );
     }

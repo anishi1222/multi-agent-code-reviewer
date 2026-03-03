@@ -3,7 +3,6 @@ package dev.logicojp.reviewer.orchestrator;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
-import dev.logicojp.reviewer.config.CircuitBreakerConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.service.CopilotService;
@@ -81,23 +80,6 @@ public class ReviewOrchestratorFactory {
         this.circuitBreakerFactory = circuitBreakerFactory;
         this.templateService = templateService;
         this.orchestratorCreator = orchestratorCreator;
-    }
-
-    ReviewOrchestratorFactory(CopilotService copilotService,
-                              GithubMcpConfig githubMcpConfig,
-                              LocalFileConfig localFileConfig,
-                              FeatureFlags featureFlags,
-                              TemplateService templateService,
-                              OrchestratorCreator orchestratorCreator) {
-        this(
-            copilotService,
-            githubMcpConfig,
-            localFileConfig,
-            featureFlags,
-            new CircuitBreakerFactory(new CircuitBreakerConfig(8, 30_000L)),
-            templateService,
-            orchestratorCreator
-        );
     }
 
     /// Creates a new {@link ReviewOrchestrator} for a single review run.

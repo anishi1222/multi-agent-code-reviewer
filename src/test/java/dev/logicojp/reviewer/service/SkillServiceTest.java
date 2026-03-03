@@ -34,7 +34,7 @@ class SkillServiceTest {
             new dev.logicojp.reviewer.skill.SkillRegistry(),
             newCopilotService(),
             new GithubMcpConfig(null, null, null, null, null, null),
-            new ExecutionConfig(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
+            ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
             SkillConfig.defaults(),
             new FeatureFlags(false, false)
         );
@@ -52,7 +52,7 @@ class SkillServiceTest {
             new dev.logicojp.reviewer.skill.SkillRegistry(),
             newCopilotService(),
             new GithubMcpConfig(null, null, null, null, null, null),
-            new ExecutionConfig(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
+            ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
             SkillConfig.defaults(),
             new FeatureFlags(false, false)
         );

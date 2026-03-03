@@ -1617,6 +1617,15 @@
       ]
     },
     {
+      "type": "dev.logicojp.reviewer.agent.$CircuitBreakerFactory$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "dev.logicojp.reviewer.cli.$CliOutput$Definition",
       "methods": [
         {
@@ -1807,6 +1816,15 @@
     },
     {
       "type": "dev.logicojp.reviewer.config.$AgentPathConfig$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "dev.logicojp.reviewer.config.$CircuitBreakerConfig$Definition",
       "methods": [
         {
           "name": "<init>",

@@ -25,7 +25,7 @@ class ReviewOutputFormatterTest {
         var outBuffer = new ByteArrayOutputStream();
         var errBuffer = new ByteArrayOutputStream();
         CliOutput output = new CliOutput(new PrintStream(outBuffer), new PrintStream(errBuffer));
-        var formatter = new ReviewOutputFormatter(output, new ExecutionConfig(2, 1, 10, 5, 5, 5, 5, 10, 1, 0, 0, 0));
+        var formatter = new ReviewOutputFormatter(output, ExecutionConfig.ofFlat(2, 1, 10, 5, 5, 5, 5, 10, 1, 0, 0, 0));
 
         AgentConfig config = new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
         formatter.printBanner(
@@ -49,7 +49,7 @@ class ReviewOutputFormatterTest {
         var outBuffer = new ByteArrayOutputStream();
         var errBuffer = new ByteArrayOutputStream();
         CliOutput output = new CliOutput(new PrintStream(outBuffer), new PrintStream(errBuffer));
-        var formatter = new ReviewOutputFormatter(output, new ExecutionConfig(2, 1, 10, 5, 5, 5, 5, 10, 1, 0, 0, 0));
+        var formatter = new ReviewOutputFormatter(output, ExecutionConfig.ofFlat(2, 1, 10, 5, 5, 5, 5, 10, 1, 0, 0, 0));
 
         AgentConfig config = new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
         List<ReviewResult> results = List.of(

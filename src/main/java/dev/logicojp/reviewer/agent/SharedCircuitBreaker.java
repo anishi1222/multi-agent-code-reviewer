@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.agent;
 import dev.logicojp.reviewer.config.CircuitBreakerConfig;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 
 /// Simple circuit breaker that tracks consecutive failures and temporarily
@@ -15,7 +16,7 @@ public final class SharedCircuitBreaker {
     private final long resetTimeoutMs;
     private final LongSupplier clock;
     private final AtomicInteger consecutiveFailures = new AtomicInteger();
-    private volatile long openedAtMs = -1L;
+    private final AtomicLong openedAtMs = new AtomicLong(-1L);
 
     public static SharedCircuitBreaker withDefaultConfig() {
         return new SharedCircuitBreaker(
@@ -37,13 +38,13 @@ public final class SharedCircuitBreaker {
     public boolean allowRequest() {
         int failures = consecutiveFailures.get();
         if (failures < failureThreshold) return true;
-        long openedAt = openedAtMs;
+        long openedAt = openedAtMs.get();
         if (openedAt < 0) return true;
         long elapsedMs = clock.getAsLong() - openedAt;
         if (elapsedMs >= resetTimeoutMs) {
             // CAS ensures only one thread transitions to half-open
             if (consecutiveFailures.compareAndSet(failures, failureThreshold - 1)) {
-                openedAtMs = -1L;
+                openedAtMs.set(-1L);
                 return true;
             }
             return false;
@@ -53,19 +54,19 @@ public final class SharedCircuitBreaker {
 
     public void onSuccess() {
         consecutiveFailures.set(0);
-        openedAtMs = -1L;
+        openedAtMs.set(-1L);
     }
 
     public void onFailure() {
         int failures = consecutiveFailures.incrementAndGet();
-        if (failures >= failureThreshold && openedAtMs < 0) {
-            openedAtMs = clock.getAsLong();
+        if (failures >= failureThreshold) {
+            openedAtMs.compareAndSet(-1L, clock.getAsLong());
         }
     }
 
     /// Resets the circuit breaker to its initial state.
     void reset() {
         consecutiveFailures.set(0);
-        openedAtMs = -1L;
+        openedAtMs.set(-1L);
     }
 }

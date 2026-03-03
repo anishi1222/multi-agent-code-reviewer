@@ -1,5 +1,7 @@
 package dev.logicojp.reviewer.instruction;
 
+import io.micronaut.core.annotation.Nullable;
+
 /// Represents a loaded custom instruction with its source information.
 /// Supports GitHub Copilot's per-scope instruction format with applyTo glob and description.
 ///
@@ -12,8 +14,8 @@ public record CustomInstruction(
     String sourcePath,
     String content,
     InstructionSource source,
-    String applyTo,
-    String description
+    @Nullable String applyTo,
+    @Nullable String description
 ) {
     public CustomInstruction {
         sourcePath = sourcePath != null ? sourcePath : "";

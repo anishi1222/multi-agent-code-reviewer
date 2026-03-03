@@ -30,7 +30,7 @@ class ReviewOrchestratorTest {
             new GithubMcpConfig(null, null, null, null, null, null),
             new LocalFileConfig(),
             new FeatureFlags(false, false),
-            new ExecutionConfig(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
+            ExecutionConfig.ofFlat(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
             List.of(),
             "high",
             null,

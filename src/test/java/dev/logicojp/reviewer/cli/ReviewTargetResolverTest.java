@@ -20,7 +20,7 @@ class ReviewTargetResolverTest {
     @Test
     @DisplayName("repository target は指定トークンで解決できる")
     void resolvesRepositoryTargetWithProvidedToken() {
-        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(new dev.logicojp.reviewer.config.ExecutionConfig(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
+        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(dev.logicojp.reviewer.config.ExecutionConfig.ofFlat(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
 
         ReviewTargetResolver.TargetAndToken result = resolver.resolve(
             new ReviewCommand.TargetSelection.Repository("owner/repo"),
@@ -34,7 +34,7 @@ class ReviewTargetResolverTest {
     @Test
     @DisplayName("local target は絶対パスで解決しトークンは不要")
     void resolvesLocalDirectoryTarget() {
-        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(new dev.logicojp.reviewer.config.ExecutionConfig(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
+        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(dev.logicojp.reviewer.config.ExecutionConfig.ofFlat(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
 
         ReviewTargetResolver.TargetAndToken result = resolver.resolve(
             new ReviewCommand.TargetSelection.LocalDirectory(tempDir),
@@ -49,7 +49,7 @@ class ReviewTargetResolverTest {
     @Test
     @DisplayName("存在しないローカルディレクトリはエラー")
     void throwsForMissingLocalDirectory() {
-        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(new dev.logicojp.reviewer.config.ExecutionConfig(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
+        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(dev.logicojp.reviewer.config.ExecutionConfig.ofFlat(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
         Path missing = tempDir.resolve("missing");
 
         assertThatThrownBy(() -> resolver.resolve(
@@ -63,7 +63,7 @@ class ReviewTargetResolverTest {
     @Test
     @DisplayName("ディレクトリでないローカルパスはエラー")
     void throwsForNonDirectoryPath() throws Exception {
-        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(new dev.logicojp.reviewer.config.ExecutionConfig(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
+        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(dev.logicojp.reviewer.config.ExecutionConfig.ofFlat(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
         Path file = tempDir.resolve("file.txt");
         Files.writeString(file, "x");
 
@@ -78,7 +78,7 @@ class ReviewTargetResolverTest {
     @Test
     @DisplayName("local target は指定トークンがあっても resolvedToken は null")
     void localTargetAlwaysResolvesNullToken() {
-        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(new dev.logicojp.reviewer.config.ExecutionConfig(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
+        var resolver = new ReviewTargetResolver(new GitHubTokenResolver(dev.logicojp.reviewer.config.ExecutionConfig.ofFlat(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
 
         ReviewTargetResolver.TargetAndToken result = resolver.resolve(
             new ReviewCommand.TargetSelection.LocalDirectory(tempDir),

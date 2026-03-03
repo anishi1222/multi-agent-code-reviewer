@@ -33,22 +33,23 @@ class SummaryGeneratorTest {
         prepareTemplateFiles(tempDir);
         TemplateService templateService = new TemplateService(createConfig(tempDir));
 
-        SummaryGenerator generator = new SummaryGenerator(
-            tempDir,
-            null,
-            "summary-model",
-            "high",
-            1,
-            templateService,
-            new SummaryConfig(0, 0, 0, 0, 0, 0),
-            new SummaryGenerator.SummaryCollaborators(
+        SummaryGenerator generator = SummaryGenerator.builder(
+                tempDir,
+                null,
+                "summary-model",
+                templateService
+            )
+            .reasoningEffort("high")
+            .timeoutMinutes(1)
+            .summaryConfig(new SummaryConfig(0, 0, 0, 0, 0, 0))
+            .collaborators(new SummaryGenerator.SummaryCollaborators(
                 null,
                 null,
                 null,
                 (results, repository) -> "AI summary content"
-            ),
-            Clock.fixed(Instant.parse("2026-02-19T20:30:44Z"), ZoneId.of("UTC"))
-        );
+            ))
+            .clock(Clock.fixed(Instant.parse("2026-02-19T20:30:44Z"), ZoneId.of("UTC")))
+            .build();
 
         List<ReviewResult> results = List.of(
             ReviewResult.builder()

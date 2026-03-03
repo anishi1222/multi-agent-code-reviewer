@@ -26,7 +26,7 @@ class ReviewExecutionModeRunnerTest {
     @Test
     @DisplayName("asyncモードで結果を収集しmulti-pass時にマージする")
     void executesAsyncAndMerges() {
-        ExecutionConfig config = new ExecutionConfig(2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+        ExecutionConfig config = ExecutionConfig.ofFlat(2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
         var pipeline = new ReviewResultPipeline();
         ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
@@ -69,7 +69,7 @@ class ReviewExecutionModeRunnerTest {
     @Test
     @DisplayName("structuredモードで結果を収集できる")
     void executesStructured() {
-        ExecutionConfig config = new ExecutionConfig(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+        ExecutionConfig config = ExecutionConfig.ofFlat(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
         var pipeline = new ReviewResultPipeline();
         var runner = new ReviewExecutionModeRunner(config, null, pipeline);
 

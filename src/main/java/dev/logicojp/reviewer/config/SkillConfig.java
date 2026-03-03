@@ -27,7 +27,16 @@ public record SkillConfig(
 
     /// Creates a SkillConfig with all default values.
     public static SkillConfig defaults() {
-        return new SkillConfig(null, null, 0, 0, 0, 0.0, 0, 0);
+        return new SkillConfig(
+            DEFAULT_FILENAME,
+            DEFAULT_DIRECTORY,
+            DEFAULT_MAX_PARAMETER_VALUE_LENGTH,
+            DEFAULT_MAX_EXECUTOR_CACHE_SIZE,
+            DEFAULT_EXECUTOR_CACHE_INITIAL_CAPACITY,
+            DEFAULT_EXECUTOR_CACHE_LOAD_FACTOR,
+            DEFAULT_SERVICE_SHUTDOWN_TIMEOUT_SECONDS,
+            DEFAULT_EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS
+        );
     }
 
     public SkillConfig {

@@ -2,7 +2,9 @@ package dev.logicojp.reviewer.orchestrator;
 
 import com.github.copilot.sdk.CopilotClient;
 import dev.logicojp.reviewer.agent.AgentPromptBuilder;
+import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
+import dev.logicojp.reviewer.config.CircuitBreakerConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
@@ -57,6 +59,7 @@ class ReviewOrchestratorFactoryTest {
             new GithubMcpConfig(null, null, null, null, null, null),
             new LocalFileConfig(),
             new FeatureFlags(false, false),
+            new CircuitBreakerFactory(new CircuitBreakerConfig(8, 30_000L)),
             templateService,
             (client, config) -> {
                 captured.set(config);
@@ -70,7 +73,7 @@ class ReviewOrchestratorFactoryTest {
 
         try (ReviewOrchestrator ignored = factory.create(
             "token",
-            new ExecutionConfig(2, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0),
+            ExecutionConfig.ofFlat(2, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0),
             List.of(),
             "high",
             "constraints"

@@ -5,18 +5,10 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 /// Configuration for execution settings (parallelism, timeouts).
 @ConfigurationProperties("reviewer.execution")
 public record ExecutionConfig(
-    int parallelism,
-    int reviewPasses,
-    long orchestratorTimeoutMinutes,
-    long agentTimeoutMinutes,
-    long idleTimeoutMinutes,
-    long skillTimeoutMinutes,
-    long summaryTimeoutMinutes,
-    long ghAuthTimeoutSeconds,
-    int maxRetries,
-    int maxAccumulatedSize,
-    int initialAccumulatedCapacity,
-    int instructionBufferExtraCapacity
+    ConcurrencySettings concurrency,
+    TimeoutSettings timeouts,
+    RetrySettings retry,
+    BufferSettings buffers
 ) {
 
     public record ConcurrencySettings(int parallelism, int reviewPasses) {
@@ -52,65 +44,151 @@ public record ExecutionConfig(
     public static final int DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY = 32;
 
     public ExecutionConfig {
-        parallelism = ConfigDefaults.defaultIfNonPositive(parallelism, DEFAULT_PARALLELISM);
-        reviewPasses = ConfigDefaults.defaultIfNonPositive(reviewPasses, DEFAULT_REVIEW_PASSES);
-        orchestratorTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(orchestratorTimeoutMinutes, DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES);
-        agentTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(agentTimeoutMinutes, DEFAULT_AGENT_TIMEOUT_MINUTES);
-        idleTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(idleTimeoutMinutes, DEFAULT_IDLE_TIMEOUT_MINUTES);
-        skillTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(skillTimeoutMinutes, DEFAULT_SKILL_TIMEOUT_MINUTES);
-        summaryTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(summaryTimeoutMinutes, DEFAULT_SUMMARY_TIMEOUT_MINUTES);
-        ghAuthTimeoutSeconds = ConfigDefaults.defaultIfNonPositive(ghAuthTimeoutSeconds, DEFAULT_GH_AUTH_TIMEOUT_SECONDS);
-        maxRetries = ConfigDefaults.defaultIfNegative(maxRetries, DEFAULT_MAX_RETRIES);
-        maxAccumulatedSize = ConfigDefaults.defaultIfNonPositive(maxAccumulatedSize, DEFAULT_MAX_ACCUMULATED_SIZE);
-        initialAccumulatedCapacity = ConfigDefaults.defaultIfNonPositive(initialAccumulatedCapacity, DEFAULT_INITIAL_ACCUMULATED_CAPACITY);
-        instructionBufferExtraCapacity = ConfigDefaults.defaultIfNonPositive(instructionBufferExtraCapacity, DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY);
+        concurrency = concurrency != null
+            ? new ConcurrencySettings(
+                ConfigDefaults.defaultIfNonPositive(concurrency.parallelism(), DEFAULT_PARALLELISM),
+                ConfigDefaults.defaultIfNonPositive(concurrency.reviewPasses(), DEFAULT_REVIEW_PASSES)
+            )
+            : new ConcurrencySettings(DEFAULT_PARALLELISM, DEFAULT_REVIEW_PASSES);
+
+        timeouts = timeouts != null
+            ? new TimeoutSettings(
+                ConfigDefaults.defaultIfNonPositive(timeouts.orchestratorTimeoutMinutes(), DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES),
+                ConfigDefaults.defaultIfNonPositive(timeouts.agentTimeoutMinutes(), DEFAULT_AGENT_TIMEOUT_MINUTES),
+                ConfigDefaults.defaultIfNonPositive(timeouts.idleTimeoutMinutes(), DEFAULT_IDLE_TIMEOUT_MINUTES),
+                ConfigDefaults.defaultIfNonPositive(timeouts.skillTimeoutMinutes(), DEFAULT_SKILL_TIMEOUT_MINUTES),
+                ConfigDefaults.defaultIfNonPositive(timeouts.summaryTimeoutMinutes(), DEFAULT_SUMMARY_TIMEOUT_MINUTES),
+                ConfigDefaults.defaultIfNonPositive(timeouts.ghAuthTimeoutSeconds(), DEFAULT_GH_AUTH_TIMEOUT_SECONDS)
+            )
+            : new TimeoutSettings(
+                DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES,
+                DEFAULT_AGENT_TIMEOUT_MINUTES,
+                DEFAULT_IDLE_TIMEOUT_MINUTES,
+                DEFAULT_SKILL_TIMEOUT_MINUTES,
+                DEFAULT_SUMMARY_TIMEOUT_MINUTES,
+                DEFAULT_GH_AUTH_TIMEOUT_SECONDS
+            );
+
+        retry = retry != null
+            ? new RetrySettings(ConfigDefaults.defaultIfNegative(retry.maxRetries(), DEFAULT_MAX_RETRIES))
+            : new RetrySettings(DEFAULT_MAX_RETRIES);
+
+        buffers = buffers != null
+            ? new BufferSettings(
+                ConfigDefaults.defaultIfNonPositive(buffers.maxAccumulatedSize(), DEFAULT_MAX_ACCUMULATED_SIZE),
+                ConfigDefaults.defaultIfNonPositive(buffers.initialAccumulatedCapacity(), DEFAULT_INITIAL_ACCUMULATED_CAPACITY),
+                ConfigDefaults.defaultIfNonPositive(
+                    buffers.instructionBufferExtraCapacity(),
+                    DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
+                )
+            )
+            : new BufferSettings(
+                DEFAULT_MAX_ACCUMULATED_SIZE,
+                DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
+                DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
+            );
+    }
+
+    public static ExecutionConfig ofFlat(int parallelism,
+                                         int reviewPasses,
+                                         long orchestratorTimeoutMinutes,
+                                         long agentTimeoutMinutes,
+                                         long idleTimeoutMinutes,
+                                         long skillTimeoutMinutes,
+                                         long summaryTimeoutMinutes,
+                                         long ghAuthTimeoutSeconds,
+                                         int maxRetries,
+                                         int maxAccumulatedSize,
+                                         int initialAccumulatedCapacity,
+                                         int instructionBufferExtraCapacity) {
+        return new ExecutionConfig(
+            new ConcurrencySettings(parallelism, reviewPasses),
+            new TimeoutSettings(
+                orchestratorTimeoutMinutes,
+                agentTimeoutMinutes,
+                idleTimeoutMinutes,
+                skillTimeoutMinutes,
+                summaryTimeoutMinutes,
+                ghAuthTimeoutSeconds
+            ),
+            new RetrySettings(maxRetries),
+            new BufferSettings(
+                maxAccumulatedSize,
+                initialAccumulatedCapacity,
+                instructionBufferExtraCapacity
+            )
+        );
     }
 
     public static ExecutionConfig of(ConcurrencySettings concurrency,
                                      TimeoutSettings timeouts,
                                      RetrySettings retry,
                                      BufferSettings buffers) {
-        return new ExecutionConfig(
-            concurrency.parallelism(),
-            concurrency.reviewPasses(),
-            timeouts.orchestratorTimeoutMinutes(),
-            timeouts.agentTimeoutMinutes(),
-            timeouts.idleTimeoutMinutes(),
-            timeouts.skillTimeoutMinutes(),
-            timeouts.summaryTimeoutMinutes(),
-            timeouts.ghAuthTimeoutSeconds(),
-            retry.maxRetries(),
-            buffers.maxAccumulatedSize(),
-            buffers.initialAccumulatedCapacity(),
-            buffers.instructionBufferExtraCapacity()
-        );
+        return new ExecutionConfig(concurrency, timeouts, retry, buffers);
     }
 
     public ConcurrencySettings concurrencySettings() {
-        return new ConcurrencySettings(parallelism, reviewPasses);
+        return concurrency;
     }
 
     public TimeoutSettings timeoutSettings() {
-        return new TimeoutSettings(
-            orchestratorTimeoutMinutes,
-            agentTimeoutMinutes,
-            idleTimeoutMinutes,
-            skillTimeoutMinutes,
-            summaryTimeoutMinutes,
-            ghAuthTimeoutSeconds
-        );
+        return timeouts;
     }
 
     public RetrySettings retrySettings() {
-        return new RetrySettings(maxRetries);
+        return retry;
     }
 
     public BufferSettings bufferSettings() {
-        return new BufferSettings(
-            maxAccumulatedSize,
-            initialAccumulatedCapacity,
-            instructionBufferExtraCapacity
-        );
+        return buffers;
+    }
+
+    public int parallelism() {
+        return concurrency.parallelism();
+    }
+
+    public int reviewPasses() {
+        return concurrency.reviewPasses();
+    }
+
+    public long orchestratorTimeoutMinutes() {
+        return timeouts.orchestratorTimeoutMinutes();
+    }
+
+    public long agentTimeoutMinutes() {
+        return timeouts.agentTimeoutMinutes();
+    }
+
+    public long idleTimeoutMinutes() {
+        return timeouts.idleTimeoutMinutes();
+    }
+
+    public long skillTimeoutMinutes() {
+        return timeouts.skillTimeoutMinutes();
+    }
+
+    public long summaryTimeoutMinutes() {
+        return timeouts.summaryTimeoutMinutes();
+    }
+
+    public long ghAuthTimeoutSeconds() {
+        return timeouts.ghAuthTimeoutSeconds();
+    }
+
+    public int maxRetries() {
+        return retry.maxRetries();
+    }
+
+    public int maxAccumulatedSize() {
+        return buffers.maxAccumulatedSize();
+    }
+
+    public int initialAccumulatedCapacity() {
+        return buffers.initialAccumulatedCapacity();
+    }
+
+    public int instructionBufferExtraCapacity() {
+        return buffers.instructionBufferExtraCapacity();
     }
 
     /// Returns a copy of this config with the parallelism value replaced.
@@ -126,10 +204,21 @@ public record ExecutionConfig(
     /// Useful in tests and as a starting point for the Builder.
     public static ExecutionConfig defaults() {
         return ExecutionConfig.of(
-            new ConcurrencySettings(0, 0),
-            new TimeoutSettings(0, 0, 0, 0, 0, 0),
-            new RetrySettings(0),
-            new BufferSettings(0, 0, 0)
+            new ConcurrencySettings(DEFAULT_PARALLELISM, DEFAULT_REVIEW_PASSES),
+            new TimeoutSettings(
+                DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES,
+                DEFAULT_AGENT_TIMEOUT_MINUTES,
+                DEFAULT_IDLE_TIMEOUT_MINUTES,
+                DEFAULT_SKILL_TIMEOUT_MINUTES,
+                DEFAULT_SUMMARY_TIMEOUT_MINUTES,
+                DEFAULT_GH_AUTH_TIMEOUT_SECONDS
+            ),
+            new RetrySettings(DEFAULT_MAX_RETRIES),
+            new BufferSettings(
+                DEFAULT_MAX_ACCUMULATED_SIZE,
+                DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
+                DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
+            )
         );
     }
 
@@ -149,18 +238,18 @@ public record ExecutionConfig(
 
         public static Builder from(ExecutionConfig source) {
             var b = new Builder();
-            b.parallelism = source.parallelism;
-            b.reviewPasses = source.reviewPasses;
-            b.orchestratorTimeoutMinutes = source.orchestratorTimeoutMinutes;
-            b.agentTimeoutMinutes = source.agentTimeoutMinutes;
-            b.idleTimeoutMinutes = source.idleTimeoutMinutes;
-            b.skillTimeoutMinutes = source.skillTimeoutMinutes;
-            b.summaryTimeoutMinutes = source.summaryTimeoutMinutes;
-            b.ghAuthTimeoutSeconds = source.ghAuthTimeoutSeconds;
-            b.maxRetries = source.maxRetries;
-            b.maxAccumulatedSize = source.maxAccumulatedSize;
-            b.initialAccumulatedCapacity = source.initialAccumulatedCapacity;
-            b.instructionBufferExtraCapacity = source.instructionBufferExtraCapacity;
+            b.parallelism = source.parallelism();
+            b.reviewPasses = source.reviewPasses();
+            b.orchestratorTimeoutMinutes = source.orchestratorTimeoutMinutes();
+            b.agentTimeoutMinutes = source.agentTimeoutMinutes();
+            b.idleTimeoutMinutes = source.idleTimeoutMinutes();
+            b.skillTimeoutMinutes = source.skillTimeoutMinutes();
+            b.summaryTimeoutMinutes = source.summaryTimeoutMinutes();
+            b.ghAuthTimeoutSeconds = source.ghAuthTimeoutSeconds();
+            b.maxRetries = source.maxRetries();
+            b.maxAccumulatedSize = source.maxAccumulatedSize();
+            b.initialAccumulatedCapacity = source.initialAccumulatedCapacity();
+            b.instructionBufferExtraCapacity = source.instructionBufferExtraCapacity();
             return b;
         }
 

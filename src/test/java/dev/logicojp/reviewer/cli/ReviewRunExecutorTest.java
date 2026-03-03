@@ -28,7 +28,7 @@ class ReviewRunExecutorTest {
         );
         ReviewOutputFormatter formatter = new ReviewOutputFormatter(
             cliOutput,
-            new ExecutionConfig(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0)
+            ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0)
         );
 
         AtomicBoolean summaryCalled = new AtomicBoolean(false);
