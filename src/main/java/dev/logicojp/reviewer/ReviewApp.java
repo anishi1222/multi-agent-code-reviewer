@@ -11,6 +11,8 @@ import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,6 +46,7 @@ public class ReviewApp {
 
     public static void main(String[] args) {
         ensureSecureLogDirectory();
+        warnOnInsecureJvmFlags();
         try (var context = ApplicationContext.run()) {
             var app = context.getBean(ReviewApp.class);
             int exitCode = app.execute(args);
@@ -68,6 +71,41 @@ public class ReviewApp {
         } catch (IOException _) {
             // Logging may continue with environment defaults when hardening fails.
         }
+    }
+
+    private static void warnOnInsecureJvmFlags() {
+        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+        List<String> insecureFlags = detectInsecureJvmFlags(runtimeMxBean.getInputArguments());
+        if (insecureFlags.isEmpty()) {
+            return;
+        }
+        System.err.println(
+            "WARNING: Potentially insecure JVM flags detected: " + String.join(", ", insecureFlags)
+                + ". Heap dumps or OOM handlers may expose authentication tokens."
+        );
+    }
+
+    static List<String> detectInsecureJvmFlags(List<String> inputArguments) {
+        if (inputArguments == null || inputArguments.isEmpty()) {
+            return List.of();
+        }
+        List<String> insecure = new ArrayList<>();
+        if (isEnabledFlagPresent(inputArguments, "HeapDumpOnOutOfMemoryError")) {
+            insecure.add("HeapDumpOnOutOfMemoryError");
+        }
+        if (isFlagPresent(inputArguments, "OnOutOfMemoryError")) {
+            insecure.add("OnOutOfMemoryError");
+        }
+        return List.copyOf(insecure);
+    }
+
+    private static boolean isEnabledFlagPresent(List<String> inputArguments, String flagName) {
+        return inputArguments.stream()
+            .anyMatch(arg -> arg.contains(flagName) && !arg.startsWith("-XX:-"));
+    }
+
+    private static boolean isFlagPresent(List<String> inputArguments, String flagName) {
+        return inputArguments.stream().anyMatch(arg -> arg.contains(flagName));
     }
 
     public int execute(String[] args) {

@@ -146,15 +146,28 @@ class ContentSanitizerTest {
         @Test
         @DisplayName("javascript: URIスキームを除去する")
         void removesJavascriptUri() {
-            String input = "Before javascript: void(0) After";
-            assertThat(ContentSanitizer.sanitize(input)).doesNotContain("javascript");
+            String input = "<a href=\"javascript: void(0)\">Click</a>";
+            String result = ContentSanitizer.sanitize(input);
+            assertThat(result).doesNotContain("href=");
+            assertThat(result).doesNotContain("javascript");
+        }
+
+        @Test
+        @DisplayName("HTMLエンティティでエンコードされたscriptタグを除去する")
+        void removesEntityEncodedScriptTags() {
+            String input = "Before &#x3c;script&#x3e;alert(1)&#x3c;/script&#x3e; After";
+            String result = ContentSanitizer.sanitize(input);
+            assertThat(result).doesNotContain("<script>");
+            assertThat(result).contains("After");
         }
 
         @Test
         @DisplayName("vbscript: URIスキームを除去する")
         void removesVbscriptUri() {
-            String input = "Before vbscript:msgbox('xss') After";
-            assertThat(ContentSanitizer.sanitize(input)).doesNotContain("vbscript");
+            String input = "<img src=\"vbscript:msgbox('xss')\">";
+            String result = ContentSanitizer.sanitize(input);
+            assertThat(result).doesNotContain("src=");
+            assertThat(result).doesNotContain("vbscript");
         }
 
         @Test
@@ -162,6 +175,25 @@ class ContentSanitizerTest {
         void removesDataUri() {
             String input = "Before data:text/html;base64,PHNjcmlwdD4= After";
             assertThat(ContentSanitizer.sanitize(input)).doesNotContain("base64");
+        }
+
+        @Test
+        @DisplayName("dangerous hrefを持つaタグを除去する")
+        void removesAnchorWithDangerousHref() {
+            String input = "Before <a href=\"javascript:alert(1)\">Click</a> After";
+            String result = ContentSanitizer.sanitize(input);
+            assertThat(result).doesNotContain("<a");
+            assertThat(result).doesNotContain("javascript");
+            assertThat(result).contains("After");
+        }
+
+        @Test
+        @DisplayName("空白混在のscript URI属性を除去する")
+        void removesWhitespaceObfuscatedScriptUriAttribute() {
+            String input = "<img src=\"j a v a s c r i p t:alert(1)\">";
+            String result = ContentSanitizer.sanitize(input);
+            assertThat(result).doesNotContain("src=");
+            assertThat(result).doesNotContain("javascript");
         }
 
         @Test

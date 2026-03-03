@@ -27,26 +27,29 @@ public final class SecurityAuditLogger {
                            Map<String, String> attributes) {
         List<String> addedKeys = new ArrayList<>();
         addedKeys.add("event.category");
-        MDC.put("event.category", safe(eventCategory));
+        MDC.put("event.category", sanitizeForLogValue(eventCategory));
         addedKeys.add("event.action");
-        MDC.put("event.action", safe(eventAction));
+        MDC.put("event.action", sanitizeForLogValue(eventAction));
         if (attributes != null) {
             attributes.forEach((key, value) -> {
                 if (key != null && !key.isBlank()) {
                     String mdcKey = "audit." + key;
-                    MDC.put(mdcKey, safe(value));
+                    MDC.put(mdcKey, sanitizeForLogValue(value));
                     addedKeys.add(mdcKey);
                 }
             });
         }
         try {
-            AUDIT_LOGGER.info(message);
+            AUDIT_LOGGER.info(sanitizeForLogValue(message));
         } finally {
             addedKeys.forEach(MDC::remove);
         }
     }
 
-    private static String safe(String value) {
-        return value == null ? "" : value;
+    static String sanitizeForLogValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace('\n', ' ').replace('\r', ' ');
     }
 }

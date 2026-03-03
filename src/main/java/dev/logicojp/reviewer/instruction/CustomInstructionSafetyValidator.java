@@ -185,6 +185,18 @@ public final class CustomInstructionSafetyValidator {
     }
 
     private static final Map<Character, Character> HOMOGLYPH_MAP = Map.ofEntries(
+        Map.entry('\u0406', 'I'),  // Cyrillic І → I
+        Map.entry('\u0410', 'A'),  // Cyrillic А → A
+        Map.entry('\u0412', 'B'),  // Cyrillic В → B
+        Map.entry('\u0415', 'E'),  // Cyrillic Е → E
+        Map.entry('\u041A', 'K'),  // Cyrillic К → K
+        Map.entry('\u041C', 'M'),  // Cyrillic М → M
+        Map.entry('\u041D', 'H'),  // Cyrillic Н → H
+        Map.entry('\u041E', 'O'),  // Cyrillic О → O
+        Map.entry('\u0420', 'P'),  // Cyrillic Р → P
+        Map.entry('\u0421', 'C'),  // Cyrillic С → C
+        Map.entry('\u0422', 'T'),  // Cyrillic Т → T
+        Map.entry('\u0425', 'X'),  // Cyrillic Х → X
         Map.entry('\u0456', 'i'),  // Cyrillic і → i
         Map.entry('\u0430', 'a'),  // Cyrillic а → a
         Map.entry('\u0435', 'e'),  // Cyrillic е → e
@@ -197,6 +209,8 @@ public final class CustomInstructionSafetyValidator {
         Map.entry('\u03B1', 'a'),  // Greek α → a
         Map.entry('\u03B5', 'e'),  // Greek ε → e
         Map.entry('\u03B9', 'i'),  // Greek ι → i
+        Map.entry('\u03C1', 'p'),  // Greek ρ → p
+        Map.entry('\u03C7', 'x'),  // Greek χ → x
         Map.entry('\u0391', 'A'),  // Greek Α → A
         Map.entry('\u0392', 'B'),  // Greek Β → B
         Map.entry('\u0395', 'E'),  // Greek Ε → E

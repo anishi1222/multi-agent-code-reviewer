@@ -164,7 +164,19 @@ final class SensitiveHeaderMasking {
 
                 @Override
                 public Iterator<String> iterator() {
-                    return values.iterator();
+                    Iterator<Map.Entry<String, String>> entryIterator = delegate.entrySet().iterator();
+                    return new Iterator<>() {
+                        @Override
+                        public boolean hasNext() {
+                            return entryIterator.hasNext();
+                        }
+
+                        @Override
+                        public String next() {
+                            Map.Entry<String, String> entry = entryIterator.next();
+                            return maskHeaderValue(entry.getKey(), entry.getValue());
+                        }
+                    };
                 }
 
                 @Override

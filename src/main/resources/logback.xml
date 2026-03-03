@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="MASK_PATTERN" value="(?i)(Bearer\s+|ghp_|gho_|ghs_|ghu_|ghr_|github_pat_)[A-Za-z0-9._\-]+"/>
+    <property name="MASK_PATTERN" value="(?i)(Bearer\s+|token\s+|ghp_|gho_|ghs_|ghu_|ghr_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9._\-]+"/>
 
     <!-- Console appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">

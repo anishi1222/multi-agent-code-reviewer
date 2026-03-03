@@ -3,6 +3,8 @@ package dev.logicojp.reviewer.config;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,6 +25,21 @@ class SensitiveHeaderMaskingTest {
         assertThat(wrapped.get("Authorization")).isEqualTo("Bearer secret-token");
         assertThat(wrapped.toString()).contains("Authorization=Bearer ***");
         assertThat(wrapped.toString()).contains("X-Request-Id=abc");
+    }
+
+    @Test
+    @DisplayName("values()のiterator経由でも機密ヘッダー値をマスクする")
+    void masksSensitiveHeadersInValuesIterator() {
+        Map<String, String> headers = Map.of(
+            "Authorization", "Bearer secret-token",
+            "X-Request-Id", "abc"
+        );
+
+        Map<String, String> wrapped = SensitiveHeaderMasking.wrapHeaders(headers);
+        Iterator<String> values = wrapped.values().iterator();
+        List<String> collected = List.of(values.next(), values.next());
+
+        assertThat(collected).containsExactlyInAnyOrder("Bearer ***", "abc");
     }
 
     @Test

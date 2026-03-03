@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,5 +81,24 @@ class ReviewAppTest {
         int exit = app.execute(new String[]{"unknown"});
 
         assertThat(exit).isEqualTo(ExitCodes.USAGE);
+    }
+
+    @Test
+    @DisplayName("危険なJVMフラグを検出する")
+    void detectsInsecureJvmFlags() {
+        List<String> detected = ReviewApp.detectInsecureJvmFlags(List.of(
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "-XX:OnOutOfMemoryError=/tmp/hook.sh"
+        ));
+
+        assertThat(detected).containsExactly("HeapDumpOnOutOfMemoryError", "OnOutOfMemoryError");
+    }
+
+    @Test
+    @DisplayName("明示的に無効化されたヒープダンプフラグは検出しない")
+    void ignoresExplicitlyDisabledHeapDumpFlag() {
+        List<String> detected = ReviewApp.detectInsecureJvmFlags(List.of("-XX:-HeapDumpOnOutOfMemoryError"));
+
+        assertThat(detected).doesNotContain("HeapDumpOnOutOfMemoryError");
     }
 }

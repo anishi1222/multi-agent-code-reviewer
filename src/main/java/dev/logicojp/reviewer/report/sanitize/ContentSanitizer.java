@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.report.sanitize;
 
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /// Sanitizes review content returned by LLM models.
@@ -52,9 +53,31 @@ public final class ContentSanitizer {
         "<\\s*(script|iframe|object|embed|form|input|base|link|meta|style|svg|math|audio|video|source)\\b[^>]*>.*?</\\s*\\1\\s*>|" +
         "<\\s*(script|iframe|object|embed|form|input|base|link|meta|style|svg|math|audio|video|source)\\b[^>]*/?>|" +
         "\\bon\\w+\\s*=|" +
-        "javascript\\s*:|" +
-        "vbscript\\s*:|" +
         "data\\s*:[^,]*;base64",
+        Pattern.DOTALL | Pattern.CASE_INSENSITIVE
+    );
+
+    /// Pattern to decode numeric HTML entities before URI sanitization.
+    private static final Pattern HTML_ENTITY_PATTERN = Pattern.compile(
+        "&#x([0-9a-fA-F]+);|&#(\\d+);",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    /// Pattern to remove URI-based script execution in common HTML attributes.
+    private static final Pattern DANGEROUS_URI_ATTRIBUTE_PATTERN = Pattern.compile(
+        "(?:href|src|action|formaction|poster|background)\\s*=\\s*[\"']?\\s*"
+            + "(?:j\\s*a\\s*v\\s*a\\s*s\\s*c\\s*r\\s*i\\s*p\\s*t|"
+            + "v\\s*b\\s*s\\s*c\\s*r\\s*i\\s*p\\s*t|"
+            + "data)\\s*:",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    /// Anchors with dangerous href protocols are removed entirely.
+    private static final Pattern DANGEROUS_HREF_ANCHOR_PATTERN = Pattern.compile(
+        "<a\\b[^>]*\\bhref\\s*=\\s*[\"']?\\s*"
+            + "(?:j\\s*a\\s*v\\s*a\\s*s\\s*c\\s*r\\s*i\\s*p\\s*t|"
+            + "v\\s*b\\s*s\\s*c\\s*r\\s*i\\s*p\\s*t|"
+            + "data)\\s*:[^>]*>(?:(?!</a>).)*</a>",
         Pattern.DOTALL | Pattern.CASE_INSENSITIVE
     );
 
@@ -63,10 +86,15 @@ public final class ContentSanitizer {
             new ContentSanitizationRule(COT_BLOCK_PATTERN, "",
                 List.of("<thinking", "<antthinking", "<reflection", "<inner_monologue",
                     "<scratchpad", "<details>")),
+            new ContentSanitizationRule(DANGEROUS_HREF_ANCHOR_PATTERN, "",
+                List.of("<a", "href", "javascript", "vbscript", "data:")),
+            new ContentSanitizationRule(DANGEROUS_URI_ATTRIBUTE_PATTERN, "",
+                List.of("href", "src", "action", "formaction", "poster", "background",
+                    "javascript", "vbscript", "data:")),
             new ContentSanitizationRule(DANGEROUS_HTML_PATTERN, "",
                 List.of("<script", "<iframe", "<object", "<embed", "<form", "<input",
                     "<base", "<link", "<meta", "<style", "<svg", "<math", " on",
-                    "javascript:", "vbscript:", "data:")),
+                    "data:")),
             new ContentSanitizationRule(EXCESSIVE_BLANK_LINES, "\n\n")
         )
     );
@@ -84,6 +112,41 @@ public final class ContentSanitizer {
             return null;
         }
 
-        return strategy.apply(content).strip();
+        return strategy.apply(decodeNumericHtmlEntities(content)).strip();
+    }
+
+    private static String decodeNumericHtmlEntities(String content) {
+        Matcher matcher = HTML_ENTITY_PATTERN.matcher(content);
+        StringBuilder result = null;
+        while (matcher.find()) {
+            int codePoint = parseEntityCodePoint(matcher.group(1), matcher.group(2));
+            if (codePoint < 0 || !Character.isValidCodePoint(codePoint)) {
+                continue;
+            }
+            if (result == null) {
+                result = new StringBuilder(content.length());
+            }
+            String decoded = new String(Character.toChars(codePoint));
+            matcher.appendReplacement(result, Matcher.quoteReplacement(decoded));
+        }
+        if (result == null) {
+            return content;
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    private static int parseEntityCodePoint(String hexPart, String decimalPart) {
+        try {
+            if (hexPart != null) {
+                return Integer.parseInt(hexPart, 16);
+            }
+            if (decimalPart != null) {
+                return Integer.parseInt(decimalPart, 10);
+            }
+        } catch (NumberFormatException _) {
+            return -1;
+        }
+        return -1;
     }
 }

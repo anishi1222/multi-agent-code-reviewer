@@ -12,6 +12,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SecurityAuditLoggerTest {
 
     @Test
+    @DisplayName("ログ値サニタイズでCRLFを空白に置換する")
+    void sanitizesCrLfInLogValues() {
+        String sanitized = SecurityAuditLogger.sanitizeForLogValue("line1\nline2\rline3");
+
+        assertThat(sanitized).isEqualTo("line1 line2 line3");
+    }
+
+    @Test
+    @DisplayName("nullのログ値は空文字に変換する")
+    void sanitizesNullLogValue() {
+        assertThat(SecurityAuditLogger.sanitizeForLogValue(null)).isEmpty();
+    }
+
+    @Test
     @DisplayName("監査ログ出力後にMDCをクリーンアップする")
     void clearsAuditMdcEntriesAfterLogging() {
         MDC.put("keep.me", "value");
