@@ -9,7 +9,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 3. Publish a GitHub Release from the tag and include EN/JA summary notes.
 4. Update `README_en.md` and `README_ja.md` with release references and URLs.
 
-## 2026-03-03 (v2026.03.03-notes)
+## 2026-03-03 (v2026.03.03)
 
 ### Summary
 - Reworked the report generation pipeline so that severity counts in the overall summary match the actual merged findings.
