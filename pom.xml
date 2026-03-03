@@ -47,6 +47,17 @@
         </repository>
     </repositories>
 
+    <!-- Override jackson-core to fix GHSA-72hv-8253-57qq (DoS via async parser) -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>2.21.1</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!-- Micronaut Core -->
         <dependency>
