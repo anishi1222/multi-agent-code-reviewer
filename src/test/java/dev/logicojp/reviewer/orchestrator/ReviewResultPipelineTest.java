@@ -19,8 +19,8 @@ class ReviewResultPipelineTest {
     }
 
     @Test
-    @DisplayName("reviewPassesが1の場合でもnull除外後に正規化処理を行う")
-    void finalizeResultsNormalizesSinglePassAfterFilteringNull() {
+    @DisplayName("reviewPassesが1の場合はnull除外のみ行いマージをスキップする")
+    void finalizeResultsSkipsMergeForSinglePassAfterFilteringNull() {
         var pipeline = new ReviewResultPipeline();
         var security = ReviewResult.builder()
             .agentConfig(agent("security"))
@@ -51,8 +51,7 @@ class ReviewResultPipelineTest {
         assertThat(finalized.getFirst().agentConfig().name()).isEqualTo("security");
         assertThat(finalized.getFirst().content()).contains("### 1. SQLインジェクション");
         assertThat(finalized.getFirst().content()).contains("**総評**");
-        assertThat(finalized.getFirst().content()).contains("マージ後のレビュー結果として");
-        assertThat(finalized.getFirst().content()).doesNotContain("追加の観点でも確認済み。");
+        assertThat(finalized.getFirst().content()).contains("追加の観点でも確認済み。");
     }
 
     @Test

@@ -3,7 +3,6 @@ package dev.logicojp.reviewer.report.finding;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,7 +18,11 @@ public final class ReviewFindingParser {
     );
     private static final Pattern TABLE_ROW_TEMPLATE = Pattern.compile(
         "(?m)^\\|\\s*\\*\\*%s\\*\\*\\s*\\|\\s*(.*?)\\s*\\|\\s*$");
-    private static final Map<String, Pattern> TABLE_VALUE_PATTERNS = new ConcurrentHashMap<>();
+    private static final Map<String, Pattern> TABLE_VALUE_PATTERNS = Map.of(
+        "Priority", compileTablePattern("Priority"),
+        "指摘の概要", compileTablePattern("指摘の概要"),
+        "該当箇所", compileTablePattern("該当箇所")
+    );
 
     private ReviewFindingParser() {
     }
@@ -127,12 +130,16 @@ public final class ReviewFindingParser {
     }
 
      static String extractTableValue(String body, String key) {
-        Pattern pattern = TABLE_VALUE_PATTERNS.computeIfAbsent(
-            key,
-            k -> Pattern.compile(TABLE_ROW_TEMPLATE.pattern().formatted(Pattern.quote(k)))
-        );
+        Pattern pattern = TABLE_VALUE_PATTERNS.get(key);
+        if (pattern == null) {
+            pattern = compileTablePattern(key);
+        }
         Matcher matcher = pattern.matcher(body);
         return matcher.find() ? matcher.group(1).trim() : "";
+    }
+
+    private static Pattern compileTablePattern(String key) {
+        return Pattern.compile(TABLE_ROW_TEMPLATE.pattern().formatted(Pattern.quote(key)));
     }
 
     private record HeaderMatch(int startIndex, int endIndex, String title) {

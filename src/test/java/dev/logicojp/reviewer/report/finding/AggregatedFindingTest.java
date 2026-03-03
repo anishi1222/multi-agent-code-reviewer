@@ -9,6 +9,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AggregatedFindingTest {
 
     @Test
+    @DisplayName("fallbackWithNormalizedは正規化済み文字列を利用してFindingを構築する")
+    void fallbackWithNormalizedBuildsFinding() {
+        var finding = AggregatedFinding.fallbackWithNormalized(" Raw  Content ", "raw content", 2);
+
+        assertThat(finding.title()).isEqualTo("レビュー結果");
+        assertThat(finding.normalized().summary()).isEqualTo("raw content");
+        assertThat(finding.passNumbers()).containsExactly(2);
+    }
+
+    @Test
     @DisplayName("withPassは既存パスを保持したまま新規パスを追加する")
     void withPassAddsNewPassNumber() {
         var block = new ReviewFindingParser.FindingBlock(

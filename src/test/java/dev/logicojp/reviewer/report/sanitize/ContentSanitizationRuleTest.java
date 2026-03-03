@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,6 +54,18 @@ class ContentSanitizationRuleTest {
             var rule = new ContentSanitizationRule(Pattern.compile("anything"), "replaced");
 
             assertThat(rule.apply("")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("fastCheckMarkersは大文字小文字を無視して判定する")
+        void fastCheckMarkersIgnoreCase() {
+            var rule = new ContentSanitizationRule(
+                Pattern.compile("javascript:", Pattern.CASE_INSENSITIVE),
+                "",
+                List.of("javascript")
+            );
+
+            assertThat(rule.apply("JAVASCRIPT:alert(1)")).isEqualTo("alert(1)");
         }
     }
 

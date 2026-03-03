@@ -19,6 +19,10 @@ final class ReviewResultPipeline {
     List<ReviewResult> finalizeResults(List<ReviewResult> results, int reviewPasses) {
         List<ReviewResult> filtered = filterNonNull(results);
         logCompletionSummary(filtered);
+        if (reviewPasses <= 1) {
+            logger.info("Skipping merge normalization for single-pass run (results={})", filtered.size());
+            return filtered;
+        }
         return mergeAndLog(filtered, reviewPasses);
     }
 

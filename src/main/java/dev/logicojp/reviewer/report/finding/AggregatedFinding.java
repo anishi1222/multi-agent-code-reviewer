@@ -73,6 +73,13 @@ public record AggregatedFinding(String title,
 
     public static AggregatedFinding fallback(String rawContent, int passNumber) {
         String normalizedRaw = ReviewFindingSimilarity.normalizeText(rawContent);
+        return fallbackWithNormalized(rawContent, normalizedRaw, passNumber);
+    }
+
+    public static AggregatedFinding fallbackWithNormalized(String rawContent,
+                                                           String normalizedRaw,
+                                                           int passNumber) {
+        normalizedRaw = normalizedRaw != null ? normalizedRaw : "";
         String similarityTarget = normalizedRaw.length() > FALLBACK_SIMILARITY_PREFIX_LENGTH
             ? normalizedRaw.substring(0, FALLBACK_SIMILARITY_PREFIX_LENGTH)
             : normalizedRaw;

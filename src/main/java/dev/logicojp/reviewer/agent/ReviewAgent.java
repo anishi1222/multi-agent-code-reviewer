@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /// Executes a code review using the Copilot SDK with a specific agent configuration.
@@ -183,11 +184,26 @@ public class ReviewAgent {
     }
 
     private List<ReviewResult> executeReviewPassesFallback(ReviewTarget target, int reviewPasses) {
-        List<ReviewResult> results = new ArrayList<>(reviewPasses);
-        for (int pass = 0; pass < reviewPasses; pass++) {
-            results.add(review(target));
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Callable<ReviewResult>> tasks = new ArrayList<>(reviewPasses);
+            for (int pass = 0; pass < reviewPasses; pass++) {
+                tasks.add(() -> review(target));
+            }
+            List<Future<ReviewResult>> futures = executor.invokeAll(tasks);
+            List<ReviewResult> results = new ArrayList<>(reviewPasses);
+            for (Future<ReviewResult> future : futures) {
+                try {
+                    results.add(future.get());
+                } catch (ExecutionException e) {
+                    logger.warn("Agent {}: fallback pass failed: {}", config.name(), e.getMessage(), e);
+                    results.add(reviewResultFactory.fromException(config, target.displayName(), e));
+                }
+            }
+            return results;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return List.of(reviewResultFactory.fromException(config, target.displayName(), e));
         }
-        return results;
     }
     
     private ReviewResult executeReview(ReviewTarget target) throws Exception {

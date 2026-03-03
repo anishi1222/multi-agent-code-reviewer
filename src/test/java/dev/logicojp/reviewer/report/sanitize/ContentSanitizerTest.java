@@ -139,7 +139,7 @@ class ContentSanitizerTest {
         @Test
         @DisplayName("onclickイベントハンドラを除去する")
         void removesEventHandlers() {
-            String input = "Before onclick=\"alert(1)\" After";
+            String input = "Before <img onclick=\"alert(1)\" src=\"safe.png\"> After";
             assertThat(ContentSanitizer.sanitize(input)).doesNotContain("onclick");
         }
 

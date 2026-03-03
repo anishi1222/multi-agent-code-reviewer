@@ -70,6 +70,14 @@ class ReviewFindingParserTest {
     }
 
     @Test
+    @DisplayName("extractTableValueは既定キー以外でも抽出できる")
+    void extractTableValueSupportsNonPrecompiledKey() {
+        String value = ReviewFindingParser.extractTableValue("| **修正しない場合の影響** | 監査ログ漏えい |", "修正しない場合の影響");
+
+        assertThat(value).isEqualTo("監査ログ漏えい");
+    }
+
+    @Test
     @DisplayName("最後の指摘本文に含まれる総評セクションを除去する")
     void removesTrailingOverallSectionFromLastFindingBody() {
         String content = """

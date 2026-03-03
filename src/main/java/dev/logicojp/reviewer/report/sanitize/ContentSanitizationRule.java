@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.report.sanitize;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,18 +31,9 @@ record ContentSanitizationRule(Pattern pattern, String replacement, List<String>
     }
 
     private boolean containsAnyMarker(String input) {
+        String lower = input.toLowerCase(Locale.ROOT);
         for (String marker : fastCheckMarkers) {
-            if (containsIgnoreCase(input, marker)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean containsIgnoreCase(String haystack, String needle) {
-        int limit = haystack.length() - needle.length();
-        for (int i = 0; i <= limit; i++) {
-            if (haystack.regionMatches(true, i, needle, 0, needle.length())) {
+            if (lower.contains(marker.toLowerCase(Locale.ROOT))) {
                 return true;
             }
         }

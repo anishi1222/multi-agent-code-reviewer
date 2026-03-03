@@ -124,7 +124,7 @@ public final class ReviewResultMerger {
             if (!normalized.isEmpty()) {
                 findingIndex.putIfAbsent(
                     "fallback|" + normalized,
-                    AggregatedFinding.fallback(content, 1)
+                    AggregatedFinding.fallbackWithNormalized(content, normalized, 1)
                 );
             }
         }
@@ -184,7 +184,7 @@ public final class ReviewResultMerger {
                 if (!normalized.isEmpty() && fallbackPassContents.add(normalized)) {
                     findingIndex.putIfAbsent(
                         "fallback|" + normalized,
-                        AggregatedFinding.fallback(content, passNumber)
+                        AggregatedFinding.fallbackWithNormalized(content, normalized, passNumber)
                     );
                 }
                 continue;

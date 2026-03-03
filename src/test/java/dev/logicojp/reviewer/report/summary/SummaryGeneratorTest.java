@@ -28,6 +28,19 @@ class SummaryGeneratorTest {
     Path tempDir;
 
     @Test
+    @DisplayName("セッション作成タイムアウトは全体の1/4以上かつ最小1分")
+    void sessionCreateTimeoutUsesQuarterWithMinimumOneMinute() {
+        assertThat(SummaryGenerator.sessionCreateTimeoutMinutes(8)).isEqualTo(2);
+        assertThat(SummaryGenerator.sessionCreateTimeoutMinutes(3)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("メッセージタイムアウトは分をミリ秒に変換する")
+    void messageTimeoutMsConvertsMinutesToMillis() {
+        assertThat(SummaryGenerator.messageTimeoutMs(5)).isEqualTo(300_000L);
+    }
+
+    @Test
     @DisplayName("AI要約ビルダーの結果でサマリーファイルを生成できる")
     void generatesSummaryUsingInjectedAiBuilder() throws IOException {
         prepareTemplateFiles(tempDir);

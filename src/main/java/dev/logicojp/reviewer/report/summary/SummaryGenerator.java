@@ -318,11 +318,12 @@ public class SummaryGenerator {
     private String runSummaryAttempt(String prompt)
             throws ExecutionException, TimeoutException {
         var sessionConfig = createSummarySessionConfig();
-        long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutMinutes);
+        long sessionCreateTimeoutMinutes = sessionCreateTimeoutMinutes(timeoutMinutes);
+        long timeoutMs = messageTimeoutMs(timeoutMinutes);
         int contentAttempts = AI_SUMMARY_MAX_RETRIES + 1;
 
         try (CopilotSession session = client.createSession(sessionConfig)
-            .get(timeoutMinutes, TimeUnit.MINUTES)) {
+            .get(sessionCreateTimeoutMinutes, TimeUnit.MINUTES)) {
             for (int attempt = 1; attempt <= contentAttempts; attempt++) {
                 var response = session
                     .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
@@ -346,6 +347,14 @@ public class SummaryGenerator {
             Thread.currentThread().interrupt();
             throw new CopilotCliException("Summary generation interrupted", ex);
         }
+    }
+
+    static long sessionCreateTimeoutMinutes(long totalTimeoutMinutes) {
+        return Math.max(1L, totalTimeoutMinutes / 4L);
+    }
+
+    static long messageTimeoutMs(long totalTimeoutMinutes) {
+        return TimeUnit.MINUTES.toMillis(totalTimeoutMinutes);
     }
 
     private boolean isNonBlank(String value) {
