@@ -14,8 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LocalSourcePrecomputerTest {
 
     @Test
-    @DisplayName("GitHubターゲットでは事前収集を行わずnullを返す")
-    void returnsNullForGithubTarget() {
+    @DisplayName("GitHubターゲットでは事前収集を行わずOptional.emptyを返す")
+    void returnsEmptyForGithubTarget() {
         var precomputer = new LocalSourcePrecomputer(
             (directory, config) -> () -> {
                 throw new IllegalStateException("should not be called");
@@ -23,9 +23,9 @@ class LocalSourcePrecomputerTest {
             new LocalFileConfig()
         );
 
-        String result = precomputer.preComputeSourceContent(ReviewTarget.gitHub("owner/repo"));
+        var result = precomputer.preComputeSourceContent(ReviewTarget.gitHub("owner/repo"));
 
-        assertThat(result).isNull();
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -41,8 +41,8 @@ class LocalSourcePrecomputerTest {
             new LocalFileConfig()
         );
 
-        String result = precomputer.preComputeSourceContent(ReviewTarget.local(Path.of("/tmp/repo")));
+        var result = precomputer.preComputeSourceContent(ReviewTarget.local(Path.of("/tmp/repo")));
 
-        assertThat(result).isEqualTo("SOURCE_CONTENT");
+        assertThat(result).hasValue("SOURCE_CONTENT");
     }
 }

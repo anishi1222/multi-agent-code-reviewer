@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.orchestrator;
 
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.json.CopilotClientOptions;
+import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.instruction.CustomInstruction;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,10 +45,11 @@ class ReviewContextFactoryTest {
                 "constraints",
                 cachedMcp,
                 localFileConfig,
-                scheduler
+                scheduler,
+                SharedCircuitBreaker.withDefaultConfig()
             );
 
-            var context = factory.create("SOURCE_CONTENT");
+            var context = factory.create(Optional.of("SOURCE_CONTENT"));
 
             assertThat(context.client()).isSameAs(client);
             assertThat(context.timeoutConfig().timeoutMinutes()).isEqualTo(5);

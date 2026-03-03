@@ -59,14 +59,24 @@ class ReviewOrchestratorFactoryTest {
             new GithubMcpConfig(null, null, null, null, null, null),
             new LocalFileConfig(),
             new FeatureFlags(false, false),
-            new CircuitBreakerFactory(new CircuitBreakerConfig(8, 30_000L)),
+            new CircuitBreakerFactory(new CircuitBreakerConfig(
+                CircuitBreakerConfig.DEFAULT_FAILURE_THRESHOLD,
+                CircuitBreakerConfig.DEFAULT_RESET_TIMEOUT_MS
+            )),
             templateService,
             (client, config) -> {
                 captured.set(config);
                 return new ReviewOrchestrator(
                     client,
                     config,
-                    ReviewOrchestrator.defaultCollaborators(client, config, new SharedCircuitBreaker(8, 30_000L))
+                    ReviewOrchestrator.defaultCollaborators(
+                        client,
+                        config,
+                        new SharedCircuitBreaker(
+                            CircuitBreakerConfig.DEFAULT_FAILURE_THRESHOLD,
+                            CircuitBreakerConfig.DEFAULT_RESET_TIMEOUT_MS
+                        )
+                    )
                 );
             }
         );

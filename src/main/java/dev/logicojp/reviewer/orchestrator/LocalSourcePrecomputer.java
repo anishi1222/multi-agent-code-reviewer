@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 final class LocalSourcePrecomputer {
 
@@ -19,22 +20,22 @@ final class LocalSourcePrecomputer {
         this.localFileConfig = localFileConfig;
     }
 
-    String preComputeSourceContent(ReviewTarget target) {
-        Path directory = resolveLocalDirectory(target);
-        if (directory == null) {
-            return null;
+    Optional<String> preComputeSourceContent(ReviewTarget target) {
+        Optional<Path> directory = resolveLocalDirectory(target);
+        if (directory.isEmpty()) {
+            return Optional.empty();
         }
 
-        logPrecomputeStart(directory);
-        var collection = localSourceCollectorFactory.create(directory, localFileConfig).collectAndGenerate();
+        logPrecomputeStart(directory.get());
+        var collection = localSourceCollectorFactory.create(directory.get(), localFileConfig).collectAndGenerate();
         logCollectionResult(collection.fileCount(), collection.directorySummary());
-        return collection.reviewContent();
+        return Optional.ofNullable(collection.reviewContent());
     }
 
-    private Path resolveLocalDirectory(ReviewTarget target) {
+    private Optional<Path> resolveLocalDirectory(ReviewTarget target) {
         return switch (target) {
-            case ReviewTarget.LocalTarget(Path directory) -> directory;
-            case ReviewTarget.GitHubTarget(_) -> null;
+            case ReviewTarget.LocalTarget(Path directory) -> Optional.of(directory);
+            case ReviewTarget.GitHubTarget(_) -> Optional.empty();
         };
     }
 

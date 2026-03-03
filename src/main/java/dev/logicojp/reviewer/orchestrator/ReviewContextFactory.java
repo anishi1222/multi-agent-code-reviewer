@@ -9,6 +9,7 @@ import com.github.copilot.sdk.CopilotClient;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 
 final class ReviewContextFactory {
@@ -43,28 +44,7 @@ final class ReviewContextFactory {
         this.reviewCircuitBreaker = reviewCircuitBreaker;
     }
 
-    ReviewContextFactory(CopilotClient client,
-                         ExecutionConfig executionConfig,
-                         List<CustomInstruction> customInstructions,
-                         String reasoningEffort,
-                         String outputConstraints,
-                         Map<String, Object> cachedMcpServers,
-                         LocalFileConfig localFileConfig,
-                         ScheduledExecutorService sharedScheduler) {
-        this(
-            client,
-            executionConfig,
-            customInstructions,
-            reasoningEffort,
-            outputConstraints,
-            cachedMcpServers,
-            localFileConfig,
-            sharedScheduler,
-            SharedCircuitBreaker.withDefaultConfig()
-        );
-    }
-
-    ReviewContext create(String cachedSourceContent) {
+    ReviewContext create(Optional<String> cachedSourceContent) {
         return ReviewContext.builder()
             .client(client)
             .timeoutMinutes(executionConfig.agentTimeoutMinutes())
@@ -74,7 +54,7 @@ final class ReviewContextFactory {
             .maxRetries(executionConfig.maxRetries())
             .outputConstraints(outputConstraints)
             .cachedMcpServers(cachedMcpServers)
-            .cachedSourceContent(cachedSourceContent)
+            .cachedSourceContent(cachedSourceContent.orElse(null))
             .localFileConfig(localFileConfig)
             .sharedScheduler(sharedScheduler)
             .reviewCircuitBreaker(reviewCircuitBreaker)

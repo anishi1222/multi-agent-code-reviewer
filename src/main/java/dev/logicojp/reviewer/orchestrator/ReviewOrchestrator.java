@@ -128,18 +128,17 @@ public class ReviewOrchestrator implements AutoCloseable {
             ? null
             : Executors.newThreadPerTaskExecutor(
                 Thread.ofVirtual().name("review-orchestrator-", 0).factory());
-        ExecutorService agentExecutionExecutor = null;
-        ScheduledExecutorService sharedScheduler = null;
+        ExecutorResources resources = null;
         try {
-            var resources = createExecutorResources(orchestratorConfig, executorService);
-            agentExecutionExecutor = resources.agentExecutionExecutor();
-            sharedScheduler = resources.sharedScheduler();
+            resources = createExecutorResources(orchestratorConfig, executorService);
             return assembleCollaborators(client, orchestratorConfig, reviewerFactory,
                 localSourceCollectorFactory, resources, reviewCircuitBreaker);
         } catch (Exception e) {
-            ExecutorUtils.shutdownGracefully(executorService, EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS);
-            ExecutorUtils.shutdownGracefully(agentExecutionExecutor, EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS);
-            ExecutorUtils.shutdownGracefully(sharedScheduler, SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS);
+            if (resources != null) {
+                resources.shutdownGracefully();
+            } else {
+                ExecutorUtils.shutdownGracefully(executorService, EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS);
+            }
             throw e;
         }
     }
@@ -258,7 +257,7 @@ public class ReviewOrchestrator implements AutoCloseable {
         int totalTasks = agents.size() * reviewPasses;
         logReviewStart(agents.size(), reviewPasses, totalTasks, target);
 
-        String cachedSourceContent = localSourcePrecomputer.preComputeSourceContent(target);
+        var cachedSourceContent = localSourcePrecomputer.preComputeSourceContent(target);
 
         ReviewContext sharedContext = reviewContextFactory.create(cachedSourceContent);
 

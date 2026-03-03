@@ -193,28 +193,6 @@ public class SummaryGenerator {
         );
     }
 
-    public SummaryGenerator(Path outputDirectory,
-                            CopilotClient client,
-                            String summaryModel,
-                            String reasoningEffort,
-                            long timeoutMinutes,
-                            TemplateService templateService,
-                            SummaryConfig summaryConfig,
-                            SharedCircuitBreaker circuitBreaker) {
-        this(
-            outputDirectory,
-            client,
-            summaryModel,
-            reasoningEffort,
-            timeoutMinutes,
-            templateService,
-            summaryConfig,
-            null,
-            Clock.systemDefaultZone(),
-            circuitBreaker
-        );
-    }
-
     /// Full-parameter constructor for testing — all collaborators are injectable.
     SummaryGenerator(
             Path outputDirectory,
