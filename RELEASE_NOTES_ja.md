@@ -9,6 +9,40 @@
 3. タグから GitHub Release を作成し、EN/JA 要約を本文に含める。
 4. `README_en.md` と `README_ja.md` にリリース参照とURLを追記する。
 
+## 2026-03-03 (v2026.03.03-notes)
+
+### 概要
+- 総評のレベルごと指摘件数が実際のマージ済みindingsと一致するよう、レポート生成パイプラインを再構成しました。
+- コード品質レポート推奨対応として DRY・責務分離・Optional化・型安全化等を実装しました。
+
+### 主な変更
+
+#### レポート生成フロー改善
+- パスごとにレビューレポートを生成（総評なし）。
+- 全パス終了後に `ReviewResultMerger` でエージェント単位にマージ。
+- マージ済みレポート本文から指摘件数を再集計し、新規 `ReviewOverallSummaryAppender` で正確な総評を追記。
+- エグゼクティブサマリーで複数エージェント間の同一指摘を統合し、レビューカテゴリを列挙。
+- `ReviewResultPipeline` からマージ責務を分離し、`ReviewRunExecutor` でマージ・総評追加を実施。
+
+#### コード品質リメディエーション
+- `ReviewAgent` のレビューパスパラメータ解決の重複を削減（`ResolvedReviewParams`）。
+- `LocalSourcePrecomputer` の nullable 返却を `Optional` に変更し、オーケストレータに伝播。
+- `FindingPriority` enum と `EnumMap` ベースの優先度カウントを導入。
+- `AgentConfigLoader.loadAgentsInternal` をフェーズ分割。
+- `CopilotClientStarter` のリトライ/バックオフ重複を削減。
+- `ExecutorResources.shutdownGracefully()` によるクリーンアップ集約。
+- 新規テスト: `RetryExecutorTest`, `CircuitBreakerFactoryTest`, `ExecutorResourcesTest`, `OrchestratorConfigTest`, `ReviewOverallSummaryAppenderTest`。
+
+#### PRチェーン
+- [#72](https://github.com/anishi1222/multi-agent-code-reviewer/pull/72): コード品質レポート推奨対応
+- [#73](https://github.com/anishi1222/multi-agent-code-reviewer/pull/73): 総評の件数一致のためのレポート生成フロー修正
+
+### 検証
+- `mvn test` — 838テスト合格、0失敗
+- `mvn clean package` — ビルド成功
+
+---
+
 ## 2026-03-02 (v2026.03.02-notes)
 
 ### 概要

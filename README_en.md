@@ -25,8 +25,9 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 ## Latest Remediation Status
 
-All review findings from 2026-02-16 through 2026-03-02 review cycles have been fully addressed.
+All review findings from 2026-02-16 through 2026-03-03 review cycles have been fully addressed.
 
+- 2026-03-03 (v2026.03.03-notes): Report generation flow improvement — generate per-pass review reports without overall summary, merge after all passes complete, recount finding severity from the merged report content to append an accurate overall summary, and deduplicate identical findings across agents in the executive summary with review category listing. Code-quality remediation including DRY/responsibility separation/Optional/type-safety improvements. PRs #72/#73 merged
 - 2026-03-02 (v2026.03.02-notes): Report merge remediation finalization — unified duplicate-finding merge behavior, enforced merged-findings-based overall summary generation across all report paths, completed post-merge summary behavior alignment in PRs #57/#58/#59, and updated Micronaut to 4.10.9
 - 2026-02-19 (v12): Best-practices remediation — simplified `TemplateService` cache synchronization with deterministic LRU behavior, replaced `SkillService` manual executor-cache management with Caffeine eviction + close-on-evict, abstracted CLI token input handling (`CliParsing.TokenInput`) from direct system I/O, simplified `ContentCollector` joined-content cache locking, improved section parsing readability in `AgentMarkdownParser`, made multi-pass start logging in `ReviewExecutionModeRunner` accurate, completed delegation methods in `GithubMcpConfig` map wrappers, simplified `ReviewResult` default timestamp handling, removed FQCN utility usage in `SkillExecutor`, and clarified concurrency/threading design intent in `CopilotService` and `ReviewOrchestrator`
 - 2026-02-19 (v11): Code quality remediation — centralized token hashing via shared `TokenHashUtils`, unified orchestrator failure-result generation with `ReviewResult.failedResults(...)`, extracted orchestrator nested types (`OrchestratorConfig`, `PromptTexts`, and collaborator interfaces/records) into top-level package types, refactored scoped-instruction loading to avoid stream-side-effect try/catch blocks, introduced grouped execution settings (`ConcurrencySettings`, `TimeoutSettings`, `RetrySettings`, `BufferSettings`) with factory access, removed dead code (`ReviewResultPipeline.collectFromFutures`) and unused similarity field, and added dedicated command tests for `ReviewCommand` / `SkillCommand`
@@ -45,7 +46,7 @@ All review findings from 2026-02-16 through 2026-03-02 review cycles have been f
 - 2026-02-17 (v1): PRs #22–#27 — Final remediation (PR-1 to PR-5)
 - Operations summary (2026-02-19 v2-v4): Java 25 CI alignment (PR #74) → idle-timeout scheduler resilience fix (PR #76) → operational completion checklist sync (PR #78)
 - Release details: `RELEASE_NOTES_en.md`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.03.02-notes
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.03.03-notes
 
 ## Operational Completion Check (2026-02-19)
 
@@ -780,7 +781,7 @@ flowchart TB
             AgentReviewExecutor["AgentReviewExecutor
             Semaphore control + Timeout"]
             ReviewResultPipeline["ReviewResultPipeline
-            Result collection & merge"]
+            Result collection"]
 
             LocalSourcePrecomputer --> ReviewContextFactory
             ReviewContextFactory --> ReviewExecutionModeRunner
@@ -788,10 +789,12 @@ flowchart TB
             AgentReviewExecutor --> ReviewAgent
             ReviewAgent --> ContentSanitizer
             ReviewExecutionModeRunner --> ReviewResultPipeline
-            ReviewResultPipeline --> ReviewResultMerger["ReviewResultMerger
-            Multi-pass deduplication"]
         end
 
+        ReviewRunExecutor --> ReviewResultMerger["ReviewResultMerger
+        Multi-pass deduplication"]
+        ReviewResultMerger --> ReviewOverallSummaryAppender["ReviewOverallSummaryAppender
+        Post-merge overall summary"]
         ReviewRunExecutor --> ReportService
         ReportService --> ReportGeneratorFactory["ReportGeneratorFactory
         Report/summary generator factory"]
@@ -912,7 +915,7 @@ Templates support `{{placeholder}}` format placeholders. See each template file 
 
 ## Project Structure
 
-The following tree is synchronized with the current source layout as of 2026-02-20 (v12).
+The following tree is synchronized with the current source layout as of 2026-03-03.
 
 ```
 multi-agent-reviewer/
@@ -953,6 +956,7 @@ multi-agent-reviewer/
     │   ├── AgentConfigValidator.java    # Config validation
     │   ├── AgentMarkdownParser.java     # .agent.md parser
     │   ├── AgentPromptBuilder.java      # Agent prompt builder
+    │   ├── CircuitBreakerFactory.java   # Circuit breaker factory
     │   ├── ContentCollector.java        # Review content collector
     │   ├── EventSubscriptions.java      # Event subscriptions
     │   ├── IdleTimeoutScheduler.java    # Idle timeout scheduler
@@ -966,10 +970,10 @@ multi-agent-reviewer/
     │   ├── ReviewSessionMessageSender.java # Session message sender
     │   ├── ReviewSystemPromptFormatter.java # System prompt formatter
     │   ├── ReviewTargetInstructionResolver.java # Target instruction resolver
-    │   └── SessionEventException.java   # Session event exception
+    │   ├── SessionEventException.java   # Session event exception
+    │   └── SharedCircuitBreaker.java    # Shared circuit breaker
     ├── cli/
     │   ├── CliOutput.java               # CLI output utilities
-    │   ├── CliOutputFactory.java        # CLI output factory
     │   ├── CliParsing.java              # CLI option parsing
     │   ├── CliUsage.java                # Help / usage display
     │   ├── CliValidationException.java  # CLI input validation exception
@@ -995,11 +999,13 @@ multi-agent-reviewer/
     │   └── SkillOutputFormatter.java    # Skill output formatter
     ├── config/
     │   ├── AgentPathConfig.java         # Agent path config
+    │   ├── CircuitBreakerConfig.java    # Circuit breaker config
     │   ├── ConfigDefaults.java          # Shared default normalization helpers
     │   ├── ExecutionConfig.java         # Execution config
     │   ├── GithubMcpConfig.java         # GitHub MCP config
     │   ├── LocalFileConfig.java         # Local file config
     │   ├── ModelConfig.java             # LLM model config
+    │   ├── SensitiveHeaderMasking.java  # Sensitive header masking
     │   ├── SkillConfig.java             # Skill config
     │   ├── SummaryConfig.java           # Summary generation limits config
     │   └── TemplateConfig.java          # Template config
@@ -1045,6 +1051,7 @@ multi-agent-reviewer/
     │   │   ├── ReviewMergedContentFormatter.java # Merged content formatter
     │   │   └── SummaryFinalReportFormatter.java # Summary final formatter
     │   ├── merger/
+    │   │   ├── ReviewOverallSummaryAppender.java # Post-merge overall summary
     │   │   └── ReviewResultMerger.java   # Multi-pass result merger
     │   ├── sanitize/
     │   │   ├── ContentSanitizationPipeline.java # Sanitization pipeline
@@ -1091,9 +1098,13 @@ multi-agent-reviewer/
         ├── FeatureFlags.java            # Feature flag resolution
         ├── FrontmatterParser.java       # YAML frontmatter parser
         ├── GitHubTokenResolver.java     # GitHub token resolution
+        ├── PlaceholderUtils.java        # Template placeholder utilities
+        ├── RetryExecutor.java           # Generic retry executor
+        ├── RetryPolicyUtils.java        # Retry policy decision utilities
         ├── SecurityAuditLogger.java     # Structured security audit logging
         ├── StructuredConcurrencyUtils.java # Structured Concurrency utilities
-        └── TokenHashUtils.java          # SHA-256 token hash utility
+        ├── TokenHashUtils.java          # SHA-256 token hash utility
+        └── TokenReadUtils.java          # Token read utility
 
 └── src/main/resources/
     ├── defaults/

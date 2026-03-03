@@ -9,6 +9,40 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 3. Publish a GitHub Release from the tag and include EN/JA summary notes.
 4. Update `README_en.md` and `README_ja.md` with release references and URLs.
 
+## 2026-03-03 (v2026.03.03-notes)
+
+### Summary
+- Reworked the report generation pipeline so that severity counts in the overall summary match the actual merged findings.
+- Code-quality report remediation: DRY, responsibility separation, Optional propagation, type-safe priority counts, constructor reduction, and targeted test additions.
+
+### Highlights
+
+#### Report Generation Flow Improvement
+- Generate per-pass review reports without embedding an overall summary.
+- After all passes complete, merge per-pass results by agent using `ReviewResultMerger`.
+- Recount finding severity from merged report content and append an accurate overall summary via new `ReviewOverallSummaryAppender`.
+- Executive summary now deduplicates identical findings across agents and lists review categories.
+- `ReviewResultPipeline` no longer performs merge; merge and summary are handled by `ReviewRunExecutor`.
+
+#### Code-Quality Remediation
+- Reduced duplication in `ReviewAgent` review-pass parameter resolution (`ResolvedReviewParams`).
+- Replaced nullable `LocalSourcePrecomputer` returns with `Optional` and propagated through orchestrator.
+- Introduced `FindingPriority` enum and `EnumMap`-based counting in `ReviewResultMerger`.
+- Split `AgentConfigLoader.loadAgentsInternal` into focused helper methods.
+- Added retry/backoff deduplication in `CopilotClientStarter`.
+- Added `ExecutorResources.shutdownGracefully()` for centralized cleanup.
+- New tests: `RetryExecutorTest`, `CircuitBreakerFactoryTest`, `ExecutorResourcesTest`, `OrchestratorConfigTest`, `ReviewOverallSummaryAppenderTest`.
+
+#### PR Chain
+- [#72](https://github.com/anishi1222/multi-agent-code-reviewer/pull/72): code-quality report remediations
+- [#73](https://github.com/anishi1222/multi-agent-code-reviewer/pull/73): fix report generation flow for accurate severity counts
+
+### Validation
+- `mvn test` — 838 tests passed, 0 failures
+- `mvn clean package` — build succeeded
+
+---
+
 ## 2026-03-02 (v2026.03.02-notes)
 
 ### Summary
