@@ -31,30 +31,48 @@ public class CopilotClientStarter {
                 client.start(timeoutSeconds);
                 return;
             } catch (ExecutionException e) {
-                if (RetryPolicyUtils.shouldRetry(attempt, MAX_START_ATTEMPTS,
-                        RetryPolicyUtils.isTransientException(e))) {
-                    long backoff = RetryPolicyUtils.computeBackoffWithJitter(
-                        START_BACKOFF_BASE_MS, START_BACKOFF_MAX_MS, attempt);
-                    logger.warn("Copilot client start failed (attempt {}/{}), retrying in {}ms: {}",
-                        attempt, MAX_START_ATTEMPTS, backoff, e.getMessage());
-                    Thread.sleep(backoff);
+                if (retryWithBackoffIfNeeded(
+                    attempt,
+                    RetryPolicyUtils.isTransientException(e),
+                    "failed",
+                    e.getMessage()
+                )) {
                     continue;
                 }
                 closeQuietly(client);
                 throw mapExecutionException(e, startupErrorFormatter);
             } catch (TimeoutException e) {
-                if (RetryPolicyUtils.shouldRetry(attempt, MAX_START_ATTEMPTS, true)) {
-                    long backoff = RetryPolicyUtils.computeBackoffWithJitter(
-                        START_BACKOFF_BASE_MS, START_BACKOFF_MAX_MS, attempt);
-                    logger.warn("Copilot client start timed out (attempt {}/{}), retrying in {}ms",
-                        attempt, MAX_START_ATTEMPTS, backoff);
-                    Thread.sleep(backoff);
+                if (retryWithBackoffIfNeeded(attempt, true, "timed out", null)) {
                     continue;
                 }
                 closeQuietly(client);
                 throw timeoutDuringStart(timeoutSeconds, startupErrorFormatter, e);
             }
         }
+    }
+
+    private boolean retryWithBackoffIfNeeded(int attempt,
+                                             boolean transientFailure,
+                                             String context,
+                                             String detail) throws InterruptedException {
+        if (!RetryPolicyUtils.shouldRetry(attempt, MAX_START_ATTEMPTS, transientFailure)) {
+            return false;
+        }
+
+        long backoff = RetryPolicyUtils.computeBackoffWithJitter(
+            START_BACKOFF_BASE_MS,
+            START_BACKOFF_MAX_MS,
+            attempt
+        );
+        if (detail == null || detail.isBlank()) {
+            logger.warn("Copilot client start {} (attempt {}/{}), retrying in {}ms",
+                context, attempt, MAX_START_ATTEMPTS, backoff);
+        } else {
+            logger.warn("Copilot client start {} (attempt {}/{}), retrying in {}ms: {}",
+                context, attempt, MAX_START_ATTEMPTS, backoff, detail);
+        }
+        Thread.sleep(backoff);
+        return true;
     }
 
     private CopilotCliException mapExecutionException(ExecutionException e,

@@ -231,11 +231,11 @@ public class ReviewAgent {
         logger.info("Starting {} review passes with shared session for agent: {} on target: {}",
             reviewPasses, config.name(), target.displayName());
 
-        var resolvedInstruction = resolveTargetInstruction(target);
-        String displayName = target.displayName();
-        String instruction = resolvedInstruction.instruction();
-        String localSourceContent = resolvedInstruction.localSourceContent();
-        Map<String, Object> mcpServers = resolvedInstruction.mcpServers();
+        ResolvedReviewParams params = resolveReviewParams(target);
+        String displayName = params.displayName();
+        String instruction = params.instruction();
+        String localSourceContent = params.localSourceContent();
+        Map<String, Object> mcpServers = params.mcpServers();
 
         String systemPrompt = buildSystemPromptWithCustomInstruction();
         SessionConfig sessionConfig = reviewSessionConfigFactory.create(
@@ -277,11 +277,11 @@ public class ReviewAgent {
         logger.info("Starting {} review passes with hybrid mode for agent: {} on target: {}",
             reviewPasses, config.name(), target.displayName());
 
-        var resolvedInstruction = resolveTargetInstruction(target);
-        String displayName = target.displayName();
-        String instruction = resolvedInstruction.instruction();
-        String localSourceContent = resolvedInstruction.localSourceContent();
-        Map<String, Object> mcpServers = resolvedInstruction.mcpServers();
+        ResolvedReviewParams params = resolveReviewParams(target);
+        String displayName = params.displayName();
+        String instruction = params.instruction();
+        String localSourceContent = params.localSourceContent();
+        Map<String, Object> mcpServers = params.mcpServers();
 
         List<ReviewResult> results = new ArrayList<>(reviewPasses);
 
@@ -330,6 +330,12 @@ public class ReviewAgent {
     private record PassResult(int passNumber, ReviewResult result) {
     }
 
+    private record ResolvedReviewParams(String displayName,
+                                        String instruction,
+                                        String localSourceContent,
+                                        Map<String, Object> mcpServers) {
+    }
+
     static String resolveLocalSourceContentForPass(ReviewTarget target,
                                                    String localSourceContent,
                                                    int passNumber) {
@@ -344,6 +350,16 @@ public class ReviewAgent {
             target,
             ctx.cachedResources().sourceContent(),
             ctx.cachedResources().mcpServers()
+        );
+    }
+
+    private ResolvedReviewParams resolveReviewParams(ReviewTarget target) {
+        var resolvedInstruction = resolveTargetInstruction(target);
+        return new ResolvedReviewParams(
+            target.displayName(),
+            resolvedInstruction.instruction(),
+            resolvedInstruction.localSourceContent(),
+            resolvedInstruction.mcpServers()
         );
     }
 

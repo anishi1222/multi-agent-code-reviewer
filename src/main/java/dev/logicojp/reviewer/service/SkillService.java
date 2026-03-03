@@ -57,16 +57,6 @@ public class SkillService {
                     circuitBreakerFactory.forSkill());
     }
 
-    public SkillService(SkillRegistry skillRegistry,
-                        CopilotService copilotService,
-                        GithubMcpConfig githubMcpConfig,
-                        ExecutionConfig executionConfig,
-                        SkillConfig skillConfig,
-                        FeatureFlags featureFlags) {
-        this(skillRegistry, copilotService, githubMcpConfig, executionConfig, skillConfig, featureFlags,
-            SharedCircuitBreaker.withDefaultConfig());
-    }
-
     SkillService(SkillRegistry skillRegistry,
                      CopilotService copilotService,
                      GithubMcpConfig githubMcpConfig,

@@ -114,33 +114,11 @@ public class AgentConfigLoader {
         List<SkillDefinition> globalSkills = loadGlobalSkills();
 
         for (Path directory : agentDirectories) {
-            if (!Files.exists(directory)) {
-                logger.debug("Agents directory does not exist: {}", directory);
+            if (!isExistingDirectory(directory)) {
                 continue;
             }
-            
-            logger.info("Loading agents from: {}", directory);
 
-            List<Path> files = listAgentFiles(directory, filter);
-            for (Path file : files) {
-                try {
-                    AgentConfig config = markdownParser.parse(file);
-                    if (config != null) {
-                        Optional<String> suspiciousField = firstSuspiciousField(config);
-                        if (suspiciousField.isPresent()) {
-                            logger.warn("Agent file contains suspicious patterns in '{}', skipping: {}",
-                                suspiciousField.get(), file);
-                            continue;
-                        }
-                        config = applySkills(config, globalSkills);
-                        config.validateRequired();
-                        agents.put(config.name(), config);
-                        logger.info("Loaded agent: {} from {}", config.name(), file.getFileName());
-                    }
-                } catch (IOException | IllegalArgumentException | UncheckedIOException e) {
-                    logger.error("Failed to load agent from {}: {}", file, e.getMessage(), e);
-                }
-            }
+            loadAgentsFromDirectory(directory, filter, globalSkills, agents);
         }
 
         if (agents.isEmpty()) {
@@ -148,6 +126,60 @@ public class AgentConfigLoader {
         }
 
         return agents;
+    }
+
+    private boolean isExistingDirectory(Path directory) {
+        if (!Files.exists(directory)) {
+            logger.debug("Agents directory does not exist: {}", directory);
+            return false;
+        }
+        return true;
+    }
+
+    private void loadAgentsFromDirectory(Path directory,
+                                         Set<String> filter,
+                                         List<SkillDefinition> globalSkills,
+                                         Map<String, AgentConfig> agents) throws IOException {
+        logger.info("Loading agents from: {}", directory);
+        List<Path> files = listAgentFiles(directory, filter);
+        for (Path file : files) {
+            parseAndStoreAgent(file, globalSkills, agents);
+        }
+    }
+
+    private void parseAndStoreAgent(Path file,
+                                    List<SkillDefinition> globalSkills,
+                                    Map<String, AgentConfig> agents) {
+        try {
+            Optional<AgentConfig> parsed = parseAgent(file, globalSkills);
+            if (parsed.isEmpty()) {
+                return;
+            }
+            AgentConfig config = parsed.get();
+            agents.put(config.name(), config);
+            logger.info("Loaded agent: {} from {}", config.name(), file.getFileName());
+        } catch (IOException | IllegalArgumentException | UncheckedIOException e) {
+            logger.error("Failed to load agent from {}: {}", file, e.getMessage(), e);
+        }
+    }
+
+    private Optional<AgentConfig> parseAgent(Path file,
+                                             List<SkillDefinition> globalSkills) throws IOException {
+        AgentConfig config = markdownParser.parse(file);
+        if (config == null) {
+            return Optional.empty();
+        }
+
+        Optional<String> suspiciousField = firstSuspiciousField(config);
+        if (suspiciousField.isPresent()) {
+            logger.warn("Agent file contains suspicious patterns in '{}', skipping: {}",
+                suspiciousField.get(), file);
+            return Optional.empty();
+        }
+
+        AgentConfig withSkills = applySkills(config, globalSkills);
+        withSkills.validateRequired();
+        return Optional.of(withSkills);
     }
 
     private AgentConfig applySkills(AgentConfig config, List<SkillDefinition> globalSkills) {

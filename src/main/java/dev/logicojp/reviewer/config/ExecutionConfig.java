@@ -44,6 +44,9 @@ public record ExecutionConfig(
     public static final int DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY = 32;
 
     public ExecutionConfig {
+        // Apply defaults explicitly for each grouped field.
+        // Record compact constructors do not support reflective bulk defaulting,
+        // so each value is normalized to keep configuration behavior predictable.
         concurrency = concurrency != null
             ? new ConcurrencySettings(
                 ConfigDefaults.defaultIfNonPositive(concurrency.parallelism(), DEFAULT_PARALLELISM),

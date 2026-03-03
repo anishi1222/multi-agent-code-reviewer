@@ -10,6 +10,7 @@ import dev.logicojp.reviewer.agent.AgentConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +42,44 @@ public final class ReviewResultMerger {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewResultMerger.class);
+    private static final String NO_FINDINGS_AFTER_FAILURE_TEXT = "成功したパスでは新たな指摘事項は確認されませんでした。";
+    private static final String NO_FINDINGS_TEXT = "重大な指摘事項は確認されませんでした。";
+    private static final String MERGED_SUMMARY_PREFIX = "マージ後のレビュー結果として、";
+    private static final String FINDING_COUNT_SUFFIX = "件の指摘事項を確認しました。";
+    private static final String PRIORITY_BREAKDOWN_PREFIX = " 優先度内訳: ";
+    private static final String TOP_FINDINGS_PREFIX = " 主な指摘: ";
+    private static final String FAILED_PASS_NOTE_PREFIX = " なお、";
+    private static final String FAILED_PASS_NOTE_MIDDLE = "パス中 ";
+    private static final String FAILED_PASS_NOTE_SUFFIX = "パスは失敗しており、総評は成功パスの結果に基づきます。";
+
+    private enum FindingPriority {
+        CRITICAL("critical", "Critical"),
+        HIGH("high", "High"),
+        MEDIUM("medium", "Medium"),
+        LOW("low", "Low"),
+        UNSPECIFIED("", "未分類");
+
+        private final String value;
+        private final String label;
+
+        FindingPriority(String value, String label) {
+            this.value = value;
+            this.label = label;
+        }
+
+        static FindingPriority fromValue(String value) {
+            for (FindingPriority priority : values()) {
+                if (priority.value.equals(value)) {
+                    return priority;
+                }
+            }
+            return UNSPECIFIED;
+        }
+
+        String label() {
+            return label;
+        }
+    }
 
     private ReviewResultMerger() {
         // utility class
@@ -214,53 +253,57 @@ public final class ReviewResultMerger {
         int findingCount = aggregatedFindings.size();
         if (findingCount == 0) {
             return failedPasses > 0
-                ? "成功したパスでは新たな指摘事項は確認されませんでした。"
-                : "重大な指摘事項は確認されませんでした。";
+                ? NO_FINDINGS_AFTER_FAILURE_TEXT
+                : NO_FINDINGS_TEXT;
         }
 
-        int critical = 0;
-        int high = 0;
-        int medium = 0;
-        int low = 0;
-        int unspecified = 0;
+        EnumMap<FindingPriority, Integer> priorityCounts = initializePriorityCounts();
         List<String> topTitles = new ArrayList<>();
 
         for (AggregatedFinding finding : aggregatedFindings.values()) {
-            String priority = finding.normalized().priority();
-            switch (priority) {
-                case "critical" -> critical++;
-                case "high" -> high++;
-                case "medium" -> medium++;
-                case "low" -> low++;
-                default -> unspecified++;
-            }
+            FindingPriority priority = FindingPriority.fromValue(finding.normalized().priority());
+            priorityCounts.compute(priority, (_, count) -> count + 1);
             if (topTitles.size() < 3) {
                 topTitles.add(finding.title());
             }
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("マージ後のレビュー結果として、").append(findingCount).append("件の指摘事項を確認しました。");
-        sb.append(" 優先度内訳: ");
-        sb.append("Critical ").append(critical).append("件, ");
-        sb.append("High ").append(high).append("件, ");
-        sb.append("Medium ").append(medium).append("件, ");
-        sb.append("Low ").append(low).append("件");
+        sb.append(MERGED_SUMMARY_PREFIX).append(findingCount).append(FINDING_COUNT_SUFFIX);
+        sb.append(PRIORITY_BREAKDOWN_PREFIX);
+        sb.append(FindingPriority.CRITICAL.label()).append(" ")
+            .append(priorityCounts.get(FindingPriority.CRITICAL)).append("件, ");
+        sb.append(FindingPriority.HIGH.label()).append(" ")
+            .append(priorityCounts.get(FindingPriority.HIGH)).append("件, ");
+        sb.append(FindingPriority.MEDIUM.label()).append(" ")
+            .append(priorityCounts.get(FindingPriority.MEDIUM)).append("件, ");
+        sb.append(FindingPriority.LOW.label()).append(" ")
+            .append(priorityCounts.get(FindingPriority.LOW)).append("件");
+        int unspecified = priorityCounts.get(FindingPriority.UNSPECIFIED);
         if (unspecified > 0) {
-            sb.append(", 未分類 ").append(unspecified).append("件");
+            sb.append(", ").append(FindingPriority.UNSPECIFIED.label()).append(" ").append(unspecified).append("件");
         }
         sb.append("。");
 
         if (!topTitles.isEmpty()) {
-            sb.append(" 主な指摘: ").append(String.join("、", topTitles)).append("。");
+            sb.append(TOP_FINDINGS_PREFIX).append(String.join("、", topTitles)).append("。");
         }
 
         if (failedPasses > 0) {
-            sb.append(" なお、").append(totalPasses).append("パス中 ").append(failedPasses)
-                .append("パスは失敗しており、総評は成功パスの結果に基づきます。");
+            sb.append(FAILED_PASS_NOTE_PREFIX).append(totalPasses)
+                .append(FAILED_PASS_NOTE_MIDDLE).append(failedPasses)
+                .append(FAILED_PASS_NOTE_SUFFIX);
         }
 
         return sb.toString();
+    }
+
+    private static EnumMap<FindingPriority, Integer> initializePriorityCounts() {
+        EnumMap<FindingPriority, Integer> counts = new EnumMap<>(FindingPriority.class);
+        for (FindingPriority priority : FindingPriority.values()) {
+            counts.put(priority, 0);
+        }
+        return counts;
     }
 
     private static String appendOverallSummarySection(String mergedContent, String mergedOverallSummary) {

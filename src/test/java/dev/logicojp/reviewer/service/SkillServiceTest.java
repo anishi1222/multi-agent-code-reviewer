@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.service;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
+import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.SkillConfig;
@@ -36,7 +37,8 @@ class SkillServiceTest {
             new GithubMcpConfig(null, null, null, null, null, null),
             ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
             SkillConfig.defaults(),
-            new FeatureFlags(false, false)
+            new FeatureFlags(false, false),
+            SharedCircuitBreaker.withDefaultConfig()
         );
 
         var result = service.executeSkill("missing", Map.of(), null, "model").join();
@@ -54,7 +56,8 @@ class SkillServiceTest {
             new GithubMcpConfig(null, null, null, null, null, null),
             ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
             SkillConfig.defaults(),
-            new FeatureFlags(false, false)
+            new FeatureFlags(false, false),
+            SharedCircuitBreaker.withDefaultConfig()
         );
 
         SkillDefinition skill = SkillDefinition.of("id-1", "name", "desc", "prompt");

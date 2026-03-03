@@ -1,0 +1,54 @@
+package dev.logicojp.reviewer.orchestrator;
+
+import dev.logicojp.reviewer.config.ExecutionConfig;
+import dev.logicojp.reviewer.config.LocalFileConfig;
+import dev.logicojp.reviewer.util.FeatureFlags;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DisplayName("OrchestratorConfig")
+class OrchestratorConfigTest {
+
+    @Test
+    @DisplayName("null入力時にデフォルト値で正規化される")
+    void normalizesNullInputs() {
+        var config = new OrchestratorConfig(
+            null,
+            null,
+            null,
+            new FeatureFlags(false, false),
+            ExecutionConfig.defaults(),
+            null,
+            null,
+            null,
+            null
+        );
+
+        assertThat(config.localFileConfig()).isNotNull();
+        assertThat(config.customInstructions()).isEqualTo(List.of());
+        assertThat(config.promptTexts()).isEqualTo(new PromptTexts(null, null, null));
+    }
+
+    @Test
+    @DisplayName("toStringにトークン生値を出力しない")
+    void toStringMasksToken() {
+        var config = new OrchestratorConfig(
+            "secret-token",
+            null,
+            new LocalFileConfig(),
+            new FeatureFlags(false, false),
+            ExecutionConfig.defaults(),
+            List.of(),
+            null,
+            null,
+            new PromptTexts(null, null, null)
+        );
+
+        assertThat(config.toString()).contains("githubToken=***");
+        assertThat(config.toString()).doesNotContain("secret-token");
+    }
+}
