@@ -34,7 +34,10 @@ jobs:
           release: 25
 
       - name: Validate dependency policy (enforcer + checksum)
-        run: mvn -B -ntp -DskipTests validate -Dossindex.username=${{ secrets.OSS_INDEX_USERNAME }} -Dossindex.token=${{ secrets.OSS_INDEX_TOKEN }}
+        run: |
+          mvn -B dependency-check:check -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+          mvn -B -ntp -DskipTests validate -DnvpApiKey=${{ secrets.NVD_API_KEY }}
+          # mvn -B -ntp -DskipTests validate -Dossindex.username=${{ secrets.OSS_INDEX_USERNAME }} -Dossindex.token=${{ secrets.OSS_INDEX_TOKEN }}
 
   build-and-test:
     name: Build and Test
