@@ -9,30 +9,51 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 3. Publish a GitHub Release from the tag and include EN/JA summary notes.
 4. Update `README_en.md` and `README_ja.md` with release references and URLs.
 
-## 2026-03-05 (post v2026.03.05)
+## 2026-03-05 (v2026.03.05-notes)
 
 ### Summary
-- Stabilized the review execution path by removing structured-concurrency feature flag toggles.
+- Applied performance and security review findings.
+- Migrated to Java 26 and stabilized native runtime config binding.
+- Removed structured-concurrency feature flag toggles and stabilized review execution path.
+- Centralized session permission control in `CopilotPermissionHandlers`.
 - Added pass-aware session naming and shared-session control for multi-pass reviews.
-- Moved pass-level intermediate reports under hidden checkpoints and cleaned them up at CLI exit.
+- Cleaned up obsolete custom instruction classes from the `instruction/` package.
 
 ### Highlights
 
-#### Session Execution Updates
+#### Performance Improvements
+- `LocalFileCandidateProcessor`: Added fast path using `Files.readString` to avoid double-buffering.
+- `ReviewResultMerger`: Refactored `AggregatedFinding` to reduce object allocation cost.
+- `ReviewContext` / `SharedCircuitBreaker`: Introduced shared static instance to avoid per-call instantiation.
+- `application.yml`: Added memory/heap warning comment for parallelism tuning.
+- `PlaceholderUtils`, `TemplateService`, `FindingsSummaryFormatter`: Various optimizations.
+
+#### Security Improvements
+- `GitHubTokenResolver`: Removed `GITHUB_TOKEN` env var from child process environment to prevent token propagation.
+- `CliPathResolver`: Added `TRUSTED_DIRECTORIES` allowlist and `isInTrustedDirectory()` guard for `GH_CLI_PATH` validation.
+- `FrontmatterParser`: Set nesting depth limit (10) and max aliases limit (50) for YAML DoS resistance.
+- `SensitiveHeaderMasking`: Expanded sensitive pattern coverage (9 patterns including `api-key`, `secret`, `password`, `credential`, `cookie`, `x-api-key`).
+
+#### Execution Path and Session Management
+- Removed structured-concurrency feature flag toggles and fixed execution to the stabilized path.
 - Added session naming format: `{agent}_{currentPass}of{totalPasses}_{invocationTimestamp}`.
 - Added `--no-shared-session` to force isolated sessions per pass.
-- Propagated a single CLI invocation timestamp through preparation, orchestration, and session config creation.
+- Introduced `CopilotPermissionHandlers` to centralize session permission control across `ReviewSessionConfigFactory`, `SkillExecutor`, and `SummaryGenerator`.
 
-#### Intermediate Artifact Handling
-- Pass-level artifacts are generated under `.checkpoints/passes`.
-- `.checkpoints` is deleted in a `finally` block at CLI termination.
-
-#### Runtime Consistency
-- Removed structured-concurrency feature flag toggles and fixed execution to the stabilized path.
+#### Codebase Cleanup
+- Unified structured concurrency execution path and stabilized tests (PR #89).
+- Removed obsolete instruction classes: `CustomInstruction`, `CustomInstructionLoader`, `InstructionSource`, `PromptLoader`, `ScopedInstructionLoader`.
+- Removed `cli/ReviewCustomInstructionResolver`.
+- Removed `util/FeatureFlags`.
+- Moved pass-level intermediate reports under `.checkpoints/passes` with automatic cleanup at CLI exit.
 
 #### PR Chain
+- [#85](https://github.com/anishi1222/multi-agent-code-reviewer/pull/85): Java 26 migration and native runtime config binding stabilization
 - [#86](https://github.com/anishi1222/multi-agent-code-reviewer/pull/86): remove feature flags and stabilize session execution path
 - [#87](https://github.com/anishi1222/multi-agent-code-reviewer/pull/87): add per-pass session naming, no-shared-session mode, and checkpoint cleanup
+- [#88](https://github.com/anishi1222/multi-agent-code-reviewer/pull/88): sync README and release notes for session mode updates
+- [#89](https://github.com/anishi1222/multi-agent-code-reviewer/pull/89): structured concurrency path unification and test stabilization
+- [#90](https://github.com/anishi1222/multi-agent-code-reviewer/pull/90): apply performance and security improvements
 
 ### Validation
 - `mvn clean package` — build succeeded

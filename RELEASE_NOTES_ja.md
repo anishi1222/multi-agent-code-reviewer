@@ -9,30 +9,51 @@
 3. タグから GitHub Release を作成し、EN/JA 要約を本文に含める。
 4. `README_en.md` と `README_ja.md` にリリース参照とURLを追記する。
 
-## 2026-03-05 (post v2026.03.05)
+## 2026-03-05 (v2026.03.05-notes)
 
 ### 概要
-- Structured Concurrency の機能フラグ切替を廃止し、レビュー実行経路を安定化しました。
+- パフォーマンスレビューおよびセキュリティレビューで検出された指摘事項を修正しました。
+- Java 26 移行とネイティブランタイム設定バインディングの安定化を実施しました。
+- Structured Concurrency の機能フラグを廃止し、レビュー実行経路を安定化しました。
+- セッション権限制御を `CopilotPermissionHandlers` に集約しました。
 - マルチパスレビュー向けにパス単位セッション命名と共有セッション制御を追加しました。
-- パス単位中間レポートを隠しチェックポイント配下へ移動し、CLI終了時に自動削除するようにしました。
+- `instruction/` パッケージから不要になったカスタムインストラクション関連クラスを削除しました。
 
 ### 主な変更
 
-#### セッション実行の更新
+#### パフォーマンス改善
+- `LocalFileCandidateProcessor`: `Files.readString` を使ったファストパスを追加し、ダブルバッファリングを回避。
+- `ReviewResultMerger`: `AggregatedFinding` のオブジェクト生成コストを削減するためリファクタリング。
+- `ReviewContext` / `SharedCircuitBreaker`: 呼び出しごとのインスタンス生成を避けるため共有 static インスタンスを導入。
+- `application.yml`: 並列度チューニングにおけるメモリ/ヒープへの影響についてコメントを追加。
+- `PlaceholderUtils`, `TemplateService`, `FindingsSummaryFormatter`: 各種最適化。
+
+#### セキュリティ改善
+- `GitHubTokenResolver`: 子プロセス起動前に `GITHUB_TOKEN` 環境変数を除去し、トークンの不要な伝播を防止。
+- `CliPathResolver`: 信頼ディレクトリ許可リスト (`TRUSTED_DIRECTORIES`) と `isInTrustedDirectory()` ガードを追加し、`GH_CLI_PATH` の検証を強化。
+- `FrontmatterParser`: YAML DoS 対策としてネスト深さ上限 (10) とエイリアス上限 (50) を設定。
+- `SensitiveHeaderMasking`: センシティブパターンを拡張（`api-key`, `secret`, `password`, `credential`, `cookie`, `x-api-key` など9パターン）。
+
+#### 実行経路とセッション管理
+- Structured Concurrency の機能フラグ切替を削除し、安定化済みの実行経路へ固定。
 - セッション名フォーマットを追加: `{agent}_{currentPass}of{totalPasses}_{invocationTimestamp}`。
-- `--no-shared-session` を追加し、パスごとの独立セッション実行を可能にしました。
-- CLI起動時刻を準備フェーズからオーケストレーション、セッション設定生成まで一貫して伝播しました。
+- `--no-shared-session` を追加し、パスごとの独立セッション実行を可能に。
+- `CopilotPermissionHandlers` を新設し、セッション権限制御を3箇所（`ReviewSessionConfigFactory`、`SkillExecutor`、`SummaryGenerator`）で共通化。
 
-#### 中間成果物の取り扱い
-- パス単位成果物を `.checkpoints/passes` 配下に出力するよう変更しました。
-- CLI終了時に `finally` で `.checkpoints` を再帰削除するようにしました。
-
-#### 実行経路の一貫性
-- Structured Concurrency の機能フラグ切替を削除し、安定化済みの実行経路へ固定しました。
+#### コードベース整理
+- Structured Concurrency の実行経路を単一化し、テストを安定化（PR #89）。
+- `instruction/` パッケージの不要クラス（`CustomInstruction`, `CustomInstructionLoader`, `InstructionSource`, `PromptLoader`, `ScopedInstructionLoader`）を削除。
+- `cli/ReviewCustomInstructionResolver` を削除。
+- `util/FeatureFlags` を削除。
+- パス単位中間レポートを `.checkpoints/passes` 配下に出力し、CLI終了時に自動削除。
 
 #### PRチェーン
+- [#85](https://github.com/anishi1222/multi-agent-code-reviewer/pull/85): Java 26 移行とネイティブランタイム設定バインディングの安定化
 - [#86](https://github.com/anishi1222/multi-agent-code-reviewer/pull/86): Feature Flag削除とセッション実行経路の固定化
 - [#87](https://github.com/anishi1222/multi-agent-code-reviewer/pull/87): パス単位セッション命名・`--no-shared-session`・チェックポイント掃除
+- [#88](https://github.com/anishi1222/multi-agent-code-reviewer/pull/88): セッションモード変更に伴うREADME・リリースノートの同期
+- [#89](https://github.com/anishi1222/multi-agent-code-reviewer/pull/89): Structured Concurrency 実行経路の単一化とテスト安定化
+- [#90](https://github.com/anishi1222/multi-agent-code-reviewer/pull/90): パフォーマンス・セキュリティ改善の適用
 
 ### 検証
 - `mvn clean package` — ビルド成功
