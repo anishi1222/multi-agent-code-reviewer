@@ -2,13 +2,13 @@ package dev.logicojp.reviewer.skill;
 
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
+import dev.logicojp.reviewer.util.CopilotPermissionHandlers;
 import dev.logicojp.reviewer.util.StructuredConcurrencyUtils;
 import dev.logicojp.reviewer.util.RetryExecutor;
 import dev.logicojp.reviewer.util.RetryPolicyUtils;
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.json.MessageOptions;
-import com.github.copilot.sdk.json.PermissionHandler;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
 import io.micronaut.core.annotation.Nullable;
@@ -206,7 +206,7 @@ public class SkillExecutor implements AutoCloseable {
     private SessionConfig buildSkillSessionConfig(String systemPrompt) {
         var sessionConfig = new SessionConfig()
             .setModel(defaultModel)
-            .setOnPermissionRequest(PermissionHandler.APPROVE_ALL);
+            .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL);
         if (!cachedMcpServers.isEmpty()) {
             sessionConfig.setMcpServers(cachedMcpServers);
         }

@@ -88,21 +88,37 @@ class CopilotClientStarterTest {
         assertThat(client.closed.get()).isTrue();
     }
 
+    @Test
+    @DisplayName("InterruptedException時もcloseして割り込みを再送出する")
+    void closesClientOnInterruptedException() {
+        var client = new StubStartableClient();
+        client.interruptedException = new InterruptedException("interrupted");
+
+        assertThatThrownBy(() -> starter.start(client, 7, formatter))
+            .isInstanceOf(InterruptedException.class)
+            .hasMessageContaining("interrupted");
+        assertThat(client.closed.get()).isTrue();
+    }
+
     private static class StubStartableClient implements CopilotClientStarter.StartableClient {
         boolean started;
         AtomicBoolean closed = new AtomicBoolean(false);
         TimeoutException timeoutException;
         ExecutionException executionException;
+        InterruptedException interruptedException;
         RuntimeException closeException;
 
         @Override
-        public void start(long timeoutSeconds) throws ExecutionException, TimeoutException {
+        public void start(long timeoutSeconds) throws ExecutionException, TimeoutException, InterruptedException {
             started = true;
             if (executionException != null) {
                 throw executionException;
             }
             if (timeoutException != null) {
                 throw timeoutException;
+            }
+            if (interruptedException != null) {
+                throw interruptedException;
             }
         }
 

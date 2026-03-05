@@ -10,12 +10,12 @@ import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.json.MessageOptions;
-import com.github.copilot.sdk.json.PermissionHandler;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
 import dev.logicojp.reviewer.config.SummaryConfig;
 import dev.logicojp.reviewer.service.TemplateService;
+import dev.logicojp.reviewer.util.CopilotPermissionHandlers;
 import dev.logicojp.reviewer.util.RetryExecutor;
 import dev.logicojp.reviewer.util.RetryPolicyUtils;
 import org.slf4j.Logger;
@@ -356,7 +356,7 @@ public class SummaryGenerator {
         String systemPrompt = templateService.getSummarySystemPrompt();
         var sessionConfig = new SessionConfig()
             .setModel(config.summaryModel())
-            .setOnPermissionRequest(PermissionHandler.APPROVE_ALL)
+            .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL)
             .setSystemMessage(new SystemMessageConfig()
                 .setMode(SystemMessageMode.REPLACE)
                 .setContent(systemPrompt));

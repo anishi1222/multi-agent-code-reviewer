@@ -88,16 +88,18 @@ final class ReviewExecutionModeRunner {
     private List<ReviewResult> summarizeTaskResult(SubtaskWithConfig taskWithConfig,
                                                    ReviewTarget target,
                                                    long perAgentTimeoutMinutes) {
-        return switch (taskWithConfig.subtask().state()) {
-            case SUCCESS -> taskWithConfig.subtask().get();
-            case FAILED -> {
-                Throwable cause = taskWithConfig.subtask().exception();
-                yield ReviewResult.failedResults(taskWithConfig.config(), target.displayName(), executionConfig.reviewPasses(),
-                    "Review failed: " + (cause != null ? cause.getMessage() : "unknown"));
-            }
-            case UNAVAILABLE -> ReviewResult.failedResults(taskWithConfig.config(), target.displayName(), executionConfig.reviewPasses(),
-                "Review cancelled after " + perAgentTimeoutMinutes + " minutes");
-        };
+        var subtask = taskWithConfig.subtask();
+        var state = subtask.state();
+        if (state == StructuredTaskScope.Subtask.State.SUCCESS) {
+            return subtask.get();
+        }
+        if (state == StructuredTaskScope.Subtask.State.FAILED) {
+            Throwable cause = subtask.exception();
+            return ReviewResult.failedResults(taskWithConfig.config(), target.displayName(), executionConfig.reviewPasses(),
+                "Review failed: " + (cause != null ? cause.getMessage() : "unknown"));
+        }
+        return ReviewResult.failedResults(taskWithConfig.config(), target.displayName(), executionConfig.reviewPasses(),
+            "Review cancelled after " + perAgentTimeoutMinutes + " minutes");
     }
 
     private List<ReviewResult> collectStructuredResults(

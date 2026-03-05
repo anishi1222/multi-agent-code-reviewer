@@ -1,10 +1,10 @@
 package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.sdk.SystemMessageMode;
-import com.github.copilot.sdk.json.PermissionHandler;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
+import dev.logicojp.reviewer.util.CopilotPermissionHandlers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +26,7 @@ final class ReviewSessionConfigFactory {
         var sessionConfig = new SessionConfig()
             .setModel(config.model())
             .setSessionId(buildSessionId(config.name(), ctx.invocationTimestamp(), currentPass, totalPasses))
-            .setOnPermissionRequest(PermissionHandler.APPROVE_ALL)
+            .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL)
             .setSystemMessage(new SystemMessageConfig()
                 .setMode(SystemMessageMode.APPEND)
                 .setContent(systemPrompt));

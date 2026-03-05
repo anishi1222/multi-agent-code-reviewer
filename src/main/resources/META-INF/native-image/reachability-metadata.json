@@ -321,6 +321,19 @@
           ]
         },
         {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.List",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        },
+        {
           "name": "setContent",
           "parameterTypes": [
             "java.lang.String"
@@ -507,6 +520,13 @@
           ]
         },
         {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        },
+        {
           "name": "setTurnId",
           "parameterTypes": [
             "java.lang.String"
@@ -551,6 +571,24 @@
             "java.lang.String",
             "java.lang.String",
             "java.util.Map"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Double",
+            "java.lang.Double",
+            "java.lang.Double",
+            "java.lang.Double",
+            "java.lang.Double",
+            "java.lang.Double",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.Map",
+            "com.github.copilot.sdk.events.AssistantUsageEvent$CopilotUsage"
           ]
         },
         {
@@ -623,6 +661,32 @@
           "name": "setQuotaSnapshots",
           "parameterTypes": [
             "java.util.Map"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.sdk.events.AssistantUsageEvent$CopilotUsage",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.util.List",
+            "double"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.sdk.events.AssistantUsageEvent$TokenDetails",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "double",
+            "double",
+            "double",
+            "java.lang.String"
           ]
         }
       ]
@@ -941,6 +1005,17 @@
             "java.lang.String",
             "java.util.List"
           ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.List",
+            "java.lang.String",
+            "java.lang.String"
+          ]
         }
       ]
     },
@@ -1079,6 +1154,20 @@
           ]
         },
         {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "boolean",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Boolean",
+            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Result",
+            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Error",
+            "java.util.Map",
+            "java.lang.String"
+          ]
+        },
+        {
           "name": "setError",
           "parameterTypes": [
             "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Error"
@@ -1193,6 +1282,13 @@
         {
           "name": "<init>",
           "parameterTypes": []
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
         },
         {
           "name": "setPartialOutput",
@@ -1347,6 +1443,10 @@
           "parameterTypes": []
         },
         {
+          "name": "getClientName",
+          "parameterTypes": []
+        },
+        {
           "name": "getConfigDir",
           "parameterTypes": []
         },
@@ -1356,6 +1456,10 @@
         },
         {
           "name": "getDisabledSkills",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnvValueMode",
           "parameterTypes": []
         },
         {
@@ -1449,6 +1553,9 @@
       ]
     },
     {
+      "type": "com.github.copilot.sdk.json.JsonRpcError"
+    },
+    {
       "type": "com.github.copilot.sdk.json.JsonRpcRequest",
       "methods": [
         {
@@ -1465,6 +1572,61 @@
         },
         {
           "name": "getParams",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.sdk.json.JsonRpcResponse",
+      "methods": [
+        {
+          "name": "getError",
+          "parameterTypes": []
+        },
+        {
+          "name": "getId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getJsonrpc",
+          "parameterTypes": []
+        },
+        {
+          "name": "getResult",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.sdk.json.PermissionRequest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setKind",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "setToolCallId",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.sdk.json.PermissionRequestResult",
+      "methods": [
+        {
+          "name": "getKind",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRules",
           "parameterTypes": []
         }
       ]

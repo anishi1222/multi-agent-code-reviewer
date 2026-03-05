@@ -47,6 +47,9 @@ public class CopilotClientStarter {
                 }
                 closeQuietly(client);
                 throw timeoutDuringStart(timeoutSeconds, startupErrorFormatter, e);
+            } catch (InterruptedException e) {
+                closeQuietly(client);
+                throw e;
             }
         }
     }

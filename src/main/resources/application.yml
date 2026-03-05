@@ -11,7 +11,7 @@ reviewer:
     shared-session-enabled: true
     concurrency:
       parallelism: 4
-      review-passes: 3
+      review-passes: 1
     timeouts:
       orchestrator-timeout-minutes: 45
       agent-timeout-minutes: 20
@@ -67,9 +67,9 @@ reviewer:
   models:
     default-model: claude-sonnet-4.5
     review-model: GPT-5.3-Codex
-    report-model: claude-opus-4.6-fast
+    report-model: claude-sonnet-4.5
     summary-model: claude-sonnet-4.5
-    reasoning-effort: high
+    reasoning-effort: medium
   summary:
     max-content-per-agent: 50000
     max-total-prompt-content: 200000
