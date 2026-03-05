@@ -11,9 +11,11 @@ public record ExecutionConfig(
     BufferSettings buffers
 ) {
 
+    @ConfigurationProperties("concurrency")
     public record ConcurrencySettings(int parallelism, int reviewPasses) {
     }
 
+    @ConfigurationProperties("timeouts")
     public record TimeoutSettings(long orchestratorTimeoutMinutes,
                                   long agentTimeoutMinutes,
                                   long idleTimeoutMinutes,
@@ -22,9 +24,11 @@ public record ExecutionConfig(
                                   long ghAuthTimeoutSeconds) {
     }
 
+    @ConfigurationProperties("retry")
     public record RetrySettings(int maxRetries) {
     }
 
+    @ConfigurationProperties("buffers")
     public record BufferSettings(int maxAccumulatedSize,
                                  int initialAccumulatedCapacity,
                                  int instructionBufferExtraCapacity) {

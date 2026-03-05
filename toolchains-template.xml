@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Maven toolchains configuration for GraalVM 25.0.2
+    Maven toolchains configuration for GraalVM 26 EA
   Copy this file to ~/.m2/toolchains.xml and update the jdkHome path.
 -->
 <toolchains xmlns="http://maven.apache.org/TOOLCHAINS/1.1.0"
@@ -9,12 +9,12 @@
     <toolchain>
         <type>jdk</type>
         <provides>
-            <version>25</version>
+            <version>26</version>
             <vendor>graalvm</vendor>
         </provides>
         <configuration>
             <!-- Update this path to your GraalVM installation -->
-            <jdkHome>/path/to/graalvm-jdk-25.0.2</jdkHome>
+            <jdkHome>/path/to/graalvm-jdk-26.ea.13</jdkHome>
         </configuration>
     </toolchain>
 </toolchains>

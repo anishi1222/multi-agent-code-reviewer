@@ -110,7 +110,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 
 ## Requirements
 
-- **GraalVM 25** (Java 25)
+- **GraalVM 26 EA** (Java 26)
 - GitHub Copilot CLI 0.0.407 or later
 - GitHub token (for repository access)
 
@@ -136,8 +136,8 @@ Recommended branch protection required checks:
 Using SDKMAN:
 
 ```bash
-sdk install java 25.0.2-graal
-sdk use java 25.0.2-graal
+sdk install java 26.ea.13-graal
+sdk use java 26.ea.13-graal
 
 # Auto-switch in project directory
 cd multi-agent-reviewer  # GraalVM is automatically selected via .sdkmanrc

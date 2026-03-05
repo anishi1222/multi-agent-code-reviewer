@@ -6,7 +6,7 @@
 # Build (fat JAR)
 mvn clean package
 
-# Build native image (GraalVM 25 required)
+# Build native image (GraalVM 26 EA required)
 mvn clean package -Pnative
 
 # Run tests
@@ -22,7 +22,7 @@ mvn test -Dtest=ModelConfigTest#testDefaultValues
 mvn clean package -DskipTests
 ```
 
-Requires **GraalVM 25 (Java 25)** — managed via `.sdkmanrc` with SDKMAN.
+Requires **GraalVM 26 EA (Java 26)** — managed via `.sdkmanrc` with SDKMAN.
 
 ## Architecture
 

@@ -114,11 +114,28 @@
           "parameterTypes": [
             "int"
           ]
+        },
+        {
+          "name": "setTotalSizeCap",
+          "parameterTypes": [
+            "ch.qos.logback.core.util.FileSize"
+          ]
         }
       ]
     },
     {
       "type": "ch.qos.logback.core.spi.ContextAware"
+    },
+    {
+      "type": "ch.qos.logback.core.util.FileSize",
+      "methods": [
+        {
+          "name": "valueOf",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
     },
     {
       "type": "com.fasterxml.jackson.databind.deser.BeanDeserializerModifier[]"
@@ -2285,6 +2302,36 @@
     },
     {
       "type": "jdk.internal.jrtfs.JrtFileSystemProvider"
+    },
+    {
+      "type": "sun.management.VMManagementImpl",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "compTimeMonitoringSupport"
+        },
+        {
+          "name": "currentThreadCpuTimeSupport"
+        },
+        {
+          "name": "objectMonitorUsageSupport"
+        },
+        {
+          "name": "otherThreadCpuTimeSupport"
+        },
+        {
+          "name": "remoteDiagnosticCommandsSupport"
+        },
+        {
+          "name": "synchronizerUsageSupport"
+        },
+        {
+          "name": "threadAllocatedMemorySupport"
+        },
+        {
+          "name": "threadContentionMonitoringSupport"
+        }
+      ]
     },
     {
       "type": "sun.security.provider.NativePRNG",
