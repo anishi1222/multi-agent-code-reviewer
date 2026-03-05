@@ -26,7 +26,8 @@ public class ReviewService {
                                String githubToken,
                                ExecutionConfig executionConfig,
                                String reasoningEffort,
-                               String outputConstraints);
+                               String outputConstraints,
+                               String invocationTimestamp);
     }
     
     private static final Logger logger = LoggerFactory.getLogger(ReviewService.class);
@@ -43,12 +44,14 @@ public class ReviewService {
             orchestratorFactory,
             executionConfig,
             templateService,
-            (agentConfigs, target, githubToken, overriddenConfig, reasoningEffort, outputConstraints) -> {
+            (agentConfigs, target, githubToken, overriddenConfig, reasoningEffort, outputConstraints,
+             invocationTimestamp) -> {
                 try (ReviewOrchestrator orchestrator = orchestratorFactory.create(
                     githubToken,
                     overriddenConfig,
                     reasoningEffort,
-                    outputConstraints
+                    outputConstraints,
+                    invocationTimestamp
                 )) {
                     return orchestrator.executeReviews(agentConfigs, target);
                 }
@@ -77,11 +80,13 @@ public class ReviewService {
             ReviewTarget target,
             @Nullable String githubToken,
             int parallelism,
-            @Nullable String reasoningEffort) {
+            @Nullable String reasoningEffort,
+            boolean noSharedSession,
+            String invocationTimestamp) {
         
         logger.info("Executing reviews for {} agents on target: {}", 
             agentConfigs.size(), target.displayName());
-        ExecutionConfig overriddenConfig = overrideParallelism(parallelism);
+        ExecutionConfig overriddenConfig = overrideExecution(parallelism, noSharedSession);
         String outputConstraints = loadOutputConstraints();
 
         return orchestratorRunner.run(
@@ -90,12 +95,15 @@ public class ReviewService {
             githubToken,
             overriddenConfig,
             reasoningEffort,
-            outputConstraints
+            outputConstraints,
+            invocationTimestamp
         );
     }
 
-    private ExecutionConfig overrideParallelism(int parallelism) {
-        return executionConfig.withParallelism(parallelism);
+    private ExecutionConfig overrideExecution(int parallelism, boolean noSharedSession) {
+        return executionConfig
+            .withParallelism(parallelism)
+            .withSharedSessionEnabled(!noSharedSession);
     }
 
     private String loadOutputConstraints() {

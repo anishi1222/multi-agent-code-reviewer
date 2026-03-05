@@ -43,15 +43,18 @@ class ReviewRunRequestFactoryTest {
             target,
             modelConfig,
             agentConfigs,
-            outputDirectory
+            outputDirectory,
+            "2026-03-05-12-34-56"
         );
 
         assertThat(request.target()).isEqualTo(target);
         assertThat(request.summaryModel()).isEqualTo("summary-model");
         assertThat(request.reasoningEffort()).isEqualTo("high");
+        assertThat(request.invocationTimestamp()).isEqualTo("2026-03-05-12-34-56");
         assertThat(request.agentConfigs()).isEqualTo(agentConfigs);
         assertThat(request.parallelism()).isEqualTo(3);
         assertThat(request.noSummary()).isTrue();
+        assertThat(request.noSharedSession()).isFalse();
         assertThat(request.outputDirectory()).isEqualTo(outputDirectory);
     }
 }

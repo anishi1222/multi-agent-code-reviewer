@@ -39,7 +39,8 @@ class ReviewServiceTest {
             null,
             executionConfig,
             templateService,
-            (agentConfigs, target, githubToken, overriddenConfig, reasoningEffort, outputConstraints) -> {
+            (agentConfigs, target, githubToken, overriddenConfig, reasoningEffort, outputConstraints,
+             invocationTimestamp) -> {
                 capturedExecution.set(overriddenConfig);
                 capturedOutputConstraints.set(outputConstraints);
                 return List.of(ReviewResult.builder().success(true).repository(target.displayName()).build());
@@ -51,7 +52,9 @@ class ReviewServiceTest {
             ReviewTarget.local(tempDir),
             null,
             2,
-            "high"
+            "high",
+            false,
+            "2026-03-05-12-34-56"
         );
 
         assertThat(results).hasSize(1);

@@ -29,7 +29,7 @@ class ReviewPreparationService {
                    String reviewModel);
     }
 
-    public record PreparedData(Path outputDirectory) {
+    public record PreparedData(Path outputDirectory, String invocationTimestamp) {
     }
 
     private final BannerPrinter bannerPrinter;
@@ -51,15 +51,17 @@ class ReviewPreparationService {
                                 ModelConfig modelConfig,
                                 Map<String, AgentConfig> agentConfigs,
                                 List<Path> agentDirs) {
-        Path outputDirectory = resolveOutputDirectory(options, target);
+        String invocationTimestamp = LocalDateTime.now(clock).format(OUTPUT_TIMESTAMP_FORMATTER);
+        Path outputDirectory = resolveOutputDirectory(options, target, invocationTimestamp);
 
         bannerPrinter.print(agentConfigs, agentDirs, modelConfig, target, outputDirectory, options.reviewModel());
 
-        return new PreparedData(outputDirectory);
+        return new PreparedData(outputDirectory, invocationTimestamp);
     }
 
-    private Path resolveOutputDirectory(ReviewCommand.ParsedOptions options, ReviewTarget target) {
-        String invocationTimestamp = LocalDateTime.now(clock).format(OUTPUT_TIMESTAMP_FORMATTER);
+    private Path resolveOutputDirectory(ReviewCommand.ParsedOptions options,
+                                        ReviewTarget target,
+                                        String invocationTimestamp) {
         return options.outputDirectory()
             .resolve(target.repositorySubPath())
             .resolve(invocationTimestamp);

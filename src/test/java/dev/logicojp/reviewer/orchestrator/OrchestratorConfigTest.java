@@ -20,6 +20,7 @@ class OrchestratorConfigTest {
             ExecutionConfig.defaults(),
             null,
             null,
+            "2026-03-05-12-34-56",
             null
         );
 
@@ -37,6 +38,7 @@ class OrchestratorConfigTest {
             ExecutionConfig.defaults(),
             null,
             null,
+            "2026-03-05-12-34-56",
             new PromptTexts(null, null, null)
         );
 

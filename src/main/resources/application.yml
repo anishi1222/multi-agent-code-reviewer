@@ -8,6 +8,7 @@ reviewer:
       - ./agents
       - ./.github/agents
   execution:
+    shared-session-enabled: true
     concurrency:
       parallelism: 4
       review-passes: 3

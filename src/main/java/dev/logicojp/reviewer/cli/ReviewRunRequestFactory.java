@@ -16,20 +16,24 @@ class ReviewRunRequestFactory {
         ReviewTarget target,
         ModelConfig modelConfig,
         Map<String, AgentConfig> agentConfigs,
-        Path outputDirectory
+        Path outputDirectory,
+        String invocationTimestamp
     ) {
         String summaryModel = resolveSummaryModel(modelConfig);
         String reasoningEffort = resolveReasoningEffort(modelConfig);
         int parallelism = resolveParallelism(options);
         boolean noSummary = isSummaryDisabled(options);
+        boolean noSharedSession = isSharedSessionDisabled(options);
 
         return new ReviewRunExecutor.ReviewRunRequest(
             target,
             summaryModel,
             reasoningEffort,
+            invocationTimestamp,
             agentConfigs,
             parallelism,
             noSummary,
+            noSharedSession,
             outputDirectory
         );
     }
@@ -48,5 +52,9 @@ class ReviewRunRequestFactory {
 
     private boolean isSummaryDisabled(ReviewCommand.ParsedOptions options) {
         return options.noSummary();
+    }
+
+    private boolean isSharedSessionDisabled(ReviewCommand.ParsedOptions options) {
+        return options.noSharedSession();
     }
 }

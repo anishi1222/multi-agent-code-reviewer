@@ -45,6 +45,7 @@ public final class CliUsage {
                     --token -                   Read GitHub token from stdin (default: GITHUB_TOKEN env var)
                     --parallelism <n>           Number of agents to run in parallel
                     --no-summary                Skip executive summary generation
+                    --no-shared-session         Use isolated sessions for all review passes
                     --review-model <model>      Model for review stage
                     --report-model <model>      Model for report stage
                     --summary-model <model>     Model for summary stage

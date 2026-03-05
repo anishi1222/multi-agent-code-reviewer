@@ -106,8 +106,10 @@ class ReviewExecutionCoordinatorTest {
             ReviewTarget.gitHub("owner/repo"),
             "summary-model",
             "high",
+            "2026-03-05-12-34-56",
             agentConfigs,
             2,
+            false,
             false,
             Path.of("./reports/owner/repo")
         );
