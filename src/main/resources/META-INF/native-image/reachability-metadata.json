@@ -1689,15 +1689,6 @@
       ]
     },
     {
-      "type": "dev.logicojp.reviewer.cli.$ReviewCustomInstructionResolver$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
       "type": "dev.logicojp.reviewer.cli.$ReviewExecutionCoordinator$Definition",
       "methods": [
         {
@@ -1930,33 +1921,6 @@
     },
     {
       "type": "dev.logicojp.reviewer.config.SensitiveHeaderMasking$MaskedToStringMap"
-    },
-    {
-      "type": "dev.logicojp.reviewer.instruction.$CustomInstructionLoader$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "dev.logicojp.reviewer.instruction.$PromptLoader$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "dev.logicojp.reviewer.instruction.$ScopedInstructionLoader$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
     },
     {
       "type": "dev.logicojp.reviewer.orchestrator.$ReviewOrchestratorFactory$Definition",

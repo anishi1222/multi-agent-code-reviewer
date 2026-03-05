@@ -1,7 +1,6 @@
 package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.config.LocalFileConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;

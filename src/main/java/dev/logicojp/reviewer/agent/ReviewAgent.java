@@ -242,7 +242,7 @@ public class ReviewAgent {
         String localSourceContent = params.localSourceContent();
         Map<String, Object> mcpServers = params.mcpServers();
 
-        String systemPrompt = buildSystemPromptWithCustomInstruction();
+        String systemPrompt = buildSystemPrompt();
         SessionConfig sessionConfig = reviewSessionConfigFactory.create(
             config,
             ctx,
@@ -375,7 +375,7 @@ public class ReviewAgent {
                                              String instruction,
                                              String localSourceContent,
                                              Map<String, Object> mcpServers) throws Exception {
-        String systemPrompt = buildSystemPromptWithCustomInstruction();
+        String systemPrompt = buildSystemPrompt();
         SessionConfig sessionConfig = reviewSessionConfigFactory.create(
             config,
             ctx,
@@ -523,17 +523,13 @@ public class ReviewAgent {
         return idleTimeoutScheduler.schedule(ctx.sharedScheduler(), collector, idleTimeoutMs);
     }
 
-    /// Builds the system prompt including output constraints and custom instructions.
+    /// Builds the system prompt including output constraints.
     /// Output constraints (CoT suppression, language enforcement) are loaded from an external
     /// template and appended after the base system prompt.
-    /// Custom instructions from .github/instructions/*.instructions.md are appended last.
-    private String buildSystemPromptWithCustomInstruction() {
+    private String buildSystemPrompt() {
         return reviewSystemPromptFormatter.format(
             AgentPromptBuilder.buildFullSystemPrompt(config, focusAreasGuidance),
-            ctx.outputConstraints(),
-            ctx.customInstructions(),
-            instruction -> logger.debug("Applied custom instruction from {} to agent: {}",
-                instruction.sourcePath(), config.name())
+            ctx.outputConstraints()
         );
     }
 }

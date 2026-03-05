@@ -81,9 +81,6 @@ class ReviewAgentConfigResolverTest {
             null,
             null,
             null,
-            List.of(),
-            false,
-            false,
             false
         );
     }

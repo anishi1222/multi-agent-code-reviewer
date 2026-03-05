@@ -34,7 +34,6 @@ class ReviewSessionConfigFactoryTest {
             .client(new CopilotClient(new CopilotClientOptions()))
             .timeoutMinutes(1)
             .idleTimeoutMinutes(1)
-            .customInstructions(List.of())
             .maxRetries(0)
             .reasoningEffort(reasoningEffort)
             .localFileConfig(new LocalFileConfig())

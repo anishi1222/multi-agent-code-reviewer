@@ -6,8 +6,6 @@ import dev.logicojp.reviewer.util.FeatureFlags;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("OrchestratorConfig")
@@ -24,12 +22,10 @@ class OrchestratorConfigTest {
             ExecutionConfig.defaults(),
             null,
             null,
-            null,
             null
         );
 
         assertThat(config.localFileConfig()).isNotNull();
-        assertThat(config.customInstructions()).isEqualTo(List.of());
         assertThat(config.promptTexts()).isEqualTo(new PromptTexts(null, null, null));
     }
 
@@ -42,7 +38,6 @@ class OrchestratorConfigTest {
             new LocalFileConfig(),
             new FeatureFlags(false, false),
             ExecutionConfig.defaults(),
-            List.of(),
             null,
             null,
             new PromptTexts(null, null, null)

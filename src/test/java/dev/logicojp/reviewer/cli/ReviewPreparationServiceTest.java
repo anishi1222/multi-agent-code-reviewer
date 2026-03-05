@@ -2,8 +2,6 @@ package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
-import dev.logicojp.reviewer.instruction.InstructionSource;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,18 +21,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ReviewPreparationServiceTest {
 
     @Test
-    @DisplayName("outputDirectory計算・banner表示・instructions解決を一括で行う")
-    void preparesOutputDirectoryBannerAndInstructions() {
+    @DisplayName("outputDirectory計算・banner表示を一括で行う")
+    void preparesOutputDirectoryAndBanner() {
         AtomicBoolean bannerCalled = new AtomicBoolean(false);
         AtomicReference<Path> bannerOutputDirectory = new AtomicReference<>();
-        var instruction = new CustomInstruction("custom.md", "Follow project rules", InstructionSource.LOCAL_FILE, null, null);
 
         var service = new ReviewPreparationService(
             (agentConfigs, agentDirs, modelConfig, target, outputDirectory, reviewModel) -> {
                 bannerCalled.set(true);
                 bannerOutputDirectory.set(outputDirectory);
             },
-            (target, options) -> List.of(instruction),
             Clock.fixed(Instant.parse("2026-02-19T09:10:11Z"), ZoneId.of("UTC"))
         );
 
@@ -50,9 +46,6 @@ class ReviewPreparationServiceTest {
             "report-model",
             "summary-model",
             "default-model",
-            List.of(),
-            false,
-            false,
             false
         );
         ReviewTarget target = ReviewTarget.gitHub("owner/repo");
@@ -72,6 +65,5 @@ class ReviewPreparationServiceTest {
         assertThat(bannerCalled.get()).isTrue();
         assertThat(prepared.outputDirectory()).isEqualTo(Path.of("./reports/owner/repo/2026-02-19-09-10-11"));
         assertThat(bannerOutputDirectory.get()).isEqualTo(Path.of("./reports/owner/repo/2026-02-19-09-10-11"));
-        assertThat(prepared.customInstructions()).containsExactly(instruction);
     }
 }

@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Executors;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,7 +28,6 @@ class ReviewContextTest {
                 var context = new ReviewContext(
                     client,
                     new ReviewContext.TimeoutConfig(5, 3, 2),
-                    List.of(),
                     null,
                     null,
                     new ReviewContext.CachedResources(null, null),
@@ -54,24 +52,24 @@ class ReviewContextTest {
     class Immutability {
 
         @Test
-        @DisplayName("customInstructionsがnullの場合は空リストになる")
-        void nullCustomInstructionsBecomesEmptyList() {
+        @DisplayName("nullフィールドはデフォルト値で正規化される")
+        void nullFieldsNormalizedToDefaults() {
             var client = new com.github.copilot.sdk.CopilotClient(new com.github.copilot.sdk.json.CopilotClientOptions());
             var scheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
             try {
                 var context = new ReviewContext(
                     client,
-                    new ReviewContext.TimeoutConfig(5, 3, 2),
                     null,
                     null,
                     null,
-                    new ReviewContext.CachedResources(null, null),
+                    null,
                     new LocalFileConfig(),
                     scheduler,
                     null,
                     null);
 
-                assertThat(context.customInstructions()).isEmpty();
+                assertThat(context.timeoutConfig()).isNotNull();
+                assertThat(context.cachedResources()).isNotNull();
             } finally {
                 scheduler.shutdownNow();
                 client.close();
@@ -95,7 +93,6 @@ class ReviewContextTest {
                 assertThat(context.timeoutConfig().timeoutMinutes()).isEqualTo(5);
                 assertThat(context.timeoutConfig().idleTimeoutMinutes()).isEqualTo(3);
                 assertThat(context.timeoutConfig().maxRetries()).isEqualTo(2);
-                assertThat(context.customInstructions()).isEmpty();
                 assertThat(context.localFileConfig()).isNotNull();
             } finally {
                 scheduler.shutdownNow();

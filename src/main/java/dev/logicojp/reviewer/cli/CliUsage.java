@@ -55,9 +55,6 @@ public final class CliUsage {
                     --report-model <model>      Model for report stage
                     --summary-model <model>     Model for summary stage
                     --model <model>             Default model for all stages
-                    --instructions <path...>    Custom instruction files (Markdown)
-                    --no-instructions           Disable automatic instructions
-                    --no-prompts                Disable loading .github/prompts/*.prompt.md
                 """);
     }
 

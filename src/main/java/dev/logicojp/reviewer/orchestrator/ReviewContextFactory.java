@@ -4,10 +4,8 @@ import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
 import com.github.copilot.sdk.CopilotClient;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -16,7 +14,6 @@ final class ReviewContextFactory {
 
     private final CopilotClient client;
     private final ExecutionConfig executionConfig;
-    private final List<CustomInstruction> customInstructions;
     private final String reasoningEffort;
     private final String outputConstraints;
     private final Map<String, Object> cachedMcpServers;
@@ -26,7 +23,6 @@ final class ReviewContextFactory {
 
     ReviewContextFactory(CopilotClient client,
                          ExecutionConfig executionConfig,
-                         List<CustomInstruction> customInstructions,
                          String reasoningEffort,
                          String outputConstraints,
                          Map<String, Object> cachedMcpServers,
@@ -35,7 +31,6 @@ final class ReviewContextFactory {
                          SharedCircuitBreaker reviewCircuitBreaker) {
         this.client = client;
         this.executionConfig = executionConfig;
-        this.customInstructions = customInstructions;
         this.reasoningEffort = reasoningEffort;
         this.outputConstraints = outputConstraints;
         this.cachedMcpServers = cachedMcpServers;
@@ -49,7 +44,6 @@ final class ReviewContextFactory {
             .client(client)
             .timeoutMinutes(executionConfig.agentTimeoutMinutes())
             .idleTimeoutMinutes(executionConfig.idleTimeoutMinutes())
-            .customInstructions(customInstructions)
             .reasoningEffort(reasoningEffort)
             .maxRetries(executionConfig.maxRetries())
             .outputConstraints(outputConstraints)

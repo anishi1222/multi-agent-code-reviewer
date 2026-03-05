@@ -2,11 +2,9 @@ package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
 import com.github.copilot.sdk.CopilotClient;
 import io.micronaut.core.annotation.Nullable;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,7 +17,6 @@ import java.util.concurrent.ScheduledExecutorService;
 ///
 /// @param client              The Copilot SDK client
 /// @param timeoutConfig       Timeout and retry configuration
-/// @param customInstructions  Custom instructions to inject into agent prompts
 /// @param reasoningEffort     Reasoning effort level for reasoning models (nullable)
 /// @param outputConstraints   Output constraints template content (nullable)
 /// @param cachedResources     Pre-computed cached resources for reuse across agents (nullable fields)
@@ -29,7 +26,6 @@ import java.util.concurrent.ScheduledExecutorService;
 public record ReviewContext(
     CopilotClient client,
     TimeoutConfig timeoutConfig,
-    List<CustomInstruction> customInstructions,
     @Nullable String reasoningEffort,
     @Nullable String outputConstraints,
     CachedResources cachedResources,
@@ -65,7 +61,6 @@ public record ReviewContext(
         Objects.requireNonNull(client, "client must not be null");
         Objects.requireNonNull(sharedScheduler, "sharedScheduler must not be null");
         timeoutConfig = timeoutConfig != null ? timeoutConfig : new TimeoutConfig(0, 0, 0);
-        customInstructions = customInstructions != null ? List.copyOf(customInstructions) : List.of();
         cachedResources = cachedResources != null ? cachedResources : new CachedResources(null, null);
         agentTuningConfig = agentTuningConfig != null ? agentTuningConfig : AgentTuningConfig.DEFAULTS;
         reviewCircuitBreaker = reviewCircuitBreaker != null
@@ -81,7 +76,6 @@ public record ReviewContext(
         private CopilotClient client;
         private long timeoutMinutes;
         private long idleTimeoutMinutes;
-        private List<CustomInstruction> customInstructions;
         private String reasoningEffort;
         private int maxRetries;
         private String outputConstraints;
@@ -104,11 +98,6 @@ public record ReviewContext(
 
         public Builder idleTimeoutMinutes(long idleTimeoutMinutes) {
             this.idleTimeoutMinutes = idleTimeoutMinutes;
-            return this;
-        }
-
-        public Builder customInstructions(List<CustomInstruction> customInstructions) {
-            this.customInstructions = customInstructions;
             return this;
         }
 
@@ -168,7 +157,6 @@ public record ReviewContext(
             return new ReviewContext(
                 client,
                 new TimeoutConfig(timeoutMinutes, idleTimeoutMinutes, maxRetries),
-                customInstructions,
                 reasoningEffort,
                 outputConstraints,
                 new CachedResources(cachedMcpServers, cachedSourceContent),

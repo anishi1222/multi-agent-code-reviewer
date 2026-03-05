@@ -29,7 +29,6 @@ class AgentReviewExecutorTest {
             .client(new com.github.copilot.sdk.CopilotClient(new com.github.copilot.sdk.json.CopilotClientOptions()))
             .timeoutMinutes(1)
             .idleTimeoutMinutes(1)
-            .customInstructions(List.of())
             .maxRetries(0)
             .localFileConfig(new LocalFileConfig())
             .sharedScheduler(Executors.newSingleThreadScheduledExecutor())

@@ -53,7 +53,6 @@ class ReviewRunExecutorTest {
             Map.of("agent-a", new AgentConfig("agent-a", "Agent A", "model", "system", "instruction", null, List.of(), List.of())),
             1,
             true,
-            List.of(),
             Path.of("reports")
         );
 

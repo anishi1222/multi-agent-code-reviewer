@@ -3,7 +3,6 @@ package dev.logicojp.reviewer.orchestrator;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.TemplateService;
@@ -14,8 +13,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
 
 /// Factory for creating {@link ReviewOrchestrator} instances.
 ///
@@ -86,19 +83,16 @@ public class ReviewOrchestratorFactory {
     ///
     /// @param githubToken        GitHub authentication token
     /// @param executionConfig    Execution configuration (may have overridden parallelism)
-    /// @param customInstructions Custom instructions to include in agent prompts
     /// @param reasoningEffort    Reasoning effort level for reasoning models (nullable)
     /// @param outputConstraints  Output constraints template content (nullable)
     /// @return A new ReviewOrchestrator ready to execute reviews
     public ReviewOrchestrator create(@Nullable String githubToken,
                                      ExecutionConfig executionConfig,
-                                     List<CustomInstruction> customInstructions,
                                      @Nullable String reasoningEffort,
                                      @Nullable String outputConstraints) {
         var orchestratorConfig = buildOrchestratorConfig(
             githubToken,
             executionConfig,
-            customInstructions,
             reasoningEffort,
             outputConstraints
         );
@@ -107,7 +101,6 @@ public class ReviewOrchestratorFactory {
 
     private OrchestratorConfig buildOrchestratorConfig(String githubToken,
                                                        ExecutionConfig executionConfig,
-                                                       List<CustomInstruction> customInstructions,
                                                        String reasoningEffort,
                                                        String outputConstraints) {
         PromptTexts promptTexts = loadPromptTexts();
@@ -118,7 +111,6 @@ public class ReviewOrchestratorFactory {
             localFileConfig,
             featureFlags,
             executionConfig,
-            customInstructions,
             reasoningEffort,
             outputConstraints,
             promptTexts

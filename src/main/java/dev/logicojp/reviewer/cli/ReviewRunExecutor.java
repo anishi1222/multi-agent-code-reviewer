@@ -1,7 +1,6 @@
 package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.report.finding.ReviewFindingParser;
 import dev.logicojp.reviewer.report.merger.ReviewOverallSummaryAppender;
@@ -62,7 +61,6 @@ class ReviewRunExecutor {
                 context.target(),
                 resolvedToken,
                 context.parallelism(),
-                context.customInstructions(),
                 context.reasoningEffort()
             ),
             reportService::generateReports,
@@ -190,7 +188,6 @@ class ReviewRunExecutor {
         Map<String, AgentConfig> agentConfigs,
         int parallelism,
         boolean noSummary,
-        List<CustomInstruction> customInstructions,
         Path outputDirectory
     ) {
         @Override

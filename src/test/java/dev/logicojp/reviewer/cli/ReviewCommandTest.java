@@ -3,7 +3,6 @@ package dev.logicojp.reviewer.cli;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.util.GitHubTokenResolver;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -91,7 +90,6 @@ class ReviewCommandTest {
         ReviewPreparationService preparationService = new ReviewPreparationService(
             (agentConfigs, agentDirs, modelConfig, target, outputDirectory, reviewModel) -> {
             },
-            (target, options) -> List.of(new CustomInstruction("manual", "rule", null, null, null)),
             Clock.fixed(Instant.parse("2026-02-19T00:00:00Z"), ZoneOffset.UTC)
         );
         ReviewRunRequestFactory runRequestFactory = new ReviewRunRequestFactory();

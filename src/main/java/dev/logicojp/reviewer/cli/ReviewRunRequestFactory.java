@@ -2,12 +2,10 @@ package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import jakarta.inject.Singleton;
 
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
 
 @Singleton
@@ -18,7 +16,6 @@ class ReviewRunRequestFactory {
         ReviewTarget target,
         ModelConfig modelConfig,
         Map<String, AgentConfig> agentConfigs,
-        List<CustomInstruction> customInstructions,
         Path outputDirectory
     ) {
         String summaryModel = resolveSummaryModel(modelConfig);
@@ -33,7 +30,6 @@ class ReviewRunRequestFactory {
             agentConfigs,
             parallelism,
             noSummary,
-            customInstructions,
             outputDirectory
         );
     }

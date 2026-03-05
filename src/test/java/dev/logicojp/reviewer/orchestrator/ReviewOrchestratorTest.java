@@ -31,7 +31,6 @@ class ReviewOrchestratorTest {
             new LocalFileConfig(),
             new FeatureFlags(false, false),
             ExecutionConfig.ofFlat(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-            List.of(),
             "high",
             null,
             new PromptTexts(

@@ -52,9 +52,6 @@ class ReviewOptionsParser {
             .reportModel(state.reportModel)
             .summaryModel(state.summaryModel)
             .defaultModel(state.defaultModel)
-            .instructionPaths(state.instructionPaths)
-            .noInstructions(state.noInstructions)
-            .noPrompts(state.noPrompts)
             .trustTarget(state.trustTarget)
             .build();
     }
@@ -73,9 +70,6 @@ class ReviewOptionsParser {
         private String reportModel;
         private String summaryModel;
         private String defaultModel;
-        private final List<Path> instructionPaths = new ArrayList<>();
-        private boolean noInstructions;
-        private boolean noPrompts;
         private boolean trustTarget;
         private boolean helpRequested;
 
@@ -102,7 +96,7 @@ class ReviewOptionsParser {
         parsedIndex = applyModelOption(state, arg, args, i);
         if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
 
-        parsedIndex = applyInstructionOption(state, arg, args, i);
+        parsedIndex = applyTrustOption(state, arg, i);
         if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
 
         if (arg.startsWith("-")) {
@@ -164,18 +158,8 @@ class ReviewOptionsParser {
         };
     }
 
-    private OptionalInt applyInstructionOption(ParseState state, String arg, String[] args, int i) {
+    private OptionalInt applyTrustOption(ParseState state, String arg, int i) {
         return switch (arg) {
-            case "--instructions" -> OptionalInt.of(CliParsing.readMultiInto(args, i, "--instructions",
-                v -> state.instructionPaths.add(Path.of(v))));
-            case "--no-instructions" -> {
-                state.noInstructions = true;
-                yield OptionalInt.of(i);
-            }
-            case "--no-prompts" -> {
-                state.noPrompts = true;
-                yield OptionalInt.of(i);
-            }
             case "--trust" -> {
                 state.trustTarget = true;
                 yield OptionalInt.of(i);

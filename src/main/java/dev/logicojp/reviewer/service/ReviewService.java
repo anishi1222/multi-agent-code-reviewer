@@ -2,7 +2,6 @@ package dev.logicojp.reviewer.service;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
 import dev.logicojp.reviewer.orchestrator.ReviewOrchestrator;
 import dev.logicojp.reviewer.orchestrator.ReviewOrchestratorFactory;
 import dev.logicojp.reviewer.report.core.ReviewResult;
@@ -26,7 +25,6 @@ public class ReviewService {
                                ReviewTarget target,
                                String githubToken,
                                ExecutionConfig executionConfig,
-                               List<CustomInstruction> customInstructions,
                                String reasoningEffort,
                                String outputConstraints);
     }
@@ -45,11 +43,10 @@ public class ReviewService {
             orchestratorFactory,
             executionConfig,
             templateService,
-            (agentConfigs, target, githubToken, overriddenConfig, customInstructions, reasoningEffort, outputConstraints) -> {
+            (agentConfigs, target, githubToken, overriddenConfig, reasoningEffort, outputConstraints) -> {
                 try (ReviewOrchestrator orchestrator = orchestratorFactory.create(
                     githubToken,
                     overriddenConfig,
-                    customInstructions,
                     reasoningEffort,
                     outputConstraints
                 )) {
@@ -73,7 +70,6 @@ public class ReviewService {
     /// @param target Target to review (GitHub repository or local directory)
     /// @param githubToken GitHub authentication token (required for GitHub targets)
     /// @param parallelism Number of parallel agents (overrides config)
-    /// @param customInstructions List of custom instructions to apply (may be empty)
     /// @param reasoningEffort Reasoning effort level for reasoning models (optional)
     /// @return List of review results from all agents
     public List<ReviewResult> executeReviews(
@@ -81,12 +77,10 @@ public class ReviewService {
             ReviewTarget target,
             @Nullable String githubToken,
             int parallelism,
-            @Nullable List<CustomInstruction> customInstructions,
             @Nullable String reasoningEffort) {
         
         logger.info("Executing reviews for {} agents on target: {}", 
             agentConfigs.size(), target.displayName());
-        List<CustomInstruction> effectiveInstructions = resolveEffectiveInstructions(customInstructions, target);
         ExecutionConfig overriddenConfig = overrideParallelism(parallelism);
         String outputConstraints = loadOutputConstraints();
 
@@ -95,19 +89,9 @@ public class ReviewService {
             target,
             githubToken,
             overriddenConfig,
-            effectiveInstructions,
             reasoningEffort,
             outputConstraints
         );
-    }
-
-    private List<CustomInstruction> resolveEffectiveInstructions(List<CustomInstruction> customInstructions,
-                                                                 ReviewTarget target) {
-        if (customInstructions != null) {
-            return List.copyOf(customInstructions);
-        }
-        logger.debug("No explicit custom instructions supplied; skipping auto-load for target {}", target.displayName());
-        return List.of();
     }
 
     private ExecutionConfig overrideParallelism(int parallelism) {

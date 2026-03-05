@@ -2,8 +2,6 @@ package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
-import dev.logicojp.reviewer.instruction.CustomInstruction;
-import dev.logicojp.reviewer.instruction.InstructionSource;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,15 +31,11 @@ class ReviewRunRequestFactoryTest {
             "report-model",
             "summary-model",
             "default-model",
-            List.of(),
-            false,
-            false,
             false
         );
         var target = ReviewTarget.gitHub("owner/repo");
         var modelConfig = new ModelConfig("review-model", "report-model", "summary-model", "high", "default-model");
         var agentConfigs = Map.of("code-quality", new AgentConfig("code-quality", "Code Quality", "review-model", "prompt", "instruction", "", List.of(), List.of()));
-        var customInstructions = List.of(new CustomInstruction("custom.md", "Follow strict checks", InstructionSource.LOCAL_FILE, null, null));
         var outputDirectory = Path.of("./reports/owner/repo");
 
         ReviewRunExecutor.ReviewRunRequest request = factory.create(
@@ -49,7 +43,6 @@ class ReviewRunRequestFactoryTest {
             target,
             modelConfig,
             agentConfigs,
-            customInstructions,
             outputDirectory
         );
 
@@ -59,7 +52,6 @@ class ReviewRunRequestFactoryTest {
         assertThat(request.agentConfigs()).isEqualTo(agentConfigs);
         assertThat(request.parallelism()).isEqualTo(3);
         assertThat(request.noSummary()).isTrue();
-        assertThat(request.customInstructions()).isEqualTo(customInstructions);
         assertThat(request.outputDirectory()).isEqualTo(outputDirectory);
     }
 }

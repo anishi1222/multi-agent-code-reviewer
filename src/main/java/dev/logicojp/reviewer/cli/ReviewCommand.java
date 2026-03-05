@@ -57,7 +57,6 @@ public class ReviewCommand {
         AgentSelection agents,
         OutputOptions output,
         ModelOptions models,
-        InstructionOptions instructions,
         String githubToken,
         boolean trustTarget
     ) {
@@ -82,20 +81,9 @@ public class ReviewCommand {
         ) {
         }
 
-        record InstructionOptions(
-            List<Path> instructionPaths,
-            boolean noInstructions,
-            boolean noPrompts
-        ) {
-            InstructionOptions {
-                instructionPaths = instructionPaths != null ? List.copyOf(instructionPaths) : List.of();
-            }
-        }
-
         ParsedOptions {
             output = output != null ? output : new OutputOptions(Path.of("./reports"), List.of(), 1, false);
             models = models != null ? models : new ModelOptions(null, null, null, null);
-            instructions = instructions != null ? instructions : new InstructionOptions(List.of(), false, false);
             Objects.requireNonNull(target, "target must not be null");
             Objects.requireNonNull(agents, "agents must not be null");
         }
@@ -112,9 +100,6 @@ public class ReviewCommand {
             String reportModel,
             String summaryModel,
             String defaultModel,
-            List<Path> instructionPaths,
-            boolean noInstructions,
-            boolean noPrompts,
             boolean trustTarget
         ) {
             this(
@@ -122,7 +107,6 @@ public class ReviewCommand {
                 agents,
                 new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary),
                 new ModelOptions(reviewModel, reportModel, summaryModel, defaultModel),
-                new InstructionOptions(instructionPaths, noInstructions, noPrompts),
                 githubToken,
                 trustTarget
             );
@@ -160,18 +144,6 @@ public class ReviewCommand {
             return models.defaultModel();
         }
 
-        public List<Path> instructionPaths() {
-            return instructions.instructionPaths();
-        }
-
-        public boolean noInstructions() {
-            return instructions.noInstructions();
-        }
-
-        public boolean noPrompts() {
-            return instructions.noPrompts();
-        }
-
         static Builder builder() {
             return new Builder();
         }
@@ -187,9 +159,6 @@ public class ReviewCommand {
             private String reportModel;
             private String summaryModel;
             private String defaultModel;
-            private List<Path> instructionPaths = List.of();
-            private boolean noInstructions;
-            private boolean noPrompts;
             private String githubToken;
             private boolean trustTarget;
 
@@ -248,21 +217,6 @@ public class ReviewCommand {
                 return this;
             }
 
-            Builder instructionPaths(List<Path> instructionPaths) {
-                this.instructionPaths = instructionPaths;
-                return this;
-            }
-
-            Builder noInstructions(boolean noInstructions) {
-                this.noInstructions = noInstructions;
-                return this;
-            }
-
-            Builder noPrompts(boolean noPrompts) {
-                this.noPrompts = noPrompts;
-                return this;
-            }
-
             Builder trustTarget(boolean trustTarget) {
                 this.trustTarget = trustTarget;
                 return this;
@@ -274,7 +228,6 @@ public class ReviewCommand {
                     agents,
                     new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary),
                     new ModelOptions(reviewModel, reportModel, summaryModel, defaultModel),
-                    new InstructionOptions(instructionPaths, noInstructions, noPrompts),
                     githubToken,
                     trustTarget
                 );
@@ -381,7 +334,6 @@ public class ReviewCommand {
             target,
             modelConfig,
             agentConfigs,
-            prepared.customInstructions(),
             prepared.outputDirectory()
         );
     }

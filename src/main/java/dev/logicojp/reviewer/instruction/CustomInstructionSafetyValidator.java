@@ -114,60 +114,6 @@ public final class CustomInstructionSafetyValidator {
     private CustomInstructionSafetyValidator() {
     }
 
-    static ValidationResult validate(CustomInstruction instruction) {
-        return validate(instruction, false);
-    }
-
-    public static ValidationResult validate(CustomInstruction instruction, boolean trusted) {
-        if (instruction == null || instruction.isEmpty()) {
-            return new ValidationResult(true, "empty");
-        }
-
-        String content = instruction.content();
-        int maxSize = trusted ? MAX_INSTRUCTION_SIZE : MAX_UNTRUSTED_INSTRUCTION_SIZE;
-        if (content.length() > maxSize) {
-            return new ValidationResult(false, "size limit exceeded");
-        }
-        if (content.lines().count() > MAX_INSTRUCTION_LINES) {
-            return new ValidationResult(false, "line count limit exceeded");
-        }
-
-        String normalized = normalize(content);
-        if (SUSPICIOUS_COMBINED_PATTERN.matcher(normalized).find()) {
-            return new ValidationResult(false, "potential prompt-injection pattern");
-        }
-        if (DELIMITER_INJECTION_PATTERN.matcher(normalized).find()) {
-            return new ValidationResult(false, "potential delimiter injection pattern");
-        }
-
-        if (!trusted && !ALLOWED_CHAR_RANGE.matcher(content).matches()) {
-            return new ValidationResult(false, "contains characters outside allowed Unicode ranges");
-        }
-
-        return new ValidationResult(true, "ok");
-    }
-
-    public static List<CustomInstruction> filterSafe(List<CustomInstruction> instructions, String logPrefix) {
-        return filterSafe(instructions, logPrefix, false);
-    }
-
-    public static List<CustomInstruction> filterSafe(List<CustomInstruction> instructions,
-                                                     String logPrefix,
-                                                     boolean trusted) {
-        if (instructions == null || instructions.isEmpty()) {
-            return List.of();
-        }
-        return instructions.stream()
-            .filter(instruction -> {
-                ValidationResult validation = validate(instruction, trusted);
-                if (!validation.safe()) {
-                    logger.warn("{} {}: {}", logPrefix, instruction.sourcePath(), validation.reason());
-                }
-                return validation.safe();
-            })
-            .toList();
-    }
-
     public static boolean containsSuspiciousPattern(String content) {
         if (content == null || content.isBlank()) {
             return false;
