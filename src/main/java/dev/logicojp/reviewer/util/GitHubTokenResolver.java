@@ -25,7 +25,11 @@ public final class GitHubTokenResolver {
     private static final String STDIN_TOKEN_SENTINEL = "-";
     private static final int MAX_STDIN_TOKEN_BYTES = 256;
     private static final String GH_CLI_PATH_ENV = "GH_CLI_PATH";
+    private static final String GITHUB_TOKEN_ENV = "GITHUB_TOKEN";
     private static final long DEFAULT_TIMEOUT_SECONDS = 10;
+    private static final int GH_AUTH_MAX_ATTEMPTS = 3;
+    private static final long GH_AUTH_BACKOFF_BASE_MS = 1_000L;
+    private static final long GH_AUTH_BACKOFF_MAX_MS = 5_000L;
     private static final Path SAFE_WORKING_DIRECTORY =
         Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize();
 
@@ -105,8 +109,36 @@ public final class GitHubTokenResolver {
             logger.warn("gh CLI not found. Install GitHub CLI or set {}.", GH_CLI_PATH_ENV);
             return Optional.empty();
         }
+        for (int attempt = 1; attempt <= GH_AUTH_MAX_ATTEMPTS; attempt++) {
+            Optional<String> result = attemptResolveFromGhAuth(ghPath);
+            if (result.isPresent()) {
+                return result;
+            }
+            if (attempt < GH_AUTH_MAX_ATTEMPTS) {
+                long backoffMs = RetryPolicyUtils.computeBackoffWithJitter(
+                    GH_AUTH_BACKOFF_BASE_MS,
+                    GH_AUTH_BACKOFF_MAX_MS,
+                    attempt
+                );
+                logger.debug("gh auth token failed (attempt {}/{}), retrying in {}ms",
+                    attempt, GH_AUTH_MAX_ATTEMPTS, backoffMs);
+                try {
+                    Thread.sleep(backoffMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.warn("Interrupted while backing off gh auth retry", e);
+                    return Optional.empty();
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<String> attemptResolveFromGhAuth(String ghPath) {
         ProcessBuilder builder = new ProcessBuilder(ghPath, "auth", "token", "-h", "github.com");
         builder.directory(SAFE_WORKING_DIRECTORY.toFile());
+        // Avoid propagating parent-process token env to child processes.
+        builder.environment().remove(GITHUB_TOKEN_ENV);
         builder.redirectErrorStream(true);
         try {
             Process process = builder.start();
@@ -144,6 +176,10 @@ public final class GitHubTokenResolver {
         if (explicit != null && !explicit.isBlank()) {
             var explicitPath = CliPathResolver.resolveExplicitExecutable(explicit, "gh");
             if (explicitPath.isPresent()) {
+                if (!CliPathResolver.isInTrustedDirectory(explicitPath.get())) {
+                    logger.warn("Rejected {} outside trusted directories: {}", GH_CLI_PATH_ENV, explicitPath.get());
+                    return null;
+                }
                 return explicitPath.get().toString();
             }
             Path explicitPathValue = Path.of(explicit.trim()).toAbsolutePath().normalize();

@@ -334,8 +334,8 @@ class ReviewResultMergerTest {
         }
 
         @Test
-        @DisplayName("同一箇所かつ表現ゆれの指摘は重複排除される")
-        void nearDuplicateFindingsAreDeduplicated() {
+        @DisplayName("同一箇所でも表現が異なる指摘は厳密マージで重複排除しない")
+        void similarWordingFindingsAreKeptSeparateInStrictMerge() {
             var agent = createAgent("quality");
 
             var pass1 = successResult(agent, finding(
@@ -361,8 +361,7 @@ class ReviewResultMergerTest {
             assertThat(merged).hasSize(1);
             String content = merged.getFirst().content();
             assertThat(content).contains("### 1. ReviewCommand クラスの責務過多");
-            assertThat(content).contains("検出パス: 1, 2");
-            assertThat(content).doesNotContain("### 2. ReviewCommand の過剰な責務");
+            assertThat(content).contains("### 2. ReviewCommand の過剰な責務");
         }
 
         @Test

@@ -111,15 +111,12 @@ public class ReviewOrchestrator implements AutoCloseable {
             AgentReviewerFactory reviewerFactory,
             LocalSourceCollectorFactory localSourceCollectorFactory,
             SharedCircuitBreaker reviewCircuitBreaker) {
-        ExecutorResources resources = null;
+        ExecutorResources resources = createExecutorResources(orchestratorConfig);
         try {
-            resources = createExecutorResources(orchestratorConfig);
             return assembleCollaborators(client, orchestratorConfig, reviewerFactory,
                 localSourceCollectorFactory, resources, reviewCircuitBreaker);
         } catch (Exception e) {
-            if (resources != null) {
-                resources.shutdownGracefully();
-            }
+            resources.shutdownGracefully();
             throw e;
         }
     }

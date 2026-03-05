@@ -143,6 +143,8 @@ public final class FrontmatterParser {
         try {
             var loaderOptions = new LoaderOptions();
             loaderOptions.setCodePointLimit(64 * 1024);
+            loaderOptions.setNestingDepthLimit(10);
+            loaderOptions.setMaxAliasesForCollections(50);
             var yaml = new Yaml(new SafeConstructor(loaderOptions));
             Map<?, ?> parsed = yaml.loadAs(frontmatter, Map.class);
             if (parsed == null) {

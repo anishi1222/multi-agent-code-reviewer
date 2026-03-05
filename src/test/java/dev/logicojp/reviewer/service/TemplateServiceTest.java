@@ -51,10 +51,10 @@ class TemplateServiceTest {
         @Test
         @DisplayName("存在するテンプレートファイルを読み込める")
         void loadsExistingTemplate() throws IOException {
-            Files.writeString(tempDir.resolve("test.md"), "Hello {{name}}");
+            Files.writeString(tempDir.resolve("test.md"), "Hello ${name}");
             TemplateService service = new TemplateService(createConfig());
             String content = service.loadTemplateContent("test.md");
-            assertThat(content).isEqualTo("Hello {{name}}");
+            assertThat(content).isEqualTo("Hello ${name}");
         }
 
         @Test
@@ -122,7 +122,7 @@ class TemplateServiceTest {
         void replacesPlaceholders() {
             TemplateService service = new TemplateService(createConfig());
             String result = service.applyPlaceholders(
-                "Hello {{name}}, welcome to {{place}}!",
+                "Hello ${name}, welcome to ${place}!",
                 Map.of("name", "Alice", "place", "Wonderland"));
             assertThat(result).isEqualTo("Hello Alice, welcome to Wonderland!");
         }
@@ -132,9 +132,9 @@ class TemplateServiceTest {
         void unknownPlaceholdersRemain() {
             TemplateService service = new TemplateService(createConfig());
             String result = service.applyPlaceholders(
-                "Hello {{name}}!",
+                "Hello ${name}!",
                 Map.of());
-            assertThat(result).isEqualTo("Hello {{name}}!");
+            assertThat(result).isEqualTo("Hello ${name}!");
         }
 
         @Test

@@ -448,15 +448,15 @@ public class ReviewAgent {
                                                   Map<String, Object> mcpServers,
                                                   CopilotSession session) throws Exception {
         String content = sendAndCollectContent(session, instruction, localSourceContent);
-
-        if (content == null || content.isBlank()) {
-            return reviewResultFactory.emptyContentFailure(config, displayName, mcpServers != null);
+        ReviewResult result = reviewResultFactory.fromContent(config, displayName, content, mcpServers != null);
+        if (result.success()) {
+            logger.info("Review completed for agent: {} (content length: {} chars)",
+                config.name(), content.length());
+        } else {
+            logger.warn("Agent {} returned invalid/empty review output: {}",
+                config.name(), result.errorMessage());
         }
-
-        logger.info("Review completed for agent: {} (content length: {} chars)",
-            config.name(), content.length());
-
-        return reviewResultFactory.success(config, displayName, content);
+        return result;
     }
     
     /// Sends an instruction asynchronously and collects the response content using

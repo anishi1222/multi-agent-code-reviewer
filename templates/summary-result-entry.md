@@ -1,6 +1,6 @@
-## {{displayName}}
+## ${displayName}
 
-{{content}}
+${content}
 
 ---
 

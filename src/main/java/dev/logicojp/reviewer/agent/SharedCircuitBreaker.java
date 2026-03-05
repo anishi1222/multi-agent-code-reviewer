@@ -2,8 +2,7 @@ package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.config.CircuitBreakerConfig;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 /// Simple circuit breaker that tracks consecutive failures and temporarily
@@ -15,8 +14,12 @@ public final class SharedCircuitBreaker {
     private final int failureThreshold;
     private final long resetTimeoutMs;
     private final LongSupplier clock;
-    private final AtomicInteger consecutiveFailures = new AtomicInteger();
-    private final AtomicLong openedAtMs = new AtomicLong(-1L);
+
+    private record BreakerState(int consecutiveFailures, long openedAtMs) {
+        static final BreakerState CLOSED = new BreakerState(0, -1L);
+    }
+
+    private final AtomicReference<BreakerState> state = new AtomicReference<>(BreakerState.CLOSED);
 
     public static SharedCircuitBreaker withDefaultConfig() {
         return new SharedCircuitBreaker(
@@ -36,37 +39,54 @@ public final class SharedCircuitBreaker {
     }
 
     public boolean allowRequest() {
-        int failures = consecutiveFailures.get();
-        if (failures < failureThreshold) return true;
-        long openedAt = openedAtMs.get();
+        BreakerState current = state.get();
+        int failures = current.consecutiveFailures();
+        if (failures < failureThreshold) {
+            return true;
+        }
+        long openedAt = current.openedAtMs();
         if (openedAt < 0) return true;
         long elapsedMs = clock.getAsLong() - openedAt;
         if (elapsedMs >= resetTimeoutMs) {
-            // CAS ensures only one thread transitions to half-open
-            if (consecutiveFailures.compareAndSet(failures, failureThreshold - 1)) {
-                openedAtMs.set(-1L);
-                return true;
+            // CAS retry ensures we do not reject a valid probe request on contention.
+            for (;;) {
+                BreakerState latest = state.get();
+                if (latest.consecutiveFailures() < failureThreshold) {
+                    return true;
+                }
+                if (latest.openedAtMs() < 0) {
+                    return true;
+                }
+                long latestElapsedMs = clock.getAsLong() - latest.openedAtMs();
+                if (latestElapsedMs < resetTimeoutMs) {
+                    return false;
+                }
+                BreakerState halfOpen = new BreakerState(failureThreshold - 1, -1L);
+                if (state.compareAndSet(latest, halfOpen)) {
+                    return true;
+                }
             }
-            return false;
         }
         return false;
     }
 
     public void onSuccess() {
-        consecutiveFailures.set(0);
-        openedAtMs.set(-1L);
+        state.set(BreakerState.CLOSED);
     }
 
     public void onFailure() {
-        int failures = consecutiveFailures.incrementAndGet();
-        if (failures >= failureThreshold) {
-            openedAtMs.compareAndSet(-1L, clock.getAsLong());
-        }
+        state.updateAndGet(current -> {
+            int failures = current.consecutiveFailures() + 1;
+            long openedAt = current.openedAtMs();
+            if (failures >= failureThreshold && openedAt < 0) {
+                openedAt = clock.getAsLong();
+            }
+            return new BreakerState(failures, openedAt);
+        });
     }
 
     /// Resets the circuit breaker to its initial state.
     void reset() {
-        consecutiveFailures.set(0);
-        openedAtMs.set(-1L);
+        state.set(BreakerState.CLOSED);
     }
 }

@@ -1,1 +1,1 @@
-- [{{displayName}}]({{filename}})
+- [${displayName}](${filename})

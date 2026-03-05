@@ -204,9 +204,7 @@ public final class ReviewResultMerger {
 
     private static final class FindingIndex {
         private final Map<String, AggregatedFinding> findings = new LinkedHashMap<>();
-        private final Map<String, Set<String>> findingKeysByPriority = new LinkedHashMap<>();
-        private final Map<String, Set<String>> findingKeysByPriorityAndPrefix = new LinkedHashMap<>();
-        private final Map<String, Set<String>> findingKeysByKeyword = new LinkedHashMap<>();
+        private final Map<String, LinkedHashSet<Integer>> passNumbersByKey = new LinkedHashMap<>();
         private final FindingKeyResolver findingKeyResolver;
 
         private FindingIndex(FindingKeyResolver findingKeyResolver) {
@@ -214,11 +212,29 @@ public final class ReviewResultMerger {
         }
 
         Map<String, AggregatedFinding> findings() {
-            return findings;
+            Map<String, AggregatedFinding> materialized = new LinkedHashMap<>(findings.size());
+            for (var entry : findings.entrySet()) {
+                String key = entry.getKey();
+                AggregatedFinding finding = entry.getValue();
+                LinkedHashSet<Integer> passNumbers = passNumbersByKey.get(key);
+                if (passNumbers == null || passNumbers.equals(finding.passNumbers())) {
+                    materialized.put(key, finding);
+                    continue;
+                }
+                materialized.put(key, new AggregatedFinding(
+                    finding.title(),
+                    finding.body(),
+                    passNumbers,
+                    finding.normalized()
+                ));
+            }
+            return materialized;
         }
 
         void putIfAbsent(String key, AggregatedFinding finding) {
-            findings.putIfAbsent(key, finding);
+            if (findings.putIfAbsent(key, finding) == null) {
+                passNumbersByKey.put(key, new LinkedHashSet<>(finding.passNumbers()));
+            }
         }
 
         void addOrMerge(ReviewFindingParser.FindingBlock block, int passNumber) {
@@ -228,14 +244,9 @@ public final class ReviewResultMerger {
             if (mergePassIfExactMatch(key, passNumber)) {
                 return;
             }
-            if (mergePassIfNearDuplicate(normalized, passNumber)) {
-                return;
-            }
-
-            findings.put(key, AggregatedFinding.fromNormalized(block, normalized, passNumber));
-            indexByPriority(normalized.priority(), key);
-            indexByPriorityAndPrefix(normalized.priority(), buildPrefixKey(normalized.title()), key);
-            indexByKeyword(firstKeyword(normalized.titleKeywords()), key);
+            AggregatedFinding finding = AggregatedFinding.fromNormalized(block, normalized, passNumber);
+            findings.put(key, finding);
+            passNumbersByKey.put(key, new LinkedHashSet<>(finding.passNumbers()));
         }
 
         private boolean mergePassIfExactMatch(String key, int passNumber) {
@@ -243,77 +254,10 @@ public final class ReviewResultMerger {
             if (existingExact == null) {
                 return false;
             }
-            findings.put(key, existingExact.withPass(passNumber));
+            passNumbersByKey.computeIfAbsent(key, _ -> new LinkedHashSet<>(existingExact.passNumbers()))
+                .add(passNumber);
             return true;
         }
-
-        private boolean mergePassIfNearDuplicate(AggregatedFinding.NormalizedFinding incoming, int passNumber) {
-            String nearDuplicateKey = findNearDuplicateKey(incoming);
-            if (nearDuplicateKey == null) {
-                return false;
-            }
-            AggregatedFinding nearExisting = findings.get(nearDuplicateKey);
-            findings.put(nearDuplicateKey, nearExisting.withPass(passNumber));
-            return true;
-        }
-
-        private String findNearDuplicateKey(AggregatedFinding.NormalizedFinding incoming) {
-            // Use index for both priority-specified and priority-blank findings
-            String priorityKey = incoming.priority().isBlank() ? "" : incoming.priority();
-            String titlePrefix = buildPrefixKey(incoming.title());
-            Set<String> keys = findingKeysByPriorityAndPrefix.get(priorityPrefixIndexKey(priorityKey, titlePrefix));
-            if (keys == null || keys.isEmpty()) {
-                keys = findingKeysByKeyword.getOrDefault(firstKeyword(incoming.titleKeywords()), Set.of());
-            }
-            if (keys.isEmpty()) {
-                keys = findingKeysByPriority.getOrDefault(priorityKey, Set.of());
-            }
-            for (String key : keys) {
-                AggregatedFinding candidate = findings.get(key);
-                if (candidate != null && candidate.isNearDuplicateOf(incoming)) {
-                    return key;
-                }
-            }
-            return null;
-        }
-
-        private void indexByPriority(String priority, String key) {
-            // Index all findings including those with blank priority (keyed as "")
-            String indexKey = (priority == null || priority.isBlank()) ? "" : priority;
-            findingKeysByPriority.computeIfAbsent(indexKey, _ -> new LinkedHashSet<>()).add(key);
-        }
-
-        private void indexByPriorityAndPrefix(String priority, String prefix, String key) {
-            String priorityKey = (priority == null || priority.isBlank()) ? "" : priority;
-            String indexKey = priorityPrefixIndexKey(priorityKey, prefix);
-            findingKeysByPriorityAndPrefix.computeIfAbsent(indexKey, _ -> new LinkedHashSet<>()).add(key);
-        }
-
-        private void indexByKeyword(String keyword, String key) {
-            if (keyword == null || keyword.isBlank()) {
-                return;
-            }
-            findingKeysByKeyword.computeIfAbsent(keyword, _ -> new LinkedHashSet<>()).add(key);
-        }
-
-        private String firstKeyword(Set<String> keywords) {
-            if (keywords == null || keywords.isEmpty()) {
-                return "";
-            }
-            return keywords.iterator().next();
-        }
-    }
-
-    private static String priorityPrefixIndexKey(String priority, String prefix) {
-        return priority + "|" + prefix;
-    }
-
-    private static String buildPrefixKey(String title) {
-        if (title == null || title.isBlank()) {
-            return "";
-        }
-        int length = Math.min(title.length(), 8);
-        return title.substring(0, length);
     }
 
 }

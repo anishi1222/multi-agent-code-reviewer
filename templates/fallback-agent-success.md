@@ -1,2 +1,2 @@
-### {{displayName}}
+### ${displayName}
 - 指摘件数: 不明（タイムアウトのため集計不可）

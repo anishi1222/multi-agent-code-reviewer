@@ -39,6 +39,9 @@ public record ReviewContext(
     SharedCircuitBreaker reviewCircuitBreaker
 ) {
 
+    private static final SharedCircuitBreaker DEFAULT_REVIEW_CIRCUIT_BREAKER =
+        SharedCircuitBreaker.withDefaultConfig();
+
     /// Groups timeout and retry parameters.
     public record TimeoutConfig(long timeoutMinutes, long idleTimeoutMinutes, int maxRetries) {}
 
@@ -70,7 +73,7 @@ public record ReviewContext(
         agentTuningConfig = agentTuningConfig != null ? agentTuningConfig : AgentTuningConfig.DEFAULTS;
         reviewCircuitBreaker = reviewCircuitBreaker != null
             ? reviewCircuitBreaker
-            : SharedCircuitBreaker.withDefaultConfig();
+            : DEFAULT_REVIEW_CIRCUIT_BREAKER;
     }
 
     public static Builder builder() {

@@ -47,6 +47,9 @@ class SensitiveHeaderMaskingTest {
     void detectsSensitiveHeaderNameCaseInsensitively() {
         assertThat(SensitiveHeaderMasking.isSensitiveHeaderName("X-Access-Token")).isTrue();
         assertThat(SensitiveHeaderMasking.isSensitiveHeaderName("authorization")).isTrue();
+        assertThat(SensitiveHeaderMasking.isSensitiveHeaderName("X-Api-Key")).isTrue();
+        assertThat(SensitiveHeaderMasking.isSensitiveHeaderName("Set-Cookie")).isTrue();
+        assertThat(SensitiveHeaderMasking.isSensitiveHeaderName("Db-Password")).isTrue();
         assertThat(SensitiveHeaderMasking.isSensitiveHeaderName("Content-Type")).isFalse();
     }
 

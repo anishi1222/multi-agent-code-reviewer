@@ -18,12 +18,24 @@ import java.util.stream.Collectors;
 /// Prevents token leakage via SDK/framework debug logging of Map.toString().
 final class SensitiveHeaderMasking {
 
+    private static final Set<String> SENSITIVE_PATTERNS = Set.of(
+        "authorization",
+        "token",
+        "api-key",
+        "apikey",
+        "secret",
+        "password",
+        "credential",
+        "cookie",
+        "x-api-key"
+    );
+
     private SensitiveHeaderMasking() {
     }
 
     static boolean isSensitiveHeaderName(String headerName) {
         String normalized = headerName == null ? "" : headerName.toLowerCase(Locale.ROOT);
-        return normalized.contains("authorization") || normalized.contains("token");
+        return SENSITIVE_PATTERNS.stream().anyMatch(normalized::contains);
     }
 
     static String maskHeaderValue(String headerName, String value) {

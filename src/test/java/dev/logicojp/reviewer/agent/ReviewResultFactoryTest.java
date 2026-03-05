@@ -96,5 +96,38 @@ class ReviewResultFactoryTest {
             assertThat(result.timestamp()).isNotNull();
             assertThat(result.errorMessage()).isNull();
         }
+
+        @Test
+        @DisplayName("ツール権限エラー診断のみの出力は無効として失敗扱いにする")
+        void rejectsToolAccessDiagnosticContent() {
+            String content = """
+                ### 1. レビュー結果
+
+                すべてのファイルアクセスツールで権限エラーが発生しています。
+                セッションの再起動を試してください。
+                """;
+
+            ReviewResult result = factory.fromContent(AGENT_CONFIG, REPOSITORY, content, true);
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.errorMessage()).contains("non-review content");
+        }
+
+        @Test
+        @DisplayName("Priority付きの構造化レビューは成功として扱う")
+        void acceptsStructuredReviewContentWithPriority() {
+            String content = """
+                ### 1. SQLインジェクション
+
+                | 項目 | 内容 |
+                |------|------|
+                | **Priority** | High |
+                """;
+
+            ReviewResult result = factory.fromContent(AGENT_CONFIG, REPOSITORY, content, true);
+
+            assertThat(result.success()).isTrue();
+            assertThat(result.content()).contains("SQLインジェクション");
+        }
     }
 }

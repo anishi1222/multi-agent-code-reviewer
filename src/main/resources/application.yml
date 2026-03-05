@@ -10,6 +10,8 @@ reviewer:
   execution:
     shared-session-enabled: true
     concurrency:
+      # Local review prompts can be large. Increase carefully with heap size.
+      # Guideline: 512MB heap -> around 4, 1GB heap -> around 8.
       parallelism: 4
       review-passes: 1
     timeouts:

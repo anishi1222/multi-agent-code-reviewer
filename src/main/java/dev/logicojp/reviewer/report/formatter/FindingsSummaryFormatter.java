@@ -7,7 +7,6 @@ import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Locale;
 import java.util.Set;
 
 public final class FindingsSummaryFormatter {
@@ -34,7 +33,7 @@ public final class FindingsSummaryFormatter {
         Map<String, Map<String, MergedFinding>> groupedByPriority = new LinkedHashMap<>();
         for (FindingsExtractor.Finding finding : findings) {
             String priority = finding.priority();
-            String dedupKey = normalizeDedupKey(finding.title());
+            String dedupKey = strictMergeKey(finding);
             Map<String, MergedFinding> byKey = groupedByPriority.computeIfAbsent(priority, _ -> new LinkedHashMap<>());
             byKey.computeIfAbsent(dedupKey, _ -> new MergedFinding(finding.title()))
                 .merge(finding);
@@ -47,11 +46,12 @@ public final class FindingsSummaryFormatter {
         return grouped;
     }
 
-    private static String normalizeDedupKey(String title) {
-        if (title == null) {
-            return "";
-        }
-        return title.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+    private static String strictMergeKey(FindingsExtractor.Finding finding) {
+        String safeTitle = finding.title() == null ? "" : finding.title().trim();
+        String safePriority = finding.priority() == null ? "" : finding.priority().trim();
+        String safeCategory = finding.category() == null ? "" : finding.category().trim();
+        String safeAgent = finding.agent() == null ? "" : finding.agent().trim();
+        return String.join("\u0000", safeTitle, safePriority, safeCategory, safeAgent);
     }
 
     private static void appendPriorityBlock(StringBuilder sb,

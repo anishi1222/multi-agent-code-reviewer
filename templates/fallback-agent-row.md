@@ -1,1 +1,1 @@
-| {{displayName}} | - | - | - | - | - |
+| ${displayName} | - | - | - | - | - |

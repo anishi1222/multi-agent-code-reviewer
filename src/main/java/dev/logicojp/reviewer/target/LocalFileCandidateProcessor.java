@@ -115,6 +115,17 @@ final class LocalFileCandidateProcessor {
                                          long maxBytes,
                                          long expectedSize,
                                          byte[] readBuffer) throws IOException {
+        // Most candidates already pass the size guard before this method is called.
+        // In that common case, avoid ByteArrayOutputStream re-allocation/copy churn.
+        if (expectedSize <= maxBytes) {
+            String content = Files.readString(path, StandardCharsets.UTF_8);
+            long actualSize = Files.size(path);
+            if (actualSize > maxBytes) {
+                return ReadResult.exceeded();
+            }
+            return ReadResult.included(content, actualSize);
+        }
+
         int initialCapacity = (int) Math.min(expectedSize, maxBytes);
         try (InputStream inputStream = Files.newInputStream(path);
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream(Math.max(initialCapacity, 32))) {

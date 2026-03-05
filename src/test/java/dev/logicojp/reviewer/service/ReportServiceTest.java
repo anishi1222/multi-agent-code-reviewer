@@ -94,7 +94,7 @@ class ReportServiceTest {
     @Test
     @DisplayName("generateSummary は timeout を渡して factory 生成ジェネレータを使用する")
     void generateSummaryUsesFactoryGeneratorWithTimeout() throws IOException {
-        Files.writeString(tempDir.resolve("executive-summary.md"), "{{repository}}\n{{summary}}\n");
+        Files.writeString(tempDir.resolve("executive-summary.md"), "${repository}\n${summary}\n");
 
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
             null, null, null, null, null, null, null));

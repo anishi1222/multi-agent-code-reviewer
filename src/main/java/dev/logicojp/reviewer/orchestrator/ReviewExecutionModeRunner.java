@@ -120,7 +120,7 @@ final class ReviewExecutionModeRunner {
     private void joinStructuredWithTimeout(StructuredTaskScope<List<ReviewResult>, Void> scope,
                                            long timeoutMinutes) {
         try {
-            StructuredConcurrencyUtils.joinWithTimeout(scope, timeoutMinutes + 1, TimeUnit.MINUTES);
+            StructuredConcurrencyUtils.joinWithTimeout(scope, timeoutMinutes, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             logger.error("Structured concurrency interrupted", e);

@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.service;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import dev.logicojp.reviewer.util.RetryPolicyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +18,9 @@ public class CopilotCliHealthChecker {
 
     private static final Logger logger = LoggerFactory.getLogger(CopilotCliHealthChecker.class);
     private static final long DEFAULT_CLI_HEALTHCHECK_SECONDS = 10;
+    private static final int MAX_CLI_CHECK_ATTEMPTS = 2;
+    private static final long CLI_BACKOFF_BASE_MS = 1_000L;
+    private static final long CLI_BACKOFF_MAX_MS = 3_000L;
     private static final String CLI_HEALTHCHECK_ENV = "COPILOT_CLI_HEALTHCHECK_SECONDS";
     private static final String CLI_AUTH_CHECK_ENV = "COPILOT_CLI_AUTHCHECK_SECONDS";
     private static final long DEFAULT_CLI_AUTHCHECK_SECONDS = 15;
@@ -63,6 +67,34 @@ public class CopilotCliHealthChecker {
                                String timeoutMessage, String exitMessage, String ioMessage,
                                String remediationMessage)
         throws InterruptedException {
+        CopilotCliException lastException = null;
+        for (int attempt = 1; attempt <= MAX_CLI_CHECK_ATTEMPTS; attempt++) {
+            try {
+                runCliCommandOnce(command, timeoutSeconds, timeoutMessage, exitMessage, ioMessage, remediationMessage);
+                return;
+            } catch (CopilotCliException e) {
+                lastException = e;
+                if (attempt >= MAX_CLI_CHECK_ATTEMPTS) {
+                    throw e;
+                }
+                long backoffMs = RetryPolicyUtils.computeBackoffWithJitter(
+                    CLI_BACKOFF_BASE_MS,
+                    CLI_BACKOFF_MAX_MS,
+                    attempt
+                );
+                logger.warn("CLI health check failed (attempt {}/{}), retrying in {}ms: {}",
+                    attempt, MAX_CLI_CHECK_ATTEMPTS, backoffMs, e.getMessage());
+                Thread.sleep(backoffMs);
+            }
+        }
+        if (lastException != null) {
+            throw lastException;
+        }
+    }
+
+    private void runCliCommandOnce(List<String> command, long timeoutSeconds,
+                                   String timeoutMessage, String exitMessage, String ioMessage,
+                                   String remediationMessage) {
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(SAFE_WORKING_DIRECTORY.toFile());
         builder.redirectErrorStream(true);
@@ -82,8 +114,16 @@ public class CopilotCliHealthChecker {
                 if (process.exitValue() != 0) {
                     throw exitFailure(exitMessage, process.exitValue(), remediationMessage);
                 }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CopilotCliException("Interrupted while waiting for CLI command", e);
             } finally {
-                drainThread.join();
+                try {
+                    drainThread.join();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new CopilotCliException("Interrupted while draining CLI output", e);
+                }
             }
         } catch (IOException e) {
             throw new CopilotCliException(ioMessage + e.getMessage(), e);

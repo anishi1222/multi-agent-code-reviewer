@@ -93,4 +93,27 @@ class LocalFileCandidateProcessorTest {
         assertThat(result.fileCount()).isZero();
         assertThat(result.totalSize()).isZero();
     }
+
+    @Test
+    @DisplayName("UTF-8マルチバイト文字でもバイト数基準でサイズ計上する")
+    void countsUtf8BytesNotCharacters() throws IOException {
+        Path target = tempDir.resolve("utf8.java");
+        String content = "あいうえお\n";
+        Files.writeString(target, content);
+
+        long bytes = Files.size(target);
+        var candidates = List.of(new LocalFileCandidate(target, bytes));
+
+        var processor = new LocalFileCandidateProcessor(tempDir, tempDir.toRealPath(), 64, 64);
+        List<Long> processedSizes = new ArrayList<>();
+
+        LocalFileCandidateProcessor.ProcessingResult result = processor.process(
+            candidates,
+            (relativePath, fileContent, sizeBytes) -> processedSizes.add(sizeBytes)
+        );
+
+        assertThat(result.fileCount()).isEqualTo(1);
+        assertThat(result.totalSize()).isEqualTo(bytes);
+        assertThat(processedSizes).containsExactly(bytes);
+    }
 }

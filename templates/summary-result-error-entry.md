@@ -1,6 +1,6 @@
-## {{displayName}}
+## ${displayName}
 
-⚠️ レビュー失敗: {{errorMessage}}
+⚠️ レビュー失敗: ${errorMessage}
 
 ---
 

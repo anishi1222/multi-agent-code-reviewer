@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.service;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.logicojp.reviewer.config.TemplateConfig;
+import dev.logicojp.reviewer.util.PlaceholderUtils;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -14,14 +15,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /// Service for loading and processing report/summary templates.
 ///
-/// Uses Mustache-style placeholders in the form `{{placeholder}}` for files under
-/// the `templates/` directory. Agent prompt placeholders use `${placeholder}` and
-/// are handled by {@link dev.logicojp.reviewer.util.PlaceholderUtils}.
+/// Uses `${placeholder}` syntax for files under the `templates/` directory.
 /// Supports loading from external files with fallback to classpath resources.
 @Singleton
 public class TemplateService {
@@ -32,7 +30,6 @@ public class TemplateService {
     private final TemplateConfig config;
     private final Cache<String, String> templateCache;
     private static final Pattern TEMPLATE_NAME_PATTERN = Pattern.compile("[A-Za-z0-9._-]+\\.md");
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{(\\w+)}}");
 
     @Inject
     public TemplateService(TemplateConfig config) {
@@ -180,8 +177,7 @@ public class TemplateService {
         return null;
     }
 
-    /// Applies placeholder substitutions to a template in a single pass.
-    /// Placeholders are in the format {{name}}.
+    /// Applies `${key}` placeholder substitutions to a template in a single pass.
     ///
     /// @param template The template content
     /// @param placeholders Map of placeholder names to values
@@ -194,11 +190,7 @@ public class TemplateService {
             return template;
         }
 
-        return PLACEHOLDER_PATTERN.matcher(template).replaceAll(match -> {
-            String key = match.group(1);
-            String value = placeholders.getOrDefault(key, match.group());
-            return Matcher.quoteReplacement(value != null ? value : "");
-        });
+        return PlaceholderUtils.replaceDollarPlaceholders(template, placeholders);
     }
 
     // Convenience methods for specific templates

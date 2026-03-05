@@ -109,13 +109,13 @@ class SummaryGeneratorTest {
     private static void prepareTemplateFiles(Path baseDir) throws IOException {
         Files.writeString(baseDir.resolve("executive-summary.md"),
             "# Executive Summary\n\n" +
-                "- Date: {{date}}\n" +
-                "- Repository: {{repository}}\n\n" +
-                "{{summaryContent}}\n\n" +
-                "{{reportLinks}}\n"
+                "- Date: ${date}\n" +
+                "- Repository: ${repository}\n\n" +
+                "${summaryContent}\n\n" +
+                "${reportLinks}\n"
         );
         Files.writeString(baseDir.resolve("report-link-entry.md"),
-            "- [{{displayName}}]({{filename}})\n"
+            "- [${displayName}](${filename})\n"
         );
     }
 }

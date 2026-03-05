@@ -33,8 +33,8 @@ class FindingsSummaryFormatterTest {
     }
 
     @Test
-    @DisplayName("同一タイトルは優先度単位で集約される")
-    void deduplicatesByTitleWithinPriority() {
+    @DisplayName("同一タイトルでもカテゴリが異なる場合は集約しない")
+    void doesNotMergeDifferentCategories() {
         var findings = List.of(
             new FindingsExtractor.Finding("Same", "High", "security", "security"),
             new FindingsExtractor.Finding("Same", "High", "performance", "performance")
@@ -42,7 +42,8 @@ class FindingsSummaryFormatterTest {
 
         String summary = FindingsSummaryFormatter.formatSummary(findings);
 
-        assertThat(summary).contains("#### High (1)");
-        assertThat(summary).contains("指摘元: security, performance");
+        assertThat(summary).contains("#### High (2)");
+        assertThat(summary).contains("指摘元: security");
+        assertThat(summary).contains("指摘元: performance");
     }
 }

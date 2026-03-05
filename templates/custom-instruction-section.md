@@ -2,4 +2,4 @@
 
 以下のプロジェクト固有の指示に従ってください:
 
-{{scopeSection}}{{content}}
+${scopeSection}${content}

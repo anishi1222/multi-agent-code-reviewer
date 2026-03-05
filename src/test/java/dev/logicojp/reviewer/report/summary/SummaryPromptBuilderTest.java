@@ -62,9 +62,9 @@ class SummaryPromptBuilderTest {
     }
 
     private TemplateService createTemplateService() throws IOException {
-        Files.writeString(tempDir.resolve("summary-prompt.md"), "repo={{repository}}\n{{results}}");
-        Files.writeString(tempDir.resolve("summary-result-entry.md"), "{{displayName}}:{{content}}\n");
-        Files.writeString(tempDir.resolve("summary-result-error-entry.md"), "ERR:{{displayName}}:{{errorMessage}}\n");
+        Files.writeString(tempDir.resolve("summary-prompt.md"), "repo=${repository}\n${results}");
+        Files.writeString(tempDir.resolve("summary-result-entry.md"), "${displayName}:${content}\n");
+        Files.writeString(tempDir.resolve("summary-result-error-entry.md"), "ERR:${displayName}:${errorMessage}\n");
 
         var config = new TemplateConfig(
             tempDir.toString(),

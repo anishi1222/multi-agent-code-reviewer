@@ -56,10 +56,10 @@ class FallbackSummaryBuilderTest {
     }
 
     private TemplateService createTemplateService() throws IOException {
-        Files.writeString(tempDir.resolve("fallback-summary.md"), "TABLE\n{{tableRows}}\nSUM\n{{agentSummaries}}");
-        Files.writeString(tempDir.resolve("fallback-agent-row.md"), "ROW:{{displayName}}:{{content}}\n");
-        Files.writeString(tempDir.resolve("fallback-agent-success.md"), "OK:{{displayName}}:{{content}}\n");
-        Files.writeString(tempDir.resolve("fallback-agent-failure.md"), "NG:{{displayName}}:{{errorMessage}}\n");
+        Files.writeString(tempDir.resolve("fallback-summary.md"), "TABLE\n${tableRows}\nSUM\n${agentSummaries}");
+        Files.writeString(tempDir.resolve("fallback-agent-row.md"), "ROW:${displayName}:${content}\n");
+        Files.writeString(tempDir.resolve("fallback-agent-success.md"), "OK:${displayName}:${content}\n");
+        Files.writeString(tempDir.resolve("fallback-agent-failure.md"), "NG:${displayName}:${errorMessage}\n");
 
         var config = new TemplateConfig(
             tempDir.toString(),

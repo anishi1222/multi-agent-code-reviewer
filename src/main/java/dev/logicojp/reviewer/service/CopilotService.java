@@ -203,6 +203,36 @@ public class CopilotService {
     public boolean isInitialized() {
         return client != null;
     }
+
+    /// Checks whether the Copilot client is initialized and responsive enough for API use.
+    /// This performs a lightweight health verification via CLI probes.
+    public boolean isHealthy() {
+        CopilotClient localClient = client;
+        if (localClient == null) {
+            return false;
+        }
+        try {
+            String cliPath = cliPathResolver.resolveCliPath();
+            cliHealthChecker.verifyCliHealthy(cliPath, true);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Copilot client health check interrupted", e);
+            return false;
+        } catch (RuntimeException e) {
+            logger.warn("Copilot client health check failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /// Re-initializes the client only when it is currently unhealthy.
+    public synchronized void ensureHealthyOrReinitialize(String githubToken) throws InterruptedException {
+        if (isHealthy()) {
+            return;
+        }
+        logger.warn("Copilot client is unhealthy; attempting re-initialization");
+        initialize(normalizeToken(githubToken));
+    }
     
     /// Shuts down the Copilot client.
     @PreDestroy

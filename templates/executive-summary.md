@@ -1,23 +1,23 @@
 # エグゼクティブサマリー
 
-**日付**: {{date}}  
-**対象リポジトリ**: {{repository}}  
-**実施エージェント数**: {{agentCount}}  
-**成功**: {{successCount}}  
-**失敗**: {{failureCount}}
+**日付**: ${date}  
+**対象リポジトリ**: ${repository}  
+**実施エージェント数**: ${agentCount}  
+**成功**: ${successCount}  
+**失敗**: ${failureCount}
 
 ---
 
-{{summaryContent}}
+${summaryContent}
 
 ---
 
 ## 各レビュー 指摘事項一覧
 
-{{findingsSummary}}
+${findingsSummary}
 
 ---
 
 ## 個別レポート
 
-{{reportLinks}}
+${reportLinks}

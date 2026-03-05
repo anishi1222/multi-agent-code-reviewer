@@ -5,11 +5,19 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /// Resolves executable paths from explicit environment variable values
 /// or by scanning the system PATH.
 public final class CliPathResolver {
+
+    private static final List<Path> TRUSTED_DIRECTORIES = List.of(
+        Path.of("/usr/bin"),
+        Path.of("/usr/local/bin"),
+        Path.of("/bin"),
+        Path.of("/opt/homebrew/bin")
+    );
 
     private CliPathResolver() {
     }
@@ -66,6 +74,17 @@ public final class CliPathResolver {
         }
 
         return Optional.empty();
+    }
+
+    public static boolean isInTrustedDirectory(Path executablePath) {
+        if (executablePath == null) {
+            return false;
+        }
+        Path parent = executablePath.toAbsolutePath().normalize().getParent();
+        if (parent == null) {
+            return false;
+        }
+        return TRUSTED_DIRECTORIES.stream().anyMatch(parent::startsWith);
     }
 
     private static boolean hasAllowedName(Path path, String... allowedNames) {

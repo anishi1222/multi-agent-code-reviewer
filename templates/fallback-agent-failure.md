@@ -1,2 +1,2 @@
-### {{displayName}}
-- レビュー失敗: {{errorMessage}}
+### ${displayName}
+- レビュー失敗: ${errorMessage}
