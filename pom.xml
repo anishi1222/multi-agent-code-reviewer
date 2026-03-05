@@ -237,7 +237,7 @@
                         <artifactId>dependency-check-maven</artifactId>
                         <version>${dependency.check.version}</version>
                         <configuration>
-                            <nvdApiKey>${NVD_API_KEY}</nvdApiKey>
+                            <nvdApiKey>${nvd_api_key}</nvdApiKey>
                             <dataDirectory>/tmp/owasp</dataDirectory>
                             <formats>
                                 <format>sarif</format>
