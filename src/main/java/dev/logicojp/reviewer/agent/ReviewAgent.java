@@ -189,21 +189,26 @@ public class ReviewAgent {
             for (int pass = 0; pass < reviewPasses; pass++) {
                 tasks.add(() -> review(target));
             }
-            List<Future<ReviewResult>> futures = executor.invokeAll(tasks);
-            List<ReviewResult> results = new ArrayList<>(reviewPasses);
-            for (Future<ReviewResult> future : futures) {
-                try {
-                    results.add(future.get());
-                } catch (ExecutionException e) {
-                    logger.warn("Agent {}: fallback pass failed: {}", config.name(), e.getMessage(), e);
-                    results.add(reviewResultFactory.fromException(config, target.displayName(), e));
-                }
-            }
-            return results;
+            return collectFallbackResults(executor.invokeAll(tasks), target);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return List.of(reviewResultFactory.fromException(config, target.displayName(), e));
         }
+    }
+
+    private List<ReviewResult> collectFallbackResults(List<Future<ReviewResult>> futures,
+                                                       ReviewTarget target)
+            throws InterruptedException {
+        List<ReviewResult> results = new ArrayList<>(futures.size());
+        for (Future<ReviewResult> future : futures) {
+            try {
+                results.add(future.get());
+            } catch (ExecutionException e) {
+                logger.warn("Agent {}: fallback pass failed: {}", config.name(), e.getMessage(), e);
+                results.add(reviewResultFactory.fromException(config, target.displayName(), e));
+            }
+        }
+        return results;
     }
     
     private ReviewResult executeReview(ReviewTarget target) throws Exception {

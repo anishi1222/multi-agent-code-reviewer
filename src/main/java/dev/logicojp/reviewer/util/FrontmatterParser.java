@@ -163,25 +163,30 @@ public final class FrontmatterParser {
     /// Manual line-based fallback for frontmatter that SnakeYAML cannot parse.
     private static Map<String, String> parseFieldsManually(String frontmatter) {
         Map<String, String> fields = new HashMap<>();
-
         for (String line : frontmatter.lines().toList()) {
-            if (line.isBlank() || line.trim().startsWith("-")
-                    || line.startsWith(" ") || line.startsWith("\t")) {
-                continue;
-            }
+            if (isNestedOrIgnoredLine(line)) continue;
+            parseTopLevelField(line, fields);
+        }
+        return fields;
+    }
 
-            int colonIdx = line.indexOf(':');
-            if (colonIdx <= 0) continue;
+    /// Returns true for lines that are not top-level key-value entries.
+    private static boolean isNestedOrIgnoredLine(String line) {
+        return line.isBlank()
+            || line.trim().startsWith("-")
+            || line.startsWith(" ")
+            || line.startsWith("\t");
+    }
 
-            String key = line.substring(0, colonIdx).trim();
-            String value = stripQuotes(line.substring(colonIdx + 1).trim());
-
-            if (value.isEmpty()) continue;
-
+    /// Parses a top-level `key: value` entry and adds it to the map.
+    private static void parseTopLevelField(String line, Map<String, String> fields) {
+        int colonIdx = line.indexOf(':');
+        if (colonIdx <= 0) return;
+        String key = line.substring(0, colonIdx).trim();
+        String value = stripQuotes(line.substring(colonIdx + 1).trim());
+        if (!value.isEmpty()) {
             fields.put(key, value);
         }
-
-        return fields;
     }
 
     /// Strips surrounding single or double quotes from a value string.

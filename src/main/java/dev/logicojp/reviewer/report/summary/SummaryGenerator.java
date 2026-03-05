@@ -257,28 +257,7 @@ public class SummaryGenerator {
             this::isNonBlank,
             _ -> false,
             this::isTransientFailure,
-            new RetryExecutor.RetryObserver<>() {
-                @Override
-                public void onCircuitOpen() {
-                    logger.warn("Summary generation skipped by open circuit breaker");
-                }
-
-                @Override
-                public void onRetryableException(int attempt, int totalAttempts, Exception exception) {
-                    logger.warn("Summary generation failed on attempt {}/{}: {}. Retrying...",
-                        attempt, totalAttempts, exception.getMessage(), exception);
-                }
-
-                @Override
-                public void onFinalException(int attempt,
-                                             int totalAttempts,
-                                             Exception exception,
-                                             boolean transientFailure) {
-                    if (!transientFailure) {
-                        logger.warn("Summary generation failed without retry: {}", exception.getMessage(), exception);
-                    }
-                }
-            }
+            summaryRetryObserver()
         );
 
         if (!isNonBlank(summary)) {
@@ -291,34 +270,39 @@ public class SummaryGenerator {
             throws ExecutionException, TimeoutException {
         var sessionConfig = createSummarySessionConfig();
         long sessionCreateTimeoutMinutes = sessionCreateTimeoutMinutes(config.timeoutMinutes());
-        long timeoutMs = messageTimeoutMs(config.timeoutMinutes());
-        int contentAttempts = AI_SUMMARY_MAX_RETRIES + 1;
 
         try (CopilotSession session = client.createSession(sessionConfig)
             .get(sessionCreateTimeoutMinutes, TimeUnit.MINUTES)) {
-            for (int attempt = 1; attempt <= contentAttempts; attempt++) {
-                var response = session
-                    .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
-                    .get(config.timeoutMinutes(), TimeUnit.MINUTES);
-                String content = response.getData().content();
-                if (isNonBlank(content)) {
-                    return content;
-                }
-
-                if (attempt < contentAttempts) {
-                    RetryPolicyUtils.sleepWithBackoff(RETRY_BACKOFF_BASE_MS, RETRY_BACKOFF_MAX_MS, attempt);
-                    logger.warn(
-                        "Summary generation returned empty content on attempt {}/{} in same session. Retrying...",
-                        attempt,
-                        contentAttempts
-                    );
-                }
-            }
-            return null;
+            return sendUntilNonBlank(session, prompt);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new CopilotCliException("Summary generation interrupted", ex);
         }
+    }
+
+    /// Sends the prompt up to {@code contentAttempts} times within the same session,
+    /// returning the first non-blank response or {@code null}.
+    private String sendUntilNonBlank(CopilotSession session, String prompt)
+            throws ExecutionException, InterruptedException, TimeoutException {
+        long timeoutMs = messageTimeoutMs(config.timeoutMinutes());
+        int contentAttempts = AI_SUMMARY_MAX_RETRIES + 1;
+
+        for (int attempt = 1; attempt <= contentAttempts; attempt++) {
+            var response = session
+                .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
+                .get(config.timeoutMinutes(), TimeUnit.MINUTES);
+            String content = response.getData().content();
+            if (isNonBlank(content)) {
+                return content;
+            }
+            if (attempt < contentAttempts) {
+                RetryPolicyUtils.sleepWithBackoff(RETRY_BACKOFF_BASE_MS, RETRY_BACKOFF_MAX_MS, attempt);
+                logger.warn(
+                    "Summary generation returned empty content on attempt {}/{} in same session. Retrying...",
+                    attempt, contentAttempts);
+            }
+        }
+        return null;
     }
 
     static long sessionCreateTimeoutMinutes(long totalTimeoutMinutes) {
@@ -335,6 +319,29 @@ public class SummaryGenerator {
 
     private boolean isTransientFailure(Exception exception) {
         return RetryPolicyUtils.isTransientException(exception);
+    }
+
+    private static RetryExecutor.RetryObserver<String> summaryRetryObserver() {
+        return new RetryExecutor.RetryObserver<>() {
+            @Override
+            public void onCircuitOpen() {
+                logger.warn("Summary generation skipped by open circuit breaker");
+            }
+
+            @Override
+            public void onRetryableException(int attempt, int totalAttempts, Exception exception) {
+                logger.warn("Summary generation failed on attempt {}/{}: {}. Retrying...",
+                    attempt, totalAttempts, exception.getMessage(), exception);
+            }
+
+            @Override
+            public void onFinalException(int attempt, int totalAttempts,
+                                         Exception exception, boolean transientFailure) {
+                if (!transientFailure) {
+                    logger.warn("Summary generation failed without retry: {}", exception.getMessage(), exception);
+                }
+            }
+        };
     }
 
     private SessionConfig createSummarySessionConfig() {

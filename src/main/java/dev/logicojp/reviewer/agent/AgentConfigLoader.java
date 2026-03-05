@@ -280,31 +280,28 @@ public class AgentConfigLoader {
         }
     }
 
+    /// Field-to-value mappings for prompt-injection validation.
+    private static final List<Map.Entry<String, java.util.function.Function<AgentConfig, String>>> FIELD_EXTRACTORS = List.of(
+        Map.entry("role", AgentConfig::systemPrompt),
+        Map.entry("instruction", AgentConfig::instruction),
+        Map.entry("output-format", AgentConfig::outputFormat),
+        Map.entry("display-name", AgentConfig::displayName),
+        Map.entry("model", AgentConfig::model),
+        Map.entry("name", AgentConfig::name)
+    );
+
     private Optional<String> firstSuspiciousField(AgentConfig config) {
-        if (containsSuspicious(config.systemPrompt())) {
-            return Optional.of("role");
+        Optional<String> scalarMatch = FIELD_EXTRACTORS.stream()
+            .filter(entry -> containsSuspicious(entry.getValue().apply(config)))
+            .map(Map.Entry::getKey)
+            .findFirst();
+        if (scalarMatch.isPresent()) {
+            return scalarMatch;
         }
-        if (containsSuspicious(config.instruction())) {
-            return Optional.of("instruction");
-        }
-        if (containsSuspicious(config.outputFormat())) {
-            return Optional.of("output-format");
-        }
-        if (containsSuspicious(config.displayName())) {
-            return Optional.of("display-name");
-        }
-        if (containsSuspicious(config.model())) {
-            return Optional.of("model");
-        }
-        if (containsSuspicious(config.name())) {
-            return Optional.of("name");
-        }
-        for (String focusArea : config.focusAreas()) {
-            if (containsSuspicious(focusArea)) {
-                return Optional.of("focus-areas");
-            }
-        }
-        return Optional.empty();
+        return config.focusAreas().stream()
+            .filter(this::containsSuspicious)
+            .findFirst()
+            .map(_ -> "focus-areas");
     }
 
     private boolean containsSuspicious(String value) {

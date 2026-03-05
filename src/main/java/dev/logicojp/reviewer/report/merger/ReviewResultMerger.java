@@ -110,26 +110,13 @@ public final class ReviewResultMerger {
         if (result == null || !result.success()) {
             return result;
         }
-
         String content = result.content();
         if (content == null || content.isBlank()) {
             return result;
         }
 
         FindingIndex findingIndex = new FindingIndex(findingKeyResolver);
-        List<ReviewFindingParser.FindingBlock> blocks = findingBlockExtractor.extract(content);
-        if (blocks.isEmpty()) {
-            String normalized = ReviewFindingSimilarity.normalizeText(content);
-            if (!normalized.isEmpty()) {
-                findingIndex.putIfAbsent(
-                    "fallback|" + normalized,
-                    AggregatedFinding.fallbackWithNormalized(content, normalized, 1)
-                );
-            }
-        }
-        for (ReviewFindingParser.FindingBlock block : blocks) {
-            findingIndex.addOrMerge(block, 1);
-        }
+        collectPassFindings(content, 1, findingBlockExtractor, findingIndex, new LinkedHashSet<>());
 
         String normalizedContent = mergedContentFormatter.format(findingIndex.findings(), 1, 0);
         return ReviewResult.builder()

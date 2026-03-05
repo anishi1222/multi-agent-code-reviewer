@@ -50,37 +50,13 @@ final class ReviewExecutionModeRunner {
     }
 
     List<ReviewResult> executeAsync(Map<String, AgentConfig> agents,
-                                    ReviewTarget target,
-                                    ReviewContext sharedContext,
-                                    AgentPassExecutor agentPassExecutor) {
+                                     ReviewTarget target,
+                                     ReviewContext sharedContext,
+                                     AgentPassExecutor agentPassExecutor) {
         ExecutionParams params = executionParams(agents.size());
 
-        List<CompletableFuture<List<ReviewResult>>> futures = new ArrayList<>(params.agentCount());
-        for (var config : agents.values()) {
-            CompletableFuture<List<ReviewResult>> future = CompletableFuture
-                .supplyAsync(() -> {
-                    return executeAgentPasses(
-                        config,
-                        target,
-                        sharedContext,
-                        params.reviewPasses(),
-                        params.perAgentTimeoutMinutes(),
-                        false,
-                        agentPassExecutor
-                    );
-                }, executorService)
-                .exceptionally(ex -> {
-                    logger.error("Agent {} failed with timeout or error: {}",
-                        config.name(), ex.getMessage(), ex);
-                    return ReviewResult.failedResults(
-                        config,
-                        target.displayName(),
-                        params.reviewPasses(),
-                        "Review timed out or failed: " + ex.getMessage()
-                    );
-                });
-            futures.add(future);
-        }
+        List<CompletableFuture<List<ReviewResult>>> futures = submitAgentFutures(
+            agents, target, sharedContext, params, agentPassExecutor);
 
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(
             futures.toArray(new CompletableFuture[0])
@@ -91,6 +67,31 @@ final class ReviewExecutionModeRunner {
             params.reviewPasses(),
             collectAsyncResults(futures, target, !completedWithinTimeout)
         );
+    }
+
+    private List<CompletableFuture<List<ReviewResult>>> submitAgentFutures(
+            Map<String, AgentConfig> agents,
+            ReviewTarget target,
+            ReviewContext sharedContext,
+            ExecutionParams params,
+            AgentPassExecutor agentPassExecutor) {
+        List<CompletableFuture<List<ReviewResult>>> futures = new ArrayList<>(params.agentCount());
+        for (var config : agents.values()) {
+            CompletableFuture<List<ReviewResult>> future = CompletableFuture
+                .supplyAsync(() -> executeAgentPasses(
+                    config, target, sharedContext, params.reviewPasses(),
+                    params.perAgentTimeoutMinutes(), false, agentPassExecutor
+                ), executorService)
+                .exceptionally(ex -> {
+                    logger.error("Agent {} failed with timeout or error: {}",
+                        config.name(), ex.getMessage(), ex);
+                    return ReviewResult.failedResults(
+                        config, target.displayName(), params.reviewPasses(),
+                        "Review timed out or failed: " + ex.getMessage());
+                });
+            futures.add(future);
+        }
+        return futures;
     }
 
     List<ReviewResult> executeStructured(Map<String, AgentConfig> agents,
@@ -171,26 +172,29 @@ final class ReviewExecutionModeRunner {
         List<ReviewResult> results = new ArrayList<>(futures.size() * executionConfig.reviewPasses());
         int incompleteCount = 0;
         for (CompletableFuture<List<ReviewResult>> future : futures) {
-            if (!future.isDone()) {
-                if (cancelIncomplete) {
-                    future.cancel(true);
-                }
+            List<ReviewResult> agentResults = extractCompletedResults(future, cancelIncomplete);
+            if (agentResults == null) {
                 incompleteCount++;
-                continue;
+            } else {
+                results.addAll(agentResults);
             }
-
-            List<ReviewResult> perAgentResults = future.getNow(List.of());
-            if (perAgentResults == null || perAgentResults.isEmpty()) {
-                incompleteCount++;
-                continue;
-            }
-            results.addAll(perAgentResults);
         }
         if (incompleteCount > 0) {
             logger.warn("{} agent(s) did not complete within orchestrator timeout for target {}",
                 incompleteCount, target.displayName());
         }
         return results;
+    }
+
+    /// Returns completed results from a future, or null if incomplete/empty.
+    private static List<ReviewResult> extractCompletedResults(
+            CompletableFuture<List<ReviewResult>> future, boolean cancelIncomplete) {
+        if (!future.isDone()) {
+            if (cancelIncomplete) future.cancel(true);
+            return null;
+        }
+        List<ReviewResult> results = future.getNow(List.of());
+        return (results == null || results.isEmpty()) ? null : results;
     }
 
     private boolean awaitAsyncCompletion(CompletableFuture<Void> allFutures, long timeoutMinutes) {

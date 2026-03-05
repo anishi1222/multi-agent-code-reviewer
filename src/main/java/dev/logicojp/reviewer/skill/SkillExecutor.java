@@ -201,47 +201,39 @@ public class SkillExecutor implements AutoCloseable {
                                      String systemPrompt) throws Exception {
         logger.info("Executing skill: {} with parameters: {}", skill.id(), parameters.keySet());
 
-        // Validate parameters
         skill.validateParameters(parameters);
-
-        // Build the prompt with parameter substitution
         String prompt = skill.buildPrompt(parameters, maxParameterValueLength);
-
-        // Create session with skill configuration
-        var sessionConfigBuilder = new SessionConfig()
-            .setModel(defaultModel);
-
-        if (!cachedMcpServers.isEmpty()) {
-            sessionConfigBuilder.setMcpServers(cachedMcpServers);
-        }
-
-        if (systemPrompt != null && !systemPrompt.isBlank()) {
-            sessionConfigBuilder.setSystemMessage(new SystemMessageConfig()
-                .setMode(SystemMessageMode.APPEND)
-                .setContent(systemPrompt));
-        }
-
+        SessionConfig sessionConfig = buildSkillSessionConfig(systemPrompt);
         long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutMinutes);
 
-        try (var session = client.createSession(sessionConfigBuilder).get(timeoutMinutes, TimeUnit.MINUTES)) {
+        try (var session = client.createSession(sessionConfig).get(timeoutMinutes, TimeUnit.MINUTES)) {
             logger.debug("Sending skill prompt: {} (timeout: {} min)", skill.id(), timeoutMinutes);
-            // Pass the configured timeout to sendAndWait explicitly.
-            // The SDK default (60s) is too short for skills involving MCP tool calls.
             var response = session
                 .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
                 .get(timeoutMinutes, TimeUnit.MINUTES);
 
             String content = response.getData().content();
-            
             if (content == null || content.isBlank()) {
                 logger.warn("Skill {} returned empty content", skill.id());
                 return SkillResult.failure(skill.id(), "Skill returned empty content");
             }
-            
-            logger.info("Skill execution completed: {} (content length: {} chars)", skill.id(), content.length());
 
+            logger.info("Skill execution completed: {} (content length: {} chars)", skill.id(), content.length());
             return SkillResult.success(skill.id(), content);
         }
+    }
+
+    private SessionConfig buildSkillSessionConfig(String systemPrompt) {
+        var sessionConfig = new SessionConfig().setModel(defaultModel);
+        if (!cachedMcpServers.isEmpty()) {
+            sessionConfig.setMcpServers(cachedMcpServers);
+        }
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            sessionConfig.setSystemMessage(new SystemMessageConfig()
+                .setMode(SystemMessageMode.APPEND)
+                .setContent(systemPrompt));
+        }
+        return sessionConfig;
     }
 
     /// Shuts down the internally-owned executor, if any.
