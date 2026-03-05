@@ -35,8 +35,8 @@ jobs:
 
       - name: Validate dependency policy (enforcer + checksum)
         run: |
-          mvn -B -ntp -DskipTests dependency-check:check -DNVD_API_KEY=${{ secrets.NVD_API_KEY }} -Psecurity-audit
-          mvn -B -ntp -DskipTests validate -DNVD_API_KEY=${{ secrets.NVD_API_KEY }} -Psecurity-audit
+          mvn -B -ntp -DskipTests dependency-check:check -Dnvd_api_key=${{ secrets.NVD_API_KEY }} -Psecurity-audit
+          mvn -B -ntp -DskipTests validate -Dnvd_api_key=${{ secrets.NVD_API_KEY }} -Psecurity-audit
           # mvn -B -ntp -DskipTests validate -Dossindex.username=${{ secrets.OSS_INDEX_USERNAME }} -Dossindex.token=${{ secrets.OSS_INDEX_TOKEN }}
 
   build-and-test:
