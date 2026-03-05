@@ -34,6 +34,7 @@ class ReviewSessionConfigFactoryTest {
             .client(new CopilotClient(new CopilotClientOptions()))
             .timeoutMinutes(1)
             .idleTimeoutMinutes(1)
+            .invocationTimestamp("2026-03-05-12-34-56")
             .maxRetries(0)
             .reasoningEffort(reasoningEffort)
             .localFileConfig(new LocalFileConfig())
@@ -51,7 +52,7 @@ class ReviewSessionConfigFactoryTest {
             ReviewContext ctx = createContext(null);
 
             SessionConfig result = factory.create(
-                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null);
+                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null, 1, 1);
 
             assertThat(result.getModel()).isEqualTo(MODEL);
         }
@@ -62,7 +63,7 @@ class ReviewSessionConfigFactoryTest {
             ReviewContext ctx = createContext(null);
 
             SessionConfig result = factory.create(
-                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null);
+                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null, 1, 1);
 
             assertThat(result.getSystemMessage()).isNotNull();
             assertThat(result.getSystemMessage().getContent()).isEqualTo(SYSTEM_PROMPT);
@@ -75,7 +76,7 @@ class ReviewSessionConfigFactoryTest {
             ReviewContext ctx = createContext(null);
 
             SessionConfig result = factory.create(
-                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null);
+                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null, 1, 1);
 
             // Should not throw
             assertThat(result).isNotNull();
@@ -88,9 +89,10 @@ class ReviewSessionConfigFactoryTest {
             Map<String, Object> mcpServers = Map.of("github", Map.of("url", "https://api.example.com"));
 
             SessionConfig result = factory.create(
-                AGENT_CONFIG, ctx, SYSTEM_PROMPT, mcpServers);
+                AGENT_CONFIG, ctx, SYSTEM_PROMPT, mcpServers, 2, 3);
 
             assertThat(result).isNotNull();
+            assertThat(result.getSessionId()).isEqualTo("test-agent_2of3_2026-03-05-12-34-56");
         }
     }
 }

@@ -83,12 +83,14 @@ public class ReviewOrchestratorFactory {
     public ReviewOrchestrator create(@Nullable String githubToken,
                                      ExecutionConfig executionConfig,
                                      @Nullable String reasoningEffort,
-                                     @Nullable String outputConstraints) {
+                                     @Nullable String outputConstraints,
+                                     String invocationTimestamp) {
         var orchestratorConfig = buildOrchestratorConfig(
             githubToken,
             executionConfig,
             reasoningEffort,
-            outputConstraints
+            outputConstraints,
+            invocationTimestamp
         );
         return createOrchestrator(orchestratorConfig);
     }
@@ -96,7 +98,8 @@ public class ReviewOrchestratorFactory {
     private OrchestratorConfig buildOrchestratorConfig(String githubToken,
                                                        ExecutionConfig executionConfig,
                                                        String reasoningEffort,
-                                                       String outputConstraints) {
+                                                       String outputConstraints,
+                                                       String invocationTimestamp) {
         PromptTexts promptTexts = loadPromptTexts();
 
         return new OrchestratorConfig(
@@ -106,6 +109,7 @@ public class ReviewOrchestratorFactory {
             executionConfig,
             reasoningEffort,
             outputConstraints,
+            invocationTimestamp,
             promptTexts
         );
     }

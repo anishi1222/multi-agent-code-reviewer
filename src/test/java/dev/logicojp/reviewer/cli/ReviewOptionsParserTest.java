@@ -42,6 +42,21 @@ class ReviewOptionsParserTest {
             .isEqualTo("owner/repo");
         assertThat(options.agents()).isInstanceOf(ReviewCommand.AgentSelection.All.class);
         assertThat(options.parallelism()).isEqualTo(7);
+        assertThat(options.noSharedSession()).isFalse();
+    }
+
+    @Test
+    @DisplayName("--no-shared-session指定を正しく解釈する")
+    void parsesNoSharedSessionFlag() {
+        var parser = newParser();
+
+        Optional<ReviewCommand.ParsedOptions> parsed = parser.parse(
+            new String[]{"--repo", "owner/repo", "--all", "--no-shared-session"}
+        );
+
+        assertThat(parsed).isPresent();
+        ReviewCommand.ParsedOptions options = parsed.orElseThrow();
+        assertThat(options.noSharedSession()).isTrue();
     }
 
     @Test

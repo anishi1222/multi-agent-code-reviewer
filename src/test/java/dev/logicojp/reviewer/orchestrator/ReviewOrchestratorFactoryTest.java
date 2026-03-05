@@ -83,7 +83,8 @@ class ReviewOrchestratorFactoryTest {
             "token",
             ExecutionConfig.ofFlat(2, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0),
             "high",
-            "constraints"
+            "constraints",
+            "2026-03-05-12-34-56"
         )) {
             assertThat(captured.get()).isNotNull();
             assertThat(captured.get().promptTexts().focusAreasGuidance()).isEqualTo(AgentPromptBuilder.DEFAULT_FOCUS_AREAS_GUIDANCE);

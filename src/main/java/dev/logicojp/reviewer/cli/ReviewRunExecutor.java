@@ -15,13 +15,19 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /// Executes the review run lifecycle: review execution, report generation, summary generation.
 @Singleton
 class ReviewRunExecutor {
+
+    private static final String CHECKPOINTS_DIR = ".checkpoints";
+    private static final String PASS_REPORTS_DIR = "passes";
 
     @FunctionalInterface
     interface ReviewRunner {
@@ -61,7 +67,9 @@ class ReviewRunExecutor {
                 context.target(),
                 resolvedToken,
                 context.parallelism(),
-                context.reasoningEffort()
+                context.reasoningEffort(),
+                context.noSharedSession(),
+                context.invocationTimestamp()
             ),
             reportService::generateReports,
             (results, context) -> reportService.generateSummary(
@@ -89,18 +97,22 @@ class ReviewRunExecutor {
     }
 
     public int execute(String resolvedToken, ReviewRunRequest context) {
-        output.println("Starting reviews...");
-        List<ReviewResult> passResults = executeReviews(resolvedToken, context);
-        List<ReviewResult> sanitizedPassResults = sanitizePassResults(passResults);
-        generatePassReports(sanitizedPassResults, context.outputDirectory());
+        try {
+            output.println("Starting reviews...");
+            List<ReviewResult> passResults = executeReviews(resolvedToken, context);
+            List<ReviewResult> sanitizedPassResults = sanitizePassResults(passResults);
+            generatePassReports(sanitizedPassResults, context.outputDirectory());
 
-        List<ReviewResult> mergedResults = ReviewResultMerger.mergeByAgent(sanitizedPassResults);
-        List<ReviewResult> finalResults = ReviewOverallSummaryAppender.appendToMergedResults(mergedResults);
+            List<ReviewResult> mergedResults = ReviewResultMerger.mergeByAgent(sanitizedPassResults);
+            List<ReviewResult> finalResults = ReviewOverallSummaryAppender.appendToMergedResults(mergedResults);
 
-        generateFinalOutputs(finalResults, context);
+            generateFinalOutputs(finalResults, context);
 
-        outputFormatter.printCompletionSummary(finalResults, context.outputDirectory());
-        return ExitCodes.OK;
+            outputFormatter.printCompletionSummary(finalResults, context.outputDirectory());
+            return ExitCodes.OK;
+        } finally {
+            cleanupCheckpoints(context.outputDirectory());
+        }
     }
 
     private List<ReviewResult> executeReviews(String resolvedToken, ReviewRunRequest context) {
@@ -114,7 +126,7 @@ class ReviewRunExecutor {
 
     private void generatePassReports(List<ReviewResult> passResults, Path outputDirectory) {
         output.println("\nGenerating pass reports...");
-        Path passDirectory = outputDirectory.resolve("passes");
+        Path passDirectory = outputDirectory.resolve(CHECKPOINTS_DIR).resolve(PASS_REPORTS_DIR);
         List<Path> reports;
         try {
             reports = reportsGenerator.generate(passResults, passDirectory);
@@ -181,19 +193,44 @@ class ReviewRunExecutor {
         }
     }
 
+    private void cleanupCheckpoints(Path outputDirectory) {
+        Path checkpointsDirectory = outputDirectory.resolve(CHECKPOINTS_DIR);
+        if (!Files.exists(checkpointsDirectory)) {
+            return;
+        }
+
+        try (Stream<Path> pathStream = Files.walk(checkpointsDirectory)) {
+            pathStream
+                .sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+        } catch (IOException | UncheckedIOException e) {
+            logger.warn("Failed to cleanup checkpoints directory '{}': {}",
+                checkpointsDirectory, e.getMessage());
+        }
+    }
+
     public record ReviewRunRequest(
         ReviewTarget target,
         String summaryModel,
         String reasoningEffort,
+        String invocationTimestamp,
         Map<String, AgentConfig> agentConfigs,
         int parallelism,
         boolean noSummary,
+        boolean noSharedSession,
         Path outputDirectory
     ) {
         @Override
         public String toString() {
-            return "ReviewRunRequest{target=%s, summaryModel='%s', reasoningEffort='%s', parallelism=%d, noSummary=%s, outputDirectory=%s}"
-                .formatted(target, summaryModel, reasoningEffort, parallelism, noSummary, outputDirectory);
+            return "ReviewRunRequest{target=%s, summaryModel='%s', reasoningEffort='%s', invocationTimestamp='%s', parallelism=%d, noSummary=%s, noSharedSession=%s, outputDirectory=%s}"
+                .formatted(target, summaryModel, reasoningEffort, invocationTimestamp,
+                    parallelism, noSummary, noSharedSession, outputDirectory);
         }
     }
 }

@@ -200,7 +200,9 @@ public class ReviewOrchestrator implements AutoCloseable {
         return new ReviewContextFactory(
             client, orchestratorConfig.executionConfig(),
             orchestratorConfig.reasoningEffort(),
-            orchestratorConfig.outputConstraints(), cachedMcpServers,
+            orchestratorConfig.outputConstraints(),
+            orchestratorConfig.invocationTimestamp(),
+            cachedMcpServers,
             orchestratorConfig.localFileConfig(), resources.sharedScheduler(),
             reviewCircuitBreaker);
     }

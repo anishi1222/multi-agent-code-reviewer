@@ -28,6 +28,8 @@ class ReviewContextTest {
                 var context = new ReviewContext(
                     client,
                     new ReviewContext.TimeoutConfig(5, 3, 2),
+                    "2026-03-05-12-00-00",
+                    true,
                     null,
                     null,
                     new ReviewContext.CachedResources(null, null),
@@ -60,6 +62,8 @@ class ReviewContextTest {
                 var context = new ReviewContext(
                     client,
                     null,
+                    "2026-03-05-12-00-00",
+                    true,
                     null,
                     null,
                     null,
@@ -85,6 +89,7 @@ class ReviewContextTest {
                 .client(client)
                 .timeoutMinutes(5)
                 .idleTimeoutMinutes(3)
+                .invocationTimestamp("2026-03-05-12-00-00")
                 .maxRetries(2)
                 .sharedScheduler(scheduler)
                 .build();

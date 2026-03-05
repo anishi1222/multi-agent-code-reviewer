@@ -249,6 +249,17 @@ class ExecutionConfigTest {
         }
 
         @Test
+        @DisplayName("shared-sessionフラグを上書きできる")
+        void canOverrideSharedSessionFlag() {
+            ExecutionConfig original = ExecutionConfig.ofFlat(4, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0);
+
+            ExecutionConfig updated = original.withSharedSessionEnabled(false);
+
+            assertThat(original.isSharedSessionEnabled()).isTrue();
+            assertThat(updated.isSharedSessionEnabled()).isFalse();
+        }
+
+        @Test
         @DisplayName("0以下の値はデフォルト値に正規化される")
         void invalidValueIsNormalized() {
             ExecutionConfig original = ExecutionConfig.ofFlat(4, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0);
@@ -295,6 +306,20 @@ class ExecutionConfigTest {
             assertThat(config.timeoutSettings().orchestratorTimeoutMinutes()).isEqualTo(21);
             assertThat(config.retrySettings().maxRetries()).isEqualTo(2);
             assertThat(config.bufferSettings().maxAccumulatedSize()).isEqualTo(4096);
+        }
+
+        @Test
+        @DisplayName("ofファクトリでshared-sessionフラグを指定できる")
+        void createsConfigWithSharedSessionFlag() {
+            ExecutionConfig config = ExecutionConfig.of(
+                new ExecutionConfig.ConcurrencySettings(3, 2),
+                new ExecutionConfig.TimeoutSettings(20, 10, 6, 8, 9, 30),
+                new ExecutionConfig.RetrySettings(4),
+                new ExecutionConfig.BufferSettings(8192, 1024, 64),
+                false
+            );
+
+            assertThat(config.isSharedSessionEnabled()).isFalse();
         }
     }
 }

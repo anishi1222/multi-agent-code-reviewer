@@ -14,11 +14,13 @@ public record OrchestratorConfig(
     ExecutionConfig executionConfig,
     @Nullable String reasoningEffort,
     @Nullable String outputConstraints,
+    String invocationTimestamp,
     PromptTexts promptTexts
 ) {
     public OrchestratorConfig {
         executionConfig = Objects.requireNonNull(executionConfig, "executionConfig must not be null");
         localFileConfig = localFileConfig != null ? localFileConfig : new LocalFileConfig();
+        invocationTimestamp = invocationTimestamp != null ? invocationTimestamp : "unknown-start-time";
         promptTexts = promptTexts != null ? promptTexts : new PromptTexts(null, null, null);
     }
 

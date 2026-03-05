@@ -159,8 +159,12 @@ public class ReviewAgent {
     /// @param target The target to review (GitHub repository or local directory)
     /// @return ReviewResult containing the review content
     public ReviewResult review(ReviewTarget target) {
+        return reviewForPass(target, 1, 1);
+    }
+
+    private ReviewResult reviewForPass(ReviewTarget target, int currentPass, int totalPasses) {
         return reviewRetryExecutor.execute(
-            () -> executeReview(target),
+            () -> executeReview(target, currentPass, totalPasses),
             e -> reviewResultFactory.fromException(config, target.displayName(), e)
         );
     }
@@ -169,7 +173,13 @@ public class ReviewAgent {
     /// This reduces MCP initialization overhead across passes.
     public List<ReviewResult> reviewPasses(ReviewTarget target, int reviewPasses) {
         if (reviewPasses <= 1) {
-            return List.of(review(target));
+            return List.of(reviewForPass(target, 1, 1));
+        }
+
+        if (!ctx.sharedSessionEnabled()) {
+            logger.info("Agent {}: shared session mode disabled, using isolated sessions for {} passes",
+                config.name(), reviewPasses);
+            return executeReviewPassesFallback(target, reviewPasses);
         }
 
         logger.info("Agent {}: reusing one Copilot session for {} passes", config.name(), reviewPasses);
@@ -186,8 +196,9 @@ public class ReviewAgent {
     private List<ReviewResult> executeReviewPassesFallback(ReviewTarget target, int reviewPasses) {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Callable<ReviewResult>> tasks = new ArrayList<>(reviewPasses);
-            for (int pass = 0; pass < reviewPasses; pass++) {
-                tasks.add(() -> review(target));
+            for (int pass = 1; pass <= reviewPasses; pass++) {
+                int passNumber = pass;
+                tasks.add(() -> reviewForPass(target, passNumber, reviewPasses));
             }
             return collectFallbackResults(executor.invokeAll(tasks), target);
         } catch (InterruptedException e) {
@@ -211,7 +222,7 @@ public class ReviewAgent {
         return results;
     }
     
-    private ReviewResult executeReview(ReviewTarget target) throws Exception {
+    private ReviewResult executeReview(ReviewTarget target, int currentPass, int totalPasses) throws Exception {
         logger.info("Starting review with agent: {} for target: {}", 
             config.name(), target.displayName());
 
@@ -221,7 +232,9 @@ public class ReviewAgent {
             target.displayName(),
             resolvedInstruction.instruction(),
             resolvedInstruction.localSourceContent(),
-            resolvedInstruction.mcpServers()
+            resolvedInstruction.mcpServers(),
+            currentPass,
+            totalPasses
         );
     }
 
@@ -247,7 +260,9 @@ public class ReviewAgent {
             config,
             ctx,
             systemPrompt,
-            mcpServers
+            mcpServers,
+            1,
+            reviewPasses
         );
 
         try (var session = ctx.client().createSession(sessionConfig)
@@ -286,8 +301,19 @@ public class ReviewAgent {
 
         List<ReviewResult> results = new ArrayList<>(reviewPasses);
 
-        // First pass uses shared-session path to amortize MCP/session setup cost.
-        results.addAll(executeReviewPassesSequential(target, 1));
+        // First pass uses a single-session execution to amortize setup cost.
+        String localSourceForFirstPass = resolveLocalSourceContentForPass(target, params.localSourceContent(), 1);
+        results.add(reviewRetryExecutor.execute(
+            () -> executeReviewCommon(
+                params.displayName(),
+                params.instruction(),
+                localSourceForFirstPass,
+                params.mcpServers(),
+                1,
+                reviewPasses
+            ),
+            e -> reviewResultFactory.fromException(config, params.displayName(), e)
+        ));
 
         if (reviewPasses > 1) {
             results.addAll(submitAndCollectParallelPasses(target, params, reviewPasses));
@@ -304,17 +330,27 @@ public class ReviewAgent {
             List<Callable<PassResult>> tasks = new ArrayList<>(reviewPasses - 1);
             for (int pass = 2; pass <= reviewPasses; pass++) {
                 int passNumber = pass;
-                tasks.add(() -> executeParallelPass(target, params, passNumber));
+                tasks.add(() -> executeParallelPass(target, params, passNumber, reviewPasses));
             }
 
             return collectParallelPassResults(executor.invokeAll(tasks));
         }
     }
 
-    private PassResult executeParallelPass(ReviewTarget target, ResolvedReviewParams params, int passNumber) {
+    private PassResult executeParallelPass(ReviewTarget target,
+                                           ResolvedReviewParams params,
+                                           int passNumber,
+                                           int totalPasses) {
         String localSourceForPass = resolveLocalSourceContentForPass(target, params.localSourceContent(), passNumber);
         ReviewResult result = reviewRetryExecutor.execute(
-            () -> executeReviewCommon(params.displayName(), params.instruction(), localSourceForPass, params.mcpServers()),
+            () -> executeReviewCommon(
+                params.displayName(),
+                params.instruction(),
+                localSourceForPass,
+                params.mcpServers(),
+                passNumber,
+                totalPasses
+            ),
             e -> reviewResultFactory.fromException(config, params.displayName(), e)
         );
         return new PassResult(passNumber, result);
@@ -374,13 +410,17 @@ public class ReviewAgent {
     private ReviewResult executeReviewCommon(String displayName,
                                              String instruction,
                                              String localSourceContent,
-                                             Map<String, Object> mcpServers) throws Exception {
+                                             Map<String, Object> mcpServers,
+                                             int currentPass,
+                                             int totalPasses) throws Exception {
         String systemPrompt = buildSystemPrompt();
         SessionConfig sessionConfig = reviewSessionConfigFactory.create(
             config,
             ctx,
             systemPrompt,
-            mcpServers
+            mcpServers,
+            currentPass,
+            totalPasses
         );
 
         try (var session = ctx.client().createSession(sessionConfig)

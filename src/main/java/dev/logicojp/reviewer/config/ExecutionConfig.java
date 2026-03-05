@@ -8,7 +8,8 @@ public record ExecutionConfig(
     ConcurrencySettings concurrency,
     TimeoutSettings timeouts,
     RetrySettings retry,
-    BufferSettings buffers
+    BufferSettings buffers,
+    Boolean sharedSessionEnabled
 ) {
 
     @ConfigurationProperties("concurrency")
@@ -37,6 +38,7 @@ public record ExecutionConfig(
     public static final int DEFAULT_MAX_RETRIES = 2;
     public static final long DEFAULT_IDLE_TIMEOUT_MINUTES = 5;
     public static final int DEFAULT_REVIEW_PASSES = 1;
+    public static final boolean DEFAULT_SHARED_SESSION_ENABLED = true;
     private static final int DEFAULT_PARALLELISM = 4;
     private static final long DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES = 10;
     private static final long DEFAULT_AGENT_TIMEOUT_MINUTES = 5;
@@ -94,6 +96,10 @@ public record ExecutionConfig(
                 DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
                 DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
             );
+
+        sharedSessionEnabled = sharedSessionEnabled != null
+            ? sharedSessionEnabled
+            : DEFAULT_SHARED_SESSION_ENABLED;
     }
 
     public static ExecutionConfig ofFlat(int parallelism,
@@ -123,7 +129,8 @@ public record ExecutionConfig(
                 maxAccumulatedSize,
                 initialAccumulatedCapacity,
                 instructionBufferExtraCapacity
-            )
+            ),
+            DEFAULT_SHARED_SESSION_ENABLED
         );
     }
 
@@ -131,7 +138,15 @@ public record ExecutionConfig(
                                      TimeoutSettings timeouts,
                                      RetrySettings retry,
                                      BufferSettings buffers) {
-        return new ExecutionConfig(concurrency, timeouts, retry, buffers);
+        return new ExecutionConfig(concurrency, timeouts, retry, buffers, DEFAULT_SHARED_SESSION_ENABLED);
+    }
+
+    public static ExecutionConfig of(ConcurrencySettings concurrency,
+                                     TimeoutSettings timeouts,
+                                     RetrySettings retry,
+                                     BufferSettings buffers,
+                                     boolean sharedSessionEnabled) {
+        return new ExecutionConfig(concurrency, timeouts, retry, buffers, sharedSessionEnabled);
     }
 
     public ConcurrencySettings concurrencySettings() {
@@ -198,12 +213,22 @@ public record ExecutionConfig(
         return buffers.instructionBufferExtraCapacity();
     }
 
+    public boolean isSharedSessionEnabled() {
+        return Boolean.TRUE.equals(sharedSessionEnabled);
+    }
+
     /// Returns a copy of this config with the parallelism value replaced.
     /// @param newParallelism the new parallelism value
     /// @return a new ExecutionConfig with the updated parallelism
     public ExecutionConfig withParallelism(int newParallelism) {
         return Builder.from(this)
             .parallelism(newParallelism)
+            .build();
+    }
+
+    public ExecutionConfig withSharedSessionEnabled(boolean enabled) {
+        return Builder.from(this)
+            .sharedSessionEnabled(enabled)
             .build();
     }
 
@@ -225,7 +250,8 @@ public record ExecutionConfig(
                 DEFAULT_MAX_ACCUMULATED_SIZE,
                 DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
                 DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
-            )
+            ),
+            DEFAULT_SHARED_SESSION_ENABLED
         );
     }
 
@@ -242,6 +268,7 @@ public record ExecutionConfig(
         private int maxAccumulatedSize;
         private int initialAccumulatedCapacity;
         private int instructionBufferExtraCapacity;
+        private boolean sharedSessionEnabled;
 
         public static Builder from(ExecutionConfig source) {
             var b = new Builder();
@@ -257,6 +284,7 @@ public record ExecutionConfig(
             b.maxAccumulatedSize = source.maxAccumulatedSize();
             b.initialAccumulatedCapacity = source.initialAccumulatedCapacity();
             b.instructionBufferExtraCapacity = source.instructionBufferExtraCapacity();
+            b.sharedSessionEnabled = source.isSharedSessionEnabled();
             return b;
         }
 
@@ -314,6 +342,11 @@ public record ExecutionConfig(
             return this;
         }
 
+        public Builder sharedSessionEnabled(boolean sharedSessionEnabled) {
+            this.sharedSessionEnabled = sharedSessionEnabled;
+            return this;
+        }
+
         public ExecutionConfig build() {
             return ExecutionConfig.of(
                 new ConcurrencySettings(parallelism, reviewPasses),
@@ -330,7 +363,8 @@ public record ExecutionConfig(
                     maxAccumulatedSize,
                     initialAccumulatedCapacity,
                     instructionBufferExtraCapacity
-                )
+                ),
+                sharedSessionEnabled
             );
         }
     }

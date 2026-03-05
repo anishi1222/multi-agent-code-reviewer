@@ -64,7 +64,8 @@ public class ReviewCommand {
             Path outputDirectory,
             List<Path> additionalAgentDirs,
             int parallelism,
-            boolean noSummary
+            boolean noSummary,
+            boolean noSharedSession
         ) {
             OutputOptions {
                 outputDirectory = outputDirectory != null ? outputDirectory : Path.of("./reports");
@@ -82,7 +83,7 @@ public class ReviewCommand {
         }
 
         ParsedOptions {
-            output = output != null ? output : new OutputOptions(Path.of("./reports"), List.of(), 1, false);
+            output = output != null ? output : new OutputOptions(Path.of("./reports"), List.of(), 1, false, false);
             models = models != null ? models : new ModelOptions(null, null, null, null);
             Objects.requireNonNull(target, "target must not be null");
             Objects.requireNonNull(agents, "agents must not be null");
@@ -105,7 +106,7 @@ public class ReviewCommand {
             this(
                 target,
                 agents,
-                new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary),
+                new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary, false),
                 new ModelOptions(reviewModel, reportModel, summaryModel, defaultModel),
                 githubToken,
                 trustTarget
@@ -126,6 +127,10 @@ public class ReviewCommand {
 
         public boolean noSummary() {
             return output.noSummary();
+        }
+
+        public boolean noSharedSession() {
+            return output.noSharedSession();
         }
 
         public String reviewModel() {
@@ -155,6 +160,7 @@ public class ReviewCommand {
             private List<Path> additionalAgentDirs = List.of();
             private int parallelism = 1;
             private boolean noSummary;
+            private boolean noSharedSession;
             private String reviewModel;
             private String reportModel;
             private String summaryModel;
@@ -197,6 +203,11 @@ public class ReviewCommand {
                 return this;
             }
 
+            Builder noSharedSession(boolean noSharedSession) {
+                this.noSharedSession = noSharedSession;
+                return this;
+            }
+
             Builder reviewModel(String reviewModel) {
                 this.reviewModel = reviewModel;
                 return this;
@@ -226,7 +237,7 @@ public class ReviewCommand {
                 return new ParsedOptions(
                     target,
                     agents,
-                    new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary),
+                    new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary, noSharedSession),
                     new ModelOptions(reviewModel, reportModel, summaryModel, defaultModel),
                     githubToken,
                     trustTarget
@@ -334,7 +345,8 @@ public class ReviewCommand {
             target,
             modelConfig,
             agentConfigs,
-            prepared.outputDirectory()
+            prepared.outputDirectory(),
+            prepared.invocationTimestamp()
         );
     }
 

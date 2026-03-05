@@ -6,9 +6,12 @@ import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +21,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewRunExecutor")
 class ReviewRunExecutorTest {
+
+    @TempDir
+    Path tempDir;
 
     @Test
     @DisplayName("noSummary=true の場合はサマリー生成を実行しない")
@@ -50,9 +56,11 @@ class ReviewRunExecutorTest {
             ReviewTarget.gitHub("owner/repo"),
             "model",
             "high",
+            "2026-03-05-12-34-56",
             Map.of("agent-a", new AgentConfig("agent-a", "Agent A", "model", "system", "instruction", null, List.of(), List.of())),
             1,
             true,
+            false,
             Path.of("reports")
         );
 
@@ -60,6 +68,52 @@ class ReviewRunExecutorTest {
 
         assertThat(exitCode).isEqualTo(ExitCodes.OK);
         assertThat(summaryCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("CLI終了時に.checkpointsディレクトリを削除する")
+    void cleansUpCheckpointsDirectoryOnExit() throws IOException {
+        CliOutput cliOutput = new CliOutput(
+            new PrintStream(OutputStream.nullOutputStream()),
+            new PrintStream(OutputStream.nullOutputStream())
+        );
+        ReviewOutputFormatter formatter = new ReviewOutputFormatter(
+            cliOutput,
+            ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0)
+        );
+
+        ReviewRunExecutor executor = new ReviewRunExecutor(
+            null,
+            null,
+            formatter,
+            cliOutput,
+            (resolvedToken, context) -> List.of(successResult("agent-a", context.target().displayName())),
+            (results, outputDirectory) -> {
+                Path report = outputDirectory.resolve("agent-a-report.md");
+                Files.createDirectories(report.getParent());
+                Files.writeString(report, "report");
+                return List.of(report);
+            },
+            (results, context) -> context.outputDirectory().resolve("executive-summary.md")
+        );
+
+        Path outputDirectory = tempDir.resolve("reports");
+        ReviewRunExecutor.ReviewRunRequest request = new ReviewRunExecutor.ReviewRunRequest(
+            ReviewTarget.gitHub("owner/repo"),
+            "model",
+            "high",
+            "2026-03-05-12-34-56",
+            Map.of("agent-a", new AgentConfig("agent-a", "Agent A", "model", "system", "instruction", null, List.of(), List.of())),
+            1,
+            false,
+            false,
+            outputDirectory
+        );
+
+        int exitCode = executor.execute("token", request);
+
+        assertThat(exitCode).isEqualTo(ExitCodes.OK);
+        assertThat(outputDirectory.resolve(".checkpoints")).doesNotExist();
     }
 
     private static ReviewResult successResult(String agentName, String repository) {

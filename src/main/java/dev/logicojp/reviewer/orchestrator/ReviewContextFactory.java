@@ -16,6 +16,7 @@ final class ReviewContextFactory {
     private final ExecutionConfig executionConfig;
     private final String reasoningEffort;
     private final String outputConstraints;
+    private final String invocationTimestamp;
     private final Map<String, Object> cachedMcpServers;
     private final LocalFileConfig localFileConfig;
     private final ScheduledExecutorService sharedScheduler;
@@ -25,6 +26,7 @@ final class ReviewContextFactory {
                          ExecutionConfig executionConfig,
                          String reasoningEffort,
                          String outputConstraints,
+                         String invocationTimestamp,
                          Map<String, Object> cachedMcpServers,
                          LocalFileConfig localFileConfig,
                          ScheduledExecutorService sharedScheduler,
@@ -33,6 +35,7 @@ final class ReviewContextFactory {
         this.executionConfig = executionConfig;
         this.reasoningEffort = reasoningEffort;
         this.outputConstraints = outputConstraints;
+        this.invocationTimestamp = invocationTimestamp;
         this.cachedMcpServers = cachedMcpServers;
         this.localFileConfig = localFileConfig;
         this.sharedScheduler = sharedScheduler;
@@ -45,8 +48,10 @@ final class ReviewContextFactory {
             .timeoutMinutes(executionConfig.agentTimeoutMinutes())
             .idleTimeoutMinutes(executionConfig.idleTimeoutMinutes())
             .reasoningEffort(reasoningEffort)
+            .sharedSessionEnabled(executionConfig.isSharedSessionEnabled())
             .maxRetries(executionConfig.maxRetries())
             .outputConstraints(outputConstraints)
+            .invocationTimestamp(invocationTimestamp)
             .cachedMcpServers(cachedMcpServers)
             .cachedSourceContent(cachedSourceContent.orElse(null))
             .localFileConfig(localFileConfig)

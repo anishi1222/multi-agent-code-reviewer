@@ -48,6 +48,7 @@ class ReviewOptionsParser {
             .githubToken(state.githubToken)
             .parallelism(state.parallelism)
             .noSummary(state.noSummary)
+            .noSharedSession(state.noSharedSession)
             .reviewModel(state.reviewModel)
             .reportModel(state.reportModel)
             .summaryModel(state.summaryModel)
@@ -66,6 +67,7 @@ class ReviewOptionsParser {
         private String githubToken;
         private int parallelism;
         private boolean noSummary;
+        private boolean noSharedSession;
         private String reviewModel;
         private String reportModel;
         private String summaryModel;
@@ -142,6 +144,10 @@ class ReviewOptionsParser {
                 v -> state.parallelism = parseInt(v, "--parallelism")));
             case "--no-summary" -> {
                 state.noSummary = true;
+                yield OptionalInt.of(i);
+            }
+            case "--no-shared-session" -> {
+                state.noSharedSession = true;
                 yield OptionalInt.of(i);
             }
             default -> OptionalInt.empty();
