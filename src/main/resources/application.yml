@@ -27,9 +27,6 @@ reviewer:
   circuit-breaker:
     failure-threshold: 8
     reset-timeout-ms: 30000
-  feature-flags:
-    structured-concurrency: ${REVIEWER_STRUCTURED_CONCURRENCY:false}
-    structured-concurrency-skills: ${REVIEWER_STRUCTURED_CONCURRENCY_SKILLS:${REVIEWER_STRUCTURED_CONCURRENCY:false}}
   local-files:
     max-file-size: 262144
     max-total-size: 2097152

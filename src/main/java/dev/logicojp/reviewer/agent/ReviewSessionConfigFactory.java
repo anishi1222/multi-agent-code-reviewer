@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.sdk.SystemMessageMode;
+import com.github.copilot.sdk.json.PermissionHandler;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
@@ -19,6 +20,7 @@ final class ReviewSessionConfigFactory {
                          Map<String, Object> mcpServers) {
         var sessionConfig = new SessionConfig()
             .setModel(config.model())
+            .setOnPermissionRequest(PermissionHandler.APPROVE_ALL)
             .setSystemMessage(new SystemMessageConfig()
                 .setMode(SystemMessageMode.APPEND)
                 .setContent(systemPrompt));

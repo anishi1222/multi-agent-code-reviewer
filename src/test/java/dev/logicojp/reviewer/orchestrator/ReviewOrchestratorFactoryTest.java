@@ -16,7 +16,6 @@ import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.CopilotStartupErrorFormatter;
 import dev.logicojp.reviewer.service.CopilotTimeoutResolver;
 import dev.logicojp.reviewer.service.TemplateService;
-import dev.logicojp.reviewer.util.FeatureFlags;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -58,7 +57,6 @@ class ReviewOrchestratorFactoryTest {
             copilotService,
             new GithubMcpConfig(null, null, null, null, null, null),
             new LocalFileConfig(),
-            new FeatureFlags(false, false),
             new CircuitBreakerFactory(new CircuitBreakerConfig(
                 CircuitBreakerConfig.DEFAULT_FAILURE_THRESHOLD,
                 CircuitBreakerConfig.DEFAULT_RESET_TIMEOUT_MS

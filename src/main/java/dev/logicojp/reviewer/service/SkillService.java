@@ -14,7 +14,6 @@ import dev.logicojp.reviewer.skill.SkillExecutor;
 import dev.logicojp.reviewer.skill.SkillRegistry;
 import dev.logicojp.reviewer.skill.SkillResult;
 import dev.logicojp.reviewer.util.ExecutorUtils;
-import dev.logicojp.reviewer.util.FeatureFlags;
 import dev.logicojp.reviewer.util.TokenHashUtils;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
@@ -40,7 +39,6 @@ public class SkillService {
     private final GithubMcpConfig githubMcpConfig;
     private final ExecutionConfig executionConfig;
     private final SkillConfig skillConfig;
-    private final FeatureFlags featureFlags;
     private final SharedCircuitBreaker circuitBreaker;
     private final ExecutorService executorService;
     private final Cache<ExecutorCacheKey, SkillExecutor> executorCache;
@@ -51,9 +49,8 @@ public class SkillService {
                         GithubMcpConfig githubMcpConfig,
                         ExecutionConfig executionConfig,
                         SkillConfig skillConfig,
-                        FeatureFlags featureFlags,
                         CircuitBreakerFactory circuitBreakerFactory) {
-        this(skillRegistry, copilotService, githubMcpConfig, executionConfig, skillConfig, featureFlags,
+        this(skillRegistry, copilotService, githubMcpConfig, executionConfig, skillConfig,
                     circuitBreakerFactory.forSkill());
     }
 
@@ -62,14 +59,12 @@ public class SkillService {
                      GithubMcpConfig githubMcpConfig,
                      ExecutionConfig executionConfig,
                      SkillConfig skillConfig,
-                     FeatureFlags featureFlags,
                      SharedCircuitBreaker circuitBreaker) {
         this.skillRegistry = skillRegistry;
         this.copilotService = copilotService;
         this.githubMcpConfig = githubMcpConfig;
         this.executionConfig = executionConfig;
         this.skillConfig = skillConfig;
-        this.featureFlags = featureFlags;
         this.circuitBreaker = circuitBreaker;
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
         this.executorCache = Caffeine.newBuilder()
@@ -158,7 +153,6 @@ public class SkillService {
             new SkillExecutor.SkillExecutorConfig(
                 model,
                 executionConfig.skillTimeoutMinutes(),
-                featureFlags.structuredConcurrencySkills(),
                 skillConfig.maxParameterValueLength(),
                 skillConfig.executorShutdownTimeoutSeconds()
             ),

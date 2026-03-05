@@ -8,7 +8,6 @@ import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
-import dev.logicojp.reviewer.util.FeatureFlags;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +28,6 @@ class ReviewOrchestratorTest {
             null,
             new GithubMcpConfig(null, null, null, null, null, null),
             new LocalFileConfig(),
-            new FeatureFlags(false, false),
             ExecutionConfig.ofFlat(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
             "high",
             null,

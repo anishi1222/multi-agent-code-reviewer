@@ -6,7 +6,6 @@ import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.TemplateService;
-import dev.logicojp.reviewer.util.FeatureFlags;
 import com.github.copilot.sdk.CopilotClient;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
@@ -33,7 +32,6 @@ public class ReviewOrchestratorFactory {
     private final CopilotService copilotService;
     private final GithubMcpConfig githubMcpConfig;
     private final LocalFileConfig localFileConfig;
-    private final FeatureFlags featureFlags;
     private final TemplateService templateService;
     private final CircuitBreakerFactory circuitBreakerFactory;
     private final OrchestratorCreator orchestratorCreator;
@@ -42,14 +40,12 @@ public class ReviewOrchestratorFactory {
     public ReviewOrchestratorFactory(CopilotService copilotService,
                                      GithubMcpConfig githubMcpConfig,
                                      LocalFileConfig localFileConfig,
-                                     FeatureFlags featureFlags,
                                      CircuitBreakerFactory circuitBreakerFactory,
                                      TemplateService templateService) {
         this(
             copilotService,
             githubMcpConfig,
             localFileConfig,
-            featureFlags,
             circuitBreakerFactory,
             templateService,
             (client, orchestratorConfig) -> {
@@ -66,14 +62,12 @@ public class ReviewOrchestratorFactory {
     ReviewOrchestratorFactory(CopilotService copilotService,
                               GithubMcpConfig githubMcpConfig,
                               LocalFileConfig localFileConfig,
-                              FeatureFlags featureFlags,
                               CircuitBreakerFactory circuitBreakerFactory,
                               TemplateService templateService,
                               OrchestratorCreator orchestratorCreator) {
         this.copilotService = copilotService;
         this.githubMcpConfig = githubMcpConfig;
         this.localFileConfig = localFileConfig;
-        this.featureFlags = featureFlags;
         this.circuitBreakerFactory = circuitBreakerFactory;
         this.templateService = templateService;
         this.orchestratorCreator = orchestratorCreator;
@@ -109,7 +103,6 @@ public class ReviewOrchestratorFactory {
             githubToken,
             githubMcpConfig,
             localFileConfig,
-            featureFlags,
             executionConfig,
             reasoningEffort,
             outputConstraints,

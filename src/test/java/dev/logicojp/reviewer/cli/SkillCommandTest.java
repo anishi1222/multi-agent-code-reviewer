@@ -13,7 +13,6 @@ import dev.logicojp.reviewer.service.CopilotTimeoutResolver;
 import dev.logicojp.reviewer.service.SkillService;
 import dev.logicojp.reviewer.skill.SkillRegistry;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
-import dev.logicojp.reviewer.util.FeatureFlags;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -98,7 +97,6 @@ class SkillCommandTest {
             new GithubMcpConfig(null, null, null, null, null, null),
             EXECUTION_CONFIG,
             SkillConfig.defaults(),
-            new FeatureFlags(false, false),
             new CircuitBreakerFactory(new CircuitBreakerConfig(8, 30_000L))
         );
 

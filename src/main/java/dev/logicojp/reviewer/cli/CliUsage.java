@@ -11,12 +11,6 @@ public final class CliUsage {
                 -v, --verbose               Enable verbose logging
                 --version                   Show version
 
-            Feature flags (env / JVM properties):
-                REVIEWER_STRUCTURED_CONCURRENCY=true
-                REVIEWER_STRUCTURED_CONCURRENCY_SKILLS=true
-                -Dreviewer.structuredConcurrency=true
-                -Dreviewer.structuredConcurrency.skills=true
-
             Commands:
                 run    Execute a multi-agent code review
                 list   List available agents

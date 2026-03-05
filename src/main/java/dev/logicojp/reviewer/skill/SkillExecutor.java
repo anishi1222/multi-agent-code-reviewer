@@ -9,6 +9,7 @@ import dev.logicojp.reviewer.util.RetryPolicyUtils;
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.json.MessageOptions;
+import com.github.copilot.sdk.json.PermissionHandler;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
 import io.micronaut.core.annotation.Nullable;
@@ -38,7 +39,6 @@ public class SkillExecutor implements AutoCloseable {
     private final int executorShutdownTimeoutSeconds;
     private final Executor executor;
     private final boolean ownsExecutor;
-    private final boolean structuredConcurrencyEnabled;
     private final Map<String, Object> cachedMcpServers;
     private final SharedCircuitBreaker circuitBreaker;
 
@@ -72,7 +72,6 @@ public class SkillExecutor implements AutoCloseable {
         this.executorShutdownTimeoutSeconds = config.executorShutdownTimeoutSeconds();
         this.executor = executor;
         this.ownsExecutor = ownsExecutor;
-        this.structuredConcurrencyEnabled = config.structuredConcurrencyEnabled();
         this.cachedMcpServers = GithubMcpConfig.buildMcpServers(githubToken, githubMcpConfig).orElse(Map.of());
         this.circuitBreaker = circuitBreaker;
     }
@@ -81,7 +80,6 @@ public class SkillExecutor implements AutoCloseable {
     public record SkillExecutorConfig(
         String defaultModel,
         long timeoutMinutes,
-        boolean structuredConcurrencyEnabled,
         int maxParameterValueLength,
         int executorShutdownTimeoutSeconds
     ) {
@@ -114,9 +112,7 @@ public class SkillExecutor implements AutoCloseable {
         );
 
         return retryExecutor.execute(
-            () -> structuredConcurrencyEnabled
-                ? executeWithStructuredConcurrency(skill, parameters, systemPrompt)
-                : executeSync(skill, parameters, systemPrompt),
+            () -> executeWithStructuredConcurrency(skill, parameters, systemPrompt),
             e -> SkillResult.failure(skill.id(), e.getMessage()),
             SkillResult::success,
             this::isRetryableFailure,
@@ -224,7 +220,9 @@ public class SkillExecutor implements AutoCloseable {
     }
 
     private SessionConfig buildSkillSessionConfig(String systemPrompt) {
-        var sessionConfig = new SessionConfig().setModel(defaultModel);
+        var sessionConfig = new SessionConfig()
+            .setModel(defaultModel)
+            .setOnPermissionRequest(PermissionHandler.APPROVE_ALL);
         if (!cachedMcpServers.isEmpty()) {
             sessionConfig.setMcpServers(cachedMcpServers);
         }

@@ -2,7 +2,6 @@ package dev.logicojp.reviewer.orchestrator;
 
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
-import dev.logicojp.reviewer.util.FeatureFlags;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +17,6 @@ class OrchestratorConfigTest {
             null,
             null,
             null,
-            new FeatureFlags(false, false),
             ExecutionConfig.defaults(),
             null,
             null,
@@ -36,7 +34,6 @@ class OrchestratorConfigTest {
             "secret-token",
             null,
             new LocalFileConfig(),
-            new FeatureFlags(false, false),
             ExecutionConfig.defaults(),
             null,
             null,

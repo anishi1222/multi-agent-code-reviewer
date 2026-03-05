@@ -10,6 +10,7 @@ import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.json.MessageOptions;
+import com.github.copilot.sdk.json.PermissionHandler;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
@@ -348,6 +349,7 @@ public class SummaryGenerator {
         String systemPrompt = templateService.getSummarySystemPrompt();
         var sessionConfig = new SessionConfig()
             .setModel(config.summaryModel())
+            .setOnPermissionRequest(PermissionHandler.APPROVE_ALL)
             .setSystemMessage(new SystemMessageConfig()
                 .setMode(SystemMessageMode.REPLACE)
                 .setContent(systemPrompt));

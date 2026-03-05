@@ -6,7 +6,6 @@ import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.SkillConfig;
 import dev.logicojp.reviewer.skill.SkillDefinition;
-import dev.logicojp.reviewer.util.FeatureFlags;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +36,6 @@ class SkillServiceTest {
             new GithubMcpConfig(null, null, null, null, null, null),
             ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
             SkillConfig.defaults(),
-            new FeatureFlags(false, false),
             SharedCircuitBreaker.withDefaultConfig()
         );
 
@@ -56,7 +54,6 @@ class SkillServiceTest {
             new GithubMcpConfig(null, null, null, null, null, null),
             ExecutionConfig.ofFlat(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
             SkillConfig.defaults(),
-            new FeatureFlags(false, false),
             SharedCircuitBreaker.withDefaultConfig()
         );
 

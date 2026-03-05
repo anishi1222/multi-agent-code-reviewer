@@ -1841,7 +1841,43 @@
       ]
     },
     {
+      "type": "dev.logicojp.reviewer.config.$ExecutionConfig$BufferSettings$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "dev.logicojp.reviewer.config.$ExecutionConfig$ConcurrencySettings$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "dev.logicojp.reviewer.config.$ExecutionConfig$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "dev.logicojp.reviewer.config.$ExecutionConfig$RetrySettings$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "dev.logicojp.reviewer.config.$ExecutionConfig$TimeoutSettings$Definition",
       "methods": [
         {
           "name": "<init>",
@@ -2067,15 +2103,6 @@
     },
     {
       "type": "dev.logicojp.reviewer.skill.$SkillRegistry$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "dev.logicojp.reviewer.util.$FeatureFlags$Definition",
       "methods": [
         {
           "name": "<init>",

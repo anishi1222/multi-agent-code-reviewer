@@ -42,7 +42,6 @@ public class ReviewOrchestrator implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(ReviewOrchestrator.class);
 
     private final ExecutionConfig executionConfig;
-    private final boolean structuredConcurrencyEnabled;
     /// Initialized in constructor — null when Structured Concurrency mode is active.
     private final ExecutorService executorService;
     /// Dedicated executor for per-agent review execution to avoid commonPool usage.
@@ -83,7 +82,6 @@ public class ReviewOrchestrator implements AutoCloseable {
                        OrchestratorConfig orchestratorConfig,
                        OrchestratorCollaborators collaborators) {
         this.executionConfig = orchestratorConfig.executionConfig();
-        this.structuredConcurrencyEnabled = orchestratorConfig.featureFlags().structuredConcurrency();
         var resources = collaborators.executorResources();
         this.executorService = resources.executorService();
         this.agentExecutionExecutor = resources.agentExecutionExecutor();
@@ -117,11 +115,7 @@ public class ReviewOrchestrator implements AutoCloseable {
             AgentReviewerFactory reviewerFactory,
             LocalSourceCollectorFactory localSourceCollectorFactory,
             SharedCircuitBreaker reviewCircuitBreaker) {
-        boolean structuredConcurrencyEnabled = orchestratorConfig.featureFlags().structuredConcurrency();
-        ExecutorService executorService = structuredConcurrencyEnabled
-            ? null
-            : Executors.newThreadPerTaskExecutor(
-                Thread.ofVirtual().name("review-orchestrator-", 0).factory());
+        ExecutorService executorService = null;
         ExecutorResources resources = null;
         try {
             resources = createExecutorResources(orchestratorConfig, executorService);
@@ -272,16 +266,7 @@ public class ReviewOrchestrator implements AutoCloseable {
     private List<ReviewResult> executeByMode(Map<String, AgentConfig> agents,
                                              ReviewTarget target,
                                              ReviewContext sharedContext) {
-        if (structuredConcurrencyEnabled) {
-            return reviewExecutionModeRunner.executeStructured(
-                agents,
-                target,
-                sharedContext,
-                agentReviewExecutor::executeAgentPassesSafely
-            );
-        }
-
-        return reviewExecutionModeRunner.executeAsync(
+        return reviewExecutionModeRunner.executeStructured(
             agents,
             target,
             sharedContext,
