@@ -28,7 +28,7 @@
 
         <!-- Application dependencies -->
          <assertj.version>3.27.7</assertj.version>
-        <copilot.sdk.version>1.0.10</copilot.sdk.version>
+        <copilot.sdk.version>1.0.11</copilot.sdk.version>
         <graalvm.version>26.ea.13</graalvm.version>
         <dependency.check.version>12.2.0</dependency.check.version>
     </properties>
