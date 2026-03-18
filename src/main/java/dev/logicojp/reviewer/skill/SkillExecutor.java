@@ -27,7 +27,7 @@ public class SkillExecutor implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(SkillExecutor.class);
     private static final int MAX_RETRIES = 1;
     private static final long BACKOFF_BASE_MS = 500L;
-    private static final long BACKOFF_MAX_MS = 15_000L;
+    private static final long BACKOFF_MAX_MS = 30_000L;
     private final CopilotClient client;
     private final String defaultModel;
     private final long timeoutMinutes;

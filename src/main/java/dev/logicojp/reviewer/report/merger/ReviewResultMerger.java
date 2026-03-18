@@ -115,10 +115,8 @@ public final class ReviewResultMerger {
             return result;
         }
 
-        FindingIndex findingIndex = new FindingIndex(findingKeyResolver);
-        collectPassFindings(content, 1, findingBlockExtractor, findingIndex, new LinkedHashSet<>());
-
-        String normalizedContent = mergedContentFormatter.format(findingIndex.findings(), 1, 0);
+        Map<String, AggregatedFinding> lightweightFindings = collectSinglePassFindings(content, findingBlockExtractor);
+        String normalizedContent = mergedContentFormatter.format(lightweightFindings, 1, 0);
         return ReviewResult.builder()
             .agentConfig(result.agentConfig())
             .repository(result.repository())
@@ -127,6 +125,28 @@ public final class ReviewResultMerger {
             .errorMessage(result.errorMessage())
             .timestamp(result.timestamp())
             .build();
+    }
+
+    private static Map<String, AggregatedFinding> collectSinglePassFindings(
+        String content,
+        FindingBlockExtractor findingBlockExtractor
+    ) {
+        List<ReviewFindingParser.FindingBlock> blocks = findingBlockExtractor.extract(content);
+        if (blocks.isEmpty()) {
+            String normalized = ReviewFindingSimilarity.normalizeText(content);
+            if (normalized.isEmpty()) {
+                return Map.of();
+            }
+            return Map.of("fallback|" + normalized,
+                AggregatedFinding.fallbackWithNormalized(content, normalized, 1));
+        }
+
+        Map<String, AggregatedFinding> findings = new LinkedHashMap<>(blocks.size());
+        int order = 0;
+        for (ReviewFindingParser.FindingBlock block : blocks) {
+            findings.put("single|" + order++, AggregatedFinding.lightweight(block, 1));
+        }
+        return findings;
     }
 
     /// Merges multiple results from the same agent into a single result.

@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+/// Starts the Copilot SDK client with retry and exponential backoff.
+/// Transient startup failures are retried up to a bounded number of attempts.
 @Singleton
 public class CopilotClientStarter {
 

@@ -1,0 +1,8 @@
+.git
+.github/workflows
+.idea
+.vscode
+target
+logs
+reports
+**/*.iml

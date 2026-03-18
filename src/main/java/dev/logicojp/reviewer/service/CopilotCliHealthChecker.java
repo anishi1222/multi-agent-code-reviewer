@@ -2,12 +2,14 @@ package dev.logicojp.reviewer.service;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import dev.logicojp.reviewer.util.CliPathResolver;
 import dev.logicojp.reviewer.util.RetryPolicyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -17,13 +19,10 @@ import java.util.concurrent.TimeUnit;
 public class CopilotCliHealthChecker {
 
     private static final Logger logger = LoggerFactory.getLogger(CopilotCliHealthChecker.class);
-    private static final long DEFAULT_CLI_HEALTHCHECK_SECONDS = 10;
     private static final int MAX_CLI_CHECK_ATTEMPTS = 2;
     private static final long CLI_BACKOFF_BASE_MS = 1_000L;
     private static final long CLI_BACKOFF_MAX_MS = 3_000L;
-    private static final String CLI_HEALTHCHECK_ENV = "COPILOT_CLI_HEALTHCHECK_SECONDS";
-    private static final String CLI_AUTH_CHECK_ENV = "COPILOT_CLI_AUTHCHECK_SECONDS";
-    private static final long DEFAULT_CLI_AUTHCHECK_SECONDS = 15;
+    private static final String[] CLI_CANDIDATES = {"github-copilot", "copilot"};
     private static final Path SAFE_WORKING_DIRECTORY =
         Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize();
 
@@ -95,7 +94,8 @@ public class CopilotCliHealthChecker {
     private void runCliCommandOnce(List<String> command, long timeoutSeconds,
                                    String timeoutMessage, String exitMessage, String ioMessage,
                                    String remediationMessage) {
-        ProcessBuilder builder = new ProcessBuilder(command);
+        List<String> validatedCommand = withRevalidatedExecutable(command);
+        ProcessBuilder builder = new ProcessBuilder(validatedCommand);
         builder.directory(SAFE_WORKING_DIRECTORY.toFile());
         builder.redirectErrorStream(true);
         try {
@@ -130,6 +130,20 @@ public class CopilotCliHealthChecker {
         }
     }
 
+    private List<String> withRevalidatedExecutable(List<String> command) {
+        if (command == null || command.isEmpty()) {
+            throw new CopilotCliException("CLI command is empty");
+        }
+        String executable = command.getFirst();
+        Path runtimePath = CliPathResolver.revalidateExecutionPath(executable, CLI_CANDIDATES)
+            .orElseThrow(() -> new CopilotCliException(
+                "Copilot CLI path failed execution-time validation. "
+                    + "The binary may have changed after initial resolution."));
+        List<String> validatedCommand = new ArrayList<>(command);
+        validatedCommand.set(0, runtimePath.toString());
+        return validatedCommand;
+    }
+
     private void handleTimeout(Process process,
                                Thread drainThread,
                                long timeoutSeconds,
@@ -146,10 +160,10 @@ public class CopilotCliHealthChecker {
     }
 
     private long resolveCliHealthcheckSeconds() {
-        return timeoutResolver.resolveEnvTimeout(CLI_HEALTHCHECK_ENV, DEFAULT_CLI_HEALTHCHECK_SECONDS);
+        return timeoutResolver.resolveCliHealthcheckSeconds();
     }
 
     private long resolveCliAuthcheckSeconds() {
-        return timeoutResolver.resolveEnvTimeout(CLI_AUTH_CHECK_ENV, DEFAULT_CLI_AUTHCHECK_SECONDS);
+        return timeoutResolver.resolveCliAuthcheckSeconds();
     }
 }

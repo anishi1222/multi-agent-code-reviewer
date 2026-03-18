@@ -116,4 +116,41 @@ class RetryExecutorTest {
         assertThat(result).isEqualTo("mapped-open");
         assertThat(circuitOpenCalls.get()).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("リトライ途中でサーキットが開いた場合は次試行を短絡する")
+    void shortCircuitsWhenCircuitOpensBetweenAttempts() {
+        SharedCircuitBreaker circuitBreaker = new SharedCircuitBreaker(1, 60_000L);
+        AtomicInteger attempts = new AtomicInteger();
+        AtomicInteger circuitOpenCalls = new AtomicInteger();
+
+        RetryExecutor<String> executor = new RetryExecutor<>(
+            2,
+            1,
+            1,
+            _ -> {},
+            circuitBreaker
+        );
+
+        String result = executor.execute(
+            () -> {
+                attempts.incrementAndGet();
+                throw new IOException("temporary");
+            },
+            exception -> "mapped-open-after-failure",
+            "ok"::equals,
+            _ -> false,
+            exception -> exception instanceof IOException,
+            new RetryExecutor.RetryObserver<>() {
+                @Override
+                public void onCircuitOpen() {
+                    circuitOpenCalls.incrementAndGet();
+                }
+            }
+        );
+
+        assertThat(result).isEqualTo("mapped-open-after-failure");
+        assertThat(attempts.get()).isEqualTo(1);
+        assertThat(circuitOpenCalls.get()).isEqualTo(1);
+    }
 }

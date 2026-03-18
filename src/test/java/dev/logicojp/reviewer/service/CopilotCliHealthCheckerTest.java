@@ -2,6 +2,12 @@ package dev.logicojp.reviewer.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -19,8 +25,12 @@ class CopilotCliHealthCheckerTest {
 
     @Test
     @DisplayName("正常なCLIパスではヘルスチェックが成功する")
-    void succeedsWithValidCliPath() {
-        assertThatCode(() -> checker.verifyCliHealthy("/bin/true", true)).doesNotThrowAnyException();
+    void succeedsWithValidCliPath(@TempDir Path tempDir) throws IOException {
+        Path fakeCli = tempDir.resolve("github-copilot");
+        Files.writeString(fakeCli, "#!/usr/bin/env sh\nexit 0\n", StandardCharsets.UTF_8);
+        fakeCli.toFile().setExecutable(true);
+        assertThatCode(() -> checker.verifyCliHealthy(fakeCli.toRealPath().toString(), true))
+            .doesNotThrowAnyException();
     }
 
     @Test
@@ -28,6 +38,6 @@ class CopilotCliHealthCheckerTest {
     void throwsWhenCliPathIsInvalid() {
         assertThatThrownBy(() -> checker.verifyCliHealthy("/path/does/not/exist", true))
             .isInstanceOf(CopilotCliException.class)
-            .hasMessageContaining("Failed to execute Copilot CLI");
+            .hasMessageContaining("execution-time validation");
     }
 }

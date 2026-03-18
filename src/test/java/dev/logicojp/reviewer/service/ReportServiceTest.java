@@ -8,6 +8,7 @@ import dev.logicojp.reviewer.report.sanitize.ContentSanitizer;
 import dev.logicojp.reviewer.report.summary.SummaryGenerator;
 
 import com.github.copilot.sdk.CopilotClient;
+import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.SummaryConfig;
 import dev.logicojp.reviewer.config.TemplateConfig;
@@ -67,11 +68,10 @@ class ReportServiceTest {
 
         CopilotService copilotService = new CopilotService(
             new CopilotCliPathResolver(),
-            new CopilotCliHealthChecker(new CopilotTimeoutResolver()),
-            new CopilotTimeoutResolver(),
+            new CopilotCliHealthChecker(new CopilotTimeoutResolver(new CopilotConfig(null, null, null, 60, 10, 15))),
+            new CopilotConfig(null, null, null, 60, 10, 15),
             new CopilotStartupErrorFormatter(),
-            new CopilotClientStarter(),
-            null
+            new CopilotClientStarter()
         ) {
             @Override
             public CopilotClient getClient() {
@@ -126,11 +126,10 @@ class ReportServiceTest {
 
         CopilotService copilotService = new CopilotService(
             new CopilotCliPathResolver(),
-            new CopilotCliHealthChecker(new CopilotTimeoutResolver()),
-            new CopilotTimeoutResolver(),
+            new CopilotCliHealthChecker(new CopilotTimeoutResolver(new CopilotConfig(null, null, null, 60, 10, 15))),
+            new CopilotConfig(null, null, null, 60, 10, 15),
             new CopilotStartupErrorFormatter(),
-            new CopilotClientStarter(),
-            null
+            new CopilotClientStarter()
         ) {
             @Override
             public CopilotClient getClient() {

@@ -296,6 +296,11 @@ public class SummaryGenerator {
         int contentAttempts = AI_SUMMARY_MAX_RETRIES + 1;
 
         for (int attempt = 1; attempt <= contentAttempts; attempt++) {
+            if (!circuitBreaker.allowRequest()) {
+                logger.warn("Summary generation short-circuited by open circuit breaker on content attempt {}/{}",
+                    attempt, contentAttempts);
+                return null;
+            }
             var response = session
                 .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
                 .get(config.timeoutMinutes(), TimeUnit.MINUTES);

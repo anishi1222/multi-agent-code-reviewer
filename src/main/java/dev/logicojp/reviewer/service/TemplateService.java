@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -26,6 +27,7 @@ public class TemplateService {
 
     private static final Logger logger = LoggerFactory.getLogger(TemplateService.class);
     private static final int MAX_TEMPLATE_CACHE_SIZE = 64;
+    private static final Duration TEMPLATE_CACHE_TTL = Duration.ofMinutes(30);
 
     private final TemplateConfig config;
     private final Cache<String, String> templateCache;
@@ -36,6 +38,7 @@ public class TemplateService {
         this.config = config;
         this.templateCache = Caffeine.newBuilder()
             .maximumSize(MAX_TEMPLATE_CACHE_SIZE)
+            .expireAfterWrite(TEMPLATE_CACHE_TTL)
             .build();
     }
 

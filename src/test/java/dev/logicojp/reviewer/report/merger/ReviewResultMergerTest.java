@@ -108,6 +108,26 @@ class ReviewResultMergerTest {
         }
 
         @Test
+        @DisplayName("単一パスではキー解決ロジックを実行しない")
+        void singlePassSkipsFindingKeyResolver() {
+            var agent = createAgent("performance");
+            var result = successResult(agent, finding("1", "N+1", "Medium",
+                "ループ内クエリ", "遅延", "src/B.java L20"));
+
+            List<ReviewResult> merged = ReviewResultMerger.mergeByAgent(
+                List.of(result),
+                ReviewFindingParser::extractFindingBlocks,
+                (_, _) -> {
+                    throw new AssertionError("key resolver should not be called in single-pass mode");
+                },
+                (findings, total, failed) -> "OK:" + findings.size()
+            );
+
+            assertThat(merged).hasSize(1);
+            assertThat(merged.getFirst().content()).isEqualTo("OK:1");
+        }
+
+        @Test
         @DisplayName("単一パスの末尾に含まれた総評セクションは除去される")
         void trailingOverallSectionIsRemovedFromSinglePassFindingBody() {
             var agent = createAgent("security");

@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.util;
 
+import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.Nullable;
@@ -36,32 +37,47 @@ public final class GitHubTokenResolver {
     private final long timeoutSeconds;
     private final String configuredGhCliPath;
     private final String configuredPath;
+    private final String configuredGithubToken;
 
     GitHubTokenResolver(long timeoutSeconds) {
-        this(timeoutSeconds, null, null);
+        this(timeoutSeconds, null, null, null);
     }
 
-    GitHubTokenResolver(long timeoutSeconds, @Nullable String configuredGhCliPath, @Nullable String configuredPath) {
+    GitHubTokenResolver(long timeoutSeconds,
+                        @Nullable String configuredGhCliPath,
+                        @Nullable String configuredPath,
+                        @Nullable String configuredGithubToken) {
         this.timeoutSeconds = (timeoutSeconds <= 0) ? DEFAULT_TIMEOUT_SECONDS : timeoutSeconds;
         this.configuredGhCliPath = configuredGhCliPath;
         this.configuredPath = configuredPath;
+        this.configuredGithubToken = configuredGithubToken;
     }
 
     @Inject
     public GitHubTokenResolver(ExecutionConfig executionConfig,
-                               @Nullable @Value("${GH_CLI_PATH:}") String configuredGhCliPath,
+                               CopilotConfig copilotConfig,
                                @Nullable @Value("${PATH:}") String configuredPath) {
-        this(executionConfig.ghAuthTimeoutSeconds(), configuredGhCliPath, configuredPath);
+        this(
+            executionConfig.ghAuthTimeoutSeconds(),
+            copilotConfig.ghCliPath(),
+            configuredPath,
+            copilotConfig.githubToken()
+        );
     }
 
     public GitHubTokenResolver(ExecutionConfig executionConfig) {
-        this(executionConfig.ghAuthTimeoutSeconds(), System.getenv(GH_CLI_PATH_ENV), System.getenv("PATH"));
+        this(executionConfig.ghAuthTimeoutSeconds(), null, null, null);
     }
 
     public Optional<String> resolve(@Nullable String providedToken) {
         String normalized = normalizeToken(providedToken);
         if (normalized != null) {
             return Optional.of(normalized);
+        }
+
+        String configuredToken = normalizeToken(configuredGithubToken);
+        if (configuredToken != null) {
+            return Optional.of(configuredToken);
         }
 
         return resolveFromGhAuth();
@@ -135,7 +151,13 @@ public final class GitHubTokenResolver {
     }
 
     private Optional<String> attemptResolveFromGhAuth(String ghPath) {
-        ProcessBuilder builder = new ProcessBuilder(ghPath, "auth", "token", "-h", "github.com");
+        Path executionPath = CliPathResolver.revalidateExecutionPath(ghPath, "gh")
+            .orElse(null);
+        if (executionPath == null) {
+            logger.warn("gh CLI path changed or became invalid before execution: {}", ghPath);
+            return Optional.empty();
+        }
+        ProcessBuilder builder = new ProcessBuilder(executionPath.toString(), "auth", "token", "-h", "github.com");
         builder.directory(SAFE_WORKING_DIRECTORY.toFile());
         // Avoid propagating parent-process token env to child processes.
         builder.environment().remove(GITHUB_TOKEN_ENV);
@@ -190,7 +212,7 @@ public final class GitHubTokenResolver {
         if (configuredPath == null || configuredPath.isBlank()) {
             return null;
         }
-        return CliPathResolver.findExecutableInPath("gh")
+        return CliPathResolver.findExecutableInPathValue(configuredPath, "gh")
             .map(path -> path.toAbsolutePath().normalize().toString())
             .orElse(null);
     }

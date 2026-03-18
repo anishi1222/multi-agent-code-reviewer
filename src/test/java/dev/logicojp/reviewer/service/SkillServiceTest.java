@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.service;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
+import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.SkillConfig;
@@ -18,13 +19,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SkillServiceTest {
 
     private static CopilotService newCopilotService() {
+        var copilotConfig = new CopilotConfig(null, null, null, 60, 10, 15);
         return new CopilotService(
             new CopilotCliPathResolver(),
-            new CopilotCliHealthChecker(new CopilotTimeoutResolver()),
-            new CopilotTimeoutResolver(),
+            new CopilotCliHealthChecker(new CopilotTimeoutResolver(copilotConfig)),
+            copilotConfig,
             new CopilotStartupErrorFormatter(),
-            new CopilotClientStarter(),
-            null
+            new CopilotClientStarter()
         );
     }
 

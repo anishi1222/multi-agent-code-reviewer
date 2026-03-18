@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -68,6 +69,23 @@ jobs:
       - name: Build fat JAR
         run: mvn -B -ntp -DskipTests package
 
+      - name: Upload JVM artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.6
+        with:
+          name: jvm-artifact
+          path: target/*-SNAPSHOT.jar
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.6
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/**
+          if-no-files-found: warn
+          retention-days: 7
+
   build-native-image:
     name: Build Native Image
     runs-on: ubuntu-latest
@@ -91,6 +109,36 @@ jobs:
       - name: Build Native Image
         continue-on-error: true
         run: mvn -B -ntp -Pnative -DskipTests package
+
+      - name: Upload native image artifact
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.6
+        with:
+          name: native-image
+          path: |
+            target/review
+            target/review.exe
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Archive generated reports if present
+        if: always()
+        run: |
+          latest="$(find reports -mindepth 1 -maxdepth 3 -type d | sort | tail -n 1 || true)"
+          if [ -n "${latest}" ] && [ -d "${latest}" ]; then
+            scripts/archive-reports.sh "${latest}" "reports-latest.tar.gz"
+          else
+            echo "No generated report directory found; skipping archive."
+          fi
+
+      - name: Upload report archive if present
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.6
+        with:
+          name: reports-archive
+          path: reports-latest.tar.gz
+          if-no-files-found: warn
+          retention-days: 7
 
   dependency-audit:
     name: Dependency Audit

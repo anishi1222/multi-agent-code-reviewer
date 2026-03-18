@@ -180,6 +180,10 @@ java --enable-preview \
   -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --repo owner/repository --all
 ```
 
+- `-XX:+DisableAttachMechanism`: 実行中のアタッチ/デバッグ経路からのトークン露出リスク低減に有効です。
+- `-XX:-HeapDumpOnOutOfMemoryError`: トークンを含む可能性のあるヒープダンプの自動出力を抑止します。
+- 運用上ヒープダンプが必要な場合は、厳格なアクセス制御がある保存先に限定し、保持期間を短くしてください。
+
 ### 基本的な使用方法
 
 ```bash

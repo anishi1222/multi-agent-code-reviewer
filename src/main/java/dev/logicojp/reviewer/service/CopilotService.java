@@ -2,8 +2,7 @@ package dev.logicojp.reviewer.service;
 
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.json.CopilotClientOptions;
-import io.micronaut.context.annotation.Value;
-import io.micronaut.core.annotation.Nullable;
+import dev.logicojp.reviewer.config.CopilotConfig;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
@@ -25,15 +24,13 @@ public class CopilotService {
     
     private static final Logger logger = LoggerFactory.getLogger(CopilotService.class);
     private static final long DEFAULT_START_TIMEOUT_SECONDS = 60;
-    private static final String START_TIMEOUT_ENV = "COPILOT_START_TIMEOUT_SECONDS";
     private static final String UNRESOLVED_TOKEN_PLACEHOLDER = "${GITHUB_TOKEN}";
 
     private final CopilotCliPathResolver cliPathResolver;
     private final CopilotCliHealthChecker cliHealthChecker;
-    private final CopilotTimeoutResolver timeoutResolver;
+    private final CopilotConfig copilotConfig;
     private final CopilotStartupErrorFormatter startupErrorFormatter;
     private final CopilotClientStarter clientStarter;
-    private final @Nullable String startupToken;
     /// `volatile` provides safe publication for lock-free reads in `getClient()/isInitialized()`.
     /// Mutations are serialized by synchronized lifecycle methods (`initialize`, `shutdown`).
     private volatile CopilotClient client;
@@ -42,16 +39,14 @@ public class CopilotService {
     @Inject
     public CopilotService(CopilotCliPathResolver cliPathResolver,
                           CopilotCliHealthChecker cliHealthChecker,
-                          CopilotTimeoutResolver timeoutResolver,
+                          CopilotConfig copilotConfig,
                           CopilotStartupErrorFormatter startupErrorFormatter,
-                          CopilotClientStarter clientStarter,
-                          @Nullable @Value("${GITHUB_TOKEN:}") String startupToken) {
+                          CopilotClientStarter clientStarter) {
         this.cliPathResolver = cliPathResolver;
         this.cliHealthChecker = cliHealthChecker;
-        this.timeoutResolver = timeoutResolver;
+        this.copilotConfig = copilotConfig;
         this.startupErrorFormatter = startupErrorFormatter;
         this.clientStarter = clientStarter;
-        this.startupToken = startupToken;
     }
 
     /// Attempts eager initialization during bean startup using GITHUB_TOKEN when available.
@@ -59,7 +54,7 @@ public class CopilotService {
     @PostConstruct
     void initializeAtStartup() {
         try {
-            initializeOrThrow(startupToken);
+            initializeOrThrow(copilotConfig.githubToken());
         } catch (CopilotCliException e) {
             logger.debug("Skipping eager Copilot initialization at startup: {}", e.getMessage(), e);
         }
@@ -160,7 +155,7 @@ public class CopilotService {
     }
 
     private long resolveStartTimeoutSeconds() {
-        return timeoutResolver.resolveEnvTimeout(START_TIMEOUT_ENV, DEFAULT_START_TIMEOUT_SECONDS);
+        return copilotConfig.startTimeoutSeconds();
     }
 
     private void applyCliPathOption(CopilotClientOptions options, String cliPath) {

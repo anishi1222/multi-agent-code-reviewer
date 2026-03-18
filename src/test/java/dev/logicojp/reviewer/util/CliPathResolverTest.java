@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.util;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -21,8 +22,22 @@ class CliPathResolverTest {
     @Test
     @DisplayName("存在しないPATH候補の場合はemptyを返す")
     void notFoundInPathReturnsEmpty() {
-        Optional<java.nio.file.Path> resolved = CliPathResolver.findExecutableInPath("___no_such_bin___");
+        Optional<java.nio.file.Path> resolved = CliPathResolver.findExecutableInPathValue(
+            "/path/that/does/not/exist",
+            "___no_such_bin___"
+        );
         assertThat(resolved).isEmpty();
+    }
+
+    @Test
+    @DisplayName("実行直前の再検証で実パス不一致はemptyを返す")
+    void revalidateExecutionPathRejectsRealPathMismatch() throws IOException {
+        String symlinkPath = "/bin/true";
+        Path realPath = Path.of(symlinkPath).toRealPath();
+        if (!realPath.toString().equals(Path.of(symlinkPath).toAbsolutePath().normalize().toString())) {
+            Optional<Path> resolved = CliPathResolver.revalidateExecutionPath(symlinkPath, "true");
+            assertThat(resolved).isEmpty();
+        }
     }
 
     @Test

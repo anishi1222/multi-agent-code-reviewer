@@ -1,38 +1,83 @@
 package dev.logicojp.reviewer.config;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.core.bind.annotation.Bindable;
+import io.micronaut.core.annotation.Nullable;
+import java.util.Objects;
 
 /// Configuration for execution settings (parallelism, timeouts).
 @ConfigurationProperties("reviewer.execution")
 public record ExecutionConfig(
-    ConcurrencySettings concurrency,
-    TimeoutSettings timeouts,
-    RetrySettings retry,
-    BufferSettings buffers,
-    Boolean sharedSessionEnabled
+    @Nullable ConcurrencySettings concurrency,
+    @Nullable TimeoutSettings timeouts,
+    @Nullable RetrySettings retry,
+    @Nullable BufferSettings buffers,
+    @Bindable(defaultValue = "true") @Nullable Boolean sharedSessionEnabled
 ) {
 
     @ConfigurationProperties("concurrency")
-    public record ConcurrencySettings(int parallelism, int reviewPasses) {
+    public record ConcurrencySettings(
+        @Bindable(defaultValue = "4") int parallelism,
+        @Bindable(defaultValue = "1") int reviewPasses
+    ) {
+        public ConcurrencySettings {
+            parallelism = ConfigDefaults.defaultIfNonPositive(parallelism, DEFAULT_PARALLELISM);
+            reviewPasses = ConfigDefaults.defaultIfNonPositive(reviewPasses, DEFAULT_REVIEW_PASSES);
+        }
     }
 
     @ConfigurationProperties("timeouts")
-    public record TimeoutSettings(long orchestratorTimeoutMinutes,
-                                  long agentTimeoutMinutes,
-                                  long idleTimeoutMinutes,
-                                  long skillTimeoutMinutes,
-                                  long summaryTimeoutMinutes,
-                                  long ghAuthTimeoutSeconds) {
+    public record TimeoutSettings(
+        @Bindable(defaultValue = "10") long orchestratorTimeoutMinutes,
+        @Bindable(defaultValue = "5") long agentTimeoutMinutes,
+        @Bindable(defaultValue = "5") long idleTimeoutMinutes,
+        @Bindable(defaultValue = "5") long skillTimeoutMinutes,
+        @Bindable(defaultValue = "5") long summaryTimeoutMinutes,
+        @Bindable(defaultValue = "10") long ghAuthTimeoutSeconds
+    ) {
+        public TimeoutSettings {
+            orchestratorTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(
+                orchestratorTimeoutMinutes,
+                DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES
+            );
+            agentTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(agentTimeoutMinutes, DEFAULT_AGENT_TIMEOUT_MINUTES);
+            idleTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(idleTimeoutMinutes, DEFAULT_IDLE_TIMEOUT_MINUTES);
+            skillTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(skillTimeoutMinutes, DEFAULT_SKILL_TIMEOUT_MINUTES);
+            summaryTimeoutMinutes = ConfigDefaults.defaultIfNonPositive(
+                summaryTimeoutMinutes,
+                DEFAULT_SUMMARY_TIMEOUT_MINUTES
+            );
+            ghAuthTimeoutSeconds = ConfigDefaults.defaultIfNonPositive(
+                ghAuthTimeoutSeconds,
+                DEFAULT_GH_AUTH_TIMEOUT_SECONDS
+            );
+        }
     }
 
     @ConfigurationProperties("retry")
-    public record RetrySettings(int maxRetries) {
+    public record RetrySettings(@Bindable(defaultValue = "2") int maxRetries) {
+        public RetrySettings {
+            maxRetries = ConfigDefaults.defaultIfNegative(maxRetries, DEFAULT_MAX_RETRIES);
+        }
     }
 
     @ConfigurationProperties("buffers")
-    public record BufferSettings(int maxAccumulatedSize,
-                                 int initialAccumulatedCapacity,
-                                 int instructionBufferExtraCapacity) {
+    public record BufferSettings(
+        @Bindable(defaultValue = "4194304") int maxAccumulatedSize,
+        @Bindable(defaultValue = "4096") int initialAccumulatedCapacity,
+        @Bindable(defaultValue = "32") int instructionBufferExtraCapacity
+    ) {
+        public BufferSettings {
+            maxAccumulatedSize = ConfigDefaults.defaultIfNonPositive(maxAccumulatedSize, DEFAULT_MAX_ACCUMULATED_SIZE);
+            initialAccumulatedCapacity = ConfigDefaults.defaultIfNonPositive(
+                initialAccumulatedCapacity,
+                DEFAULT_INITIAL_ACCUMULATED_CAPACITY
+            );
+            instructionBufferExtraCapacity = ConfigDefaults.defaultIfNonPositive(
+                instructionBufferExtraCapacity,
+                DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
+            );
+        }
     }
 
     public static final int DEFAULT_MAX_RETRIES = 2;
@@ -50,56 +95,41 @@ public record ExecutionConfig(
     public static final int DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY = 32;
 
     public ExecutionConfig {
-        // Apply defaults explicitly for each grouped field.
-        // Record compact constructors do not support reflective bulk defaulting,
-        // so each value is normalized to keep configuration behavior predictable.
-        concurrency = concurrency != null
-            ? new ConcurrencySettings(
-                ConfigDefaults.defaultIfNonPositive(concurrency.parallelism(), DEFAULT_PARALLELISM),
-                ConfigDefaults.defaultIfNonPositive(concurrency.reviewPasses(), DEFAULT_REVIEW_PASSES)
-            )
-            : new ConcurrencySettings(DEFAULT_PARALLELISM, DEFAULT_REVIEW_PASSES);
-
-        timeouts = timeouts != null
-            ? new TimeoutSettings(
-                ConfigDefaults.defaultIfNonPositive(timeouts.orchestratorTimeoutMinutes(), DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES),
-                ConfigDefaults.defaultIfNonPositive(timeouts.agentTimeoutMinutes(), DEFAULT_AGENT_TIMEOUT_MINUTES),
-                ConfigDefaults.defaultIfNonPositive(timeouts.idleTimeoutMinutes(), DEFAULT_IDLE_TIMEOUT_MINUTES),
-                ConfigDefaults.defaultIfNonPositive(timeouts.skillTimeoutMinutes(), DEFAULT_SKILL_TIMEOUT_MINUTES),
-                ConfigDefaults.defaultIfNonPositive(timeouts.summaryTimeoutMinutes(), DEFAULT_SUMMARY_TIMEOUT_MINUTES),
-                ConfigDefaults.defaultIfNonPositive(timeouts.ghAuthTimeoutSeconds(), DEFAULT_GH_AUTH_TIMEOUT_SECONDS)
-            )
-            : new TimeoutSettings(
-                DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES,
-                DEFAULT_AGENT_TIMEOUT_MINUTES,
-                DEFAULT_IDLE_TIMEOUT_MINUTES,
-                DEFAULT_SKILL_TIMEOUT_MINUTES,
-                DEFAULT_SUMMARY_TIMEOUT_MINUTES,
-                DEFAULT_GH_AUTH_TIMEOUT_SECONDS
-            );
-
-        retry = retry != null
-            ? new RetrySettings(ConfigDefaults.defaultIfNegative(retry.maxRetries(), DEFAULT_MAX_RETRIES))
-            : new RetrySettings(DEFAULT_MAX_RETRIES);
-
-        buffers = buffers != null
-            ? new BufferSettings(
-                ConfigDefaults.defaultIfNonPositive(buffers.maxAccumulatedSize(), DEFAULT_MAX_ACCUMULATED_SIZE),
-                ConfigDefaults.defaultIfNonPositive(buffers.initialAccumulatedCapacity(), DEFAULT_INITIAL_ACCUMULATED_CAPACITY),
-                ConfigDefaults.defaultIfNonPositive(
-                    buffers.instructionBufferExtraCapacity(),
-                    DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
-                )
-            )
-            : new BufferSettings(
-                DEFAULT_MAX_ACCUMULATED_SIZE,
-                DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
-                DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
-            );
+        concurrency = Objects.requireNonNullElseGet(concurrency, ExecutionConfig::defaultConcurrency);
+        timeouts = Objects.requireNonNullElseGet(timeouts, ExecutionConfig::defaultTimeouts);
+        retry = Objects.requireNonNullElseGet(retry, ExecutionConfig::defaultRetry);
+        buffers = Objects.requireNonNullElseGet(buffers, ExecutionConfig::defaultBuffers);
 
         sharedSessionEnabled = sharedSessionEnabled != null
             ? sharedSessionEnabled
             : DEFAULT_SHARED_SESSION_ENABLED;
+    }
+
+    private static ConcurrencySettings defaultConcurrency() {
+        return new ConcurrencySettings(DEFAULT_PARALLELISM, DEFAULT_REVIEW_PASSES);
+    }
+
+    private static TimeoutSettings defaultTimeouts() {
+        return new TimeoutSettings(
+            DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES,
+            DEFAULT_AGENT_TIMEOUT_MINUTES,
+            DEFAULT_IDLE_TIMEOUT_MINUTES,
+            DEFAULT_SKILL_TIMEOUT_MINUTES,
+            DEFAULT_SUMMARY_TIMEOUT_MINUTES,
+            DEFAULT_GH_AUTH_TIMEOUT_SECONDS
+        );
+    }
+
+    private static RetrySettings defaultRetry() {
+        return new RetrySettings(DEFAULT_MAX_RETRIES);
+    }
+
+    private static BufferSettings defaultBuffers() {
+        return new BufferSettings(
+            DEFAULT_MAX_ACCUMULATED_SIZE,
+            DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
+            DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
+        );
     }
 
     public static ExecutionConfig of(ConcurrencySettings concurrency,
@@ -188,21 +218,10 @@ public record ExecutionConfig(
     /// Useful in tests and as a starting point for the Builder.
     public static ExecutionConfig defaults() {
         return ExecutionConfig.of(
-            new ConcurrencySettings(DEFAULT_PARALLELISM, DEFAULT_REVIEW_PASSES),
-            new TimeoutSettings(
-                DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES,
-                DEFAULT_AGENT_TIMEOUT_MINUTES,
-                DEFAULT_IDLE_TIMEOUT_MINUTES,
-                DEFAULT_SKILL_TIMEOUT_MINUTES,
-                DEFAULT_SUMMARY_TIMEOUT_MINUTES,
-                DEFAULT_GH_AUTH_TIMEOUT_SECONDS
-            ),
-            new RetrySettings(DEFAULT_MAX_RETRIES),
-            new BufferSettings(
-                DEFAULT_MAX_ACCUMULATED_SIZE,
-                DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
-                DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
-            ),
+            defaultConcurrency(),
+            defaultTimeouts(),
+            defaultRetry(),
+            defaultBuffers(),
             DEFAULT_SHARED_SESSION_ENABLED
         );
     }

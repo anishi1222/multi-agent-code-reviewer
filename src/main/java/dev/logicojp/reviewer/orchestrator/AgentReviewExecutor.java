@@ -54,11 +54,10 @@ final class AgentReviewExecutor {
                                                         ReviewContext context,
                                                         int reviewPasses,
                                                         long perAgentTimeoutMinutes) {
+        Future<List<ReviewResult>> future = null;
         try {
             AgentReviewer reviewer = reviewerFactory.create(config, context);
-            Future<List<ReviewResult>> future = agentExecutionExecutor.submit(
-                () -> reviewer.reviewPasses(target, reviewPasses)
-            );
+            future = agentExecutionExecutor.submit(() -> reviewer.reviewPasses(target, reviewPasses));
             try {
                 long totalTimeoutMinutes = perAgentTimeoutMinutes * Math.max(1, reviewPasses);
                 return future.get(totalTimeoutMinutes, TimeUnit.MINUTES);
@@ -77,9 +76,16 @@ final class AgentReviewExecutor {
             return ReviewResult.failedResults(config, target.displayName(), reviewPasses,
                 "Review failed: " + e.getMessage());
         } catch (InterruptedException _) {
+            cancelIfRunning(future);
             Thread.currentThread().interrupt();
             return ReviewResult.failedResults(config, target.displayName(), reviewPasses,
                 "Review interrupted during execution");
+        }
+    }
+
+    private void cancelIfRunning(Future<List<ReviewResult>> future) {
+        if (future != null && !future.isDone()) {
+            future.cancel(true);
         }
     }
 }

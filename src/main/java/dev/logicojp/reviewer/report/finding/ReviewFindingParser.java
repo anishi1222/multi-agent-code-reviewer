@@ -1,5 +1,8 @@
 package dev.logicojp.reviewer.report.finding;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +26,7 @@ public final class ReviewFindingParser {
         "指摘の概要", compileTablePattern("指摘の概要"),
         "該当箇所", compileTablePattern("該当箇所")
     );
+    private static final int RAW_KEY_HASH_HEX_LENGTH = 24;
 
     private ReviewFindingParser() {
     }
@@ -148,7 +152,8 @@ public final class ReviewFindingParser {
             return String.join("|", normalized.title(), normalized.priority(),
                                normalized.location(), normalized.summary());
         }
-        return "raw|" + ReviewFindingSimilarity.normalizeText(rawBody);
+        String normalizedBody = ReviewFindingSimilarity.normalizeText(rawBody);
+        return "raw|" + normalizedBody.length() + "|" + shortSha256(normalizedBody);
     }
 
     public static String extractTableValue(String body, String key) {
@@ -162,6 +167,27 @@ public final class ReviewFindingParser {
 
     private static Pattern compileTablePattern(String key) {
         return Pattern.compile(TABLE_ROW_TEMPLATE.pattern().formatted(Pattern.quote(key)));
+    }
+
+    private static String shortSha256(String value) {
+        byte[] digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256")
+                .digest(value.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+
+        final char[] hexDigits = "0123456789abcdef".toCharArray();
+        StringBuilder hex = new StringBuilder(digest.length * 2);
+        for (byte b : digest) {
+            int unsigned = b & 0xFF;
+            hex.append(hexDigits[unsigned >>> 4]);
+            hex.append(hexDigits[unsigned & 0x0F]);
+        }
+        return hex.length() > RAW_KEY_HASH_HEX_LENGTH
+            ? hex.substring(0, RAW_KEY_HASH_HEX_LENGTH)
+            : hex.toString();
     }
 
     private record HeaderMatch(int startIndex, int endIndex, String title) {

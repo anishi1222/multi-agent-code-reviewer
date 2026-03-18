@@ -133,4 +133,20 @@ class ReviewFindingParserTest {
         String summary = ReviewFindingParser.extractOverallSummary("### 1. 指摘A\n\n本文");
         assertThat(summary).isEmpty();
     }
+
+    @Test
+    @DisplayName("findingKeyFromNormalizedのrawフォールバックは固定長ハッシュキーを返す")
+    void findingKeyFromNormalizedUsesCompactRawKey() {
+        var normalized = new AggregatedFinding.NormalizedFinding(
+            "", "", "", "", java.util.Set.of(), java.util.Set.of(), java.util.Set.of(), java.util.Set.of()
+        );
+
+        String key1 = ReviewFindingParser.findingKeyFromNormalized(normalized, "raw body content 1");
+        String key2 = ReviewFindingParser.findingKeyFromNormalized(normalized, "raw body content 2");
+
+        assertThat(key1).startsWith("raw|");
+        assertThat(key2).startsWith("raw|");
+        assertThat(key1).isNotEqualTo(key2);
+        assertThat(key1.length()).isLessThan(40);
+    }
 }

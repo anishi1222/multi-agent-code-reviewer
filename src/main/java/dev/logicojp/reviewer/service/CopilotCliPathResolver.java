@@ -1,7 +1,9 @@
 package dev.logicojp.reviewer.service;
 
+import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.util.CliPathResolver;
 import io.micronaut.context.annotation.Value;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.nio.file.Path;
@@ -15,12 +17,17 @@ public class CopilotCliPathResolver {
     private final String configuredCliPath;
     private final String configuredPath;
 
-    public CopilotCliPathResolver() {
-        this(System.getenv(CLI_PATH_ENV), System.getenv("PATH"));
+    CopilotCliPathResolver() {
+        this((String) null, (String) null);
     }
 
-    public CopilotCliPathResolver(@Value("${COPILOT_CLI_PATH:}") String configuredCliPath,
+    @Inject
+    public CopilotCliPathResolver(CopilotConfig copilotConfig,
                                   @Value("${PATH:}") String configuredPath) {
+        this(copilotConfig.cliPath(), configuredPath);
+    }
+
+    CopilotCliPathResolver(String configuredCliPath, String configuredPath) {
         this.configuredCliPath = configuredCliPath;
         this.configuredPath = configuredPath;
     }
@@ -51,7 +58,7 @@ public class CopilotCliPathResolver {
             throw new CopilotCliException("PATH is not set. Install GitHub Copilot CLI and/or set "
                 + CLI_PATH_ENV + " to its executable path.");
         }
-        var candidate = CliPathResolver.findExecutableInPath(CLI_CANDIDATES);
+        var candidate = CliPathResolver.findExecutableInPathValue(pathEnv, CLI_CANDIDATES);
         if (candidate.isPresent()) {
             return candidate.get().toString();
         }

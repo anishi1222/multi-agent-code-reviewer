@@ -54,6 +54,15 @@ public record AggregatedFinding(String title,
         );
     }
 
+    public static AggregatedFinding lightweight(ReviewFindingParser.FindingBlock block, int passNumber) {
+        return new AggregatedFinding(
+            block.title(),
+            block.body(),
+            new LinkedHashSet<>(Set.of(passNumber)),
+            new NormalizedFinding("", "", "", "", Set.of(), Set.of(), Set.of(), Set.of())
+        );
+    }
+
     public static NormalizedFinding normalize(ReviewFindingParser.FindingBlock block) {
         String normalizedTitle = ReviewFindingSimilarity.normalizeText(block.title());
         String normalizedPriority = ReviewFindingSimilarity.normalizeText(ReviewFindingParser.extractTableValue(block.body(), "Priority"));

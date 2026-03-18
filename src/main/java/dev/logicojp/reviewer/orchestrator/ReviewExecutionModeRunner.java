@@ -62,7 +62,7 @@ final class ReviewExecutionModeRunner {
                 )), config));
             }
 
-            joinStructuredWithTimeout(scope, params.timeoutMinutes());
+            joinStructuredWithTimeout(scope, tasks, params.timeoutMinutes());
 
             return finalizeResults(
                 params.reviewPasses(),
@@ -118,6 +118,7 @@ final class ReviewExecutionModeRunner {
     }
 
     private void joinStructuredWithTimeout(StructuredTaskScope<List<ReviewResult>, Void> scope,
+                                           List<SubtaskWithConfig> tasks,
                                            long timeoutMinutes) {
         try {
             StructuredConcurrencyUtils.joinWithTimeout(scope, timeoutMinutes, TimeUnit.MINUTES);
@@ -125,7 +126,16 @@ final class ReviewExecutionModeRunner {
             Thread.currentThread().interrupt();
             logger.error("Structured concurrency interrupted", e);
         } catch (TimeoutException e) {
-            logger.error("Structured concurrency timed out after {} minutes", timeoutMinutes, e);
+            int unfinishedTaskCount = (int) tasks.stream()
+                .map(SubtaskWithConfig::subtask)
+                .filter(subtask -> subtask.state() == StructuredTaskScope.Subtask.State.UNAVAILABLE)
+                .count();
+            logger.error(
+                "Structured concurrency timed out after {} minutes; cancelling {} unfinished task(s)",
+                timeoutMinutes,
+                unfinishedTaskCount,
+                e
+            );
             scope.close();
         }
     }

@@ -5,6 +5,7 @@ import dev.logicojp.reviewer.agent.AgentPromptBuilder;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.CircuitBreakerConfig;
+import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
@@ -38,13 +39,13 @@ class ReviewOrchestratorFactoryTest {
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
             null, null, null, null, null, null, null));
 
+        CopilotConfig copilotConfig = new CopilotConfig(null, null, null, 60, 10, 15);
         CopilotService copilotService = new CopilotService(
-            new CopilotCliPathResolver(),
-            new CopilotCliHealthChecker(new CopilotTimeoutResolver()),
-            new CopilotTimeoutResolver(),
+            new CopilotCliPathResolver(copilotConfig, System.getenv("PATH")),
+            new CopilotCliHealthChecker(new CopilotTimeoutResolver(copilotConfig)),
+            copilotConfig,
             new CopilotStartupErrorFormatter(),
-            new CopilotClientStarter(),
-            null
+            new CopilotClientStarter()
         ) {
             @Override
             public CopilotClient getClient() {

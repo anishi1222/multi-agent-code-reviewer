@@ -13,7 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.Executors;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -177,6 +181,117 @@ class AgentReviewExecutorTest {
             executorService.close();
             ctx.client().close();
             ctx.sharedScheduler().close();
+        }
+    }
+
+    @Test
+    @DisplayName("待機中に割り込まれた場合は実行Futureをキャンセルして失敗結果を返す")
+    void cancelsFutureWhenInterruptedDuringWait() {
+        var interruptedExecutor = new InterruptedOnGetExecutorService();
+        var ctx = context();
+        try {
+            var executor = new AgentReviewExecutor(
+                new Semaphore(1),
+                interruptedExecutor,
+                (config, context) -> target -> ReviewResult.builder()
+                    .agentConfig(config)
+                    .repository(target.displayName())
+                    .content("ignored")
+                    .success(true)
+                    .timestamp(Instant.now())
+                    .build()
+            );
+
+            var results = executor.executeAgentPassesSafely(
+                agentConfig(),
+                ReviewTarget.gitHub("owner/repo"),
+                ctx,
+                1,
+                1
+            );
+
+            assertThat(results).hasSize(1);
+            assertThat(results.getFirst().success()).isFalse();
+            assertThat(results.getFirst().errorMessage()).contains("interrupted");
+            assertThat(interruptedExecutor.future.cancelCalled).isTrue();
+        } finally {
+            interruptedExecutor.shutdownNow();
+            ctx.client().close();
+            ctx.sharedScheduler().close();
+            Thread.interrupted();
+        }
+    }
+
+    private static final class InterruptedOnGetExecutorService extends AbstractExecutorService {
+        private final CancelTrackingFuture future = new CancelTrackingFuture();
+        private boolean shutdown;
+
+        @Override
+        public void shutdown() {
+            shutdown = true;
+        }
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            shutdown = true;
+            return List.of();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return shutdown;
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return shutdown;
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) {
+            return true;
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            command.run();
+        }
+
+        @Override
+        public <T> Future<T> submit(Callable<T> task) {
+            @SuppressWarnings("unchecked")
+            Future<T> cast = (Future<T>) future;
+            return cast;
+        }
+    }
+
+    private static final class CancelTrackingFuture implements Future<List<ReviewResult>> {
+        private boolean cancelCalled;
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            cancelCalled = true;
+            return true;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return cancelCalled;
+        }
+
+        @Override
+        public boolean isDone() {
+            return false;
+        }
+
+        @Override
+        public List<ReviewResult> get() throws InterruptedException {
+            throw new InterruptedException("forced interruption");
+        }
+
+        @Override
+        public List<ReviewResult> get(long timeout, TimeUnit unit) throws InterruptedException {
+            throw new InterruptedException("forced interruption");
         }
     }
 }

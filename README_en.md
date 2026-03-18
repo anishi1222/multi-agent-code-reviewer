@@ -180,6 +180,10 @@ java --enable-preview \
   -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --repo owner/repository --all
 ```
 
+- `-XX:+DisableAttachMechanism`: helps reduce token exposure via runtime attach/debug interfaces.
+- `-XX:-HeapDumpOnOutOfMemoryError`: prevents automatic heap dumps that can contain token `String` data.
+- If your operations require heap dumps, write them to a tightly access-controlled location and keep retention short.
+
 ### Basic Usage
 
 ```bash

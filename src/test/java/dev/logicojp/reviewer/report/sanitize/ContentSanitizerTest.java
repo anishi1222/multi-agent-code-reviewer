@@ -144,6 +144,13 @@ class ContentSanitizerTest {
         }
 
         @Test
+        @DisplayName("div要素のイベントハンドラも除去する")
+        void removesEventHandlersOnGenericTags() {
+            String input = "Before <div onclick=\"alert(1)\">x</div> After";
+            assertThat(ContentSanitizer.sanitize(input)).doesNotContain("onclick");
+        }
+
+        @Test
         @DisplayName("javascript: URIスキームを除去する")
         void removesJavascriptUri() {
             String input = "<a href=\"javascript: void(0)\">Click</a>";

@@ -11,8 +11,8 @@ final class ReviewRetryExecutor {
 
     static final long DEFAULT_BACKOFF_BASE_MS = 1000L;
     static final long DEFAULT_BACKOFF_MAX_MS = 30_000L;
-
-    private static final SharedCircuitBreaker DEFAULT_REVIEW_CIRCUIT_BREAKER = SharedCircuitBreaker.withDefaultConfig();
+    private static final SharedCircuitBreaker DEFAULT_REVIEW_CIRCUIT_BREAKER =
+        SharedCircuitBreaker.withDefaultConfig();
 
     @FunctionalInterface
     interface AttemptExecutor {

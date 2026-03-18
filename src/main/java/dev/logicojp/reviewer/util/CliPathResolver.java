@@ -49,6 +49,10 @@ public final class CliPathResolver {
 
     public static Optional<Path> findExecutableInPath(String... candidateNames) {
         String pathEnv = System.getenv("PATH");
+        return findExecutableInPathValue(pathEnv, candidateNames);
+    }
+
+    public static Optional<Path> findExecutableInPathValue(String pathEnv, String... candidateNames) {
         if (pathEnv == null || pathEnv.isBlank()) {
             return Optional.empty();
         }
@@ -74,6 +78,31 @@ public final class CliPathResolver {
         }
 
         return Optional.empty();
+    }
+
+    /// Revalidates a previously resolved executable path immediately before process execution.
+    /// This reduces TOCTOU exposure by ensuring the current real path still matches the
+    /// path that was validated earlier and still has an allowed executable name.
+    public static Optional<Path> revalidateExecutionPath(String validatedPath, String... allowedNames) {
+        if (validatedPath == null || validatedPath.isBlank()) {
+            return Optional.empty();
+        }
+        Path normalized = Path.of(validatedPath.trim()).toAbsolutePath().normalize();
+        if (!Files.isExecutable(normalized)) {
+            return Optional.empty();
+        }
+        try {
+            Path realPath = normalized.toRealPath();
+            if (!hasAllowedName(realPath, allowedNames)) {
+                return Optional.empty();
+            }
+            if (!realPath.equals(normalized)) {
+                return Optional.empty();
+            }
+            return Optional.of(realPath);
+        } catch (IOException | SecurityException _) {
+            return Optional.empty();
+        }
     }
 
     public static boolean isInTrustedDirectory(Path executablePath) {

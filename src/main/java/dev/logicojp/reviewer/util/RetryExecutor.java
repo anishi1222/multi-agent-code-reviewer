@@ -73,14 +73,13 @@ public final class RetryExecutor<T> {
                      RetryableResultPredicate<T> retryableResultPredicate,
                      TransientExceptionPredicate transientExceptionPredicate,
                      RetryObserver<T> observer) {
-        if (!circuitBreaker.allowRequest()) {
-            observer.onCircuitOpen();
-            return exceptionMapper.map(new IllegalStateException("Circuit breaker is open for Copilot calls"));
-        }
-
         int totalAttempts = maxRetries + 1;
 
         for (int attempt = 1; attempt <= totalAttempts; attempt++) {
+            if (!circuitBreaker.allowRequest()) {
+                observer.onCircuitOpen();
+                return exceptionMapper.map(new IllegalStateException("Circuit breaker is open for Copilot calls"));
+            }
             try {
                 T result = attemptExecutor.execute();
                 if (successPredicate.isSuccess(result)) {

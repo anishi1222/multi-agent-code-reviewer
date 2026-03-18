@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
+/// Utility methods for hashing tokens before cache keys or audit-safe logging.
 public final class TokenHashUtils {
 
     private TokenHashUtils() {

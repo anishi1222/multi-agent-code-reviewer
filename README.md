@@ -67,6 +67,10 @@ java --enable-preview \
 	-jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --repo owner/repo --all
 ```
 
+- `-XX:+DisableAttachMechanism`: reduces token exposure via live attach diagnostics.
+- `-XX:-HeapDumpOnOutOfMemoryError`: avoids automatic heap dumps that may contain token `String` values.
+- If heap dumps are required operationally, store them in a protected location with strict access control and short retention.
+
 ## Development
 
 ```bash
@@ -90,6 +94,53 @@ If tests fail with `NoSuchMethodError` for synthetic methods such as `access$0`,
 ```bash
 mvn clean test
 ```
+
+## Container Build Artifact (Reproducible)
+
+Multi-stage Docker build is available for reproducible packaging:
+
+```bash
+docker build -t multi-agent-reviewer:local .
+docker run --rm multi-agent-reviewer:local --version
+```
+
+- Build stage: Maven + Java 26
+- Runtime stage: Temurin JRE 26
+- Default entrypoint preserves project requirement: `--enable-preview`
+
+## Optional Structured Logging Profile
+
+Default logging is human-readable (`src/main/resources/logback.xml`).
+If you need structured (JSON-like) logs for log shipping/aggregation:
+
+```bash
+java --enable-preview \
+  -Dlogback.configurationFile=src/main/resources/logback-json.xml \
+  -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --repo owner/repo --all
+```
+
+This mode keeps existing MDC keys (`event.category`, `event.action`) and token masking behavior.
+
+## Report Archive Utility
+
+To reduce artifact transfer/storage size for generated reports:
+
+```bash
+scripts/archive-reports.sh reports/<owner>/<repo>/<timestamp>
+```
+
+This creates a compressed `.tar.gz` archive for CI upload or retention.
+
+## Architecture Decision Records (ADR)
+
+Architecture decisions are documented in `docs/adr/`.
+
+- ADR index: `docs/adr/README.md`
+- Template: `docs/adr/0000-adr-template.md`
+- Initial decisions:
+  - `0001-custom-cli-parser.md`
+  - `0002-micronaut-di.md`
+  - `0003-virtual-thread-orchestration.md`
 
 ## Documentation
 

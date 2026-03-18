@@ -94,7 +94,8 @@ public final class ContentSanitizer {
             new ContentSanitizationRule(DANGEROUS_HTML_PATTERN, "",
                 List.of("<script", "<iframe", "<object", "<embed", "<form", "<input", "<img",
                     "<base", "<link", "<meta", "<style", "<svg", "<math",
-                    "data:")),
+                    "data:", "base64", "javascript:", "vbscript:",
+                    "onclick=", "onload=", "onerror=", "onfocus=", "onmouseover=")),
             new ContentSanitizationRule(EXCESSIVE_BLANK_LINES, "\n\n")
         )
     );

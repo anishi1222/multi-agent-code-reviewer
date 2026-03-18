@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.service;
 
+import dev.logicojp.reviewer.config.CopilotConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -11,11 +12,10 @@ class CopilotServiceTest {
     private static CopilotService newService() {
         return new CopilotService(
             new CopilotCliPathResolver(),
-            new CopilotCliHealthChecker(new CopilotTimeoutResolver()),
-            new CopilotTimeoutResolver(),
+            new CopilotCliHealthChecker(new CopilotTimeoutResolver(new CopilotConfig(null, null, null, 60, 10, 15))),
+            new CopilotConfig(null, null, null, 60, 10, 15),
             new CopilotStartupErrorFormatter(),
-            new CopilotClientStarter(),
-            null
+            new CopilotClientStarter()
         );
     }
 

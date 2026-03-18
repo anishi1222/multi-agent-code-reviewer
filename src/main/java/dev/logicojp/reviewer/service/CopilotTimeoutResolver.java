@@ -1,47 +1,42 @@
 package dev.logicojp.reviewer.service;
 
+import dev.logicojp.reviewer.config.CopilotConfig;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.function.Function;
-
+/// Resolves Copilot-related timeout settings from centralized Micronaut configuration.
 @Singleton
 public class CopilotTimeoutResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(CopilotTimeoutResolver.class);
+    private final CopilotConfig copilotConfig;
 
-    public long resolveEnvTimeout(String envVar, long defaultValue) {
-        return resolveEnvTimeout(envVar, defaultValue, System::getenv);
+    public CopilotTimeoutResolver() {
+        this(new CopilotConfig(null, null, null, 60, 10, 15));
     }
 
-    long resolveEnvTimeout(String envVar, long defaultValue, Function<String, String> envReader) {
-        String value = envReader.apply(envVar);
-        if (isBlank(value)) {
-            return defaultValue;
-        }
-        return parseOrDefault(envVar, value, defaultValue);
+    @Inject
+    public CopilotTimeoutResolver(CopilotConfig copilotConfig) {
+        this.copilotConfig = copilotConfig;
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
+    public long resolveStartTimeoutSeconds() {
+        long value = copilotConfig.startTimeoutSeconds();
+        logger.debug("Resolved Copilot start timeout: {}s", value);
+        return value;
     }
 
-    private long parseOrDefault(String envVar, String value, long defaultValue) {
-        try {
-            long parsed = Long.parseLong(value.trim());
-            return nonNegativeOrDefault(parsed, defaultValue);
-        } catch (NumberFormatException _) {
-            logInvalidValue(envVar, value);
-            return defaultValue;
-        }
+    public long resolveCliHealthcheckSeconds() {
+        long value = copilotConfig.cliHealthcheckSeconds();
+        logger.debug("Resolved Copilot CLI healthcheck timeout: {}s", value);
+        return value;
     }
 
-    private long nonNegativeOrDefault(long value, long defaultValue) {
-        return value >= 0 ? value : defaultValue;
-    }
-
-    private void logInvalidValue(String envVar, String value) {
-        logger.warn("Invalid {} value: {}. Using default.", envVar, value);
+    public long resolveCliAuthcheckSeconds() {
+        long value = copilotConfig.cliAuthcheckSeconds();
+        logger.debug("Resolved Copilot CLI authcheck timeout: {}s", value);
+        return value;
     }
 }
