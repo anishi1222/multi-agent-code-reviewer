@@ -27,7 +27,7 @@ class ReviewExecutionCoordinatorTest {
         AtomicBoolean shutdown = new AtomicBoolean(false);
 
         var coordinator = new ReviewExecutionCoordinator(
-            token -> initialized.set(true),
+            () -> initialized.set(true),
             (resolvedToken, request) -> {
                 executed.set(true);
                 return ExitCodes.OK;
@@ -56,7 +56,7 @@ class ReviewExecutionCoordinatorTest {
         AtomicInteger shutdownCount = new AtomicInteger();
 
         var coordinator = new ReviewExecutionCoordinator(
-            token -> initCount.incrementAndGet(),
+            initCount::incrementAndGet,
             (resolvedToken, request) -> ExitCodes.OK,
             shutdownCount::incrementAndGet,
             new CliOutput(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()))
@@ -80,7 +80,7 @@ class ReviewExecutionCoordinatorTest {
         AtomicInteger shutdownCount = new AtomicInteger();
 
         var coordinator = new ReviewExecutionCoordinator(
-            token -> {
+            () -> {
             },
             (resolvedToken, request) -> {
                 throw new IllegalStateException("boom");

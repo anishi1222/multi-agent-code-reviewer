@@ -9,7 +9,6 @@ import io.micronaut.core.annotation.Nullable;
 public record CopilotConfig(
     @Nullable String cliPath,
     @Nullable String ghCliPath,
-    @Nullable String githubToken,
     @Bindable(defaultValue = "60") long startTimeoutSeconds,
     @Bindable(defaultValue = "10") long cliHealthcheckSeconds,
     @Bindable(defaultValue = "15") long cliAuthcheckSeconds

@@ -42,7 +42,7 @@ public final class CliUsage {
                 Other options:
                     -o, --output <path>         Output directory (default: ./reports)
                     --agents-dir <path...>      Additional agent definition directories
-                    --token -                   Read GitHub token from stdin (default: GITHUB_TOKEN env var)
+                    --token -                   Read GitHub token from stdin (default: gh auth token)
                     --parallelism <n>           Number of agents to run in parallel
                     --no-summary                Skip executive summary generation
                     --no-shared-session         Use isolated sessions for all review passes
@@ -68,7 +68,7 @@ public final class CliUsage {
 
                 Options:
                     -p, --param <key=value>     Skill parameters (repeatable or comma-separated)
-                    --token -                   Read GitHub token from stdin (default: GITHUB_TOKEN env var)
+                    --token -                   Read GitHub token from stdin (default: gh auth token)
                     --model <model>             Model for skill execution
                     --agents-dir <path...>      Additional agent definition directories
                     --list                      List available skills

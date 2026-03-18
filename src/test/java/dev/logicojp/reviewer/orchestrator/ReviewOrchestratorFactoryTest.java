@@ -39,7 +39,7 @@ class ReviewOrchestratorFactoryTest {
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
             null, null, null, null, null, null, null));
 
-        CopilotConfig copilotConfig = new CopilotConfig(null, null, null, 60, 10, 15);
+        CopilotConfig copilotConfig = new CopilotConfig(null, null, 60, 10, 15);
         CopilotService copilotService = new CopilotService(
             new CopilotCliPathResolver(copilotConfig, System.getenv("PATH")),
             new CopilotCliHealthChecker(new CopilotTimeoutResolver(copilotConfig)),

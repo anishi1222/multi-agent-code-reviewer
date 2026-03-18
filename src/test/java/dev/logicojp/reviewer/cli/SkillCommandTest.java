@@ -85,7 +85,7 @@ class SkillCommandTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ByteArrayOutputStream err = new ByteArrayOutputStream();
         CliOutput output = new CliOutput(new PrintStream(out), new PrintStream(err));
-        CopilotConfig copilotConfig = new CopilotConfig(null, null, null, 60, 10, 15);
+        CopilotConfig copilotConfig = new CopilotConfig(null, null, 60, 10, 15);
 
         SkillService skillService = new SkillService(
             new SkillRegistry(),

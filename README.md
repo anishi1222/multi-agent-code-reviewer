@@ -22,6 +22,13 @@ mvn clean package
 java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --repo owner/repo --all
 ```
 
+## Latest Remediation
+
+- 2026-03-18 (`v2026.03.18-auth`): Authentication policy aligned to OAuth device flow. Copilot runtime moved to logged-in user flow; `GITHUB_TOKEN`-centric guidance removed from CLI/runtime/docs.
+- Validation: `mvn clean test` (743 tests passed, 0 failures)
+- Release Notes: [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md), [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md)
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.03.18-auth
+
 ## Architecture
 
 Execution flow:
@@ -52,9 +59,19 @@ Core configuration lives in `src/main/resources/application.yml`.
 
 Useful runtime environment variables:
 
-- `GITHUB_TOKEN`: token for SDK authentication (optional when `gh` login is available)
 - `COPILOT_CLI_PATH`: explicit path to Copilot CLI executable
 - `GH_CLI_PATH`: explicit path to GitHub CLI executable
+
+### Authentication (OAuth Device Flow)
+
+This project expects CLI-based OAuth authentication by default.
+
+```bash
+gh auth login
+gh copilot -- login
+```
+
+If your environment provides the standalone command, `copilot login` is also supported.
 
 ## Security Runtime Notes
 

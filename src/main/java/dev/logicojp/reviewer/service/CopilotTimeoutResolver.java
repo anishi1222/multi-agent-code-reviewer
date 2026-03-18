@@ -14,7 +14,7 @@ public class CopilotTimeoutResolver {
     private final CopilotConfig copilotConfig;
 
     public CopilotTimeoutResolver() {
-        this(new CopilotConfig(null, null, null, 60, 10, 15));
+        this(new CopilotConfig(null, null, 60, 10, 15));
     }
 
     @Inject

@@ -14,7 +14,7 @@ class ReviewExecutionCoordinator {
 
     @FunctionalInterface
     interface Initializer {
-        void initializeOrThrow(String resolvedToken);
+        void initializeOrThrow();
     }
 
     @FunctionalInterface
@@ -64,7 +64,7 @@ class ReviewExecutionCoordinator {
     private int executeReviewRun(String resolvedToken,
                                  ReviewRunExecutor.ReviewRunRequest runRequest) {
         return LifecycleRunner.executeWithLifecycle(
-            () -> initializer.initializeOrThrow(resolvedToken),
+            initializer::initializeOrThrow,
             () -> executor.execute(resolvedToken, runRequest),
             shutdowner::shutdown
         );

@@ -46,12 +46,10 @@ class GitHubTokenResolverTest {
         }
 
         @Test
-        @DisplayName("${GITHUB_TOKEN}プレースホルダーは無視される")
-        void placeholderIsIgnored() {
+        @DisplayName("任意の文字列トークンはそのまま返す")
+        void arbitraryTokenIsReturnedAsIs() {
             GitHubTokenResolver resolver = new GitHubTokenResolver(1);
-            // The placeholder should be treated as no token provided
-            resolver.resolve("${GITHUB_TOKEN}");
-            // Should fall back to gh auth
+            assertThat(resolver.resolve("custom_token_value")).contains("custom_token_value");
         }
     }
 

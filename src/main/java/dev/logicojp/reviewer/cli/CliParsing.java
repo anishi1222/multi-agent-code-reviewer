@@ -184,7 +184,7 @@ public final class CliParsing {
     private static CliValidationException directTokenPassingNotSupported() {
         return new CliValidationException(
             "Direct token passing via command line is not supported for security reasons. "
-                + "Use '--token -' (stdin) or set GITHUB_TOKEN environment variable.", true);
+                + "Use '--token -' (stdin) or login with `gh auth login`.", true);
     }
 
     private static CliValidationException tokenReadFailure(IOException e) {

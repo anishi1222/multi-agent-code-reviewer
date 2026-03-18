@@ -24,8 +24,9 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 ## Latest Remediation Status
 
-All review findings from 2026-02-16 through 2026-03-05 review cycles have been fully addressed.
+All review findings from 2026-02-16 through 2026-03-18 review cycles have been fully addressed.
 
+- 2026-03-18 (v2026.03.18-auth): OAuth device-flow alignment — switched Copilot auth to logged-in user flow, removed `GITHUB_TOKEN`-centric guidance from runtime/CLI/docs, and synchronized README EN/JA + release notes. Verified with `mvn clean test` (743 passing)
 - 2026-03-05 (v2026.03.05-notes): Performance/security improvements and codebase cleanup — `LocalFileCandidateProcessor` double-buffering avoidance, `GitHubTokenResolver` child process token propagation prevention, `CliPathResolver` trusted directory validation, `FrontmatterParser` YAML DoS resistance, `SensitiveHeaderMasking` pattern expansion, Java 26 migration, structured concurrency path unification, `CopilotPermissionHandlers` centralization, obsolete custom instruction class removal. PRs #85/#86/#87/#88/#89/#90 merged
 - 2026-03-05 (v2026.03.05): **Breaking change** — Discontinued custom instruction support, migrated to agent skills only. Removed `--instructions`/`--no-instructions`/`--no-prompts` CLI options. Created 4 new agent skills from custom instructions (java-best-practices, java-bug-patterns, spring-boot-review, vuejs3-review). Completed all 16 complexity refactorings (5 HIGH + 9 MEDIUM + 2 LOW). Aligned micronaut.version with parent 4.10.9
 - 2026-03-04 (v2026.03.04):Security fixes & dependency updates — pinned jackson-core to 2.21.1 (GHSA-72hv-8253-57qq), replaced ReDoS-prone regex with loop (CodeQL alert #9), bumped Copilot SDK to 1.0.10, bumped actions/checkout to 6.0.2, introduced OWASP Dependency Check in CI. PRs #75/#76/#77/#78/#79/#80 merged
@@ -48,7 +49,7 @@ All review findings from 2026-02-16 through 2026-03-05 review cycles have been f
 - 2026-02-17 (v1): PRs #22–#27 — Final remediation (PR-1 to PR-5)
 - Operations summary (2026-02-19 v2-v4): Java 25 CI alignment (PR #74) → idle-timeout scheduler resilience fix (PR #76) → operational completion checklist sync (PR #78)
 - Release details: `RELEASE_NOTES_en.md`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.03.05-notes
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.03.18-auth
 
 ## Operational Completion Check (2026-02-19)
 
@@ -112,7 +113,8 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 
 - **GraalVM 26 EA** (Java 26)
 - GitHub Copilot CLI 0.0.407 or later
-- GitHub token (for repository access)
+- GitHub CLI login (`gh auth login`) for repository access
+- GitHub Copilot CLI login (`gh copilot -- login` or `copilot login`) for Copilot SDK access
 
 ## Supply Chain Policy
 
@@ -235,7 +237,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `--all` | - | Run all agents | false |
 | `--output` | `-o` | Output base directory | `./reports` |
 | `--agents-dir` | - | Additional agent definition directory | - |
-| `--token` | - | GitHub token input (`-` for stdin only; direct value is rejected) | `$GITHUB_TOKEN` |
+| `--token` | - | GitHub token input (`-` for stdin only; direct value is rejected) | `gh auth token` |
 | `--parallelism` | - | Number of parallel executions | 4 |
 | `--no-summary` | - | Skip summary generation | false |
 | `--no-shared-session` | - | Force isolated session per review pass (disable shared session reuse) | false |
@@ -255,15 +257,18 @@ Displays a list of available agents. Additional directories can be specified wit
 
 | Variable | Description | Default |
 |----------|-------------|--------|
-| `GITHUB_TOKEN` | GitHub auth token | - |
 | `COPILOT_CLI_PATH` | Path to the Copilot CLI binary | Auto-detected from PATH |
+| `GH_CLI_PATH` | Path to the GitHub CLI binary | Auto-detected from PATH |
 | `COPILOT_START_TIMEOUT_SECONDS` | Copilot client start timeout (seconds) | 60 |
 | `COPILOT_CLI_HEALTHCHECK_SECONDS` | CLI health check timeout (seconds) | 10 |
 | `COPILOT_CLI_AUTHCHECK_SECONDS` | CLI auth check timeout (seconds) | 15 |
 
 ```bash
-export GITHUB_TOKEN=your_github_token
+gh auth login
+gh copilot -- login
 ```
+
+If available in your environment, `copilot login` can be used instead of `gh copilot -- login`.
 
 ### Session Behavior
 
@@ -589,7 +594,7 @@ java -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 |--------|-------|-------------|---------|
 | `--list` | - | List available skills | - |
 | `--param` | `-p` | Parameter (key=value format) | - |
-| `--token` | - | GitHub token input (`-` for stdin only; direct value is rejected) | `$GITHUB_TOKEN` |
+| `--token` | - | GitHub token input (`-` for stdin only; direct value is rejected) | `gh auth token` |
 | `--model` | - | LLM model to use | default-model |
 | `--agents-dir` | - | Agent definitions directory | - |
 

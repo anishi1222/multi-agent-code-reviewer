@@ -9,6 +9,30 @@
 3. タグから GitHub Release を作成し、EN/JA 要約を本文に含める。
 4. `README_en.md` と `README_ja.md` にリリース参照とURLを追記する。
 
+## 2026-03-18 (v2026.03.18-auth)
+
+### 概要
+- Copilot 認証を OAuth デバイスフロー前提へ移行し、`GITHUB_TOKEN` 前提の案内を廃止しました。
+- CLI/ヘルプ/実行時メッセージを `gh auth login` + `gh copilot -- login`（または `copilot login`）中心に統一しました。
+- README（ルート/EN/JA）の認証手順を新方針に同期しました。
+
+### 主な変更
+
+#### 認証ランタイム変更
+- `CopilotService`: ログイン済みユーザー認証（`setUseLoggedInUser(true)`）へ統一し、トークン依存初期化経路を削除。
+- `CopilotCliHealthChecker`: トークン有無による認証チェック省略を廃止し、CLI 認証状態を常時検証。
+- `CopilotConfig` / `application.yml`: `reviewer.copilot.github-token` 設定を削除。
+- `GitHubTokenResolver`: 設定由来 `GITHUB_TOKEN` 依存を廃止し、`--token -`（stdin）または `gh auth token` 解決へ整理。
+
+#### CLI/ドキュメント整合
+- `CliUsage`、`CliParsing`、`ReviewTargetResolver`、`SkillExecutionPreparation` の文言から `GITHUB_TOKEN` 設定案内を削除。
+- `README.md`、`README_en.md`、`README_ja.md` の認証手順を OAuth デバイスフロー前提に更新。
+
+### 検証
+- `mvn clean test` — 743テスト合格、0失敗
+
+---
+
 ## 2026-03-05 (v2026.03.05-notes)
 
 ### 概要

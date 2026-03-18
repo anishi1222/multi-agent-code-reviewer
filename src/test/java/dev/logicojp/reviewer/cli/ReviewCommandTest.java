@@ -94,7 +94,7 @@ class ReviewCommandTest {
         );
         ReviewRunRequestFactory runRequestFactory = new ReviewRunRequestFactory();
         ReviewExecutionCoordinator executionCoordinator = new ReviewExecutionCoordinator(
-            resolvedToken -> {
+            () -> {
             },
             (resolvedToken, runRequest) -> executionFn.execute(
                 runRequest.agentConfigs(),
