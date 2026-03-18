@@ -19,8 +19,8 @@
     <description>Multiple AI agents review code and generate executive summary</description>
 
     <properties>
-        <jdk.version>25</jdk.version>
-        <release.version>25</release.version>
+        <jdk.version>26</jdk.version>
+        <release.version>26</release.version>
         <micronaut.version>4.10.18</micronaut.version>
         <micronaut.runtime>none</micronaut.runtime>
         <exec.mainClass>dev.logicojp.reviewer.ReviewApp</exec.mainClass>
@@ -28,7 +28,7 @@
 
         <!-- Application dependencies -->
          <assertj.version>3.27.7</assertj.version>
-        <copilot.sdk.version>1.0.11</copilot.sdk.version>
+        <copilot.sdk.version>0.1.32-java.0</copilot.sdk.version>
         <graalvm.version>25.0.2</graalvm.version>
         <dependency.check.version>12.2.0</dependency.check.version>
     </properties>
@@ -68,8 +68,8 @@
 
         <!-- Copilot SDK for Java -->
         <dependency>
-            <groupId>io.github.copilot-community-sdk</groupId>
-            <artifactId>copilot-sdk</artifactId>
+            <groupId>com.github</groupId>
+            <artifactId>copilot-sdk-java</artifactId>
             <version>${copilot.sdk.version}</version>
         </dependency>
 
