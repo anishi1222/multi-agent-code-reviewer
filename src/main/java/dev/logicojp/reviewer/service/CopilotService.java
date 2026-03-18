@@ -83,7 +83,11 @@ public class CopilotService {
 
     /// Backward-compatible overload. Token input is intentionally ignored because
     /// Copilot authentication now relies on OAuth device flow credentials.
+    @Deprecated(forRemoval = false, since = "2026.03")
     public void initializeOrThrow(String ignoredToken) {
+        if (ignoredToken != null && !ignoredToken.isBlank()) {
+            logger.warn("initializeOrThrow(String) ignores token input. Use OAuth login via `gh auth login` instead.");
+        }
         initializeOrThrow();
     }
 

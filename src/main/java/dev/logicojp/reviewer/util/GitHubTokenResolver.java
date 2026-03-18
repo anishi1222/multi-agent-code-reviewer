@@ -31,6 +31,11 @@ public final class GitHubTokenResolver {
     private static final long GH_AUTH_BACKOFF_MAX_MS = 5_000L;
     private static final Path SAFE_WORKING_DIRECTORY =
         Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize();
+    private static final String[] TOKEN_ENV_VARS = {
+        "GITHUB_TOKEN",
+        "GH_TOKEN",
+        "GH_ENTERPRISE_TOKEN"
+    };
 
     private final long timeoutSeconds;
     private final String configuredGhCliPath;
@@ -149,6 +154,7 @@ public final class GitHubTokenResolver {
         ProcessBuilder builder = new ProcessBuilder(executionPath.toString(), "auth", "token", "-h", "github.com");
         builder.directory(SAFE_WORKING_DIRECTORY.toFile());
         builder.redirectErrorStream(true);
+        scrubSensitiveTokenEnvironment(builder);
         try {
             Process process = builder.start();
             try (BufferedReader reader = new BufferedReader(
@@ -202,5 +208,11 @@ public final class GitHubTokenResolver {
         return CliPathResolver.findExecutableInPathValue(configuredPath, "gh")
             .map(path -> path.toAbsolutePath().normalize().toString())
             .orElse(null);
+    }
+
+    private static void scrubSensitiveTokenEnvironment(ProcessBuilder builder) {
+        for (String envVar : TOKEN_ENV_VARS) {
+            builder.environment().remove(envVar);
+        }
     }
 }
