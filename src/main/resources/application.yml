@@ -6,7 +6,6 @@ reviewer:
   copilot:
     cli-path: ${COPILOT_CLI_PATH:}
     gh-cli-path: ${GH_CLI_PATH:}
-    github-token: ${GITHUB_TOKEN:}
     start-timeout-seconds: ${COPILOT_START_TIMEOUT_SECONDS:60}
     cli-healthcheck-seconds: ${COPILOT_CLI_HEALTHCHECK_SECONDS:10}
     cli-authcheck-seconds: ${COPILOT_CLI_AUTHCHECK_SECONDS:15}

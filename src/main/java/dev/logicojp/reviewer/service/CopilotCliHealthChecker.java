@@ -33,7 +33,7 @@ public class CopilotCliHealthChecker {
         this.timeoutResolver = timeoutResolver;
     }
 
-    public void verifyCliHealthy(String cliPath, boolean tokenProvided) throws InterruptedException {
+    public void verifyCliHealthy(String cliPath) throws InterruptedException {
         if (cliPath == null || cliPath.isBlank()) {
             return;
         }
@@ -43,15 +43,11 @@ public class CopilotCliHealthChecker {
             "Failed to execute Copilot CLI: ",
             "Ensure the CLI is installed and authenticated.");
 
-        if (tokenProvided) {
-            logger.info("GITHUB_TOKEN provided — skipping CLI auth status check");
-        } else {
-            runCliCommand(authStatusCommand(cliPath), resolveCliAuthcheckSeconds(),
-                "Copilot CLI auth status timed out after ",
-                "Copilot CLI auth status failed with code ",
-                "Failed to execute Copilot CLI auth status: ",
-                "Run `github-copilot auth login` to authenticate.");
-        }
+        runCliCommand(authStatusCommand(cliPath), resolveCliAuthcheckSeconds(),
+            "Copilot CLI auth status timed out after ",
+            "Copilot CLI auth status failed with code ",
+            "Failed to execute Copilot CLI auth status: ",
+            "Run `copilot login` (or `gh copilot -- login`) to authenticate.");
     }
 
     private List<String> versionCommand(String cliPath) {

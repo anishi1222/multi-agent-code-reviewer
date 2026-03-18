@@ -111,7 +111,7 @@ class SkillExecutionPreparation {
         String resolvedToken = tokenResolver.resolve(githubToken).orElse(null);
         if (resolvedToken == null || resolvedToken.isBlank()) {
             throw new CliValidationException(
-                "GitHub token is required. Set GITHUB_TOKEN, use --token, or login with `gh auth login`.",
+                "GitHub token is required. Use --token or login with `gh auth login`.",
                 true
             );
         }

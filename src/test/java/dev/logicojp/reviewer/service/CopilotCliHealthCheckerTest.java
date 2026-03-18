@@ -20,7 +20,7 @@ class CopilotCliHealthCheckerTest {
     @Test
     @DisplayName("cliPath が空の場合は何もしない")
     void doesNothingWhenCliPathIsBlank() {
-        assertThatCode(() -> checker.verifyCliHealthy("", false)).doesNotThrowAnyException();
+        assertThatCode(() -> checker.verifyCliHealthy("")).doesNotThrowAnyException();
     }
 
     @Test
@@ -29,14 +29,14 @@ class CopilotCliHealthCheckerTest {
         Path fakeCli = tempDir.resolve("github-copilot");
         Files.writeString(fakeCli, "#!/usr/bin/env sh\nexit 0\n", StandardCharsets.UTF_8);
         fakeCli.toFile().setExecutable(true);
-        assertThatCode(() -> checker.verifyCliHealthy(fakeCli.toRealPath().toString(), true))
+        assertThatCode(() -> checker.verifyCliHealthy(fakeCli.toRealPath().toString()))
             .doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("不正なCLIパスではCopilotCliExceptionを送出する")
     void throwsWhenCliPathIsInvalid() {
-        assertThatThrownBy(() -> checker.verifyCliHealthy("/path/does/not/exist", true))
+        assertThatThrownBy(() -> checker.verifyCliHealthy("/path/does/not/exist"))
             .isInstanceOf(CopilotCliException.class)
             .hasMessageContaining("execution-time validation");
     }

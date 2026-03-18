@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SkillServiceTest {
 
     private static CopilotService newCopilotService() {
-        var copilotConfig = new CopilotConfig(null, null, null, 60, 10, 15);
+        var copilotConfig = new CopilotConfig(null, null, 60, 10, 15);
         return new CopilotService(
             new CopilotCliPathResolver(),
             new CopilotCliHealthChecker(new CopilotTimeoutResolver(copilotConfig)),

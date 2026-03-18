@@ -8,12 +8,10 @@ import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import dev.logicojp.reviewer.util.SecurityAuditLogger;
-import dev.logicojp.reviewer.util.TokenHashUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -24,7 +22,6 @@ public class CopilotService {
     
     private static final Logger logger = LoggerFactory.getLogger(CopilotService.class);
     private static final long DEFAULT_START_TIMEOUT_SECONDS = 60;
-    private static final String UNRESOLVED_TOKEN_PLACEHOLDER = "${GITHUB_TOKEN}";
 
     private final CopilotCliPathResolver cliPathResolver;
     private final CopilotCliHealthChecker cliHealthChecker;
@@ -34,7 +31,6 @@ public class CopilotService {
     /// `volatile` provides safe publication for lock-free reads in `getClient()/isInitialized()`.
     /// Mutations are serialized by synchronized lifecycle methods (`initialize`, `shutdown`).
     private volatile CopilotClient client;
-    private volatile String initializedTokenFingerprint;
 
     @Inject
     public CopilotService(CopilotCliPathResolver cliPathResolver,
@@ -49,12 +45,12 @@ public class CopilotService {
         this.clientStarter = clientStarter;
     }
 
-    /// Attempts eager initialization during bean startup using GITHUB_TOKEN when available.
+    /// Attempts eager initialization during bean startup using OAuth device-flow credentials.
     /// Falls back to lazy/explicit initialization if startup prerequisites are not met.
     @PostConstruct
     void initializeAtStartup() {
         try {
-            initializeOrThrow(copilotConfig.githubToken());
+            initializeOrThrow();
         } catch (CopilotCliException e) {
             logger.debug("Skipping eager Copilot initialization at startup: {}", e.getMessage(), e);
         }
@@ -62,9 +58,9 @@ public class CopilotService {
     
     /// Initializes the Copilot client, wrapping checked exceptions as RuntimeException.
     /// Convenience method for callers that cannot handle checked exceptions.
-    public void initializeOrThrow(String githubToken) {
+    public void initializeOrThrow() {
         try {
-            initialize(normalizeToken(githubToken));
+            initialize();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             SecurityAuditLogger.log(
@@ -85,33 +81,33 @@ public class CopilotService {
         }
     }
 
+    /// Backward-compatible overload. Token input is intentionally ignored because
+    /// Copilot authentication now relies on OAuth device flow credentials.
+    public void initializeOrThrow(String ignoredToken) {
+        initializeOrThrow();
+    }
+
     /// Initializes the Copilot client.
-    private synchronized void initialize(String githubToken) throws InterruptedException {
-        String tokenFingerprint = TokenHashUtils.sha256HexOrNull(githubToken);
-        if (client != null && Objects.equals(initializedTokenFingerprint, tokenFingerprint)) {
+    private synchronized void initialize() throws InterruptedException {
+        if (client != null) {
             return;
         }
 
-        if (client != null) {
-            closeCurrentClient();
-        }
-
         logger.info("Initializing Copilot client...");
-        CopilotClientOptions options = buildClientOptions(githubToken);
+        CopilotClientOptions options = buildClientOptions();
         SecurityAuditLogger.log(
             "authentication",
             "copilot.initialize",
             "Copilot client authentication initiated",
             Map.of(
-                "authMethod", shouldUseToken(githubToken) ? "github-token" : "gh-cli",
-                "tokenFingerprintPrefix", shortFingerprint(tokenFingerprint)
+                "authMethod", "oauth-device-flow",
+                "tokenFingerprintPrefix", "none"
             )
         );
         CopilotClient createdClient = new CopilotClient(options);
         long timeoutSeconds = resolveStartTimeoutSeconds();
         startClient(createdClient, timeoutSeconds);
         client = createdClient;
-        initializedTokenFingerprint = tokenFingerprint;
         logger.info("Copilot client initialized");
         SecurityAuditLogger.log(
             "authentication",
@@ -121,20 +117,12 @@ public class CopilotService {
         );
     }
 
-    private String shortFingerprint(String fingerprint) {
-        if (fingerprint == null || fingerprint.isBlank()) {
-            return "none";
-        }
-        return fingerprint.length() <= 12 ? fingerprint : fingerprint.substring(0, 12);
-    }
-
-    private CopilotClientOptions buildClientOptions(String githubToken) throws InterruptedException {
+    private CopilotClientOptions buildClientOptions() throws InterruptedException {
         CopilotClientOptions options = new CopilotClientOptions();
         String cliPath = cliPathResolver.resolveCliPath();
         applyCliPathOption(options, cliPath);
-        boolean useToken = shouldUseToken(githubToken);
-        cliHealthChecker.verifyCliHealthy(cliPath, useToken);
-        applyAuthOptions(options, githubToken, useToken);
+        cliHealthChecker.verifyCliHealthy(cliPath);
+        applyAuthOptions(options);
         return options;
     }
 
@@ -164,22 +152,7 @@ public class CopilotService {
         }
     }
 
-    private boolean shouldUseToken(String githubToken) {
-        return githubToken != null
-            && !githubToken.isBlank()
-            && !githubToken.equals(UNRESOLVED_TOKEN_PLACEHOLDER);
-    }
-
-    private String normalizeToken(String githubToken) {
-        return shouldUseToken(githubToken) ? githubToken : null;
-    }
-
-    private void applyAuthOptions(CopilotClientOptions options, String githubToken, boolean useToken) {
-        if (useToken) {
-            options.setGithubToken(githubToken);
-            options.setUseLoggedInUser(Boolean.FALSE);
-            return;
-        }
+    private void applyAuthOptions(CopilotClientOptions options) {
         options.setUseLoggedInUser(Boolean.TRUE);
     }
 
@@ -208,7 +181,7 @@ public class CopilotService {
         }
         try {
             String cliPath = cliPathResolver.resolveCliPath();
-            cliHealthChecker.verifyCliHealthy(cliPath, true);
+            cliHealthChecker.verifyCliHealthy(cliPath);
             return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -221,12 +194,13 @@ public class CopilotService {
     }
 
     /// Re-initializes the client only when it is currently unhealthy.
-    public synchronized void ensureHealthyOrReinitialize(String githubToken) throws InterruptedException {
+    public synchronized void ensureHealthyOrReinitialize() throws InterruptedException {
         if (isHealthy()) {
             return;
         }
         logger.warn("Copilot client is unhealthy; attempting re-initialization");
-        initialize(normalizeToken(githubToken));
+        closeCurrentClient();
+        initialize();
     }
     
     /// Shuts down the Copilot client.
@@ -258,7 +232,6 @@ public class CopilotService {
             );
         } finally {
             client = null;
-            initializedTokenFingerprint = null;
         }
     }
 }

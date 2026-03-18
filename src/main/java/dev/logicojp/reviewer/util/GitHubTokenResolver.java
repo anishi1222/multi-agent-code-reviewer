@@ -22,11 +22,9 @@ import java.util.concurrent.TimeUnit;
 public final class GitHubTokenResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(GitHubTokenResolver.class);
-    private static final String PLACEHOLDER = "${GITHUB_TOKEN}";
     private static final String STDIN_TOKEN_SENTINEL = "-";
     private static final int MAX_STDIN_TOKEN_BYTES = 256;
     private static final String GH_CLI_PATH_ENV = "GH_CLI_PATH";
-    private static final String GITHUB_TOKEN_ENV = "GITHUB_TOKEN";
     private static final long DEFAULT_TIMEOUT_SECONDS = 10;
     private static final int GH_AUTH_MAX_ATTEMPTS = 3;
     private static final long GH_AUTH_BACKOFF_BASE_MS = 1_000L;
@@ -37,20 +35,17 @@ public final class GitHubTokenResolver {
     private final long timeoutSeconds;
     private final String configuredGhCliPath;
     private final String configuredPath;
-    private final String configuredGithubToken;
 
     GitHubTokenResolver(long timeoutSeconds) {
-        this(timeoutSeconds, null, null, null);
+        this(timeoutSeconds, null, null);
     }
 
     GitHubTokenResolver(long timeoutSeconds,
                         @Nullable String configuredGhCliPath,
-                        @Nullable String configuredPath,
-                        @Nullable String configuredGithubToken) {
+                        @Nullable String configuredPath) {
         this.timeoutSeconds = (timeoutSeconds <= 0) ? DEFAULT_TIMEOUT_SECONDS : timeoutSeconds;
         this.configuredGhCliPath = configuredGhCliPath;
         this.configuredPath = configuredPath;
-        this.configuredGithubToken = configuredGithubToken;
     }
 
     @Inject
@@ -60,24 +55,18 @@ public final class GitHubTokenResolver {
         this(
             executionConfig.ghAuthTimeoutSeconds(),
             copilotConfig.ghCliPath(),
-            configuredPath,
-            copilotConfig.githubToken()
+            configuredPath
         );
     }
 
     public GitHubTokenResolver(ExecutionConfig executionConfig) {
-        this(executionConfig.ghAuthTimeoutSeconds(), null, null, null);
+        this(executionConfig.ghAuthTimeoutSeconds(), null, null);
     }
 
     public Optional<String> resolve(@Nullable String providedToken) {
         String normalized = normalizeToken(providedToken);
         if (normalized != null) {
             return Optional.of(normalized);
-        }
-
-        String configuredToken = normalizeToken(configuredGithubToken);
-        if (configuredToken != null) {
-            return Optional.of(configuredToken);
         }
 
         return resolveFromGhAuth();
@@ -91,7 +80,7 @@ public final class GitHubTokenResolver {
         if (STDIN_TOKEN_SENTINEL.equals(trimmed)) {
             return readTokenFromStdin();
         }
-        if (trimmed.isEmpty() || PLACEHOLDER.equals(trimmed)) {
+        if (trimmed.isEmpty()) {
             return null;
         }
         return trimmed;
@@ -159,8 +148,6 @@ public final class GitHubTokenResolver {
         }
         ProcessBuilder builder = new ProcessBuilder(executionPath.toString(), "auth", "token", "-h", "github.com");
         builder.directory(SAFE_WORKING_DIRECTORY.toFile());
-        // Avoid propagating parent-process token env to child processes.
-        builder.environment().remove(GITHUB_TOKEN_ENV);
         builder.redirectErrorStream(true);
         try {
             Process process = builder.start();

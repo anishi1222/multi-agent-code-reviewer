@@ -9,6 +9,30 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 3. Publish a GitHub Release from the tag and include EN/JA summary notes.
 4. Update `README_en.md` and `README_ja.md` with release references and URLs.
 
+## 2026-03-18 (v2026.03.18-auth)
+
+### Summary
+- Shifted Copilot authentication to OAuth device-flow oriented login and removed `GITHUB_TOKEN`-centric guidance.
+- Updated CLI/help/runtime messaging to prefer `gh auth login` + `gh copilot -- login` (or `copilot login`).
+- Synchronized README docs (root/EN/JA) with the new authentication policy.
+
+### Highlights
+
+#### Authentication Runtime Changes
+- `CopilotService`: switched to logged-in-user flow (`setUseLoggedInUser(true)`) and removed token-dependent initialization paths.
+- `CopilotCliHealthChecker`: always verifies CLI auth status and no longer bypasses checks when a token is provided.
+- `CopilotConfig` / `application.yml`: removed `reviewer.copilot.github-token` binding.
+- `GitHubTokenResolver`: removed configured `GITHUB_TOKEN` dependency and resolved auth via explicit stdin token (`--token -`) or `gh auth token`.
+
+#### CLI/Docs Alignment
+- Updated `CliUsage`, `CliParsing`, `ReviewTargetResolver`, and `SkillExecutionPreparation` messages to remove `GITHUB_TOKEN` setup guidance.
+- Updated `README.md`, `README_en.md`, and `README_ja.md` to document OAuth device-flow login steps.
+
+### Validation
+- `mvn clean test` — 743 tests passed, 0 failures
+
+---
+
 ## 2026-03-05 (v2026.03.05-notes)
 
 ### Summary
