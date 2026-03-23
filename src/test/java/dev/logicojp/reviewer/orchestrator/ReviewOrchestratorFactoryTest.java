@@ -6,7 +6,6 @@ import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.CircuitBreakerConfig;
 import dev.logicojp.reviewer.config.CopilotConfig;
-import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.config.TemplateConfig;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
