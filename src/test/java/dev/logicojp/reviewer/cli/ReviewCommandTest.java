@@ -3,10 +3,12 @@ package dev.logicojp.reviewer.cli;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
+import dev.logicojp.reviewer.util.ExecutionCorrelation;
 import dev.logicojp.reviewer.util.GitHubTokenResolver;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.MDC;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -17,6 +19,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -70,6 +73,25 @@ class ReviewCommandTest {
         });
 
         assertThat(exit).isEqualTo(ExitCodes.SOFTWARE);
+    }
+
+    @Test
+    @DisplayName("レビュー実行中のみexecution IDがMDCに設定され終了後にクリアされる")
+    void setsExecutionIdOnlyWithinExecutionBoundary() {
+        AtomicReference<String> executionId = new AtomicReference<>();
+        ReviewCommand command = createCommand((agentConfigs, agentDirs, resolvedToken, runRequest) -> {
+            executionId.set(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY));
+            return ExitCodes.OK;
+        });
+
+        int exit = command.execute(new String[]{
+            "--local", tempDir.toString(),
+            "--all"
+        });
+
+        assertThat(exit).isEqualTo(ExitCodes.OK);
+        assertThat(executionId.get()).isNotBlank();
+        assertThat(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY)).isNull();
     }
 
     private ReviewCommand createCommand(ExecutionFn executionFn) {

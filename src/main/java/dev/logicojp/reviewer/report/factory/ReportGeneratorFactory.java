@@ -76,7 +76,7 @@ public class ReportGeneratorFactory {
                     .summaryConfig(cfg)
                     .circuitBreaker(breaker)
                     .build(),
-            SharedCircuitBreaker.withDefaultConfig()
+            SharedCircuitBreaker.forSummaryDomain()
         );
     }
 

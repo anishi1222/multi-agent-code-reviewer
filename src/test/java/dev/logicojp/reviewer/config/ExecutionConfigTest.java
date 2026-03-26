@@ -12,6 +12,13 @@ class ExecutionConfigTest {
     @Nested
     @DisplayName("コンストラクタ - デフォルト値")
     class DefaultValues {
+        @Test
+        @DisplayName("ghAuthFallbackEnabledのデフォルトはfalse")
+        void ghAuthFallbackDefaultIsFalse() {
+            ExecutionConfig config = ExecutionConfig.defaults();
+            assertThat(config.isGhAuthFallbackEnabled()).isFalse();
+        }
+
 
         @Test
         @DisplayName("parallelismが0以下の場合は4に設定される")
@@ -260,6 +267,17 @@ class ExecutionConfigTest {
         }
 
         @Test
+        @DisplayName("gh-authフォールバックフラグを上書きできる")
+        void canOverrideGhAuthFallbackFlag() {
+            ExecutionConfig original = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(4, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0);
+
+            ExecutionConfig updated = original.withGhAuthFallbackEnabled(true);
+
+            assertThat(original.isGhAuthFallbackEnabled()).isFalse();
+            assertThat(updated.isGhAuthFallbackEnabled()).isTrue();
+        }
+
+        @Test
         @DisplayName("0以下の値はデフォルト値に正規化される")
         void invalidValueIsNormalized() {
             ExecutionConfig original = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(4, 1, 10, 5, 5, 5, 5, 10, 2, 0, 0, 0);
@@ -320,6 +338,22 @@ class ExecutionConfigTest {
             );
 
             assertThat(config.isSharedSessionEnabled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("ofファクトリでgh-authフォールバックフラグを指定できる")
+        void createsConfigWithGhAuthFallbackFlag() {
+            ExecutionConfig config = ExecutionConfig.of(
+                new ExecutionConfig.ConcurrencySettings(3, 2),
+                new ExecutionConfig.TimeoutSettings(20, 10, 6, 8, 9, 30),
+                new ExecutionConfig.RetrySettings(4),
+                new ExecutionConfig.BufferSettings(8192, 1024, 64),
+                false,
+                true
+            );
+
+            assertThat(config.isSharedSessionEnabled()).isFalse();
+            assertThat(config.isGhAuthFallbackEnabled()).isTrue();
         }
     }
 }

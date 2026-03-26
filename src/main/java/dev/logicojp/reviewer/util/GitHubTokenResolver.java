@@ -40,17 +40,20 @@ public final class GitHubTokenResolver {
     private final long timeoutSeconds;
     private final String configuredGhCliPath;
     private final String configuredPath;
+    private final boolean ghAuthFallbackEnabled;
 
     GitHubTokenResolver(long timeoutSeconds) {
-        this(timeoutSeconds, null, null);
+        this(timeoutSeconds, null, null, false);
     }
 
     GitHubTokenResolver(long timeoutSeconds,
                         @Nullable String configuredGhCliPath,
-                        @Nullable String configuredPath) {
+                        @Nullable String configuredPath,
+                        boolean ghAuthFallbackEnabled) {
         this.timeoutSeconds = (timeoutSeconds <= 0) ? DEFAULT_TIMEOUT_SECONDS : timeoutSeconds;
         this.configuredGhCliPath = configuredGhCliPath;
         this.configuredPath = configuredPath;
+        this.ghAuthFallbackEnabled = ghAuthFallbackEnabled;
     }
 
     @Inject
@@ -60,12 +63,18 @@ public final class GitHubTokenResolver {
         this(
             executionConfig.ghAuthTimeoutSeconds(),
             copilotConfig.ghCliPath(),
-            configuredPath
+            configuredPath,
+            executionConfig.isGhAuthFallbackEnabled()
         );
     }
 
     public GitHubTokenResolver(ExecutionConfig executionConfig) {
-        this(executionConfig.ghAuthTimeoutSeconds(), null, null);
+        this(
+            executionConfig.ghAuthTimeoutSeconds(),
+            null,
+            null,
+            executionConfig.isGhAuthFallbackEnabled()
+        );
     }
 
     public Optional<String> resolve(@Nullable String providedToken) {
@@ -114,6 +123,10 @@ public final class GitHubTokenResolver {
     }
 
     private Optional<String> resolveFromGhAuth() {
+        if (!ghAuthFallbackEnabled) {
+            logger.debug("gh auth token fallback is disabled by configuration");
+            return Optional.empty();
+        }
         String ghPath = resolveGhCliPath();
         if (ghPath == null) {
             logger.warn("gh CLI not found. Install GitHub CLI or set {}.", GH_CLI_PATH_ENV);

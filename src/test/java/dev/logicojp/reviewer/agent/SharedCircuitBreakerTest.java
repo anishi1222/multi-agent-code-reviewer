@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.agent;
 
+import dev.logicojp.reviewer.config.CircuitBreakerConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -9,6 +10,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("SharedCircuitBreaker")
 class SharedCircuitBreakerTest {
+
+    @Test
+    @DisplayName("ドメイン別デフォルトブレーカーは独立している")
+    void domainDefaultBreakersAreIsolated() {
+        SharedCircuitBreaker review = SharedCircuitBreaker.forReviewDomain();
+        SharedCircuitBreaker skill = SharedCircuitBreaker.forSkillDomain();
+        SharedCircuitBreaker summary = SharedCircuitBreaker.forSummaryDomain();
+
+        review.reset();
+        skill.reset();
+        summary.reset();
+        try {
+            for (int i = 0; i < CircuitBreakerConfig.DEFAULT_FAILURE_THRESHOLD; i++) {
+                review.onFailure();
+            }
+
+            assertThat(review.allowRequest()).isFalse();
+            assertThat(skill.allowRequest()).isTrue();
+            assertThat(summary.allowRequest()).isTrue();
+        } finally {
+            review.reset();
+            skill.reset();
+            summary.reset();
+        }
+    }
 
     @Test
     @DisplayName("異なるインスタンス間で障害が分離される")

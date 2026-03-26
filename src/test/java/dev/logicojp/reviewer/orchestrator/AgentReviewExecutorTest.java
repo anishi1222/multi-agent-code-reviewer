@@ -5,13 +5,16 @@ import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
+import dev.logicojp.reviewer.util.ExecutionCorrelation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.Executors;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
@@ -178,6 +181,48 @@ class AgentReviewExecutorTest {
             assertThat(createdReviewers.get()).isEqualTo(1);
             assertThat(reviewPassesCalls.get()).isEqualTo(1);
         } finally {
+            executorService.close();
+            ctx.client().close();
+            ctx.sharedScheduler().close();
+        }
+    }
+
+    @Test
+    @DisplayName("agent実行スレッドへexecution IDのMDCが伝播される")
+    void propagatesExecutionIdToAgentExecutionThread() {
+        var executorService = Executors.newVirtualThreadPerTaskExecutor();
+        var ctx = context();
+        AtomicReference<String> capturedExecutionId = new AtomicReference<>();
+        try {
+            var executor = new AgentReviewExecutor(
+                new Semaphore(1),
+                executorService,
+                (config, context) -> target -> {
+                    capturedExecutionId.set(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY));
+                    return ReviewResult.builder()
+                        .agentConfig(config)
+                        .repository(target.displayName())
+                        .content("ok")
+                        .success(true)
+                        .timestamp(Instant.now())
+                        .build();
+                }
+            );
+
+            ExecutionCorrelation.putExecutionId("exec-agent");
+            var results = executor.executeAgentPassesSafely(
+                agentConfig(),
+                ReviewTarget.gitHub("owner/repo"),
+                ctx,
+                1,
+                1
+            );
+
+            assertThat(results).hasSize(1);
+            assertThat(results.getFirst().success()).isTrue();
+            assertThat(capturedExecutionId.get()).isEqualTo("exec-agent");
+        } finally {
+            ExecutionCorrelation.clearExecutionId();
             executorService.close();
             ctx.client().close();
             ctx.sharedScheduler().close();

@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.orchestrator;
 
+import dev.logicojp.reviewer.util.ExecutionCorrelation;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.report.core.ReviewResult;
@@ -57,7 +58,10 @@ final class AgentReviewExecutor {
         Future<List<ReviewResult>> future = null;
         try {
             AgentReviewer reviewer = reviewerFactory.create(config, context);
-            future = agentExecutionExecutor.submit(() -> reviewer.reviewPasses(target, reviewPasses));
+            var parentMdcContext = ExecutionCorrelation.captureMdcContext();
+            future = agentExecutionExecutor.submit(
+                () -> ExecutionCorrelation.callWithMdcContext(parentMdcContext, () -> reviewer.reviewPasses(target, reviewPasses))
+            );
             try {
                 long totalTimeoutMinutes = perAgentTimeoutMinutes * Math.max(1, reviewPasses);
                 return future.get(totalTimeoutMinutes, TimeUnit.MINUTES);

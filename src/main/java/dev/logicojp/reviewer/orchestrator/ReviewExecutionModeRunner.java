@@ -5,6 +5,7 @@ import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
+import dev.logicojp.reviewer.util.ExecutionCorrelation;
 import dev.logicojp.reviewer.util.StructuredConcurrencyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,7 @@ final class ReviewExecutionModeRunner {
                                          AgentPassExecutor agentPassExecutor) {
         ExecutionParams params = executionParams(agents.size());
         List<SubtaskWithConfig> tasks = new ArrayList<>(params.agentCount());
+        var parentMdcContext = ExecutionCorrelation.captureMdcContext();
         try (var scope = StructuredTaskScope.<List<ReviewResult>>open()) {
             for (var config : agents.values()) {
                 tasks.add(new SubtaskWithConfig(scope.fork(() -> executeAgentPasses(
@@ -58,7 +60,8 @@ final class ReviewExecutionModeRunner {
                     sharedContext,
                     params.reviewPasses(),
                     params.perAgentTimeoutMinutes(),
-                    agentPassExecutor
+                    agentPassExecutor,
+                    parentMdcContext
                 )), config));
             }
 
@@ -141,19 +144,29 @@ final class ReviewExecutionModeRunner {
     }
 
     private List<ReviewResult> executeAgentPasses(AgentConfig config,
-                                                  ReviewTarget target,
-                                                  ReviewContext sharedContext,
-                                                  int reviewPasses,
-                                                  long perAgentTimeoutMinutes,
-                                                  AgentPassExecutor agentPassExecutor) {
-        logAgentStart(config, reviewPasses);
-        return agentPassExecutor.execute(
-            config,
-            target,
-            sharedContext,
-            reviewPasses,
-            perAgentTimeoutMinutes
-        );
+                                                   ReviewTarget target,
+                                                   ReviewContext sharedContext,
+                                                   int reviewPasses,
+                                                   long perAgentTimeoutMinutes,
+                                                   AgentPassExecutor agentPassExecutor,
+                                                   Map<String, String> parentMdcContext) {
+        try {
+            return ExecutionCorrelation.callWithMdcContext(parentMdcContext, () -> {
+                logAgentStart(config, reviewPasses);
+                return agentPassExecutor.execute(
+                    config,
+                    target,
+                    sharedContext,
+                    reviewPasses,
+                    perAgentTimeoutMinutes
+                );
+            });
+        } catch (Exception e) {
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IllegalStateException("Failed to execute agent passes", e);
+        }
     }
 
     private void logAgentStart(AgentConfig config,

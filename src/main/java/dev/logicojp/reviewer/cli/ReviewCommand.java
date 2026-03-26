@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.cli;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
 import dev.logicojp.reviewer.target.ReviewTarget;
+import dev.logicojp.reviewer.util.ExecutionCorrelation;
 import dev.logicojp.reviewer.util.SecurityAuditLogger;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -261,26 +262,33 @@ public class ReviewCommand {
     }
 
     private int executeInternal(ParsedOptions options) {
-        ReviewTargetResolver.TargetAndToken targetAndToken = resolveTargetAndToken(options);
-        ReviewTarget target = targetAndToken.target();
-        String resolvedToken = targetAndToken.resolvedToken();
-        logReviewAuditEvent(target, options.trustTarget(), resolvedToken != null && !resolvedToken.isBlank());
-        ModelConfig modelConfig = resolveModelConfig(options);
-        ReviewAgentConfigResolver.AgentResolution agentResolution = resolveAgentConfigs(options);
-        List<Path> agentDirs = agentResolution.agentDirectories();
-        Map<String, AgentConfig> agentConfigs = agentResolution.agentConfigs();
+        String executionId = ExecutionCorrelation.generateExecutionId();
+        ExecutionCorrelation.putExecutionId(executionId);
+        try {
+            ReviewTargetResolver.TargetAndToken targetAndToken = resolveTargetAndToken(options);
+            ReviewTarget target = targetAndToken.target();
+            String resolvedToken = targetAndToken.resolvedToken();
+            logger.info("Review execution started: executionId={}, target={}", executionId, target.displayName());
+            logReviewAuditEvent(target, options.trustTarget(), resolvedToken != null && !resolvedToken.isBlank());
+            ModelConfig modelConfig = resolveModelConfig(options);
+            ReviewAgentConfigResolver.AgentResolution agentResolution = resolveAgentConfigs(options);
+            List<Path> agentDirs = agentResolution.agentDirectories();
+            Map<String, AgentConfig> agentConfigs = agentResolution.agentConfigs();
 
-        ReviewPreparationService.PreparedData prepared = prepareReviewData(
-            options, target, modelConfig, agentConfigs, agentDirs);
-        ReviewRunExecutor.ReviewRunRequest runRequest = createRunRequest(
-            options,
-            target,
-            modelConfig,
-            agentConfigs,
-            prepared
-        );
+            ReviewPreparationService.PreparedData prepared = prepareReviewData(
+                options, target, modelConfig, agentConfigs, agentDirs);
+            ReviewRunExecutor.ReviewRunRequest runRequest = createRunRequest(
+                options,
+                target,
+                modelConfig,
+                agentConfigs,
+                prepared
+            );
 
-        return executeReview(agentConfigs, agentDirs, resolvedToken, runRequest);
+            return executeReview(agentConfigs, agentDirs, resolvedToken, runRequest);
+        } finally {
+            ExecutionCorrelation.clearExecutionId();
+        }
     }
 
     private ReviewTargetResolver.TargetAndToken resolveTargetAndToken(ParsedOptions options) {
