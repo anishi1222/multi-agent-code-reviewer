@@ -205,7 +205,7 @@ public final class GitHubTokenResolver {
         if (configuredPath == null || configuredPath.isBlank()) {
             return null;
         }
-        return CliPathResolver.findExecutableInPathValue(configuredPath, "gh")
+        return CliPathResolver.findTrustedExecutableInPathValue(configuredPath, "gh")
             .map(path -> path.toAbsolutePath().normalize().toString())
             .orElse(null);
     }

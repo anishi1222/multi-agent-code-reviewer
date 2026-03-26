@@ -52,7 +52,22 @@ public final class CliPathResolver {
         return findExecutableInPathValue(pathEnv, candidateNames);
     }
 
+    public static Optional<Path> findTrustedExecutableInPath(String... candidateNames) {
+        String pathEnv = System.getenv("PATH");
+        return findTrustedExecutableInPathValue(pathEnv, candidateNames);
+    }
+
     public static Optional<Path> findExecutableInPathValue(String pathEnv, String... candidateNames) {
+        return findExecutableInPathValue(pathEnv, false, candidateNames);
+    }
+
+    public static Optional<Path> findTrustedExecutableInPathValue(String pathEnv, String... candidateNames) {
+        return findExecutableInPathValue(pathEnv, true, candidateNames);
+    }
+
+    private static Optional<Path> findExecutableInPathValue(String pathEnv,
+                                                            boolean requireTrustedDirectory,
+                                                            String... candidateNames) {
         if (pathEnv == null || pathEnv.isBlank()) {
             return Optional.empty();
         }
@@ -67,7 +82,8 @@ public final class CliPathResolver {
                 if (Files.isExecutable(candidate)) {
                     try {
                         Path realPath = candidate.toRealPath();
-                        if (hasAllowedName(realPath, candidateNames)) {
+                        if (hasAllowedName(realPath, candidateNames)
+                            && (!requireTrustedDirectory || isInTrustedDirectory(realPath))) {
                             return Optional.of(realPath);
                         }
                     } catch (IOException | SecurityException _) {
