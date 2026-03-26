@@ -44,7 +44,8 @@ public final class ReportFileUtils {
 
     public static void writeSecureString(Path filePath, String content) throws IOException {
         boolean posix = supportsPosix(filePath);
-        Path tempFilePath = filePath.resolveSibling(filePath.getFileName() + ".tmp." + UUID.randomUUID());
+        Path tempDirectory = filePath.getParent() != null ? filePath.getParent() : Path.of(".");
+        Path tempFilePath = createTempFile(tempDirectory, filePath.getFileName().toString(), posix);
         try {
             Files.writeString(tempFilePath, content);
             if (posix) {
@@ -57,6 +58,27 @@ public final class ReportFileUtils {
         } finally {
             Files.deleteIfExists(tempFilePath);
         }
+    }
+
+    private static Path createTempFile(Path directory, String baseName, boolean posix) throws IOException {
+        String prefix = tempFilePrefix(baseName);
+        if (posix && supportsPosix(directory)) {
+            return Files.createTempFile(
+                directory,
+                prefix,
+                ".tmp",
+                PosixFilePermissions.asFileAttribute(OWNER_FILE_PERMISSIONS)
+            );
+        }
+        return Files.createTempFile(directory, prefix, ".tmp");
+    }
+
+    private static String tempFilePrefix(String baseName) {
+        String sanitized = (baseName == null || baseName.isBlank()) ? "report" : baseName;
+        if (sanitized.length() >= 3) {
+            return sanitized;
+        }
+        return (sanitized + "___").substring(0, 3);
     }
 
     private static void moveAtomically(Path source, Path target) throws IOException {

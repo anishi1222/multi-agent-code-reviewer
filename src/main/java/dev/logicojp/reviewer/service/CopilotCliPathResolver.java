@@ -47,6 +47,11 @@ public class CopilotCliPathResolver {
         }
         var explicitPath = CliPathResolver.resolveExplicitExecutable(explicit, CLI_CANDIDATES);
         if (explicitPath.isPresent()) {
+            if (!CliPathResolver.isInTrustedDirectory(explicitPath.get())) {
+                throw new CopilotCliException("Copilot CLI at " + explicitPath.get()
+                    + " is outside trusted directories. Set " + CLI_PATH_ENV
+                    + " to a binary under /usr/bin, /usr/local/bin, /bin, or /opt/homebrew/bin.");
+            }
             return explicitPath.get().toString();
         }
         throw explicitPathNotFound(explicit);
@@ -58,13 +63,13 @@ public class CopilotCliPathResolver {
             throw new CopilotCliException("PATH is not set. Install GitHub Copilot CLI and/or set "
                 + CLI_PATH_ENV + " to its executable path.");
         }
-        var candidate = CliPathResolver.findExecutableInPathValue(pathEnv, CLI_CANDIDATES);
+        var candidate = CliPathResolver.findTrustedExecutableInPathValue(pathEnv, CLI_CANDIDATES);
         if (candidate.isPresent()) {
             return candidate.get().toString();
         }
 
-        throw new CopilotCliException("GitHub Copilot CLI not found in PATH. Install it and ensure "
-            + "`github-copilot` or `copilot` is available, or set " + CLI_PATH_ENV + ".");
+        throw new CopilotCliException("GitHub Copilot CLI not found in trusted PATH directories. Install it under "
+            + "/usr/bin, /usr/local/bin, /bin, or /opt/homebrew/bin, or set " + CLI_PATH_ENV + ".");
     }
     private CopilotCliException explicitPathNotFound(String explicit) {
         Path explicitPathValue = Path.of(explicit.trim()).toAbsolutePath().normalize();

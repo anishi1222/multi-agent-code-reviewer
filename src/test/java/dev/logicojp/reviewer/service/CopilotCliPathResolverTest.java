@@ -3,8 +3,15 @@ package dev.logicojp.reviewer.service;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("CopilotCliPathResolver")
 class CopilotCliPathResolverTest {
@@ -29,6 +36,34 @@ class CopilotCliPathResolverTest {
                 // Expected in environments without Copilot CLI installed
                 assertThat(e.getMessage()).containsAnyOf("not found", "PATH");
             }
+        }
+
+        @Test
+        @DisplayName("信頼外ディレクトリのCOPILOT_CLI_PATHは拒否する")
+        void rejectsUntrustedExplicitCliPath(@TempDir Path tempDir) throws IOException {
+            Path fakeCli = tempDir.resolve("copilot");
+            Files.writeString(fakeCli, "#!/bin/sh\nexit 0\n", StandardCharsets.UTF_8);
+            fakeCli.toFile().setExecutable(true);
+
+            CopilotCliPathResolver resolver = new CopilotCliPathResolver(fakeCli.toString(), null);
+
+            assertThatThrownBy(resolver::resolveCliPath)
+                .isInstanceOf(CopilotCliException.class)
+                .hasMessageContaining("trusted directories");
+        }
+
+        @Test
+        @DisplayName("信頼外PATH上のcopilotは解決しない")
+        void rejectsUntrustedPathCandidate(@TempDir Path tempDir) throws IOException {
+            Path fakeCli = tempDir.resolve("copilot");
+            Files.writeString(fakeCli, "#!/bin/sh\nexit 0\n", StandardCharsets.UTF_8);
+            fakeCli.toFile().setExecutable(true);
+
+            CopilotCliPathResolver resolver = new CopilotCliPathResolver((String) null, tempDir.toString());
+
+            assertThatThrownBy(resolver::resolveCliPath)
+                .isInstanceOf(CopilotCliException.class)
+                .hasMessageContaining("trusted PATH directories");
         }
     }
 

@@ -2,8 +2,11 @@ package dev.logicojp.reviewer.util;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -26,6 +29,21 @@ class CliPathResolverTest {
             "/path/that/does/not/exist",
             "___no_such_bin___"
         );
+        assertThat(resolved).isEmpty();
+    }
+
+    @Test
+    @DisplayName("信頼外PATHエントリの実行可能ファイルは解決しない")
+    void untrustedPathExecutableIsRejected(@TempDir Path tempDir) throws IOException {
+        Path fakeGh = tempDir.resolve("gh");
+        Files.writeString(fakeGh, "#!/bin/sh\nexit 0\n", StandardCharsets.UTF_8);
+        fakeGh.toFile().setExecutable(true);
+
+        Optional<Path> resolved = CliPathResolver.findTrustedExecutableInPathValue(
+            tempDir.toString(),
+            "gh"
+        );
+
         assertThat(resolved).isEmpty();
     }
 
