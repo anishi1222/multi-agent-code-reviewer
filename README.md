@@ -121,8 +121,9 @@ docker build -t multi-agent-reviewer:local .
 docker run --rm multi-agent-reviewer:local --version
 ```
 
-- Build stage: Maven + Java 26
-- Runtime stage: Temurin JRE 26
+- Build stage: Maven + digest-pinned OpenJDK 26 on Oracle Linux 9
+- Runtime stage: digest-pinned OpenJDK 26 on Oracle Linux 9
+- Built-in agents, templates, and skills are bundled into the runtime image
 - Default entrypoint preserves project requirement: `--enable-preview`
 
 ## Optional Structured Logging Profile
