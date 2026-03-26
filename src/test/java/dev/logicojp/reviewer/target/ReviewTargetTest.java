@@ -133,6 +133,13 @@ class ReviewTargetTest {
         }
 
         @Test
+        @DisplayName("ルートディレクトリのLocalTargetは安全な相対パスを返す")
+        void localRootSubPathUsesSafeRelativeName() {
+            ReviewTarget target = ReviewTarget.local(Path.of("/"));
+            assertThat(target.repositorySubPath()).isEqualTo(Path.of("local-root"));
+        }
+
+        @Test
         @DisplayName("パストラバーサル文字を含むリポジトリ名は拒否される")
         void rejectsPathTraversal() {
             assertThatThrownBy(() -> ReviewTarget.gitHub("../../tmp/malicious"))

@@ -111,16 +111,31 @@ public class SkillMarkdownParser {
             return List.of();
         }
 
-        try (Stream<Path> dirs = Files.list(skillsRoot)) {
-            return dirs
-                .filter(Files::isDirectory)
-                .map(dir -> dir.resolve(skillFilename))
-                .filter(Files::isRegularFile)
-                .sorted()
-                .toList();
+        try {
+            Path realSkillsRoot = skillsRoot.toRealPath();
+            try (Stream<Path> dirs = Files.list(realSkillsRoot)) {
+                return dirs
+                    .filter(Files::isDirectory)
+                    .map(dir -> dir.resolve(skillFilename))
+                    .filter(path -> isSkillFileWithinRoot(path, realSkillsRoot))
+                    .sorted()
+                    .toList();
+            }
         } catch (IOException e) {
             logger.error("Failed to discover skills in {}: {}", skillsRoot, e.getMessage(), e);
             return List.of();
+        }
+    }
+
+    private boolean isSkillFileWithinRoot(Path path, Path realSkillsRoot) {
+        if (!Files.isRegularFile(path)) {
+            return false;
+        }
+        try {
+            return path.toRealPath().startsWith(realSkillsRoot);
+        } catch (IOException e) {
+            logger.debug("Failed to resolve real path for skill file {}: {}", path, e.getMessage());
+            return false;
         }
     }
 }

@@ -62,8 +62,20 @@ class ReviewPreparationService {
     private Path resolveOutputDirectory(ReviewCommand.ParsedOptions options,
                                         ReviewTarget target,
                                         String invocationTimestamp) {
-        return options.outputDirectory()
-            .resolve(target.repositorySubPath())
-            .resolve(invocationTimestamp);
+        Path configuredOutputDirectory = options.outputDirectory();
+        Path targetSubPath = target.repositorySubPath().normalize();
+        Path absoluteBaseOutputDirectory = configuredOutputDirectory.toAbsolutePath().normalize();
+        Path absoluteResolvedOutputDirectory = absoluteBaseOutputDirectory
+            .resolve(targetSubPath)
+            .resolve(invocationTimestamp)
+            .normalize();
+        if (targetSubPath.isAbsolute() || targetSubPath.startsWith("..")
+            || !absoluteResolvedOutputDirectory.startsWith(absoluteBaseOutputDirectory)) {
+            throw new CliValidationException(
+                "Unsafe output directory resolved for target: " + target.displayName(),
+                false
+            );
+        }
+        return configuredOutputDirectory.resolve(targetSubPath).resolve(invocationTimestamp);
     }
 }

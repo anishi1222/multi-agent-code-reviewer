@@ -65,4 +65,43 @@ class ReviewPreparationServiceTest {
         assertThat(prepared.outputDirectory()).isEqualTo(Path.of("./reports/owner/repo/2026-02-19-09-10-11"));
         assertThat(bannerOutputDirectory.get()).isEqualTo(Path.of("./reports/owner/repo/2026-02-19-09-10-11"));
     }
+
+    @Test
+    @DisplayName("ローカルターゲットがルートディレクトリでも出力先はベース配下に固定される")
+    void keepsRootLocalTargetOutputInsideBaseDirectory() {
+        AtomicReference<Path> bannerOutputDirectory = new AtomicReference<>();
+
+        var service = new ReviewPreparationService(
+            (agentConfigs, agentDirs, modelConfig, target, outputDirectory, reviewModel) ->
+                bannerOutputDirectory.set(outputDirectory),
+            Clock.fixed(Instant.parse("2026-02-19T09:10:11Z"), ZoneId.of("UTC"))
+        );
+
+        ReviewCommand.ParsedOptions options = ReviewCommand.ParsedOptions.builder()
+            .target(new ReviewCommand.TargetSelection.LocalDirectory(Path.of("/")))
+            .agents(new ReviewCommand.AgentSelection.All())
+            .outputDirectory(Path.of("./reports"))
+            .additionalAgentDirs(List.of())
+            .parallelism(4)
+            .noSummary(false)
+            .reviewModel("review-model")
+            .reportModel("report-model")
+            .summaryModel("summary-model")
+            .defaultModel("default-model")
+            .trustTarget(false)
+            .build();
+        ReviewTarget target = ReviewTarget.local(Path.of("/"));
+        ModelConfig modelConfig = new ModelConfig("r", "p", "s", "high", "d");
+
+        ReviewPreparationService.PreparedData prepared = service.prepare(
+            options,
+            target,
+            modelConfig,
+            Map.of(),
+            List.of()
+        );
+
+        assertThat(prepared.outputDirectory()).isEqualTo(Path.of("./reports/local-root/2026-02-19-09-10-11"));
+        assertThat(bannerOutputDirectory.get()).isEqualTo(Path.of("./reports/local-root/2026-02-19-09-10-11"));
+    }
 }

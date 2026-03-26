@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 public sealed interface ReviewTarget permits ReviewTarget.LocalTarget, ReviewTarget.GitHubTarget {
 
     Pattern REPOSITORY_PATTERN = Pattern.compile("^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$");
+    String LOCAL_ROOT_SUBPATH = "local-root";
 
     /// A local directory target.
     /// @param directory The absolute path to the local directory to review
@@ -95,8 +96,9 @@ public sealed interface ReviewTarget permits ReviewTarget.LocalTarget, ReviewTar
                 yield subPath;
             }
             case LocalTarget(Path directory) -> {
-                Path fileName = directory.getFileName();
-                yield fileName != null ? Path.of(fileName.toString()) : Path.of(directory.toString());
+                Path normalizedDirectory = directory.normalize();
+                Path fileName = normalizedDirectory.getFileName();
+                yield fileName != null ? Path.of(fileName.toString()) : Path.of(LOCAL_ROOT_SUBPATH);
             }
         };
     }

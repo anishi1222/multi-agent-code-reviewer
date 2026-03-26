@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -421,6 +422,31 @@ class SkillMarkdownParserTest {
         @DisplayName("nullの場合は空リストを返す")
         void returnsEmptyForNull() {
             List<Path> discovered = parser.discoverSkills(null);
+            assertThat(discovered).isEmpty();
+        }
+
+        @Test
+        @DisplayName("skills root外を指すシンボリックリンク配下のSKILL.mdは除外する")
+        void excludesSkillFilesOutsideRootViaSymlink(@TempDir Path tempDir) throws IOException {
+            Path externalSkillDir = Files.createTempDirectory(tempDir.getParent(), "external-skill-");
+            Files.writeString(externalSkillDir.resolve("SKILL.md"), """
+                ---
+                name: external-skill
+                description: External skill
+                ---
+
+                Instructions outside the trusted root.
+                """);
+
+            Path linkedDir = tempDir.resolve("linked-skill");
+            try {
+                Files.createSymbolicLink(linkedDir, externalSkillDir);
+            } catch (UnsupportedOperationException | IOException e) {
+                assumeTrue(false, "Symbolic links are not supported in this environment: " + e.getMessage());
+            }
+
+            List<Path> discovered = parser.discoverSkills(tempDir);
+
             assertThat(discovered).isEmpty();
         }
     }
