@@ -15,6 +15,7 @@ reviewer:
       - ./.github/agents
   execution:
     shared-session-enabled: true
+    gh-auth-fallback-enabled: ${GH_AUTH_FALLBACK_ENABLED:false}
     concurrency:
       # Local review prompts can be large. Increase carefully with heap size.
       # Guideline: 512MB heap -> around 4, 1GB heap -> around 8.
@@ -64,6 +65,8 @@ reviewer:
     github:
       type: http
       url: https://api.githubcopilot.com/mcp/
+      allowed-hosts:
+        - api.githubcopilot.com
       tools:
         - "get_file_contents"
         - "search_code"

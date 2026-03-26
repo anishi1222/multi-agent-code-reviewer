@@ -14,6 +14,9 @@ public final class SharedCircuitBreaker {
     private final int failureThreshold;
     private final long resetTimeoutMs;
     private final LongSupplier clock;
+    private static final SharedCircuitBreaker REVIEW_DOMAIN_BREAKER = withDefaultConfig();
+    private static final SharedCircuitBreaker SKILL_DOMAIN_BREAKER = withDefaultConfig();
+    private static final SharedCircuitBreaker SUMMARY_DOMAIN_BREAKER = withDefaultConfig();
 
     private record BreakerState(int consecutiveFailures, long openedAtMs) {
         static final BreakerState CLOSED = new BreakerState(0, -1L);
@@ -26,6 +29,21 @@ public final class SharedCircuitBreaker {
             CircuitBreakerConfig.DEFAULT_FAILURE_THRESHOLD,
             CircuitBreakerConfig.DEFAULT_RESET_TIMEOUT_MS
         );
+    }
+
+    /// Returns the default shared circuit breaker for review execution domain.
+    public static SharedCircuitBreaker forReviewDomain() {
+        return REVIEW_DOMAIN_BREAKER;
+    }
+
+    /// Returns the default shared circuit breaker for skill execution domain.
+    public static SharedCircuitBreaker forSkillDomain() {
+        return SKILL_DOMAIN_BREAKER;
+    }
+
+    /// Returns the default shared circuit breaker for summary generation domain.
+    public static SharedCircuitBreaker forSummaryDomain() {
+        return SUMMARY_DOMAIN_BREAKER;
     }
 
     public SharedCircuitBreaker(int failureThreshold, long resetTimeoutMs) {

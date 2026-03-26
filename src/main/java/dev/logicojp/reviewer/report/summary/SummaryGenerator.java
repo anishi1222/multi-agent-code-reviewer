@@ -122,7 +122,7 @@ public class SummaryGenerator {
         private SummaryCollaborators collaborators;
         private BiFunction<List<ReviewResult>, String, String> aiSummaryBuilderOverride;
         private Clock clock = Clock.systemDefaultZone();
-        private SharedCircuitBreaker circuitBreaker = SharedCircuitBreaker.withDefaultConfig();
+        private SharedCircuitBreaker circuitBreaker = SharedCircuitBreaker.forSummaryDomain();
 
         private Builder(Path outputDirectory,
                         CopilotClient client,

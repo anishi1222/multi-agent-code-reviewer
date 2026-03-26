@@ -34,21 +34,17 @@ class GitHubTokenResolverTest {
         }
 
         @Test
-        @DisplayName("空文字列のトークンの場合はgh authにフォールバックする")
-        void emptyTokenFallsBack() {
+        @DisplayName("空文字列のトークンでフォールバック無効時は空を返す")
+        void emptyTokenReturnsEmptyWhenFallbackDisabled() {
             GitHubTokenResolver resolver = new GitHubTokenResolver(1);
-            // gh auth may or may not be available; this tests the flow
-            resolver.resolve("");
-            // We can't assert the value because gh auth might not be available,
-            // but the method should not throw
+            assertThat(resolver.resolve("")).isEmpty();
         }
 
         @Test
-        @DisplayName("nullのトークンの場合はgh authにフォールバックする")
-        void nullTokenFallsBack() {
+        @DisplayName("nullのトークンでフォールバック無効時は空を返す")
+        void nullTokenReturnsEmptyWhenFallbackDisabled() {
             GitHubTokenResolver resolver = new GitHubTokenResolver(1);
-            resolver.resolve(null);
-            // Should not throw
+            assertThat(resolver.resolve(null)).isEmpty();
         }
 
         @Test
@@ -65,8 +61,15 @@ class GitHubTokenResolverTest {
             Files.writeString(fakeGh, "#!/bin/sh\necho ghp_fake\n", StandardCharsets.UTF_8);
             fakeGh.toFile().setExecutable(true);
 
-            GitHubTokenResolver resolver = new GitHubTokenResolver(1, null, tempDir.toString());
+            GitHubTokenResolver resolver = new GitHubTokenResolver(1, null, tempDir.toString(), true);
 
+            assertThat(resolver.resolve(null)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("フォールバック有効かつPATH未設定時は空を返す")
+        void enabledFallbackWithoutPathReturnsEmpty() {
+            GitHubTokenResolver resolver = new GitHubTokenResolver(1, null, null, true);
             assertThat(resolver.resolve(null)).isEmpty();
         }
     }

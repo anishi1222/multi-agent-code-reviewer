@@ -54,7 +54,7 @@ public class ReviewOrchestrator implements AutoCloseable {
         this(client, orchestratorConfig, defaultCollaborators(
             client,
             orchestratorConfig,
-            SharedCircuitBreaker.withDefaultConfig()
+            SharedCircuitBreaker.forReviewDomain()
         ));
     }
 
@@ -70,7 +70,7 @@ public class ReviewOrchestrator implements AutoCloseable {
                 orchestratorConfig,
                 reviewerFactory,
                 localSourceCollectorFactory,
-                SharedCircuitBreaker.withDefaultConfig()
+                SharedCircuitBreaker.forReviewDomain()
             )
         );
     }

@@ -43,7 +43,7 @@ public class SkillExecutor implements AutoCloseable {
             githubToken,
             githubMcpConfig,
             config,
-            SharedCircuitBreaker.withDefaultConfig()
+            SharedCircuitBreaker.forSkillDomain()
         );
     }
 

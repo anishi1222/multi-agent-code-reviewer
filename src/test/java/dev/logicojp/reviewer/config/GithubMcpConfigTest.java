@@ -27,6 +27,7 @@ class GithubMcpConfigTest {
             assertThat(config.headers()).isEmpty();
             assertThat(config.authHeaderName()).isEqualTo("Authorization");
             assertThat(config.authHeaderTemplate()).isEqualTo("Bearer {token}");
+            assertThat(config.allowedHosts()).containsExactly("api.githubcopilot.com");
         }
     }
 
@@ -42,6 +43,61 @@ class GithubMcpConfigTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must use HTTPS");
         }
+
+        @Test
+        @DisplayName("許可されていないホストは拒否される")
+        void rejectsUrlHostOutsideAllowlist() {
+            assertThatThrownBy(() -> new GithubMcpConfig(
+                "http", "https://api.example.com/mcp/", List.of("*"), Map.of(), "Authorization", "Bearer {token}"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("host is not in allowlist");
+        }
+
+        @Test
+        @DisplayName("デフォルト許可ホストは受け入れられる")
+        void acceptsDefaultAllowedHost() {
+            GithubMcpConfig config = new GithubMcpConfig(
+                "http",
+                "https://api.githubcopilot.com/mcp/",
+                List.of("*"),
+                Map.of(),
+                "Authorization",
+                "Bearer {token}"
+            );
+            assertThat(config.url()).isEqualTo("https://api.githubcopilot.com/mcp/");
+        }
+
+        @Test
+        @DisplayName("allowlist指定時は許可ホストを受け入れる")
+        void acceptsConfiguredAllowedHost() {
+            GithubMcpConfig config = new GithubMcpConfig(
+                "http",
+                "https://api.example.com/mcp/",
+                List.of("*"),
+                Map.of(),
+                "Authorization",
+                "Bearer {token}",
+                List.of("api.example.com")
+            );
+            assertThat(config.url()).isEqualTo("https://api.example.com/mcp/");
+            assertThat(config.allowedHosts()).containsExactly("api.example.com");
+        }
+
+        @Test
+        @DisplayName("allowlistが空の場合は拒否される")
+        void rejectsEmptyAllowlist() {
+            assertThatThrownBy(() -> new GithubMcpConfig(
+                "http",
+                "https://api.githubcopilot.com/mcp/",
+                List.of("*"),
+                Map.of(),
+                "Authorization",
+                "Bearer {token}",
+                List.of(" ", "")
+            ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("allowed hosts must not be empty");
+        }
     }
 
     @Nested
@@ -53,7 +109,7 @@ class GithubMcpConfigTest {
         void generatesMcpServerWithToken() {
             GithubMcpConfig config = new GithubMcpConfig(
                 "http", "https://api.example.com/mcp/",
-                List.of("tool1"), Map.of(), "Authorization", "Bearer {token}");
+                List.of("tool1"), Map.of(), "Authorization", "Bearer {token}", List.of("api.example.com"));
             Map<String, Object> server = config.toMcpServer("my-token");
 
             assertThat(server).containsEntry("type", "http");
@@ -93,7 +149,7 @@ class GithubMcpConfigTest {
             GithubMcpConfig config = new GithubMcpConfig(
                 "http", "https://api.example.com/",
                 List.of("*"), Map.of("X-Custom", "value"),
-                "Authorization", "Bearer {token}");
+                "Authorization", "Bearer {token}", List.of("api.example.com"));
             Map<String, Object> server = config.toMcpServer("tok");
 
             @SuppressWarnings("unchecked")
@@ -108,7 +164,7 @@ class GithubMcpConfigTest {
             GithubMcpConfig config = new GithubMcpConfig(
                 "http", "https://api.example.com/",
                 List.of("*"), Map.of(),
-                "Authorization", "token ${token}");
+                "Authorization", "token ${token}", List.of("api.example.com"));
             Map<String, Object> server = config.toMcpServer("abc123");
 
             @SuppressWarnings("unchecked")
@@ -123,7 +179,7 @@ class GithubMcpConfigTest {
             GithubMcpConfig config = new GithubMcpConfig(
                 "http", "https://api.example.com/",
                 List.of("*"), Map.of("X-Custom", "value"),
-                "Authorization", "Bearer {token}");
+                "Authorization", "Bearer {token}", List.of("api.example.com"));
             Map<String, Object> server = config.toMcpServer("ghp_secret123");
 
             @SuppressWarnings("unchecked")
@@ -142,7 +198,7 @@ class GithubMcpConfigTest {
             GithubMcpConfig config = new GithubMcpConfig(
                 "http", "https://api.example.com/",
                 List.of("*"), Map.of(),
-                "Authorization", "Bearer {token}");
+                "Authorization", "Bearer {token}", List.of("api.example.com"));
             Map<String, Object> server = config.toMcpServer("ghp_secret456");
 
             String entrySetString = server.entrySet().toString();

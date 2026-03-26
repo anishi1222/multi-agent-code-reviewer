@@ -28,6 +28,7 @@ public final class ExecutionConfigFixtures {
             .skillTimeoutMinutes(skillTimeoutMinutes)
             .summaryTimeoutMinutes(summaryTimeoutMinutes)
             .ghAuthTimeoutSeconds(ghAuthTimeoutSeconds)
+            .ghAuthFallbackEnabled(false)
             .maxRetries(maxRetries)
             .maxAccumulatedSize(maxAccumulatedSize)
             .initialAccumulatedCapacity(initialAccumulatedCapacity)

@@ -11,7 +11,7 @@
     <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <layout class="ch.qos.logback.classic.PatternLayout">
-                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger":"%logger{36}","thread":"%thread","event.category":"%X{event.category}","event.action":"%X{event.action}","message":"%replace(%replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'\\','\\\\'}){'\"','\\\"'}"}%n</pattern>
+                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger":"%logger{36}","thread":"%thread","execution.id":"%X{execution.id}","event.category":"%X{event.category}","event.action":"%X{event.action}","message":"%replace(%replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'\\','\\\\'}){'\"','\\\"'}"}%n</pattern>
             </layout>
         </encoder>
     </appender>
@@ -25,7 +25,7 @@
         </rollingPolicy>
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <layout class="ch.qos.logback.classic.PatternLayout">
-                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger":"%logger{36}","thread":"%thread","event.category":"%X{event.category}","event.action":"%X{event.action}","message":"%replace(%replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'\\','\\\\'}){'\"','\\\"'}"}%n</pattern>
+                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger":"%logger{36}","thread":"%thread","execution.id":"%X{execution.id}","event.category":"%X{event.category}","event.action":"%X{event.action}","message":"%replace(%replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'\\','\\\\'}){'\"','\\\"'}"}%n</pattern>
             </layout>
         </encoder>
     </appender>

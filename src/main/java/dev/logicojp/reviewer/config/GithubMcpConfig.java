@@ -4,9 +4,11 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.core.annotation.Nullable;
 
 import java.net.URI;
+import java.util.Locale;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -18,27 +20,65 @@ public record GithubMcpConfig(
     List<String> tools,
     Map<String, String> headers,
     String authHeaderName,
-    @Nullable String authHeaderTemplate
+    @Nullable String authHeaderTemplate,
+    @Nullable List<String> allowedHosts
 ) {
+    private static final String DEFAULT_MCP_URL = "https://api.githubcopilot.com/mcp/";
+    private static final Set<String> DEFAULT_ALLOWED_HOSTS = Set.of("api.githubcopilot.com");
+
+    public GithubMcpConfig(
+        String type,
+        String url,
+        List<String> tools,
+        Map<String, String> headers,
+        String authHeaderName,
+        @Nullable String authHeaderTemplate
+    ) {
+        this(type, url, tools, headers, authHeaderName, authHeaderTemplate, null);
+    }
+
 
     public GithubMcpConfig {
         type = ConfigDefaults.defaultIfBlank(type, "http");
-        url = ConfigDefaults.defaultIfBlank(url, "https://api.githubcopilot.com/mcp/");
-        validateUrl(url);
+        url = ConfigDefaults.defaultIfBlank(url, DEFAULT_MCP_URL);
+        Set<String> effectiveAllowedHosts = sanitizeAllowedHosts(allowedHosts);
+        validateUrl(url, effectiveAllowedHosts);
         tools = (tools == null || tools.isEmpty()) ? List.of("*") : List.copyOf(tools);
         headers = (headers == null) ? Map.of() : Map.copyOf(headers);
         authHeaderName = ConfigDefaults.defaultIfBlank(authHeaderName, "Authorization");
         authHeaderTemplate = ConfigDefaults.defaultIfBlank(authHeaderTemplate, "Bearer {token}");
+        allowedHosts = List.copyOf(effectiveAllowedHosts);
     }
 
-    private static void validateUrl(String url) {
+    private static Set<String> sanitizeAllowedHosts(@Nullable List<String> allowedHosts) {
+        if (allowedHosts == null) {
+            return DEFAULT_ALLOWED_HOSTS;
+        }
+        Set<String> normalized = allowedHosts.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(host -> host.trim().toLowerCase(Locale.ROOT))
+            .collect(Collectors.toUnmodifiableSet());
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("GitHub MCP allowed hosts must not be empty");
+        }
+        return normalized;
+    }
+
+    private static void validateUrl(String url, Set<String> allowedHosts) {
         URI parsed = URI.create(url);
         String scheme = parsed.getScheme();
         if (scheme == null || !"https".equalsIgnoreCase(scheme)) {
             throw new IllegalArgumentException("GitHub MCP URL must use HTTPS: " + url);
         }
-        if (parsed.getHost() == null || parsed.getHost().isBlank()) {
+        String host = parsed.getHost();
+        if (host == null || host.isBlank()) {
             throw new IllegalArgumentException("GitHub MCP URL must include host: " + url);
+        }
+        String normalizedHost = host.toLowerCase(Locale.ROOT);
+        if (!allowedHosts.contains(normalizedHost)) {
+            throw new IllegalArgumentException(
+                "GitHub MCP URL host is not in allowlist: " + host + " (allowed: " + allowedHosts + ")"
+            );
         }
     }
 

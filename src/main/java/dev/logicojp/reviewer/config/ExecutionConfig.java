@@ -12,7 +12,8 @@ public record ExecutionConfig(
     @Nullable TimeoutSettings timeouts,
     @Nullable RetrySettings retry,
     @Nullable BufferSettings buffers,
-    @Bindable(defaultValue = "true") @Nullable Boolean sharedSessionEnabled
+    @Bindable(defaultValue = "true") @Nullable Boolean sharedSessionEnabled,
+    @Bindable(defaultValue = "false") @Nullable Boolean ghAuthFallbackEnabled
 ) {
 
     @ConfigurationProperties("concurrency")
@@ -84,6 +85,7 @@ public record ExecutionConfig(
     public static final long DEFAULT_IDLE_TIMEOUT_MINUTES = 5;
     public static final int DEFAULT_REVIEW_PASSES = 1;
     public static final boolean DEFAULT_SHARED_SESSION_ENABLED = true;
+    public static final boolean DEFAULT_GH_AUTH_FALLBACK_ENABLED = false;
     private static final int DEFAULT_PARALLELISM = 4;
     private static final long DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES = 10;
     private static final long DEFAULT_AGENT_TIMEOUT_MINUTES = 5;
@@ -103,6 +105,9 @@ public record ExecutionConfig(
         sharedSessionEnabled = sharedSessionEnabled != null
             ? sharedSessionEnabled
             : DEFAULT_SHARED_SESSION_ENABLED;
+        ghAuthFallbackEnabled = ghAuthFallbackEnabled != null
+            ? ghAuthFallbackEnabled
+            : DEFAULT_GH_AUTH_FALLBACK_ENABLED;
     }
 
     private static ConcurrencySettings defaultConcurrency() {
@@ -136,7 +141,14 @@ public record ExecutionConfig(
                                      TimeoutSettings timeouts,
                                      RetrySettings retry,
                                      BufferSettings buffers) {
-        return new ExecutionConfig(concurrency, timeouts, retry, buffers, DEFAULT_SHARED_SESSION_ENABLED);
+        return new ExecutionConfig(
+            concurrency,
+            timeouts,
+            retry,
+            buffers,
+            DEFAULT_SHARED_SESSION_ENABLED,
+            DEFAULT_GH_AUTH_FALLBACK_ENABLED
+        );
     }
 
     public static ExecutionConfig of(ConcurrencySettings concurrency,
@@ -144,7 +156,23 @@ public record ExecutionConfig(
                                      RetrySettings retry,
                                      BufferSettings buffers,
                                      boolean sharedSessionEnabled) {
-        return new ExecutionConfig(concurrency, timeouts, retry, buffers, sharedSessionEnabled);
+        return new ExecutionConfig(
+            concurrency,
+            timeouts,
+            retry,
+            buffers,
+            sharedSessionEnabled,
+            DEFAULT_GH_AUTH_FALLBACK_ENABLED
+        );
+    }
+
+    public static ExecutionConfig of(ConcurrencySettings concurrency,
+                                     TimeoutSettings timeouts,
+                                     RetrySettings retry,
+                                     BufferSettings buffers,
+                                     boolean sharedSessionEnabled,
+                                     boolean ghAuthFallbackEnabled) {
+        return new ExecutionConfig(concurrency, timeouts, retry, buffers, sharedSessionEnabled, ghAuthFallbackEnabled);
     }
 
     public int parallelism() {
@@ -199,6 +227,10 @@ public record ExecutionConfig(
         return Boolean.TRUE.equals(sharedSessionEnabled);
     }
 
+    public boolean isGhAuthFallbackEnabled() {
+        return Boolean.TRUE.equals(ghAuthFallbackEnabled);
+    }
+
     /// Returns a copy of this config with the parallelism value replaced.
     /// @param newParallelism the new parallelism value
     /// @return a new ExecutionConfig with the updated parallelism
@@ -214,15 +246,22 @@ public record ExecutionConfig(
             .build();
     }
 
+    public ExecutionConfig withGhAuthFallbackEnabled(boolean enabled) {
+        return Builder.from(this)
+            .ghAuthFallbackEnabled(enabled)
+            .build();
+    }
+
     /// Returns a new ExecutionConfig with all default values.
     /// Useful in tests and as a starting point for the Builder.
     public static ExecutionConfig defaults() {
         return ExecutionConfig.of(
             defaultConcurrency(),
             defaultTimeouts(),
-            defaultRetry(),
-            defaultBuffers(),
-            DEFAULT_SHARED_SESSION_ENABLED
+                defaultRetry(),
+                defaultBuffers(),
+                DEFAULT_SHARED_SESSION_ENABLED,
+                DEFAULT_GH_AUTH_FALLBACK_ENABLED
         );
     }
 
@@ -240,6 +279,7 @@ public record ExecutionConfig(
         private int initialAccumulatedCapacity;
         private int instructionBufferExtraCapacity;
         private boolean sharedSessionEnabled;
+        private boolean ghAuthFallbackEnabled;
 
         public static Builder from(ExecutionConfig source) {
             var b = new Builder();
@@ -256,6 +296,7 @@ public record ExecutionConfig(
             b.initialAccumulatedCapacity = source.initialAccumulatedCapacity();
             b.instructionBufferExtraCapacity = source.instructionBufferExtraCapacity();
             b.sharedSessionEnabled = source.isSharedSessionEnabled();
+            b.ghAuthFallbackEnabled = source.isGhAuthFallbackEnabled();
             return b;
         }
 
@@ -318,6 +359,11 @@ public record ExecutionConfig(
             return this;
         }
 
+        public Builder ghAuthFallbackEnabled(boolean ghAuthFallbackEnabled) {
+            this.ghAuthFallbackEnabled = ghAuthFallbackEnabled;
+            return this;
+        }
+
         public ExecutionConfig build() {
             return ExecutionConfig.of(
                 new ConcurrencySettings(parallelism, reviewPasses),
@@ -335,7 +381,8 @@ public record ExecutionConfig(
                     initialAccumulatedCapacity,
                     instructionBufferExtraCapacity
                 ),
-                sharedSessionEnabled
+                sharedSessionEnabled,
+                ghAuthFallbackEnabled
             );
         }
     }

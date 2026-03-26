@@ -40,7 +40,7 @@ public record ReviewContext(
 ) {
 
     private static final SharedCircuitBreaker DEFAULT_REVIEW_CIRCUIT_BREAKER =
-        SharedCircuitBreaker.withDefaultConfig();
+        SharedCircuitBreaker.forReviewDomain();
 
     /// Groups timeout and retry parameters.
     public record TimeoutConfig(long timeoutMinutes, long idleTimeoutMinutes, int maxRetries) {}

@@ -44,7 +44,8 @@ class ReviewTargetResolver {
         String resolvedToken = resolveToken(githubToken);
         if (resolvedToken == null || resolvedToken.isBlank()) {
             throw new CliValidationException(
-                "GitHub token is required for repository review. Use --token - (stdin) or login with `gh auth login` so `gh auth token` can be used.",
+                "GitHub token is required for repository review. Use --token - (stdin). "
+                    + "Optional fallback to `gh auth token` requires enabling reviewer.execution.gh-auth-fallback-enabled=true.",
                 true);
         }
         return resolvedToken;
