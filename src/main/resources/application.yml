@@ -75,9 +75,9 @@ reviewer:
   models:
     default-model: claude-sonnet-4.5
     review-model: GPT-5.3-Codex
-    report-model: claude-sonnet-4.5
+    report-model: GPT-5.4
     summary-model: claude-sonnet-4.5
-    reasoning-effort: medium
+    reasoning-effort: high
   summary:
     max-content-per-agent: 50000
     max-total-prompt-content: 200000
