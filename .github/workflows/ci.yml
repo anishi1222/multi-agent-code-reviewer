@@ -70,7 +70,7 @@ jobs:
         run: mvn -B -ntp -DskipTests package
 
       - name: Upload JVM artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
         with:
           name: jvm-artifact
           path: target/*-SNAPSHOT.jar
@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
         with:
           name: surefire-reports
           path: target/surefire-reports/**
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload native image artifact
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
         with:
           name: native-image
           path: |
@@ -133,7 +133,7 @@ jobs:
 
       - name: Upload report archive if present
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
         with:
           name: reports-archive
           path: reports-latest.tar.gz
