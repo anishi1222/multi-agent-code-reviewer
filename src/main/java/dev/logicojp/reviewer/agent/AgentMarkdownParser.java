@@ -87,7 +87,11 @@ class AgentMarkdownParser {
             metadata.name(),
             metadata.displayName(),
             metadata.model(),
-            metadata.body()
+            metadata.body(),
+            metadata.peerModel(),
+            metadata.rubberDuckEnabled(),
+            metadata.dialogueRounds(),
+            metadata.language()
         );
     }
 
@@ -98,18 +102,27 @@ class AgentMarkdownParser {
         String displayName = metadata.getOrDefault("description",
             metadata.getOrDefault("displayName", name));
         String model = metadata.getOrDefault("model", ModelConfig.DEFAULT_MODEL);
-        return new ParsedAgentMetadata(name, displayName, model, parsed.body());
+        String peerModel = metadata.getOrDefault("peer-model", null);
+        boolean rubberDuckEnabled = Boolean.parseBoolean(metadata.getOrDefault("rubber-duck", "false"));
+        int dialogueRounds = parseIntOrDefault(metadata.getOrDefault("dialogue-rounds", null),
+            AgentConfig.DEFAULT_DIALOGUE_ROUNDS);
+        String language = metadata.getOrDefault("language", AgentConfig.DEFAULT_LANGUAGE);
+        return new ParsedAgentMetadata(name, displayName, model, parsed.body(),
+            peerModel, rubberDuckEnabled, dialogueRounds, language);
     }
 
     private ParsedAgentMetadata parseWithoutFrontmatter(String content, String filename) {
         logger.warn("No valid frontmatter found in {}", filename);
         String name = extractNameFromFilename(filename);
-        return new ParsedAgentMetadata(name, name, ModelConfig.DEFAULT_MODEL, content);
+        return new ParsedAgentMetadata(name, name, ModelConfig.DEFAULT_MODEL, content,
+            null, false, AgentConfig.DEFAULT_DIALOGUE_ROUNDS, AgentConfig.DEFAULT_LANGUAGE);
     }
 
     /// Common AgentConfig construction from extracted metadata and body.
     private AgentConfig buildAgentConfig(String name, String displayName,
-                                          String model, String body) {
+                                          String model, String body,
+                                          String peerModel, boolean rubberDuckEnabled,
+                                          int dialogueRounds, String language) {
         Map<String, String> sections = extractSections(body);
         String systemPrompt = getSection(sections, "role");
         String instruction = getSection(sections, "instruction");
@@ -121,16 +134,20 @@ class AgentMarkdownParser {
 
         List<String> focusAreas = resolveFocusAreas(sections, body);
 
-        AgentConfig config = new AgentConfig(
-            name,
-            displayName,
-            model,
-            systemPrompt,
-            instruction,
-            outputFormat,
-            focusAreas,
-            List.of()  // skills - parsed from Skills section if present
-        );
+        AgentConfig config = AgentConfig.builder()
+            .name(name)
+            .displayName(displayName)
+            .model(model)
+            .systemPrompt(systemPrompt)
+            .instruction(instruction)
+            .outputFormat(outputFormat)
+            .focusAreas(focusAreas)
+            .skills(List.of())
+            .peerModel(peerModel)
+            .rubberDuckEnabled(rubberDuckEnabled)
+            .dialogueRounds(dialogueRounds)
+            .language(language)
+            .build();
         config.validateRequired();
         return config;
     }
@@ -248,6 +265,19 @@ class AgentMarkdownParser {
         return name;
     }
 
-    private record ParsedAgentMetadata(String name, String displayName, String model, String body) {
+    private static int parseIntOrDefault(String value, int defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException _) {
+            return defaultValue;
+        }
+    }
+
+    private record ParsedAgentMetadata(String name, String displayName, String model, String body,
+                                        String peerModel, boolean rubberDuckEnabled,
+                                        int dialogueRounds, String language) {
     }
 }

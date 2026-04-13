@@ -59,7 +59,8 @@ public class ReviewCommand {
         OutputOptions output,
         ModelOptions models,
         String githubToken,
-        boolean trustTarget
+        boolean trustTarget,
+        RubberDuckOptions rubberDuckOptions
     ) {
         record OutputOptions(
             Path outputDirectory,
@@ -83,9 +84,17 @@ public class ReviewCommand {
         ) {
         }
 
+        record RubberDuckOptions(
+            boolean enabled,
+            int dialogueRounds,
+            String peerModel
+        ) {
+        }
+
         ParsedOptions {
             output = output != null ? output : new OutputOptions(Path.of("./reports"), List.of(), 1, false, false);
             models = models != null ? models : new ModelOptions(null, null, null, null);
+            rubberDuckOptions = rubberDuckOptions != null ? rubberDuckOptions : new RubberDuckOptions(false, 0, null);
             Objects.requireNonNull(target, "target must not be null");
             Objects.requireNonNull(agents, "agents must not be null");
         }
@@ -126,6 +135,18 @@ public class ReviewCommand {
             return models.defaultModel();
         }
 
+        public boolean rubberDuck() {
+            return rubberDuckOptions.enabled();
+        }
+
+        public int dialogueRounds() {
+            return rubberDuckOptions.dialogueRounds();
+        }
+
+        public String peerModel() {
+            return rubberDuckOptions.peerModel();
+        }
+
         static Builder builder() {
             return new Builder();
         }
@@ -144,6 +165,9 @@ public class ReviewCommand {
             private String defaultModel;
             private String githubToken;
             private boolean trustTarget;
+            private boolean rubberDuck;
+            private int dialogueRounds;
+            private String peerModel;
 
             Builder target(TargetSelection target) {
                 this.target = target;
@@ -210,6 +234,21 @@ public class ReviewCommand {
                 return this;
             }
 
+            Builder rubberDuck(boolean rubberDuck) {
+                this.rubberDuck = rubberDuck;
+                return this;
+            }
+
+            Builder dialogueRounds(int dialogueRounds) {
+                this.dialogueRounds = dialogueRounds;
+                return this;
+            }
+
+            Builder peerModel(String peerModel) {
+                this.peerModel = peerModel;
+                return this;
+            }
+
             ParsedOptions build() {
                 return new ParsedOptions(
                     target,
@@ -217,7 +256,8 @@ public class ReviewCommand {
                     new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary, noSharedSession),
                     new ModelOptions(reviewModel, reportModel, summaryModel, defaultModel),
                     githubToken,
-                    trustTarget
+                    trustTarget,
+                    new RubberDuckOptions(rubberDuck, dialogueRounds, peerModel)
                 );
             }
         }

@@ -2,7 +2,9 @@ package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
+import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.target.ReviewTarget;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.nio.file.Path;
@@ -10,6 +12,17 @@ import java.util.Map;
 
 @Singleton
 class ReviewRunRequestFactory {
+
+    private final RubberDuckConfig defaultRubberDuckConfig;
+
+    @Inject
+    ReviewRunRequestFactory(RubberDuckConfig defaultRubberDuckConfig) {
+        this.defaultRubberDuckConfig = defaultRubberDuckConfig;
+    }
+
+    ReviewRunRequestFactory() {
+        this(new RubberDuckConfig());
+    }
 
     public ReviewRunExecutor.ReviewRunRequest create(
         ReviewCommand.ParsedOptions options,
@@ -24,6 +37,7 @@ class ReviewRunRequestFactory {
         int parallelism = resolveParallelism(options);
         boolean noSummary = isSummaryDisabled(options);
         boolean noSharedSession = isSharedSessionDisabled(options);
+        RubberDuckConfig rubberDuckConfig = resolveRubberDuckConfig(options);
 
         return new ReviewRunExecutor.ReviewRunRequest(
             target,
@@ -34,8 +48,21 @@ class ReviewRunRequestFactory {
             parallelism,
             noSummary,
             noSharedSession,
-            outputDirectory
+            outputDirectory,
+            rubberDuckConfig
         );
+    }
+
+    private RubberDuckConfig resolveRubberDuckConfig(ReviewCommand.ParsedOptions options) {
+        boolean enabled = options.rubberDuck() || defaultRubberDuckConfig.enabled();
+        int rounds = options.dialogueRounds() > 0
+            ? options.dialogueRounds()
+            : defaultRubberDuckConfig.dialogueRounds();
+        String peerModel = options.peerModel() != null
+            ? options.peerModel()
+            : defaultRubberDuckConfig.peerModel();
+        String strategy = defaultRubberDuckConfig.synthesisStrategy();
+        return new RubberDuckConfig(enabled, rounds, peerModel, strategy);
     }
 
     private String resolveSummaryModel(ModelConfig modelConfig) {

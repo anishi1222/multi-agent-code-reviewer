@@ -46,6 +46,9 @@ public final class CliUsage {
                     --parallelism <n>           Number of agents to run in parallel
                     --no-summary                Skip executive summary generation
                     --no-shared-session         Use isolated sessions for all review passes
+                    --rubber-duck               Enable peer-discussion review mode
+                    --dialogue-rounds <n>       Override rubber-duck dialogue rounds
+                    --peer-model <model>        Override peer model for rubber-duck mode
                     --review-model <model>      Model for review stage
                     --report-model <model>      Model for report stage
                     --summary-model <model>     Model for summary stage
