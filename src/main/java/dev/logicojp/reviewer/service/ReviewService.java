@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.service;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
+import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.orchestrator.ReviewOrchestrator;
 import dev.logicojp.reviewer.orchestrator.ReviewOrchestratorFactory;
 import dev.logicojp.reviewer.report.core.ReviewResult;
@@ -27,7 +28,8 @@ public class ReviewService {
                                ExecutionConfig executionConfig,
                                String reasoningEffort,
                                String outputConstraints,
-                               String invocationTimestamp);
+                               String invocationTimestamp,
+                               RubberDuckConfig rubberDuckConfig);
     }
     
     private static final Logger logger = LoggerFactory.getLogger(ReviewService.class);
@@ -45,13 +47,14 @@ public class ReviewService {
             executionConfig,
             templateService,
             (agentConfigs, target, githubToken, overriddenConfig, reasoningEffort, outputConstraints,
-             invocationTimestamp) -> {
+             invocationTimestamp, rubberDuckConfig) -> {
                 try (ReviewOrchestrator orchestrator = orchestratorFactory.create(
                     githubToken,
                     overriddenConfig,
                     reasoningEffort,
                     outputConstraints,
-                    invocationTimestamp
+                    invocationTimestamp,
+                    rubberDuckConfig
                 )) {
                     return orchestrator.executeReviews(agentConfigs, target);
                 }
@@ -82,7 +85,8 @@ public class ReviewService {
             int parallelism,
             @Nullable String reasoningEffort,
             boolean noSharedSession,
-            String invocationTimestamp) {
+            String invocationTimestamp,
+            RubberDuckConfig rubberDuckConfig) {
         
         logger.info("Executing reviews for {} agents on target: {}", 
             agentConfigs.size(), target.displayName());
@@ -96,7 +100,8 @@ public class ReviewService {
             overriddenConfig,
             reasoningEffort,
             outputConstraints,
-            invocationTimestamp
+            invocationTimestamp,
+            rubberDuckConfig
         );
     }
 

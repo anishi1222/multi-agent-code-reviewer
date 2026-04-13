@@ -6,7 +6,9 @@ import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
+import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
+import dev.logicojp.reviewer.service.TemplateService;
 import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import dev.logicojp.reviewer.util.ExecutorUtils;
@@ -41,6 +43,7 @@ public class ReviewOrchestrator implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(ReviewOrchestrator.class);
 
     private final ExecutionConfig executionConfig;
+    private final OrchestratorConfig orchestratorConfig;
     /// Dedicated executor for per-agent review execution to avoid commonPool usage.
     private final java.util.concurrent.ExecutorService agentExecutionExecutor;
     /// Shared scheduler for idle-timeout handling across all agents.
@@ -79,6 +82,7 @@ public class ReviewOrchestrator implements AutoCloseable {
                        OrchestratorConfig orchestratorConfig,
                        OrchestratorCollaborators collaborators) {
         this.executionConfig = orchestratorConfig.executionConfig();
+        this.orchestratorConfig = orchestratorConfig;
         var resources = collaborators.executorResources();
         this.agentExecutionExecutor = resources.agentExecutionExecutor();
         this.sharedScheduler = resources.sharedScheduler();
@@ -217,6 +221,13 @@ public class ReviewOrchestrator implements AutoCloseable {
                 public List<ReviewResult> reviewPasses(ReviewTarget target, int reviewPasses) {
                     return agent.reviewPasses(target, reviewPasses);
                 }
+
+                @Override
+                public ReviewResult reviewRubberDuck(ReviewTarget target,
+                                                     RubberDuckConfig rubberDuckConfig,
+                                                     TemplateService templateService) {
+                    return agent.reviewRubberDuck(target, rubberDuckConfig, templateService);
+                }
             };
         };
     }
@@ -235,6 +246,18 @@ public class ReviewOrchestrator implements AutoCloseable {
     /// @param target The target to review (GitHub repository or local directory)
     /// @return List of ReviewResults from all agents (one per agent, merged if multi-pass)
     public List<ReviewResult> executeReviews(Map<String, AgentConfig> agents, ReviewTarget target) {
+        if (isRubberDuckRequested(agents)) {
+            return executeRubberDuckReviews(agents, target);
+        }
+        return executeStandardReviews(agents, target);
+    }
+
+    private boolean isRubberDuckRequested(Map<String, AgentConfig> agents) {
+        return orchestratorConfig.isRubberDuckEnabled()
+            || agents.values().stream().anyMatch(AgentConfig::rubberDuckEnabled);
+    }
+
+    private List<ReviewResult> executeStandardReviews(Map<String, AgentConfig> agents, ReviewTarget target) {
         int reviewPasses = executionConfig.reviewPasses();
         int totalTasks = agents.size() * reviewPasses;
         logReviewStart(agents.size(), reviewPasses, totalTasks, target);
@@ -248,6 +271,75 @@ public class ReviewOrchestrator implements AutoCloseable {
             sharedContext,
             agentReviewExecutor::executeAgentPassesSafely
         );
+    }
+
+    private List<ReviewResult> executeRubberDuckReviews(Map<String, AgentConfig> agents, ReviewTarget target) {
+        logger.info("Rubber-duck mode enabled: {} agents, base rounds={}, multi-pass disabled",
+            agents.size(), orchestratorConfig.rubberDuckConfig().dialogueRounds());
+
+        TemplateService templateService = requireTemplateService();
+        long orchestratorTimeoutMinutes = computeRubberDuckOrchestratorTimeoutMinutes(agents);
+
+        var cachedSourceContent = localSourcePrecomputer.preComputeSourceContent(target);
+        ReviewContext sharedContext = reviewContextFactory.create(cachedSourceContent);
+
+        RubberDuckConfig rubberDuckConfig = orchestratorConfig.rubberDuckConfig();
+        return reviewExecutionModeRunner.executeStructured(
+            agents,
+            target,
+            sharedContext,
+            1,
+            orchestratorTimeoutMinutes,
+            (config, reviewTarget, context, reviewPasses, perAgentTimeout) ->
+                shouldRunRubberDuck(config)
+                    ? agentReviewExecutor.executeRubberDuckSafely(
+                        config, reviewTarget, context,
+                        rubberDuckConfig, templateService, perAgentTimeout)
+                    : agentReviewExecutor.executeAgentPassesSafely(
+                        config, reviewTarget, context,
+                        1,
+                        perAgentTimeout)
+        );
+    }
+
+    private boolean shouldRunRubberDuck(AgentConfig config) {
+        return orchestratorConfig.isRubberDuckEnabled() || config.rubberDuckEnabled();
+    }
+
+    private long computeRubberDuckOrchestratorTimeoutMinutes(Map<String, AgentConfig> agents) {
+        int parallelism = Math.max(1, executionConfig.parallelism());
+        int rubberDuckAgentCount = (int) agents.values().stream().filter(this::shouldRunRubberDuck).count();
+        int batches = Math.max(1, (rubberDuckAgentCount + parallelism - 1) / parallelism);
+
+        long perAgentBaseTimeout = executionConfig.agentTimeoutMinutes() * (executionConfig.maxRetries() + 1L);
+        int maxRounds = agents.values().stream()
+            .filter(this::shouldRunRubberDuck)
+            .mapToInt(this::effectiveDialogueRounds)
+            .max()
+            .orElse(orchestratorConfig.rubberDuckConfig().dialogueRounds());
+
+        long perAgentDialogueTimeout = perAgentBaseTimeout * (maxRounds * 2L + 1L);
+        long estimatedTimeout = perAgentDialogueTimeout * batches;
+        long resolvedTimeout = Math.max(executionConfig.orchestratorTimeoutMinutes(), estimatedTimeout);
+
+        logger.info("Rubber-duck orchestrator timeout adjusted: {} min (estimated={}, maxRounds={}, batches={})",
+            resolvedTimeout, estimatedTimeout, maxRounds, batches);
+        return resolvedTimeout;
+    }
+
+    private int effectiveDialogueRounds(AgentConfig config) {
+        if (config.dialogueRounds() > 0) {
+            return config.dialogueRounds();
+        }
+        return orchestratorConfig.rubberDuckConfig().dialogueRounds();
+    }
+
+    private TemplateService requireTemplateService() {
+        TemplateService templateService = orchestratorConfig.templateService();
+        if (templateService == null) {
+            throw new IllegalStateException("TemplateService is required for rubber-duck mode");
+        }
+        return templateService;
     }
 
     private void logReviewStart(int agentCount,

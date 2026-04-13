@@ -3,7 +3,9 @@ package dev.logicojp.reviewer.orchestrator;
 import dev.logicojp.reviewer.util.ExecutionCorrelation;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.agent.ReviewContext;
+import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
+import dev.logicojp.reviewer.service.TemplateService;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +52,27 @@ final class AgentReviewExecutor {
         }
     }
 
+    List<ReviewResult> executeRubberDuckSafely(AgentConfig config,
+                                               ReviewTarget target,
+                                               ReviewContext context,
+                                               RubberDuckConfig rubberDuckConfig,
+                                               TemplateService templateService,
+                                               long perAgentTimeoutMinutes) {
+        try {
+            concurrencyLimit.acquire();
+        } catch (InterruptedException _) {
+            Thread.currentThread().interrupt();
+            return ReviewResult.failedResults(config, target.displayName(), 1,
+                "Review interrupted while waiting for concurrency permit");
+        }
+        try {
+            return executeRubberDuckWithTimeout(config, target, context,
+                rubberDuckConfig, templateService, perAgentTimeoutMinutes);
+        } finally {
+            concurrencyLimit.release();
+        }
+    }
+
     private List<ReviewResult> executePassesWithTimeout(AgentConfig config,
                                                         ReviewTarget target,
                                                         ReviewContext context,
@@ -87,7 +110,55 @@ final class AgentReviewExecutor {
         }
     }
 
-    private void cancelIfRunning(Future<List<ReviewResult>> future) {
+    private List<ReviewResult> executeRubberDuckWithTimeout(AgentConfig config,
+                                                             ReviewTarget target,
+                                                             ReviewContext context,
+                                                             RubberDuckConfig rubberDuckConfig,
+                                                             TemplateService templateService,
+                                                             long perAgentTimeoutMinutes) {
+        Future<ReviewResult> future = null;
+        int dialogueRounds = effectiveDialogueRounds(config, rubberDuckConfig);
+        long totalTimeoutMinutes = perAgentTimeoutMinutes * (dialogueRounds * 2L + 1);
+        try {
+            AgentReviewer reviewer = reviewerFactory.create(config, context);
+            var parentMdcContext = ExecutionCorrelation.captureMdcContext();
+            future = agentExecutionExecutor.submit(
+                () -> ExecutionCorrelation.callWithMdcContext(parentMdcContext,
+                    () -> reviewer.reviewRubberDuck(target, rubberDuckConfig, templateService))
+            );
+            try {
+                ReviewResult result = future.get(totalTimeoutMinutes, TimeUnit.MINUTES);
+                return List.of(result);
+            } catch (TimeoutException e) {
+                future.cancel(true);
+                throw e;
+            }
+        } catch (TimeoutException e) {
+            logger.warn("Agent {} rubber-duck timed out after {} minutes ({} rounds)",
+                config.name(), totalTimeoutMinutes, dialogueRounds, e);
+            return ReviewResult.failedResults(config, target.displayName(), 1,
+                "Rubber-duck review timed out after " + totalTimeoutMinutes + " minutes");
+        } catch (ExecutionException e) {
+            logger.error("Agent {} rubber-duck execution failed: {}", config.name(), e.getMessage(), e);
+            return ReviewResult.failedResults(config, target.displayName(), 1,
+                "Rubber-duck review failed: " + e.getMessage());
+        } catch (InterruptedException _) {
+            cancelIfRunning(future);
+            Thread.currentThread().interrupt();
+            return ReviewResult.failedResults(config, target.displayName(), 1,
+                "Rubber-duck review interrupted during execution");
+        }
+    }
+
+    private int effectiveDialogueRounds(AgentConfig config, RubberDuckConfig rubberDuckConfig) {
+        if (config.dialogueRounds() > 0) {
+            return config.dialogueRounds();
+        }
+        return rubberDuckConfig.dialogueRounds();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> void cancelIfRunning(Future<T> future) {
         if (future != null && !future.isDone()) {
             future.cancel(true);
         }

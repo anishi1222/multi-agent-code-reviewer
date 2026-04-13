@@ -50,6 +50,7 @@ class ReviewAgentConfigResolver {
         List<Path> agentDirs = resolveAgentDirectories(options);
         Map<String, AgentConfig> loadedConfigs = loadAgentConfigs(options.agents(), agentDirs);
         Map<String, AgentConfig> adjustedConfigs = applyReviewModelOverride(loadedConfigs, options.reviewModel());
+        adjustedConfigs = applyRubberDuckOverrides(adjustedConfigs, options);
         return new AgentResolution(List.copyOf(agentDirs), adjustedConfigs);
     }
 
@@ -79,5 +80,31 @@ class ReviewAgentConfigResolver {
 
     private boolean hasReviewModelOverride(String reviewModel) {
         return reviewModel != null;
+    }
+
+    private Map<String, AgentConfig> applyRubberDuckOverrides(
+            Map<String, AgentConfig> agentConfigs, ReviewCommand.ParsedOptions options) {
+        boolean rubberDuck = options.rubberDuck();
+        String peerModel = options.peerModel();
+        int dialogueRounds = options.dialogueRounds();
+        boolean enableFromCli = rubberDuck || peerModel != null || dialogueRounds > 0;
+        if (!rubberDuck && peerModel == null && dialogueRounds <= 0) {
+            return agentConfigs;
+        }
+        Map<String, AgentConfig> adjusted = new LinkedHashMap<>();
+        for (Map.Entry<String, AgentConfig> entry : agentConfigs.entrySet()) {
+            AgentConfig config = entry.getValue();
+            if (enableFromCli) {
+                config = config.withRubberDuckEnabled(true);
+            }
+            if (peerModel != null) {
+                config = config.withPeerModel(peerModel);
+            }
+            if (dialogueRounds > 0) {
+                config = config.withDialogueRounds(dialogueRounds);
+            }
+            adjusted.put(entry.getKey(), config);
+        }
+        return adjusted;
     }
 }

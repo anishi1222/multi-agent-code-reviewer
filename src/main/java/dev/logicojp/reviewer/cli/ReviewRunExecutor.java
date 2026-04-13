@@ -69,7 +69,8 @@ class ReviewRunExecutor {
                 context.parallelism(),
                 context.reasoningEffort(),
                 context.noSharedSession(),
-                context.invocationTimestamp()
+                context.invocationTimestamp(),
+                context.rubberDuckConfig()
             ),
             reportService::generateReports,
             (results, context) -> reportService.generateSummary(
@@ -224,13 +225,33 @@ class ReviewRunExecutor {
         int parallelism,
         boolean noSummary,
         boolean noSharedSession,
-        Path outputDirectory
+        Path outputDirectory,
+        dev.logicojp.reviewer.config.RubberDuckConfig rubberDuckConfig
     ) {
+        public ReviewRunRequest(
+            ReviewTarget target,
+            String summaryModel,
+            String reasoningEffort,
+            String invocationTimestamp,
+            Map<String, AgentConfig> agentConfigs,
+            int parallelism,
+            boolean noSummary,
+            boolean noSharedSession,
+            Path outputDirectory
+        ) {
+            this(target, summaryModel, reasoningEffort, invocationTimestamp, agentConfigs,
+                parallelism, noSummary, noSharedSession, outputDirectory, new dev.logicojp.reviewer.config.RubberDuckConfig());
+        }
+
+        public ReviewRunRequest {
+            rubberDuckConfig = rubberDuckConfig != null ? rubberDuckConfig : new dev.logicojp.reviewer.config.RubberDuckConfig();
+        }
+
         @Override
         public String toString() {
-            return "ReviewRunRequest{target=%s, summaryModel='%s', reasoningEffort='%s', invocationTimestamp='%s', parallelism=%d, noSummary=%s, noSharedSession=%s, outputDirectory=%s}"
+            return "ReviewRunRequest{target=%s, summaryModel='%s', reasoningEffort='%s', invocationTimestamp='%s', parallelism=%d, noSummary=%s, noSharedSession=%s, outputDirectory=%s, rubberDuck=%s}"
                 .formatted(target, summaryModel, reasoningEffort, invocationTimestamp,
-                    parallelism, noSummary, noSharedSession, outputDirectory);
+                    parallelism, noSummary, noSharedSession, outputDirectory, rubberDuckConfig.enabled());
         }
     }
 }

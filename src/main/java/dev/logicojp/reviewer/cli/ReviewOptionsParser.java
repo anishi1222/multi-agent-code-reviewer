@@ -54,6 +54,9 @@ class ReviewOptionsParser {
             .summaryModel(state.summaryModel)
             .defaultModel(state.defaultModel)
             .trustTarget(state.trustTarget)
+            .rubberDuck(state.rubberDuck)
+            .dialogueRounds(state.dialogueRounds)
+            .peerModel(state.peerModel)
             .build();
     }
 
@@ -73,6 +76,9 @@ class ReviewOptionsParser {
         private String summaryModel;
         private String defaultModel;
         private boolean trustTarget;
+        private boolean rubberDuck;
+        private int dialogueRounds;
+        private String peerModel;
         private boolean helpRequested;
 
         ParseState(int defaultParallelism) {
@@ -99,6 +105,9 @@ class ReviewOptionsParser {
         if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
 
         parsedIndex = applyTrustOption(state, arg, i);
+        if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
+
+        parsedIndex = applyRubberDuckOption(state, arg, args, i);
         if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
 
         if (arg.startsWith("-")) {
@@ -170,6 +179,20 @@ class ReviewOptionsParser {
                 state.trustTarget = true;
                 yield OptionalInt.of(i);
             }
+            default -> OptionalInt.empty();
+        };
+    }
+
+    private OptionalInt applyRubberDuckOption(ParseState state, String arg, String[] args, int i) {
+        return switch (arg) {
+            case "--rubber-duck" -> {
+                state.rubberDuck = true;
+                yield OptionalInt.of(i);
+            }
+            case "--dialogue-rounds" -> OptionalInt.of(CliParsing.readInto(args, i, "--dialogue-rounds",
+                v -> state.dialogueRounds = parseInt(v, "--dialogue-rounds")));
+            case "--peer-model" -> OptionalInt.of(CliParsing.readInto(args, i, "--peer-model",
+                v -> state.peerModel = v));
             default -> OptionalInt.empty();
         };
     }

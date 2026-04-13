@@ -36,7 +36,8 @@ class ReviewOrchestratorTest {
                 "focus guidance",
                 "local source header",
                 "local result request"
-            )
+            ),
+            null
         );
 
         AgentConfig agentConfig = new AgentConfig(

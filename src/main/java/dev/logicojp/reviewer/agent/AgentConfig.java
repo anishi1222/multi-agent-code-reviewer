@@ -19,8 +19,29 @@ public record AgentConfig(
     @Nullable String instruction,
     @Nullable String outputFormat,
     List<String> focusAreas,
-    List<SkillDefinition> skills
+    List<SkillDefinition> skills,
+    @Nullable String peerModel,
+    boolean rubberDuckEnabled,
+    int dialogueRounds,
+    String language
 ) {
+
+    public static final String DEFAULT_LANGUAGE = "ja";
+    public static final int DEFAULT_DIALOGUE_ROUNDS = 0;
+
+    public AgentConfig(
+        String name,
+        String displayName,
+        String model,
+        @Nullable String systemPrompt,
+        @Nullable String instruction,
+        @Nullable String outputFormat,
+        List<String> focusAreas,
+        List<SkillDefinition> skills
+    ) {
+        this(name, displayName, model, systemPrompt, instruction, outputFormat,
+            focusAreas, skills, null, false, DEFAULT_DIALOGUE_ROUNDS, DEFAULT_LANGUAGE);
+    }
 
     public AgentConfig {
         name = name == null ? "" : name;
@@ -29,6 +50,8 @@ public record AgentConfig(
         outputFormat = normalizeOutputFormat(outputFormat);
         focusAreas = focusAreas == null ? List.of() : List.copyOf(focusAreas);
         skills = skills == null ? List.of() : List.copyOf(skills);
+        peerModel = (peerModel != null && peerModel.isBlank()) ? null : peerModel;
+        language = (language == null || language.isBlank()) ? DEFAULT_LANGUAGE : language;
     }
 
     public AgentConfig withModel(String overrideModel) {
@@ -40,6 +63,24 @@ public record AgentConfig(
     public AgentConfig withSkills(List<SkillDefinition> newSkills) {
         return Builder.from(this)
             .skills(newSkills)
+            .build();
+    }
+
+    public AgentConfig withPeerModel(String overridePeerModel) {
+        return Builder.from(this)
+            .peerModel(overridePeerModel)
+            .build();
+    }
+
+    public AgentConfig withRubberDuckEnabled(boolean enabled) {
+        return Builder.from(this)
+            .rubberDuckEnabled(enabled)
+            .build();
+    }
+
+    public AgentConfig withDialogueRounds(int rounds) {
+        return Builder.from(this)
+            .dialogueRounds(rounds)
             .build();
     }
 
@@ -56,6 +97,10 @@ public record AgentConfig(
         private String outputFormat;
         private List<String> focusAreas;
         private List<SkillDefinition> skills;
+        private String peerModel;
+        private boolean rubberDuckEnabled;
+        private int dialogueRounds;
+        private String language = DEFAULT_LANGUAGE;
 
         private Builder() {
         }
@@ -69,7 +114,11 @@ public record AgentConfig(
                 .instruction(source.instruction)
                 .outputFormat(source.outputFormat)
                 .focusAreas(source.focusAreas)
-                .skills(source.skills);
+                .skills(source.skills)
+                .peerModel(source.peerModel)
+                .rubberDuckEnabled(source.rubberDuckEnabled)
+                .dialogueRounds(source.dialogueRounds)
+                .language(source.language);
         }
 
         public Builder name(String name) {
@@ -112,8 +161,29 @@ public record AgentConfig(
             return this;
         }
 
+        public Builder peerModel(String peerModel) {
+            this.peerModel = peerModel;
+            return this;
+        }
+
+        public Builder rubberDuckEnabled(boolean rubberDuckEnabled) {
+            this.rubberDuckEnabled = rubberDuckEnabled;
+            return this;
+        }
+
+        public Builder dialogueRounds(int dialogueRounds) {
+            this.dialogueRounds = dialogueRounds;
+            return this;
+        }
+
+        public Builder language(String language) {
+            this.language = language;
+            return this;
+        }
+
         public AgentConfig build() {
-            return new AgentConfig(name, displayName, model, systemPrompt, instruction, outputFormat, focusAreas, skills);
+            return new AgentConfig(name, displayName, model, systemPrompt, instruction, outputFormat,
+                focusAreas, skills, peerModel, rubberDuckEnabled, dialogueRounds, language);
         }
     }
 
