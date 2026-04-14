@@ -37,7 +37,7 @@ class ReportServiceTest {
     @DisplayName("generateReports は factory 生成のレポートジェネレータを使用する")
     void generateReportsUsesFactoryGenerator() throws IOException {
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
-            null, null, null, null, null, null, null));
+            null, null, null, null, null, null, null, null));
 
         AtomicReference<Path> capturedDir = new AtomicReference<>();
         ReportGeneratorFactory factory = new ReportGeneratorFactory(templateService, new SummaryConfig(0, 0, 0, 0, 0, 0)) {
@@ -97,7 +97,7 @@ class ReportServiceTest {
         Files.writeString(tempDir.resolve("executive-summary.md"), "${repository}\n${summary}\n");
 
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
-            null, null, null, null, null, null, null));
+            null, null, null, null, null, null, null, null));
 
         AtomicReference<Long> capturedTimeout = new AtomicReference<>();
         AtomicReference<String> capturedModel = new AtomicReference<>();

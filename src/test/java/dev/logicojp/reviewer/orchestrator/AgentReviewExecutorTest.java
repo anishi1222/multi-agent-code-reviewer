@@ -47,6 +47,7 @@ class AgentReviewExecutorTest {
     void returnsSuccessResult() {
         var executorService = Executors.newVirtualThreadPerTaskExecutor();
         var ctx = context();
+        var metrics = new OrchestratorMetrics();
         try {
             var executor = new AgentReviewExecutor(
                 new Semaphore(1),
@@ -71,7 +72,8 @@ class AgentReviewExecutorTest {
                         }
                         return results;
                     }
-                }
+                },
+                metrics
             );
 
             var results = executor.executeAgentPassesSafely(
@@ -87,6 +89,11 @@ class AgentReviewExecutorTest {
                 assertThat(result.success()).isTrue();
                 assertThat(result.content()).isEqualTo("ok");
             });
+
+            assertThat(metrics.records()).hasSize(1);
+            assertThat(metrics.records().getFirst().outcome())
+                .isEqualTo(OrchestratorMetrics.OutcomeType.SUCCESS);
+            assertThat(metrics.records().getFirst().agentName()).isEqualTo("security");
         } finally {
             executorService.close();
             ctx.client().close();
@@ -99,6 +106,7 @@ class AgentReviewExecutorTest {
     void mapsExecutionExceptionToFailureResult() {
         var executorService = Executors.newVirtualThreadPerTaskExecutor();
         var ctx = context();
+        var metrics = new OrchestratorMetrics();
         try {
             var executor = new AgentReviewExecutor(
                 new Semaphore(1),
@@ -108,7 +116,8 @@ class AgentReviewExecutorTest {
                     public ReviewResult review(ReviewTarget target) {
                         throw new IllegalStateException("boom");
                     }
-                }
+                },
+                metrics
             );
 
             var results = executor.executeAgentPassesSafely(
@@ -124,6 +133,10 @@ class AgentReviewExecutorTest {
                 assertThat(result.success()).isFalse();
                 assertThat(result.errorMessage()).contains("Review failed:");
             });
+
+            assertThat(metrics.records()).hasSize(1);
+            assertThat(metrics.records().getFirst().outcome())
+                .isEqualTo(OrchestratorMetrics.OutcomeType.FAILURE);
         } finally {
             executorService.close();
             ctx.client().close();
@@ -166,7 +179,8 @@ class AgentReviewExecutorTest {
                             return results;
                         }
                     };
-                }
+                },
+                new OrchestratorMetrics()
             );
 
             var results = executor.executeAgentPassesSafely(
@@ -206,7 +220,8 @@ class AgentReviewExecutorTest {
                         .success(true)
                         .timestamp(Instant.now())
                         .build();
-                }
+                },
+                new OrchestratorMetrics()
             );
 
             ExecutionCorrelation.putExecutionId("exec-agent");
@@ -234,6 +249,7 @@ class AgentReviewExecutorTest {
     void cancelsFutureWhenInterruptedDuringWait() {
         var interruptedExecutor = new InterruptedOnGetExecutorService();
         var ctx = context();
+        var metrics = new OrchestratorMetrics();
         try {
             var executor = new AgentReviewExecutor(
                 new Semaphore(1),
@@ -244,7 +260,8 @@ class AgentReviewExecutorTest {
                     .content("ignored")
                     .success(true)
                     .timestamp(Instant.now())
-                    .build()
+                    .build(),
+                metrics
             );
 
             var results = executor.executeAgentPassesSafely(

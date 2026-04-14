@@ -156,10 +156,10 @@ git clone https://github.com/your-org/multi-agent-reviewer.git
 cd multi-agent-reviewer
 
 # Build (JAR file)
-mvn clean package
+./mvnw clean package
 
 # Build native image (optional)
-mvn clean package -Pnative
+./mvnw clean package -Pnative
 ```
 
 ### Test Troubleshooting
@@ -167,7 +167,7 @@ mvn clean package -Pnative
 If tests fail with `NoSuchMethodError` for synthetic methods such as `access$0`, run a clean rebuild to remove stale class outputs:
 
 ```bash
-mvn clean test
+./mvnw clean test
 ```
 
 ## Usage
@@ -714,7 +714,7 @@ To build as a native binary:
 
 ```bash
 # Build native image
-mvn clean package -Pnative
+./mvnw clean package -Pnative
 
 # Run
 ./target/review run --repo owner/repository --all
@@ -730,7 +730,7 @@ Use the GraalVM **tracing agent** to automatically collect the required reflecti
 
 ```bash
 # 1. Build the FAT JAR first
-mvn clean package -DskipTests
+./mvnw clean package -DskipTests
 
 # 2. Run with the tracing agent to auto-generate reflection configuration
 #    Use config-merge-dir to merge with existing configuration
@@ -743,7 +743,7 @@ ls src/main/resources/META-INF/native-image/
 # reflect-config.json, resource-config.json, proxy-config.json, etc. are generated/updated
 
 # 4. Rebuild as Native Image
-mvn clean package -Pnative -DskipTests
+./mvnw clean package -Pnative -DskipTests
 ```
 
 > **Note**: Use `config-merge-dir` instead of `config-output-dir` to merge with existing configurations (e.g., Logback) rather than overwriting them. Also, run all agents (security, performance, etc.) to exercise all code paths and generate complete configuration.

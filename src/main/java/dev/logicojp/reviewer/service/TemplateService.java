@@ -266,8 +266,27 @@ public class TemplateService {
     /// Loads the output constraints template.
     /// Contains constraints such as CoT suppression, output format enforcement,
     /// and language requirements for review output.
+    /// Also appends the review quality constraints (fact-vs-inference,
+    /// partial-review guidance) when available.
      String getOutputConstraints() {
-        return loadTemplateContent(config.outputConstraints());
+        String base = loadTemplateContent(config.outputConstraints());
+        String qualityConstraints = loadReviewQualityConstraints();
+        if (qualityConstraints != null && !qualityConstraints.isBlank()) {
+            return base + "\n\n" + qualityConstraints.trim();
+        }
+        return base;
+    }
+
+    /// Loads the review quality constraints template (fact-vs-inference guidance,
+    /// partial-review rules). Returns null if the template file does not exist.
+     String loadReviewQualityConstraints() {
+        try {
+            return loadTemplateContent(config.reviewQualityConstraints());
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            logger.debug("Review quality constraints template not found; skipping: {}",
+                config.reviewQualityConstraints());
+            return null;
+        }
     }
 
     /// Gets the template configuration.

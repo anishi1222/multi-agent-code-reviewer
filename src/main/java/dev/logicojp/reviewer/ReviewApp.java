@@ -1,12 +1,10 @@
 package dev.logicojp.reviewer;
 
+import dev.logicojp.reviewer.cli.CliCommand;
 import dev.logicojp.reviewer.cli.CliParsing;
 import dev.logicojp.reviewer.cli.CliOutput;
 import dev.logicojp.reviewer.cli.CliUsage;
 import dev.logicojp.reviewer.cli.ExitCodes;
-import dev.logicojp.reviewer.cli.ListAgentsCommand;
-import dev.logicojp.reviewer.cli.ReviewCommand;
-import dev.logicojp.reviewer.cli.SkillCommand;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -22,29 +20,38 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /// Multi-Agent Code Reviewer CLI Application.
 @Singleton
 public class ReviewApp {
-    private static final Set<String> SUBCOMMANDS = Set.of("run", "list", "skill");
     private static final Logger logger = LoggerFactory.getLogger(ReviewApp.class);
 
-    private final ReviewCommand reviewCommand;
-    private final ListAgentsCommand listAgentsCommand;
-    private final SkillCommand skillCommand;
+    private final Map<String, CliCommand> commandMap;
     private final CliOutput output;
 
     @Inject
-    public ReviewApp(ReviewCommand reviewCommand,
-                     ListAgentsCommand listAgentsCommand,
-                     SkillCommand skillCommand,
-                     CliOutput output) {
-        this.reviewCommand = reviewCommand;
-        this.listAgentsCommand = listAgentsCommand;
-        this.skillCommand = skillCommand;
+    public ReviewApp(List<CliCommand> commands, CliOutput output) {
+        this.commandMap = buildCommandMap(commands);
         this.output = output;
+    }
+
+    private static Map<String, CliCommand> buildCommandMap(List<CliCommand> commands) {
+        Map<String, CliCommand> map = new LinkedHashMap<>();
+        for (CliCommand cmd : commands) {
+            CliCommand previous = map.put(cmd.name(), cmd);
+            if (previous != null) {
+                throw new IllegalStateException(
+                    "Duplicate CLI command name: " + cmd.name()
+                        + " (" + previous.getClass().getSimpleName()
+                        + " vs " + cmd.getClass().getSimpleName() + ")");
+            }
+        }
+        return Collections.unmodifiableMap(map);
     }
 
     public static void main(String[] args) {
@@ -141,7 +148,7 @@ public class ReviewApp {
         // Treat --help / -h as general help only when no subcommand is provided.
         boolean hasHelpFlag = CliParsing.hasHelpFlag(filteredArgs);
         boolean hasSubcommand = Arrays.stream(filteredArgs)
-            .anyMatch(SUBCOMMANDS::contains);
+            .anyMatch(commandMap::containsKey);
         if (hasHelpFlag && !hasSubcommand) {
             CliUsage.printGeneral(output);
             return ExitCodes.OK;
@@ -163,16 +170,13 @@ public class ReviewApp {
     }
 
     private int executeCommand(String command, String[] commandArgs) {
-        return switch (command) {
-            case "run" -> reviewCommand.execute(commandArgs);
-            case "list" -> listAgentsCommand.execute(commandArgs);
-            case "skill" -> skillCommand.execute(commandArgs);
-            default -> {
-                output.errorln("Unknown command: " + command);
-                CliUsage.printGeneralError(output);
-                yield ExitCodes.USAGE;
-            }
-        };
+        CliCommand cmd = commandMap.get(command);
+        if (cmd != null) {
+            return cmd.execute(commandArgs);
+        }
+        output.errorln("Unknown command: " + command);
+        CliUsage.printGeneralError(output);
+        return ExitCodes.USAGE;
     }
 
     private GlobalOptions parseGlobalOptions(String[] args) {

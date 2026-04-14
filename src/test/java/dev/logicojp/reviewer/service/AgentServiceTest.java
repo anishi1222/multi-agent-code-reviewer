@@ -31,7 +31,7 @@ class AgentServiceTest {
         Files.createDirectories(extra);
 
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
-            "default-output-format.md", null, null, null, null, null, null));
+            "default-output-format.md", null, null, null, null, null, null, null));
         Files.writeString(tempDir.resolve("default-output-format.md"), "## Output");
 
         AgentService service = new AgentService(
@@ -54,7 +54,7 @@ class AgentServiceTest {
             ---
             name: security
             description: security agent
-            model: gpt
+            model: gpt-4o
             ---
 
             ## Role
@@ -72,7 +72,7 @@ class AgentServiceTest {
         Files.writeString(tempDir.resolve("default-output-format.md"), "## Output");
 
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
-            "default-output-format.md", null, null, null, null, null, null));
+            "default-output-format.md", null, null, null, null, null, null, null));
         AgentService service = new AgentService(
             SkillConfig.defaults(),
             templateService,

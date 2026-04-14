@@ -1,10 +1,8 @@
 package dev.logicojp.reviewer;
 
+import dev.logicojp.reviewer.cli.CliCommand;
 import dev.logicojp.reviewer.cli.CliOutput;
 import dev.logicojp.reviewer.cli.ExitCodes;
-import dev.logicojp.reviewer.cli.ListAgentsCommand;
-import dev.logicojp.reviewer.cli.ReviewCommand;
-import dev.logicojp.reviewer.cli.SkillCommand;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -28,27 +26,20 @@ class ReviewAppTest {
     void delegatesRunCommand() {
         AtomicInteger runCalled = new AtomicInteger();
 
-        ReviewCommand reviewCommand = new ReviewCommand(null, null, null, null, null, null, null, null, NULL_OUTPUT) {
+        CliCommand runCmd = new CliCommand() {
+            @Override
+            public String name() { return "run"; }
+
             @Override
             public int execute(String[] args) {
                 runCalled.incrementAndGet();
                 return 42;
             }
         };
-        ListAgentsCommand listCommand = new ListAgentsCommand(null, NULL_OUTPUT) {
-            @Override
-            public int execute(String[] args) {
-                return 0;
-            }
-        };
-        SkillCommand skillCommand = new SkillCommand(null, null, null, null, null, null, NULL_OUTPUT) {
-            @Override
-            public int execute(String[] args) {
-                return 0;
-            }
-        };
+        CliCommand listCmd = stubCommand("list", 0);
+        CliCommand skillCmd = stubCommand("skill", 0);
 
-        ReviewApp app = new ReviewApp(reviewCommand, listCommand, skillCommand, NULL_OUTPUT);
+        ReviewApp app = new ReviewApp(List.of(runCmd, listCmd, skillCmd), NULL_OUTPUT);
         int exit = app.execute(new String[]{"run"});
 
         assertThat(exit).isEqualTo(42);
@@ -58,29 +49,55 @@ class ReviewAppTest {
     @Test
     @DisplayName("未知コマンドではUSAGEを返す")
     void returnsUsageForUnknownCommand() {
-        ReviewCommand reviewCommand = new ReviewCommand(null, null, null, null, null, null, null, null, NULL_OUTPUT) {
-            @Override
-            public int execute(String[] args) {
-                return 0;
-            }
-        };
-        ListAgentsCommand listCommand = new ListAgentsCommand(null, NULL_OUTPUT) {
-            @Override
-            public int execute(String[] args) {
-                return 0;
-            }
-        };
-        SkillCommand skillCommand = new SkillCommand(null, null, null, null, null, null, NULL_OUTPUT) {
-            @Override
-            public int execute(String[] args) {
-                return 0;
-            }
-        };
+        CliCommand runCmd = stubCommand("run", 0);
+        CliCommand listCmd = stubCommand("list", 0);
+        CliCommand skillCmd = stubCommand("skill", 0);
 
-        ReviewApp app = new ReviewApp(reviewCommand, listCommand, skillCommand, NULL_OUTPUT);
+        ReviewApp app = new ReviewApp(List.of(runCmd, listCmd, skillCmd), NULL_OUTPUT);
         int exit = app.execute(new String[]{"unknown"});
 
         assertThat(exit).isEqualTo(ExitCodes.USAGE);
+    }
+
+    @Test
+    @DisplayName("doctorコマンドがレジストリ経由で呼び出される")
+    void delegatesDoctorCommand() {
+        AtomicInteger doctorCalled = new AtomicInteger();
+
+        CliCommand doctorCmd = new CliCommand() {
+            @Override
+            public String name() { return "doctor"; }
+
+            @Override
+            public int execute(String[] args) {
+                doctorCalled.incrementAndGet();
+                return ExitCodes.OK;
+            }
+        };
+        CliCommand runCmd = stubCommand("run", 0);
+
+        ReviewApp app = new ReviewApp(List.of(runCmd, doctorCmd), NULL_OUTPUT);
+        int exit = app.execute(new String[]{"doctor"});
+
+        assertThat(exit).isEqualTo(ExitCodes.OK);
+        assertThat(doctorCalled.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("コマンドが動的に登録される（拡張性の検証）")
+    void supportsExtensibleCommandRegistration() {
+        CliCommand customCmd = new CliCommand() {
+            @Override
+            public String name() { return "custom"; }
+
+            @Override
+            public int execute(String[] args) { return 99; }
+        };
+
+        ReviewApp app = new ReviewApp(List.of(customCmd), NULL_OUTPUT);
+        int exit = app.execute(new String[]{"custom"});
+
+        assertThat(exit).isEqualTo(99);
     }
 
     @Test
@@ -100,5 +117,15 @@ class ReviewAppTest {
         List<String> detected = ReviewApp.detectInsecureJvmFlags(List.of("-XX:-HeapDumpOnOutOfMemoryError"));
 
         assertThat(detected).doesNotContain("HeapDumpOnOutOfMemoryError");
+    }
+
+    private static CliCommand stubCommand(String name, int exitCode) {
+        return new CliCommand() {
+            @Override
+            public String name() { return name; }
+
+            @Override
+            public int execute(String[] args) { return exitCode; }
+        };
     }
 }

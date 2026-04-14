@@ -13,7 +13,7 @@ import java.util.Optional;
 
 /// Skill command that executes individual agent skills.
 @Singleton
-public class SkillCommand {
+public class SkillCommand implements CliCommand {
     private static final Logger logger = LoggerFactory.getLogger(SkillCommand.class);
 
     private final SkillService skillService;
@@ -58,6 +58,12 @@ public class SkillCommand {
         this.output = output;
     }
 
+    @Override
+    public String name() {
+        return "skill";
+    }
+
+    @Override
     public int execute(String[] args) {
         return CommandExecutor.execute(
             args,

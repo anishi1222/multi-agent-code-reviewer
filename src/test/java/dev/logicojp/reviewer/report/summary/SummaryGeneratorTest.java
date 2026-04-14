@@ -89,6 +89,7 @@ class SummaryGeneratorTest {
             "report.md",
             "local-review-content.md",
             "output-constraints.md",
+            null,
             "report-link-entry.md",
             new TemplateConfig.SummaryTemplates(
                 "summary-system.md",

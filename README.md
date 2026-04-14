@@ -5,7 +5,7 @@ AI-powered parallel code review tool that orchestrates multiple specialized agen
 ## Prerequisites
 
 - Java: GraalVM 26 EA (Java 26, preview features enabled)
-- Build: Maven 3.9+
+- Build: Maven Wrapper (`./mvnw`, pinned to Maven 3.9.14)
 - Auth: GitHub CLI (`gh`) and GitHub Copilot CLI (`github-copilot` or `copilot`)
 
 This repository uses `.sdkmanrc` for local JDK alignment:
@@ -18,7 +18,7 @@ sdk env
 ## Quick Start
 
 ```bash
-mvn clean package
+./mvnw clean package
 java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --repo owner/repo --all
 ```
 
@@ -92,16 +92,16 @@ java --enable-preview \
 
 ```bash
 # Build fat jar
-mvn clean package
+./mvnw clean package
 
 # Build native image (GraalVM required)
-mvn clean package -Pnative
+./mvnw clean package -Pnative
 
 # Run tests
-mvn test
+./mvnw test
 
 # Run one test class
-mvn test -Dtest=ModelConfigTest
+./mvnw test -Dtest=ModelConfigTest
 ```
 
 ### Test Troubleshooting
@@ -109,7 +109,7 @@ mvn test -Dtest=ModelConfigTest
 If tests fail with `NoSuchMethodError` for synthetic methods such as `access$0`, run a clean rebuild to clear stale class outputs:
 
 ```bash
-mvn clean test
+./mvnw clean test
 ```
 
 ## Container Build Artifact (Reproducible)
@@ -128,7 +128,7 @@ docker run --rm multi-agent-reviewer:local --version
 
 ## Optional Structured Logging Profile
 
-Default logging is human-readable (`src/main/resources/logback.xml`).
+Default logging is human-readable (`src/main/resources/logback.xml`) and emitted on `stderr` so report output on `stdout` stays machine-friendly.
 If you need structured (JSON-like) logs for log shipping/aggregation:
 
 ```bash
@@ -159,6 +159,28 @@ Architecture decisions are documented in `docs/adr/`.
   - `0001-custom-cli-parser.md`
   - `0002-micronaut-di.md`
   - `0003-virtual-thread-orchestration.md`
+  - `0004-release-channels.md`
+
+## Operational Runbook
+
+See `docs/runbook.md` for:
+
+- Environment prerequisites and doctor check
+- Build verification procedures
+- Release and rollback procedures
+- Structured logging configuration
+- Troubleshooting guide
+- Dependency audit procedures
+- Security considerations and configuration precedence
+
+## Release Channels
+
+| Channel      | Tag Pattern                        | GitHub Release Type |
+|--------------|------------------------------------|---------------------|
+| Pre-release  | `v*-rc*`, `v*-alpha*`, `v*-beta*`  | Pre-release         |
+| Stable       | `v*` (without rc/alpha/beta)       | Release             |
+
+Pushing a tag triggers the `release.yml` workflow which builds artifacts, generates SBOM and checksums, and publishes a GitHub Release. See `docs/runbook.md` for the full release procedure and `docs/adr/0004-release-channels.md` for the design rationale.
 
 ## Documentation
 

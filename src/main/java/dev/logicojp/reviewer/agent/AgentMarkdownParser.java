@@ -67,23 +67,83 @@ class AgentMarkdownParser {
         this.defaultOutputFormat = defaultOutputFormat;
     }
     
+    /// Result of a staged parse: either a valid config or a rejection reason.
+    record ParseResult(AgentConfig config, String rejectionReason) {
+        boolean accepted() {
+            return config != null;
+        }
+
+        static ParseResult accept(AgentConfig config) {
+            return new ParseResult(config, null);
+        }
+
+        static ParseResult reject(String reason) {
+            return new ParseResult(null, reason);
+        }
+    }
+
+    /// Parses a .agent.md file with staged validation.
+    ///
+    /// **Stage 1** — raw-content policy checks (size, frontmatter presence).
+    /// **Stage 2** — frontmatter parsing + enabled flag + key audit.
+    /// **Stage 3** — section extraction + config construction.
+    /// **Stage 4** — post-parse policy checks (model allowlist, name, focus-area limits).
+    ///
+    /// @param mdFile Path to the .agent.md file
+    /// @return ParseResult with either a valid config or a rejection reason
+    public ParseResult parseSafe(Path mdFile) throws IOException {
+        String content = Files.readString(mdFile);
+        String filename = mdFile.getFileName().toString();
+
+        // Stage 1: raw-content policy
+        AgentDefinitionPolicy.PolicyResult rawCheck =
+            AgentDefinitionPolicy.validateRawContent(content, filename);
+        if (!rawCheck.accepted()) {
+            return ParseResult.reject(rawCheck.reason());
+        }
+
+        return parseContentSafe(content, filename);
+    }
+
     /// Parses a .agent.md file and returns an AgentConfig.
     /// @param mdFile Path to the .agent.md file
     /// @return AgentConfig parsed from the file
     public AgentConfig parse(Path mdFile) throws IOException {
-        String content = Files.readString(mdFile);
-        return parseContent(content, mdFile.getFileName().toString());
+        ParseResult result = parseSafe(mdFile);
+        if (!result.accepted()) {
+            logger.warn("Agent file rejected by policy: {} — {}", mdFile.getFileName(), result.rejectionReason());
+            return null;
+        }
+        return result.config();
     }
-    
-    /// Parses markdown content and returns an AgentConfig.
-    public AgentConfig parseContent(String content, String filename) {
+
+    /// Staged parse of markdown content with full policy validation.
+    ParseResult parseContentSafe(String content, String filename) {
+        // Stage 1 (if not already done by caller): raw-content policy
+        AgentDefinitionPolicy.PolicyResult rawCheck =
+            AgentDefinitionPolicy.validateRawContent(content, filename);
+        if (!rawCheck.accepted()) {
+            return ParseResult.reject(rawCheck.reason());
+        }
+
+        // Stage 2: frontmatter parsing
         FrontmatterParser.Parsed parsed = FrontmatterParser.parse(content);
+        if (!parsed.hasFrontmatter()) {
+            return ParseResult.reject(
+                "agent file '%s' has no valid frontmatter".formatted(filename));
+        }
 
-        ParsedAgentMetadata metadata = parsed.hasFrontmatter()
-            ? parseWithFrontmatter(parsed, filename)
-            : parseWithoutFrontmatter(content, filename);
+        // Stage 2b: enabled flag check
+        if (!AgentDefinitionPolicy.isAgentEnabled(parsed.metadata())) {
+            return ParseResult.reject("agent '%s' is disabled (enabled: false)".formatted(filename));
+        }
 
-        return buildAgentConfig(
+        // Stage 2c: audit unknown frontmatter keys
+        AgentDefinitionPolicy.auditFrontmatterKeys(parsed.metadata(), filename);
+
+        // Stage 3: construct config
+        ParsedAgentMetadata metadata = parseWithFrontmatter(parsed, filename);
+        AgentConfig config = buildAgentConfig(
             metadata.name(),
             metadata.displayName(),
             metadata.model(),
@@ -93,6 +153,26 @@ class AgentMarkdownParser {
             metadata.dialogueRounds(),
             metadata.language()
         );
+
+        // Stage 4: post-parse policy validation
+        AgentDefinitionPolicy.PolicyResult parsedCheck =
+            AgentDefinitionPolicy.validateParsed(config);
+        if (!parsedCheck.accepted()) {
+            return ParseResult.reject(parsedCheck.reason());
+        }
+
+        return ParseResult.accept(config);
+    }
+
+    /// Parses markdown content and returns an AgentConfig.
+    /// Kept for backward compatibility. Prefer {@link #parseContentSafe}.
+    public AgentConfig parseContent(String content, String filename) {
+        ParseResult result = parseContentSafe(content, filename);
+        if (!result.accepted()) {
+            logger.warn("Agent content rejected by policy for '{}': {}", filename, result.rejectionReason());
+            return null;
+        }
+        return result.config();
     }
 
     private ParsedAgentMetadata parseWithFrontmatter(FrontmatterParser.Parsed parsed, String filename) {

@@ -29,7 +29,8 @@ class ReviewExecutionModeRunnerTest {
     void executesStructuredAndCollectsRawPassResults() {
         ExecutionConfig config = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
         var pipeline = new ReviewResultPipeline();
-        var runner = new ReviewExecutionModeRunner(config, pipeline);
+        var metrics = new OrchestratorMetrics();
+        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
         var results = runner.executeStructured(
             Map.of("security", agent("security")),
             ReviewTarget.gitHub("owner/repo"),
@@ -66,7 +67,8 @@ class ReviewExecutionModeRunnerTest {
     void executesStructured() {
         ExecutionConfig config = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
         var pipeline = new ReviewResultPipeline();
-        var runner = new ReviewExecutionModeRunner(config, pipeline);
+        var metrics = new OrchestratorMetrics();
+        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
 
         var results = runner.executeStructured(
             Map.of("security", agent("security")),
@@ -96,7 +98,8 @@ class ReviewExecutionModeRunnerTest {
     void propagatesExecutionIdToStructuredTasks() {
         ExecutionConfig config = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
         var pipeline = new ReviewResultPipeline();
-        var runner = new ReviewExecutionModeRunner(config, pipeline);
+        var metrics = new OrchestratorMetrics();
+        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
         AtomicReference<String> capturedExecutionId = new AtomicReference<>();
 
         try {

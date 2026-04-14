@@ -18,7 +18,7 @@ import java.util.Optional;
 
 /// Main review command that executes the multi-agent code review.
 @Singleton
-public class ReviewCommand {
+public class ReviewCommand implements CliCommand {
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewCommand.class);
 
@@ -286,6 +286,12 @@ public class ReviewCommand {
         this.output = output;
     }
 
+    @Override
+    public String name() {
+        return "run";
+    }
+
+    @Override
     public int execute(String[] args) {
         return CommandExecutor.execute(
             args,

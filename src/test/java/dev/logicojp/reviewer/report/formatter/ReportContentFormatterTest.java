@@ -24,7 +24,7 @@ class ReportContentFormatterTest {
     @DisplayName("成功結果をテンプレートへ展開する")
     void formatsSuccessfulResult() {
         var formatter = new ReportContentFormatter(new TemplateService(
-            new TemplateConfig(null, null, null, null, null, null, null, null)
+            new TemplateConfig(null, null, null, null, null, null, null, null, null)
         ));
         var result = ReviewResult.builder()
             .agentConfig(new AgentConfig("security", "Security", "model", "system", "instruction", null,
@@ -49,7 +49,7 @@ class ReportContentFormatterTest {
     @DisplayName("失敗結果はエラーメッセージ付きで出力する")
     void formatsFailedResultWithErrorMessage() {
         var formatter = new ReportContentFormatter(new TemplateService(
-            new TemplateConfig(null, null, null, null, null, null, null, null)
+            new TemplateConfig(null, null, null, null, null, null, null, null, null)
         ));
         var result = ReviewResult.builder()
             .agentConfig(new AgentConfig("security", "Security", "model", "system", "instruction", null,

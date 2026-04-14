@@ -15,6 +15,7 @@ public final class CliUsage {
                 run    Execute a multi-agent code review
                 list   List available agents
                 skill  Execute a specific agent skill
+                doctor Check runtime dependencies and configuration
 
             Use 'review <command> --help' for command options.
             """;
@@ -75,6 +76,23 @@ public final class CliUsage {
                     --model <model>             Model for skill execution
                     --agents-dir <path...>      Additional agent definition directories
                     --list                      List available skills
+                """);
+    }
+
+     static void printDoctor(CliOutput output) {
+        output.out().print("""
+                Usage: review doctor
+
+                Checks runtime dependencies and configuration:
+                  - Java runtime version
+                  - Copilot CLI availability and path
+                  - Copilot CLI health (version check)
+                  - Copilot CLI authentication status
+                  - Timeout configuration values
+
+                Exit codes:
+                    0  All checks passed
+                    4  One or more issues found
                 """);
     }
 }

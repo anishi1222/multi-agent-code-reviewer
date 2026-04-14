@@ -35,7 +35,7 @@ class ReviewOrchestratorFactoryTest {
     @DisplayName("テンプレート未配置時はフォールバック文言でOrchestratorConfigを構築する")
     void usesFallbackPromptsWhenTemplatesAreUnavailable() {
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
-            null, null, null, null, null, null, null));
+            null, null, null, null, null, null, null, null));
 
         CopilotConfig copilotConfig = new CopilotConfig(null, null, 60, 10, 15);
         CopilotService copilotService = new CopilotService(

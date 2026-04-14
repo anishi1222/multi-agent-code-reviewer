@@ -26,6 +26,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Keep in sync with pom.xml <jdk.version>
+  JDK_VERSION: '26'
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
@@ -61,11 +65,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-    - name: Set up JDK 26
+    - name: Set up JDK ${{ env.JDK_VERSION }}
       uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
       with:
         website: jdk.java.net
-        release: 26
+        release: ${{ env.JDK_VERSION }}
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -89,7 +93,7 @@ jobs:
     - name: Build project
       if: matrix.build-mode == 'manual'
       shell: bash
-      run: mvn clean package -DskipTests -B
+      run: ./mvnw clean package -DskipTests -B
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1

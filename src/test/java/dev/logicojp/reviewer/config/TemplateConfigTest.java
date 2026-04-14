@@ -12,13 +12,14 @@ class TemplateConfigTest {
     @DisplayName("null値はデフォルトテンプレートに補完される")
     void nullValuesAreDefaulted() {
         TemplateConfig config = new TemplateConfig(
-            null, null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null, null);
 
         assertThat(config.directory()).isEqualTo("templates");
         assertThat(config.defaultOutputFormat()).isEqualTo("default-output-format.md");
         assertThat(config.report()).isEqualTo("report.md");
         assertThat(config.localReviewContent()).isEqualTo("local-review-content.md");
         assertThat(config.outputConstraints()).isEqualTo("output-constraints.md");
+        assertThat(config.reviewQualityConstraints()).isEqualTo("review-quality-constraints.md");
         assertThat(config.reportLinkEntry()).isEqualTo("report-link-entry.md");
 
         assertThat(config.summary().systemPrompt()).isEqualTo("summary-system.md");
@@ -37,12 +38,13 @@ class TemplateConfigTest {
     @DisplayName("空白値はデフォルトに置換される")
     void blankValuesAreDefaulted() {
         TemplateConfig config = new TemplateConfig(
-            " ", " ", "\t", "\n", " ", " ",
+            " ", " ", "\t", "\n", " ", " ", " ",
             new TemplateConfig.SummaryTemplates(" ", "\t", "\n", " ", " "),
             new TemplateConfig.FallbackTemplates(" ", " ", " ", " ")
         );
 
         assertThat(config.directory()).isEqualTo("templates");
+        assertThat(config.reviewQualityConstraints()).isEqualTo("review-quality-constraints.md");
         assertThat(config.summary().systemPrompt()).isEqualTo("summary-system.md");
         assertThat(config.fallback().summary()).isEqualTo("fallback-summary.md");
     }

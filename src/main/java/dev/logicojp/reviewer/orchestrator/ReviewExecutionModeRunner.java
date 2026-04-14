@@ -38,11 +38,14 @@ final class ReviewExecutionModeRunner {
 
     private final ExecutionConfig executionConfig;
     private final ReviewResultPipeline reviewResultPipeline;
+    private final OrchestratorMetrics metrics;
 
     ReviewExecutionModeRunner(ExecutionConfig executionConfig,
-                              ReviewResultPipeline reviewResultPipeline) {
+                              ReviewResultPipeline reviewResultPipeline,
+                              OrchestratorMetrics metrics) {
         this.executionConfig = executionConfig;
         this.reviewResultPipeline = reviewResultPipeline;
+        this.metrics = metrics;
     }
 
     List<ReviewResult> executeStructured(Map<String, AgentConfig> agents,
@@ -75,6 +78,22 @@ final class ReviewExecutionModeRunner {
     }
 
     List<ReviewResult> executeStructured(Map<String, AgentConfig> agents,
+                                         ReviewTarget target,
+                                         ReviewContext sharedContext,
+                                         int reviewPasses,
+                                         long orchestratorTimeoutMinutes,
+                                         AgentPassExecutor agentPassExecutor) {
+        metrics.markRunStart();
+        try {
+            return executeStructuredInternal(agents, target, sharedContext,
+                reviewPasses, orchestratorTimeoutMinutes, agentPassExecutor);
+        } finally {
+            metrics.markRunEnd();
+            metrics.logSummary();
+        }
+    }
+
+    private List<ReviewResult> executeStructuredInternal(Map<String, AgentConfig> agents,
                                          ReviewTarget target,
                                          ReviewContext sharedContext,
                                          int reviewPasses,

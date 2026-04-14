@@ -27,7 +27,7 @@ class ReportGeneratorFactoryTest {
     @DisplayName("createReportGeneratorはReportGeneratorインスタンスを返す")
     void createsReportGenerator() {
         var config = new TemplateConfig(tempDir.toString(),
-            null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null);
         var templateService = new TemplateService(config);
         var factory = new ReportGeneratorFactory(templateService, new SummaryConfig(0, 0, 0, 0, 0, 0));
         ReportGenerator generator = factory.createReportGenerator(Path.of("/tmp/reports"));
@@ -38,7 +38,7 @@ class ReportGeneratorFactoryTest {
     @DisplayName("コンストラクタ注入したReportGeneratorCreatorが利用される")
     void usesInjectedReportGeneratorCreator() {
         var config = new TemplateConfig(tempDir.toString(),
-            null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null);
         var templateService = new TemplateService(config);
 
         var reportCreatorCalled = new AtomicBoolean(false);
@@ -73,7 +73,7 @@ class ReportGeneratorFactoryTest {
     @DisplayName("コンストラクタ注入したSummaryGeneratorCreatorが利用される")
     void usesInjectedSummaryGeneratorCreator() {
         var config = new TemplateConfig(tempDir.toString(),
-            null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null);
         var templateService = new TemplateService(config);
 
         var reportCreatorCalled = new AtomicBoolean(false);

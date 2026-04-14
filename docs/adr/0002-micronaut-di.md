@@ -35,7 +35,7 @@
 ## Operational notes
 
 - 新規コンポーネントは原則コンストラクタ注入を使用する
-- 依存追加時は `mvn -B -ntp test` を CI で必須化する
+- 依存追加時は `./mvnw -B -ntp test` を CI で必須化する
 
 ## References
 

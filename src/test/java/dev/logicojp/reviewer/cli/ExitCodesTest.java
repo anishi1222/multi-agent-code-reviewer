@@ -3,6 +3,8 @@ package dev.logicojp.reviewer.cli;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ExitCodes")
@@ -27,11 +29,27 @@ class ExitCodesTest {
     }
 
     @Test
+    @DisplayName("CONFIGは3である")
+    void configIsThree() {
+        assertThat(ExitCodes.CONFIG).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("UNAVAILABLEは4である")
+    void unavailableIsFour() {
+        assertThat(ExitCodes.UNAVAILABLE).isEqualTo(4);
+    }
+
+    @Test
     @DisplayName("全てのコードが異なる値である")
     void allCodesAreDistinct() {
-        assertThat(ExitCodes.OK)
-            .isNotEqualTo(ExitCodes.SOFTWARE)
-            .isNotEqualTo(ExitCodes.USAGE);
-        assertThat(ExitCodes.SOFTWARE).isNotEqualTo(ExitCodes.USAGE);
+        Set<Integer> codes = Set.of(
+            ExitCodes.OK,
+            ExitCodes.SOFTWARE,
+            ExitCodes.USAGE,
+            ExitCodes.CONFIG,
+            ExitCodes.UNAVAILABLE
+        );
+        assertThat(codes).hasSize(5);
     }
 }

@@ -26,7 +26,7 @@ class ListAgentsCommandTest {
 
         AgentService service = new AgentService(
             SkillConfig.defaults(),
-            new TemplateService(new dev.logicojp.reviewer.config.TemplateConfig("templates", null, null, null, null, null, null, null)),
+            new TemplateService(new dev.logicojp.reviewer.config.TemplateConfig("templates", null, null, null, null, null, null, null, null)),
             new AgentPathConfig(List.of("."))
         ) {
             @Override
@@ -59,7 +59,7 @@ class ListAgentsCommandTest {
 
         AgentService service = new AgentService(
             SkillConfig.defaults(),
-            new TemplateService(new dev.logicojp.reviewer.config.TemplateConfig("templates", null, null, null, null, null, null, null)),
+            new TemplateService(new dev.logicojp.reviewer.config.TemplateConfig("templates", null, null, null, null, null, null, null, null)),
             new AgentPathConfig(List.of("."))
         );
 

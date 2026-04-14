@@ -17,6 +17,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.List;
+import java.util.function.Supplier;
 
 final class AgentReviewExecutor {
 
@@ -24,13 +25,16 @@ final class AgentReviewExecutor {
     private final Semaphore concurrencyLimit;
     private final ExecutorService agentExecutionExecutor;
     private final AgentReviewerFactory reviewerFactory;
+    private final OrchestratorMetrics metrics;
 
     AgentReviewExecutor(Semaphore concurrencyLimit,
                         ExecutorService agentExecutionExecutor,
-                        AgentReviewerFactory reviewerFactory) {
+                        AgentReviewerFactory reviewerFactory,
+                        OrchestratorMetrics metrics) {
         this.concurrencyLimit = concurrencyLimit;
         this.agentExecutionExecutor = agentExecutionExecutor;
         this.reviewerFactory = reviewerFactory;
+        this.metrics = metrics;
     }
 
     List<ReviewResult> executeAgentPassesSafely(AgentConfig config,
@@ -38,18 +42,12 @@ final class AgentReviewExecutor {
                                                 ReviewContext context,
                                                 int reviewPasses,
                                                 long perAgentTimeoutMinutes) {
-        try {
-            concurrencyLimit.acquire();
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
-            return ReviewResult.failedResults(config, target.displayName(), reviewPasses,
-                "Review interrupted while waiting for concurrency permit");
-        }
-        try {
-            return executePassesWithTimeout(config, target, context, reviewPasses, perAgentTimeoutMinutes);
-        } finally {
-            concurrencyLimit.release();
-        }
+        return executeWithPermitAndMetrics(
+            config,
+            target.displayName(),
+            reviewPasses,
+            () -> executePassesWithTimeout(config, target, context, reviewPasses, perAgentTimeoutMinutes)
+        );
     }
 
     List<ReviewResult> executeRubberDuckSafely(AgentConfig config,
@@ -58,16 +56,44 @@ final class AgentReviewExecutor {
                                                RubberDuckConfig rubberDuckConfig,
                                                TemplateService templateService,
                                                long perAgentTimeoutMinutes) {
+        return executeWithPermitAndMetrics(
+            config,
+            target.displayName(),
+            1,
+            () -> executeRubberDuckWithTimeout(config, target, context,
+                rubberDuckConfig, templateService, perAgentTimeoutMinutes)
+        );
+    }
+
+    /// Acquires a concurrency permit, times the execution, and records metrics.
+    /// Centralises the permit-acquire → execute → release → record pattern
+    /// that was previously duplicated across standard and rubber-duck paths.
+    private List<ReviewResult> executeWithPermitAndMetrics(
+            AgentConfig config,
+            String targetDisplayName,
+            int failureResultCount,
+            Supplier<List<ReviewResult>> execution) {
+        long permitWaitStartNanos = System.nanoTime();
         try {
             concurrencyLimit.acquire();
         } catch (InterruptedException _) {
+            long permitWaitMs = OrchestratorMetrics.nanosToMillis(System.nanoTime() - permitWaitStartNanos);
+            metrics.recordAgentExecution(config.name(), 0, permitWaitMs,
+                OrchestratorMetrics.OutcomeType.INTERRUPTED);
             Thread.currentThread().interrupt();
-            return ReviewResult.failedResults(config, target.displayName(), 1,
+            return ReviewResult.failedResults(config, targetDisplayName, failureResultCount,
                 "Review interrupted while waiting for concurrency permit");
         }
+        long permitWaitMs = OrchestratorMetrics.nanosToMillis(System.nanoTime() - permitWaitStartNanos);
+        metrics.logPermitWaitIfSignificant(config.name(), permitWaitMs);
+
+        long execStartNanos = System.nanoTime();
         try {
-            return executeRubberDuckWithTimeout(config, target, context,
-                rubberDuckConfig, templateService, perAgentTimeoutMinutes);
+            List<ReviewResult> results = execution.get();
+            long execDurationMs = OrchestratorMetrics.nanosToMillis(System.nanoTime() - execStartNanos);
+            metrics.recordAgentExecution(config.name(), execDurationMs, permitWaitMs,
+                OrchestratorMetrics.classifyOutcome(results));
+            return results;
         } finally {
             concurrencyLimit.release();
         }

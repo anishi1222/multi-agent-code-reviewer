@@ -1,0 +1,200 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v2026.04.14-label)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with pom.xml <jdk.version> and .sdkmanrc
+  JDK_VERSION: '26'
+  GRAALVM_JAVA_VERSION: '26'
+  GRAALVM_DISTRIBUTION: 'graalvm'
+
+jobs:
+  # ── JVM artifact build ────────────────────────────────────────────────
+  build-jvm:
+    name: Build JVM Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK ${{ env.JDK_VERSION }}
+        uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
+        with:
+          website: jdk.java.net
+          release: ${{ env.JDK_VERSION }}
+
+      - name: Build and test
+        run: ./mvnw -B -ntp verify
+
+      - name: Generate SBOM (CycloneDX)
+        run: ./mvnw -B -ntp -DskipTests cyclonedx:makeAggregateBom
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release-artifacts
+          cp target/multi-agent-reviewer-*.jar release-artifacts/
+          cp target/sbom.json release-artifacts/ 2>/dev/null || true
+
+      - name: Generate checksums
+        working-directory: release-artifacts
+        run: |
+          for f in *; do
+            sha256sum "$f" >> SHA256SUMS.txt
+          done
+          cat SHA256SUMS.txt
+
+      - name: Upload JVM release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
+        with:
+          name: jvm-release
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+  # ── Native image build (best-effort) ──────────────────────────────────
+  build-native:
+    name: Build Native Image
+    runs-on: ubuntu-latest
+    # Native image build is optional — release can proceed without it
+    continue-on-error: true
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@60c26726de13f8b90771df4bc1641a52a3159994 # v1.5.2
+        with:
+          java-version: ${{ env.GRAALVM_JAVA_VERSION }}
+          distribution: ${{ env.GRAALVM_DISTRIBUTION }}
+
+      - name: Build native image
+        run: ./mvnw -B -ntp -Pnative -DskipTests package
+
+      - name: Prepare native artifacts
+        run: |
+          mkdir -p native-artifacts
+          cp target/review native-artifacts/ 2>/dev/null || true
+          cp target/review.exe native-artifacts/ 2>/dev/null || true
+
+      - name: Generate checksums
+        working-directory: native-artifacts
+        run: |
+          for f in *; do
+            [ -f "$f" ] && sha256sum "$f" >> SHA256SUMS-native.txt
+          done
+          cat SHA256SUMS-native.txt 2>/dev/null || echo "No native artifacts produced"
+
+      - name: Upload native release artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
+        with:
+          name: native-release
+          path: native-artifacts/
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ── Publish GitHub Release ────────────────────────────────────────────
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-jvm, build-native]
+    # Proceed even if native build fails (it's optional)
+    if: always() && needs.build-jvm.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download JVM artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: jvm-release
+          path: release/
+
+      - name: Download native artifacts (if available)
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: native-release
+          path: release/
+
+      - name: Determine release channel
+        id: channel
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${INPUT_TAG}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if [ -z "${TAG}" ]; then
+            echo "Release tag could not be resolved" >&2
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+          # Pre-release detection: -rc*, -alpha*, -beta* suffixes
+          if echo "$TAG" | grep -qiE '-(rc|alpha|beta)'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "channel=pre-release" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Release channel: $(grep channel "$GITHUB_OUTPUT" | cut -d= -f2)"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.channel.outputs.tag }}"
+          PRERELEASE="${{ steps.channel.outputs.prerelease }}"
+
+          RELEASE_FLAGS="--title ${TAG}"
+          if [ "$PRERELEASE" = "true" ]; then
+            RELEASE_FLAGS="${RELEASE_FLAGS} --prerelease"
+          fi
+
+          # Collect all release files
+          FILES=$(find release/ -type f | sort)
+
+          echo "Publishing ${TAG} (channel: ${{ steps.channel.outputs.channel }})"
+          echo "Artifacts:"
+          echo "$FILES"
+
+          # shellcheck disable=SC2086
+          gh release create "${TAG}" \
+            ${RELEASE_FLAGS} \
+            --generate-notes \
+            ${FILES}

@@ -23,3 +23,12 @@
 ## テンプレート
 
 新しい ADR は `0000-adr-template.md` をコピーして作成してください。
+
+## 一覧
+
+| # | タイトル | ステータス |
+|---|---------|-----------|
+| 0001 | [Custom CLI Parser](0001-custom-cli-parser.md) | Accepted |
+| 0002 | [Micronaut DI](0002-micronaut-di.md) | Accepted |
+| 0003 | [Virtual Thread Orchestration](0003-virtual-thread-orchestration.md) | Accepted |
+| 0004 | [Release Channel Strategy](0004-release-channels.md) | Accepted |

@@ -30,7 +30,7 @@ class ReviewServiceTest {
     void appliesParallelismOverrideAndLoadsOutputConstraints() throws IOException {
         Files.writeString(tempDir.resolve("output-constraints.md"), "constraint-text");
         TemplateService templateService = new TemplateService(new TemplateConfig(tempDir.toString(),
-            null, null, null, "output-constraints.md", null, null, null));
+            null, null, null, "output-constraints.md", null, null, null, null));
 
         ExecutionConfig executionConfig = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(4, 1, 5, 5, 1, 5, 5, 5, 1, 0, 0, 0);
         AtomicReference<ExecutionConfig> capturedExecution = new AtomicReference<>();

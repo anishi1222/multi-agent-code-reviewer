@@ -21,7 +21,7 @@ class SummaryFinalReportFormatterTest {
     @DisplayName("結果を集計しexecutive summaryテンプレートへ展開する")
     void formatsExecutiveSummaryWithCountsAndLinks() {
         TemplateService templateService = new TemplateService(
-            new TemplateConfig(null, null, null, null, null, null, null, null)
+            new TemplateConfig(null, null, null, null, null, null, null, null, null)
         );
         var formatter = new SummaryFinalReportFormatter(templateService);
 
@@ -55,7 +55,7 @@ class SummaryFinalReportFormatterTest {
     @DisplayName("findingsが空の場合は既定メッセージを使用する")
     void usesDefaultFindingsMessageWhenExtractorReturnsEmpty() {
         TemplateService templateService = new TemplateService(
-            new TemplateConfig(null, null, null, null, null, null, null, null)
+            new TemplateConfig(null, null, null, null, null, null, null, null, null)
         );
         var formatter = new SummaryFinalReportFormatter(templateService);
 

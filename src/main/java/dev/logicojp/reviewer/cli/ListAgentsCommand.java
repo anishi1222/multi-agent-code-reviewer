@@ -17,7 +17,7 @@ import java.util.Optional;
 
 /// Command to list all available review agents.
 @Singleton
-public class ListAgentsCommand {
+public class ListAgentsCommand implements CliCommand {
 
     private static final Logger logger = LoggerFactory.getLogger(ListAgentsCommand.class);
 
@@ -33,6 +33,12 @@ public class ListAgentsCommand {
         this.output = output;
     }
 
+    @Override
+    public String name() {
+        return "list";
+    }
+
+    @Override
     public int execute(String[] args) {
         return CommandExecutor.execute(
             args,

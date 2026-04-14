@@ -14,6 +14,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Keep in sync with pom.xml <jdk.version> and .sdkmanrc
+  JDK_VERSION: '26'
+  GRAALVM_JAVA_VERSION: '26'
+  GRAALVM_DISTRIBUTION: 'graalvm'
+
 jobs:
   supply-chain-guard:
     name: Supply Chain Guard
@@ -28,17 +34,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK 26
+      - name: Set up JDK ${{ env.JDK_VERSION }}
         uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
         with:
           website: jdk.java.net
-          release: 26
+          release: ${{ env.JDK_VERSION }}
 
       - name: Validate dependency policy (enforcer + checksum)
         run: |
-          mvn -B -ntp -DskipTests dependency-check:check -Dnvd_api_key=${{ secrets.NVD_API_KEY }} -Psecurity-audit
-          mvn -B -ntp -DskipTests validate -Dnvd_api_key=${{ secrets.NVD_API_KEY }} -Psecurity-audit
-          # mvn -B -ntp -DskipTests validate -Dossindex.username=${{ secrets.OSS_INDEX_USERNAME }} -Dossindex.token=${{ secrets.OSS_INDEX_TOKEN }}
+          ./mvnw -B -ntp -DskipTests dependency-check:check -Dnvd_api_key=${{ secrets.NVD_API_KEY }} -Psecurity-audit
+          ./mvnw -B -ntp -DskipTests validate -Dnvd_api_key=${{ secrets.NVD_API_KEY }} -Psecurity-audit
+          # ./mvnw -B -ntp -DskipTests validate -Dossindex.username=${{ secrets.OSS_INDEX_USERNAME }} -Dossindex.token=${{ secrets.OSS_INDEX_TOKEN }}
 
   build-and-test:
     name: Build and Test
@@ -54,26 +60,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK 26
+      - name: Set up JDK ${{ env.JDK_VERSION }}
         uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
         with:
           website: jdk.java.net
-          release: 26
+          release: ${{ env.JDK_VERSION }}
 
       - name: Compile
-        run: mvn -B -ntp -DskipTests compile
+        run: ./mvnw -B -ntp -DskipTests compile
 
       - name: Test
-        run: mvn -B -ntp test
+        run: ./mvnw -B -ntp test
 
       - name: Build fat JAR
-        run: mvn -B -ntp -DskipTests package
+        run: ./mvnw -B -ntp -DskipTests package
+
+      - name: Generate SBOM (CycloneDX)
+        run: ./mvnw -B -ntp -DskipTests cyclonedx:makeAggregateBom
+
+      - name: Generate artifact checksums
+        run: |
+          cd target
+          for f in multi-agent-reviewer-*.jar sbom.json; do
+            [ -f "$f" ] && sha256sum "$f"
+          done | tee artifact-checksums.txt
 
       - name: Upload JVM artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
         with:
           name: jvm-artifact
-          path: target/*-SNAPSHOT.jar
+          path: |
+            target/*-SNAPSHOT.jar
+            target/sbom.json
+            target/artifact-checksums.txt
           if-no-files-found: error
           retention-days: 7
 
@@ -103,12 +122,12 @@ jobs:
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@60c26726de13f8b90771df4bc1641a52a3159994 # v1.5.2
         with:
-          java-version: '25'
-          distribution: 'graalvm'
+          java-version: ${{ env.GRAALVM_JAVA_VERSION }}
+          distribution: ${{ env.GRAALVM_DISTRIBUTION }}
 
       - name: Build Native Image
         continue-on-error: true
-        run: mvn -B -ntp -Pnative -DskipTests package
+        run: ./mvnw -B -ntp -Pnative -DskipTests package
 
       - name: Upload native image artifact
         if: always()
@@ -154,11 +173,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK 26
+      - name: Set up JDK ${{ env.JDK_VERSION }}
         uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
         with:
           website: jdk.java.net
-          release: 26
+          release: ${{ env.JDK_VERSION }}
 
       - name: Run OWASP dependency check
-        run: mvn -B -ntp -Psecurity-audit verify -DskipTests
+        run: ./mvnw -B -ntp -Psecurity-audit verify -DskipTests

@@ -164,10 +164,14 @@ public class AgentConfigLoader {
 
     private Optional<AgentConfig> parseAgent(Path file,
                                              List<SkillDefinition> globalSkills) throws IOException {
-        AgentConfig config = markdownParser.parse(file);
-        if (config == null) {
+        // Use staged safe-parse for full policy enforcement
+        AgentMarkdownParser.ParseResult parseResult = markdownParser.parseSafe(file);
+        if (!parseResult.accepted()) {
+            logger.warn("Agent rejected by policy: {} — {}", file.getFileName(), parseResult.rejectionReason());
             return Optional.empty();
         }
+
+        AgentConfig config = parseResult.config();
 
         Optional<String> suspiciousField = firstSuspiciousField(config);
         if (suspiciousField.isPresent()) {

@@ -12,6 +12,7 @@ public record TemplateConfig(
     @Nullable String report,
     @Nullable String localReviewContent,
     @Nullable String outputConstraints,
+    @Nullable String reviewQualityConstraints,
     @Nullable String reportLinkEntry,
     @Nullable SummaryTemplates summary,
     @Nullable FallbackTemplates fallback
@@ -22,6 +23,7 @@ public record TemplateConfig(
     private static final String DEFAULT_REPORT = "report.md";
     private static final String DEFAULT_LOCAL_REVIEW_CONTENT = "local-review-content.md";
     private static final String DEFAULT_OUTPUT_CONSTRAINTS = "output-constraints.md";
+    private static final String DEFAULT_REVIEW_QUALITY_CONSTRAINTS = "review-quality-constraints.md";
     private static final String DEFAULT_REPORT_LINK_ENTRY = "report-link-entry.md";
 
     public TemplateConfig {
@@ -31,6 +33,7 @@ public record TemplateConfig(
             report,
             localReviewContent,
             outputConstraints,
+            reviewQualityConstraints,
             reportLinkEntry
         );
         directory = normalized.directory();
@@ -38,6 +41,7 @@ public record TemplateConfig(
         report = normalized.report();
         localReviewContent = normalized.localReviewContent();
         outputConstraints = normalized.outputConstraints();
+        reviewQualityConstraints = normalized.reviewQualityConstraints();
         reportLinkEntry = normalized.reportLinkEntry();
         summary = summary != null ? summary : new SummaryTemplates(null, null, null, null, null);
         fallback = fallback != null ? fallback : new FallbackTemplates(null, null, null, null);
@@ -48,6 +52,7 @@ public record TemplateConfig(
                                                           String report,
                                                           String localReviewContent,
                                                           String outputConstraints,
+                                                          String reviewQualityConstraints,
                                                           String reportLinkEntry) {
         return new TopLevelValues(
             ConfigDefaults.defaultIfBlank(directory, DEFAULT_DIRECTORY),
@@ -55,6 +60,7 @@ public record TemplateConfig(
             ConfigDefaults.defaultIfBlank(report, DEFAULT_REPORT),
             ConfigDefaults.defaultIfBlank(localReviewContent, DEFAULT_LOCAL_REVIEW_CONTENT),
             ConfigDefaults.defaultIfBlank(outputConstraints, DEFAULT_OUTPUT_CONSTRAINTS),
+            ConfigDefaults.defaultIfBlank(reviewQualityConstraints, DEFAULT_REVIEW_QUALITY_CONSTRAINTS),
             ConfigDefaults.defaultIfBlank(reportLinkEntry, DEFAULT_REPORT_LINK_ENTRY)
         );
     }
@@ -64,6 +70,7 @@ public record TemplateConfig(
                                   String report,
                                   String localReviewContent,
                                   String outputConstraints,
+                                  String reviewQualityConstraints,
                                   String reportLinkEntry) {
     }
 

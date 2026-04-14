@@ -138,6 +138,89 @@ class AgentConfigLoaderTest {
 
             assertThat(agents).isEmpty();
         }
+
+        @Test
+        @DisplayName("enabled: falseのエージェントは除外される")
+        void skipsDisabledAgent(@TempDir Path tempDir) throws IOException {
+            String disabledAgent = """
+                ---
+                name: disabled
+                enabled: false
+                model: claude-sonnet-4
+                ---
+
+                ## Role
+
+                テスト用。
+
+                ## Instruction
+
+                ${repository} をレビュー。
+
+                ## Focus Areas
+
+                - テスト
+                """;
+            Files.writeString(tempDir.resolve("disabled.agent.md"), disabledAgent.stripIndent());
+
+            var loader = new AgentConfigLoader(tempDir);
+            Map<String, AgentConfig> agents = loader.loadAllAgents();
+
+            assertThat(agents).isEmpty();
+        }
+
+        @Test
+        @DisplayName("許可されていないモデルを持つエージェントは除外される")
+        void skipsAgentWithUnallowedModel(@TempDir Path tempDir) throws IOException {
+            String badModelAgent = """
+                ---
+                name: bad-model
+                model: evil-hacked-model-v1
+                ---
+
+                ## Role
+
+                テスト用。
+
+                ## Instruction
+
+                ${repository} をレビュー。
+
+                ## Focus Areas
+
+                - テスト
+                """;
+            Files.writeString(tempDir.resolve("bad-model.agent.md"), badModelAgent.stripIndent());
+
+            var loader = new AgentConfigLoader(tempDir);
+            Map<String, AgentConfig> agents = loader.loadAllAgents();
+
+            assertThat(agents).isEmpty();
+        }
+
+        @Test
+        @DisplayName("フロントマターがないエージェントファイルは除外される")
+        void skipsAgentWithoutFrontmatter(@TempDir Path tempDir) throws IOException {
+            String noFrontmatter = """
+                # Agent
+                
+                あなたはレビュアーです。
+                
+                ## Instruction
+                
+                ${repository} をレビュー。
+                
+                ## Focus Areas
+                
+                - テスト
+                """;
+            Files.writeString(tempDir.resolve("no-frontmatter.agent.md"), noFrontmatter.stripIndent());
+
+            var loader = new AgentConfigLoader(tempDir);
+            Map<String, AgentConfig> agents = loader.loadAllAgents();
+
+            assertThat(agents).isEmpty();
+        }
     }
 
     @Nested

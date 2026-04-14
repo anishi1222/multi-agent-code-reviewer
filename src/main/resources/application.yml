@@ -46,6 +46,7 @@ reviewer:
     report: report.md
     local-review-content: local-review-content.md
     output-constraints: output-constraints.md
+    review-quality-constraints: review-quality-constraints.md
     summary:
       system-prompt: summary-system.md
       user-prompt: summary-prompt.md

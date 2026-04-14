@@ -115,8 +115,8 @@ class AgentMarkdownParserTest {
     class WithoutFrontmatter {
 
         @Test
-        @DisplayName("フロントマターがない場合は本文全体をシステムプロンプトとして扱う")
-        void usesEntireContentAsSystemPrompt() {
+        @DisplayName("フロントマターがない場合はnullを返す（ポリシー違反）")
+        void rejectsContentWithoutFrontmatter() {
             String content = """
                 # Agent
                 
@@ -134,8 +134,8 @@ class AgentMarkdownParserTest {
 
             AgentConfig config = parser.parseContent(content.stripIndent(), "simple.agent.md");
 
-            assertThat(config.name()).isEqualTo("simple");
-            assertThat(config.focusAreas()).containsExactly("コードの可読性", "命名規則");
+            // New policy: frontmatter is required, so content without it is rejected
+            assertThat(config).isNull();
         }
     }
 
@@ -165,6 +165,7 @@ class AgentMarkdownParserTest {
 
             AgentConfig config = parser.parseContent(content.stripIndent(), "minimal.agent.md");
 
+            assertThat(config).isNotNull();
             assertThat(config.focusAreas()).isNotEmpty();
             assertThat(config.focusAreas()).contains("一般的なコード品質");
         }
@@ -197,6 +198,7 @@ class AgentMarkdownParserTest {
 
             AgentConfig config = parser.parseContent(content.stripIndent(), "multi.agent.md");
 
+            assertThat(config).isNotNull();
             assertThat(config.systemPrompt()).contains("ロール内容");
             assertThat(config.instruction()).contains("指示内容");
             assertThat(config.outputFormat()).contains("フォーマット");
@@ -229,6 +231,7 @@ class AgentMarkdownParserTest {
 
             AgentConfig config = parser.parseContent(content.stripIndent(), "code-quality.agent.md");
 
+            assertThat(config).isNotNull();
             assertThat(config.name()).isEqualTo("code-quality");
         }
 
@@ -253,7 +256,105 @@ class AgentMarkdownParserTest {
 
             AgentConfig config = parser.parseContent(content.stripIndent(), "reviewer.md");
 
+            assertThat(config).isNotNull();
             assertThat(config.name()).isEqualTo("reviewer");
+        }
+    }
+
+    @Nested
+    @DisplayName("セキュリティポリシー統合")
+    class SecurityPolicyIntegration {
+
+        @Test
+        @DisplayName("enabled: falseのエージェントはnullを返す")
+        void disabledAgentReturnsNull() {
+            String content = """
+                ---
+                name: disabled-agent
+                enabled: false
+                ---
+                
+                ## Role
+                テスト
+                
+                ## Instruction
+                ${repository} レビュー
+                
+                ## Focus Areas
+                - item
+                """;
+
+            AgentConfig config = parser.parseContent(content.stripIndent(), "disabled-agent.agent.md");
+            assertThat(config).isNull();
+        }
+
+        @Test
+        @DisplayName("不正なモデル名を持つエージェントはnullを返す")
+        void invalidModelReturnsNull() {
+            String content = """
+                ---
+                name: bad-model
+                model: evil-hacked-model
+                ---
+                
+                ## Role
+                テスト
+                
+                ## Instruction
+                ${repository} レビュー
+                
+                ## Focus Areas
+                - item
+                """;
+
+            AgentConfig config = parser.parseContent(content.stripIndent(), "bad-model.agent.md");
+            assertThat(config).isNull();
+        }
+
+        @Test
+        @DisplayName("大文字を含む名前はポリシー違反でnullを返す")
+        void uppercaseNameReturnsNull() {
+            String content = """
+                ---
+                name: BadName
+                ---
+                
+                ## Role
+                テスト
+                
+                ## Instruction
+                ${repository} レビュー
+                
+                ## Focus Areas
+                - item
+                """;
+
+            AgentConfig config = parser.parseContent(content.stripIndent(), "BadName.agent.md");
+            assertThat(config).isNull();
+        }
+
+        @Test
+        @DisplayName("parseContentSafeは詳細なリジェクト理由を返す")
+        void parseContentSafeProvidesRejectionReason() {
+            String content = """
+                ---
+                name: test
+                model: evil-model
+                ---
+                
+                ## Role
+                テスト
+                
+                ## Instruction
+                ${repository} レビュー
+                
+                ## Focus Areas
+                - item
+                """;
+
+            var result = parser.parseContentSafe(content.stripIndent(), "test.agent.md");
+            assertThat(result.accepted()).isFalse();
+            assertThat(result.rejectionReason()).contains("not in the allowed model list");
         }
     }
 }

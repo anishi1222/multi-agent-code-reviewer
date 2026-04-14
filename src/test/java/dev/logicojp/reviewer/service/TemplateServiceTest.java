@@ -27,6 +27,7 @@ class TemplateServiceTest {
             "report.md",
             "local-review-content.md",
             "output-constraints.md",
+            "review-quality-constraints.md",
             "report-link-entry.md",
             new TemplateConfig.SummaryTemplates(
                 "summary-system.md",
@@ -159,6 +160,36 @@ class TemplateServiceTest {
             TemplateService service = new TemplateService(createConfig());
             String result = service.applyPlaceholders("unchanged", null);
             assertThat(result).isEqualTo("unchanged");
+        }
+    }
+
+    @Nested
+    @DisplayName("getOutputConstraints")
+    class GetOutputConstraints {
+
+        @Test
+        @DisplayName("outputConstraintsとreviewQualityConstraintsが連結される")
+        void combinesOutputAndQualityConstraints() throws IOException {
+            Files.writeString(tempDir.resolve("output-constraints.md"), "OUTPUT_BASE");
+            Files.writeString(tempDir.resolve("review-quality-constraints.md"), "QUALITY_RULES");
+            TemplateService service = new TemplateService(createConfig());
+
+            String result = service.getOutputConstraints();
+
+            assertThat(result).contains("OUTPUT_BASE");
+            assertThat(result).contains("QUALITY_RULES");
+        }
+
+        @Test
+        @DisplayName("reviewQualityConstraintsが存在しない場合はoutputConstraintsのみ返す")
+        void returnsOnlyOutputConstraintsWhenQualityMissing() throws IOException {
+            Files.writeString(tempDir.resolve("output-constraints.md"), "OUTPUT_ONLY");
+            // review-quality-constraints.md is intentionally not created
+            TemplateService service = new TemplateService(createConfig());
+
+            String result = service.getOutputConstraints();
+
+            assertThat(result).isEqualTo("OUTPUT_ONLY");
         }
     }
 }

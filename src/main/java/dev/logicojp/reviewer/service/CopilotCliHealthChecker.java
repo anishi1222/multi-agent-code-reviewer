@@ -37,16 +37,30 @@ public class CopilotCliHealthChecker {
         if (cliPath == null || cliPath.isBlank()) {
             return;
         }
+        checkCliVersion(cliPath);
+
+        if (!checkCliAuth(cliPath)) {
+            logger.info("Copilot CLI does not support 'auth status' subcommand (v1.0.25+). "
+                + "Skipping auth pre-check; the SDK will verify authentication at session creation.");
+        }
+    }
+
+    /// Runs only the version/health check against the CLI binary.
+    /// Throws {@link CopilotCliException} if the CLI does not respond or exits non-zero.
+    public void checkCliVersion(String cliPath) throws InterruptedException {
         runCliCommand(versionCommand(cliPath), resolveCliHealthcheckSeconds(),
             "Copilot CLI did not respond within ",
             "Copilot CLI exited with code ",
             "Failed to execute Copilot CLI: ",
             "Ensure the CLI is installed and authenticated.");
+    }
 
-        if (!tryAuthStatusCheck(cliPath)) {
-            logger.info("Copilot CLI does not support 'auth status' subcommand (v1.0.25+). "
-                + "Skipping auth pre-check; the SDK will verify authentication at session creation.");
-        }
+    /// Checks the CLI authentication status.
+    /// Returns {@code true} if the auth check passed, {@code false} if the CLI
+    /// does not support the command (e.g., v1.0.25+).
+    /// Throws {@link CopilotCliException} for definitive auth failures.
+    public boolean checkCliAuth(String cliPath) throws InterruptedException {
+        return tryAuthStatusCheck(cliPath);
     }
 
     /// Attempts the auth status check; returns true if the check passed, false if the CLI

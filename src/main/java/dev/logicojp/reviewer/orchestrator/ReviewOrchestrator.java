@@ -176,11 +176,12 @@ public class ReviewOrchestrator implements AutoCloseable {
             OrchestratorConfig orchestratorConfig,
             ExecutorResources resources,
             AgentReviewerFactory reviewerFactory) {
+        OrchestratorMetrics metrics = new OrchestratorMetrics();
         ReviewResultPipeline pipeline = new ReviewResultPipeline();
         AgentReviewExecutor executor = new AgentReviewExecutor(
-            resources.concurrencyLimit(), resources.agentExecutionExecutor(), reviewerFactory);
+            resources.concurrencyLimit(), resources.agentExecutionExecutor(), reviewerFactory, metrics);
         ReviewExecutionModeRunner modeRunner = new ReviewExecutionModeRunner(
-            orchestratorConfig.executionConfig(), pipeline);
+            orchestratorConfig.executionConfig(), pipeline, metrics);
         return new ExecutionPipelineComponents(pipeline, executor, modeRunner);
     }
 

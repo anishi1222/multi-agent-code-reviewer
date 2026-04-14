@@ -24,7 +24,7 @@ class ReportGeneratorTest {
     @DisplayName("レビュー結果からMarkdownレポートを生成できる")
     void generateReportCreatesMarkdownFile() throws Exception {
         TemplateService templateService = new TemplateService(
-            new TemplateConfig(null, null, null, null, null, null, null, null)
+            new TemplateConfig(null, null, null, null, null, null, null, null, null)
         );
         ReportGenerator generator = new ReportGenerator(tempDir, templateService);
 
@@ -52,7 +52,7 @@ class ReportGeneratorTest {
     @DisplayName("複数のレビュー結果からレポートを一括生成できる")
     void generateReportsCreatesMultipleFiles() throws Exception {
         TemplateService templateService = new TemplateService(
-            new TemplateConfig(null, null, null, null, null, null, null, null)
+            new TemplateConfig(null, null, null, null, null, null, null, null, null)
         );
         ReportGenerator generator = new ReportGenerator(tempDir, templateService);
 
@@ -74,7 +74,7 @@ class ReportGeneratorTest {
     @DisplayName("一部レポート生成失敗時も成功分のパスを返す")
     void generateReportsReturnsSuccessfulPathsOnPartialFailure() throws Exception {
         TemplateService templateService = new TemplateService(
-            new TemplateConfig(null, null, null, null, null, null, null, null)
+            new TemplateConfig(null, null, null, null, null, null, null, null, null)
         );
 
         // Use a read-only subdirectory to force IOExceptions after the first report

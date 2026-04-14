@@ -134,4 +134,22 @@ class CliUsageTest {
             assertThat(text).contains("--param");
         }
     }
+
+    @Nested
+    @DisplayName("printDoctor")
+    class PrintDoctor {
+
+        @Test
+        @DisplayName("doctorコマンドの使用法を出力する")
+        void printsDoctorUsage() {
+            var out = new ByteArrayOutputStream();
+            CliOutput output = createOutput(out, new ByteArrayOutputStream());
+
+            CliUsage.printDoctor(output);
+
+            String text = out.toString();
+            assertThat(text).contains("review doctor");
+            assertThat(text).contains("runtime dependencies");
+        }
+    }
 }
