@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.service;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
+import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.config.TemplateConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
@@ -40,7 +41,7 @@ class ReviewServiceTest {
             executionConfig,
             templateService,
             (agentConfigs, target, githubToken, overriddenConfig, reasoningEffort, outputConstraints,
-             invocationTimestamp) -> {
+             invocationTimestamp, rubberDuckConfig) -> {
                 capturedExecution.set(overriddenConfig);
                 capturedOutputConstraints.set(outputConstraints);
                 return List.of(ReviewResult.builder().success(true).repository(target.displayName()).build());
@@ -54,7 +55,8 @@ class ReviewServiceTest {
             2,
             "high",
             false,
-            "2026-03-05-12-34-56"
+            "2026-03-05-12-34-56",
+            new RubberDuckConfig()
         );
 
         assertThat(results).hasSize(1);

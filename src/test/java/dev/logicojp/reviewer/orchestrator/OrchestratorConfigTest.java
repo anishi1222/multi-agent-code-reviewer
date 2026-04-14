@@ -21,6 +21,7 @@ class OrchestratorConfigTest {
             null,
             null,
             "2026-03-05-12-34-56",
+            null,
             null
         );
 
@@ -39,7 +40,8 @@ class OrchestratorConfigTest {
             null,
             null,
             "2026-03-05-12-34-56",
-            new PromptTexts(null, null, null)
+            new PromptTexts(null, null, null),
+            null
         );
 
         assertThat(config.toString()).contains("githubToken=***");

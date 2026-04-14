@@ -68,7 +68,54 @@ class ReviewAgentConfigResolverTest {
             .hasMessageContaining("Failed to load agent configurations");
     }
 
+    @Test
+    @DisplayName("peer-model 指定時は rubber-duck を自動有効化する")
+    void enablesRubberDuckWhenPeerModelIsSpecified() {
+        Map<String, AgentConfig> original = new LinkedHashMap<>();
+        original.put("a", agentConfig("a", "base-1"));
+
+        var resolver = new ReviewAgentConfigResolver(
+            additionalDirs -> List.of(Path.of("agents")),
+            (selection, dirs) -> original
+        );
+
+        ReviewAgentConfigResolver.AgentResolution result = resolver.resolve(
+            parsedOptions(null, false, 0, "peer-model-x")
+        );
+
+        AgentConfig config = result.agentConfigs().get("a");
+        assertThat(config.rubberDuckEnabled()).isTrue();
+        assertThat(config.peerModel()).isEqualTo("peer-model-x");
+    }
+
+    @Test
+    @DisplayName("dialogue-rounds 指定時は rubber-duck を自動有効化する")
+    void enablesRubberDuckWhenDialogueRoundsIsSpecified() {
+        Map<String, AgentConfig> original = new LinkedHashMap<>();
+        original.put("a", agentConfig("a", "base-1"));
+
+        var resolver = new ReviewAgentConfigResolver(
+            additionalDirs -> List.of(Path.of("agents")),
+            (selection, dirs) -> original
+        );
+
+        ReviewAgentConfigResolver.AgentResolution result = resolver.resolve(
+            parsedOptions(null, false, 3, null)
+        );
+
+        AgentConfig config = result.agentConfigs().get("a");
+        assertThat(config.rubberDuckEnabled()).isTrue();
+        assertThat(config.dialogueRounds()).isEqualTo(3);
+    }
+
     private static ReviewCommand.ParsedOptions parsedOptions(String reviewModel) {
+        return parsedOptions(reviewModel, false, 0, null);
+    }
+
+    private static ReviewCommand.ParsedOptions parsedOptions(String reviewModel,
+                                                             boolean rubberDuck,
+                                                             int dialogueRounds,
+                                                             String peerModel) {
         return ReviewCommand.ParsedOptions.builder()
             .target(new ReviewCommand.TargetSelection.Repository("owner/repo"))
             .agents(new ReviewCommand.AgentSelection.All())
@@ -77,6 +124,9 @@ class ReviewAgentConfigResolverTest {
             .parallelism(4)
             .noSummary(false)
             .reviewModel(reviewModel)
+            .rubberDuck(rubberDuck)
+            .dialogueRounds(dialogueRounds)
+            .peerModel(peerModel)
             .trustTarget(false)
             .build();
     }

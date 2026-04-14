@@ -190,6 +190,27 @@ public class ReviewAgent {
         }
     }
 
+    /// Executes a rubber-duck peer-discussion dialogue for this agent.
+    /// Two different models conduct a multi-round discussion, then synthesize
+    /// the results into a single unified review.
+    ///
+    /// @param target           the review target
+    /// @param rubberDuckConfig the rubber-duck configuration
+    /// @param templateService  the template service for loading dialogue prompts
+    /// @return a single ReviewResult containing the synthesized review
+    public ReviewResult reviewRubberDuck(ReviewTarget target,
+                                         dev.logicojp.reviewer.config.RubberDuckConfig rubberDuckConfig,
+                                         dev.logicojp.reviewer.service.TemplateService templateService) {
+        var resolvedInstruction = resolveTargetInstruction(target);
+        var executor = new RubberDuckDialogueExecutor(
+            config, ctx, rubberDuckConfig, templateService);
+        return executor.execute(
+            target,
+            resolvedInstruction.instruction(),
+            resolvedInstruction.localSourceContent(),
+            resolvedInstruction.mcpServers());
+    }
+
     private List<ReviewResult> executeReviewPassesFallback(ReviewTarget target, int reviewPasses) {
         try (var scope = StructuredTaskScope.<ReviewResult>open()) {
             List<StructuredTaskScope.Subtask<ReviewResult>> tasks = new ArrayList<>(reviewPasses);
