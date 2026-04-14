@@ -28,6 +28,40 @@
 ### 検証
 - Pending
 
+## 2026-04-14 (v2026.04.14-rubber-duck)
+
+### 概要
+- エージェント単位で2モデル対話を行い、最終出力を統合する rubber-duck peer discussion レビューモードを追加しました。
+- OWASP Dependency Check Maven プラグインを 12.2.0 から 12.2.1 へ更新しました。
+- GitHub Release `v2026.04.14-rubber-duck` を公開しました。
+
+### 主な変更
+
+#### 追加
+- エージェント単位レビュー向けの rubber-duck peer discussion 実行経路を追加（PR #119）。
+- rubber-duck 用の設定と CLI オプションを追加:
+  - `application.yml` の `reviewer.rubber-duck.*`
+  - `--rubber-duck`, `--dialogue-rounds`, `--peer-model`
+- EN/JA の反証・統合向け対話テンプレートを追加。
+
+#### 変更
+- rubber-duck モード時のオーケストレーター挙動を調整:
+  - rubber-duck 有効時はレビューを1パスに固定。
+  - 対話ラウンド数に応じたタイムアウト拡張を適用。
+- 依存関係更新:
+  - `org.owasp:dependency-check-maven` 12.2.0 -> 12.2.1（PR #118）。
+
+#### 修正
+- rubber-duck モードの堅牢性を改善:
+  - マルチパス設定との競合制御。
+  - null 安全な対話プロンプト構築。
+  - 関連 CLI オプション指定時の rubber-duck 自動有効化。
+
+### 検証
+- Git タグ push: `v2026.04.14-rubber-duck`
+- GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.14-rubber-duck
+- リリース対象: `main`（commit `614aaec`）
+
 ## 2026-03-18 (v2026.03.18-auth)
 
 ### 概要

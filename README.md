@@ -24,10 +24,10 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Latest Remediation
 
-- 2026-03-18 (`v2026.03.18-auth`): Authentication policy aligned to OAuth device flow. Copilot runtime moved to logged-in user flow; `GITHUB_TOKEN`-centric guidance removed from CLI/runtime/docs.
-- Validation: `mvn clean test` (743 tests passed, 0 failures)
+- 2026-04-14 (`v2026.04.14-rubber-duck`): Added rubber-duck peer discussion review mode with agent-level two-model dialogue and synthesized final output. Added CLI/config controls (`--rubber-duck`, `--dialogue-rounds`, `--peer-model`, `reviewer.rubber-duck.*`) and aligned timeout/mode handling for rubber-duck execution.
+- Dependency update: `org.owasp:dependency-check-maven` 12.2.0 -> 12.2.1 (PR #118)
 - Release Notes: [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md), [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md)
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.03.18-auth
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.14-rubber-duck
 
 ## Architecture
 
