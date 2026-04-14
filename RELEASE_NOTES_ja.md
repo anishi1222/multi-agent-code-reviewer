@@ -40,9 +40,12 @@
 #### 追加
 - エージェント単位レビュー向けの rubber-duck peer discussion 実行経路を追加（PR #119）。
 - rubber-duck 用の設定と CLI オプションを追加:
-  - `application.yml` の `reviewer.rubber-duck.*`
-  - `--rubber-duck`, `--dialogue-rounds`, `--peer-model`
-- EN/JA の反証・統合向け対話テンプレートを追加。
+  - `application.yml` の `reviewer.rubber-duck.*`（`enabled`, `dialogue-rounds`, `peer-model`, `synthesis-strategy`）
+  - `--rubber-duck`（モード有効化）, `--dialogue-rounds <n>`（1〜10）, `--peer-model <model>`
+  - 環境変数 `RUBBER_DUCK_PEER_MODEL` でデフォルトピアモデルを設定可能
+- EN/JA の対話テンプレート8種（initial, peer-review, counter, synthesis）を追加。
+- エージェント単位のフロントマターフィールド: `peer-model`, `rubber-duck`, `dialogue-rounds`, `language`。
+- 新規ソースファイル: `RubberDuckConfig`, `RubberDuckDialogueExecutor`, `DialogueRound`, `SynthesisStrategy`。
 
 #### 変更
 - rubber-duck モード時のオーケストレーター挙動を調整:
@@ -58,6 +61,7 @@
   - 関連 CLI オプション指定時の rubber-duck 自動有効化。
 
 ### 検証
+- `mvn clean test` — 767テスト合格、0失敗
 - Git タグ push: `v2026.04.14-rubber-duck`
 - GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.14-rubber-duck
 - リリース対象: `main`（commit `614aaec`）

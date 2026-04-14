@@ -76,14 +76,14 @@ reviewer:
       # Token value is injected at runtime from environment/CLI; no secret is stored in this file.
       auth-header-template: "Bearer {token}"
   rubber-duck:
-    enabled: false
-    dialogue-rounds: 2
-    peer-model: ${RUBBER_DUCK_PEER_MODEL:}
+    enabled: true
+    dialogue-rounds: 3
+    peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.4}
     synthesis-strategy: last-responder
   models:
     default-model: claude-sonnet-4.5
-    review-model: GPT-5.3-Codex
-    report-model: GPT-5.4
+    review-model: claude-opus-4.6-1m
+    report-model: gpt-5.4
     summary-model: claude-sonnet-4.5
     reasoning-effort: high
   summary:

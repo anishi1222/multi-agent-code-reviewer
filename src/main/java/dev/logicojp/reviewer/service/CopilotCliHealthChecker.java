@@ -43,11 +43,29 @@ public class CopilotCliHealthChecker {
             "Failed to execute Copilot CLI: ",
             "Ensure the CLI is installed and authenticated.");
 
-        runCliCommand(authStatusCommand(cliPath), resolveCliAuthcheckSeconds(),
-            "Copilot CLI auth status timed out after ",
-            "Copilot CLI auth status failed with code ",
-            "Failed to execute Copilot CLI auth status: ",
-            "Run `copilot login` (or `gh copilot -- login`) to authenticate.");
+        if (!tryAuthStatusCheck(cliPath)) {
+            logger.info("Copilot CLI does not support 'auth status' subcommand (v1.0.25+). "
+                + "Skipping auth pre-check; the SDK will verify authentication at session creation.");
+        }
+    }
+
+    /// Attempts the auth status check; returns true if the check passed, false if the CLI
+    /// does not support the command (exit 1 with "Invalid command format").
+    private boolean tryAuthStatusCheck(String cliPath) throws InterruptedException {
+        try {
+            runCliCommand(authStatusCommand(cliPath), resolveCliAuthcheckSeconds(),
+                "Copilot CLI auth status timed out after ",
+                "Copilot CLI auth status failed with code ",
+                "Failed to execute Copilot CLI auth status: ",
+                "Run `copilot login` (or `gh copilot -- login`) to authenticate.");
+            return true;
+        } catch (CopilotCliException e) {
+            // CLI 1.0.25+ does not expose "auth status" — treat as non-fatal
+            if (e.getMessage() != null && e.getMessage().contains("failed with code 1")) {
+                return false;
+            }
+            throw e;
+        }
     }
 
     private List<String> versionCommand(String cliPath) {

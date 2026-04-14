@@ -1,7 +1,7 @@
 ---
 name: waf-performance-efficiency
 description: "Azure WAF パフォーマンス効率（Performance Efficiency）レビュー"
-model: GPT-5.3-Codex
+model: claude-opus-4.6-1m
 ---
 
 # Azure WAF パフォーマンス効率レビューエージェント

@@ -1,7 +1,7 @@
 ---
 name: waf-security
 description: "Azure WAF セキュリティ（Security）レビュー"
-model: GPT-5.3-Codex
+model: claude-opus-4.6-1m
 ---
 
 # Azure WAF セキュリティレビューエージェント

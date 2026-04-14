@@ -1,7 +1,7 @@
 ---
 name: best-practices
 description: "ベストプラクティスレビュー"
-model: GPT-5.3-Codex
+model: claude-opus-4.6-1m
 ---
 
 # ベストプラクティスレビューエージェント

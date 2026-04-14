@@ -1,7 +1,7 @@
 ---
 name: performance
 description: "パフォーマンスレビュー"
-model: GPT-5.3-Codex
+model: claude-opus-4.6-1m
 ---
 
 # パフォーマンスレビューエージェント

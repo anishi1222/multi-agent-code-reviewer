@@ -40,9 +40,12 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 #### Added
 - Rubber-duck peer discussion execution path for agent-level reviews (PR #119).
 - New rubber-duck configuration and CLI options:
-  - `reviewer.rubber-duck.*` settings in `application.yml`
-  - `--rubber-duck`, `--dialogue-rounds`, `--peer-model`
-- Dialogue templates for EN/JA synthesis and rebuttal prompts.
+  - `reviewer.rubber-duck.*` settings in `application.yml` (`enabled`, `dialogue-rounds`, `peer-model`, `synthesis-strategy`)
+  - `--rubber-duck` (enable mode), `--dialogue-rounds <n>` (1–10), `--peer-model <model>`
+  - Environment variable `RUBBER_DUCK_PEER_MODEL` for default peer model
+- 8 dialogue templates for EN/JA (initial, peer-review, counter, synthesis).
+- Per-agent frontmatter fields: `peer-model`, `rubber-duck`, `dialogue-rounds`, `language`.
+- New source files: `RubberDuckConfig`, `RubberDuckDialogueExecutor`, `DialogueRound`, `SynthesisStrategy`.
 
 #### Changed
 - Orchestrator execution behavior for rubber-duck mode:
@@ -58,6 +61,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
   - CLI override behavior enabling rubber-duck mode when related options are provided.
 
 ### Validation
+- `mvn clean test` — 767 tests passed, 0 failures
 - Git tag pushed: `v2026.04.14-rubber-duck`
 - GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.14-rubber-duck
 - Release target: `main` at commit `614aaec`
