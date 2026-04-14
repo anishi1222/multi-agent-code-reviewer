@@ -28,6 +28,40 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-04-14 (v2026.04.14-rubber-duck)
+
+### Summary
+- Added rubber-duck peer discussion review mode, enabling two-model dialogue per agent and synthesized final output.
+- Updated OWASP Dependency Check Maven plugin from 12.2.0 to 12.2.1.
+- Published GitHub Release `v2026.04.14-rubber-duck`.
+
+### Highlights
+
+#### Added
+- Rubber-duck peer discussion execution path for agent-level reviews (PR #119).
+- New rubber-duck configuration and CLI options:
+  - `reviewer.rubber-duck.*` settings in `application.yml`
+  - `--rubber-duck`, `--dialogue-rounds`, `--peer-model`
+- Dialogue templates for EN/JA synthesis and rebuttal prompts.
+
+#### Changed
+- Orchestrator execution behavior for rubber-duck mode:
+  - Forces single review pass when rubber-duck mode is enabled.
+  - Applies timeout scaling based on dialogue rounds.
+- Dependency update:
+  - `org.owasp:dependency-check-maven` 12.2.0 -> 12.2.1 (PR #118).
+
+#### Fixed
+- Rubber-duck mode robustness improvements:
+  - Conflict handling with multi-pass settings.
+  - Null-safe dialogue prompt construction.
+  - CLI override behavior enabling rubber-duck mode when related options are provided.
+
+### Validation
+- Git tag pushed: `v2026.04.14-rubber-duck`
+- GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.14-rubber-duck
+- Release target: `main` at commit `614aaec`
+
 ## 2026-03-18 (v2026.03.18-auth)
 
 ### Summary
