@@ -28,6 +28,33 @@
 ### 検証
 - Pending
 
+## 2026-04-14 (v2026.04.14-model-auth-check)
+
+### 概要
+- 同梱エージェント定義のフロントマターモデルを `claude-opus-4.6-1m` に揃え、モデル既定値の整合を改善しました。
+- `gh copilot -- auth status` 非対応環境でもフォールバック経路で継続できるよう、Copilot CLI 認証事前チェックの互換性を強化しました。
+- 本リリースに合わせて README EN/JA とリリースノート EN/JA を同期しました。
+- GitHub Release `v2026.04.14-model-auth-check` を公開しました。
+
+### 主な変更
+
+#### 追加
+- なし。
+
+#### 変更
+- 同梱エージェント定義 18 ファイル（`agents/*.agent.md`, `.github/agents/*.agent.md`）の `model` を更新:
+  - `GPT-5.3-Codex` -> `claude-opus-4.6-1m`
+- ランタイム設定と同梱エージェント定義で、レビュー用モデル既定値の整合を維持。
+- `README_en.md` / `README_ja.md` の最新リリース参照を更新。
+
+#### 修正
+- `CopilotCliHealthChecker` で CLI 認証チェックコマンド非互換時の処理を堅牢化し、フォールバック経路での継続性を改善。
+
+### 検証
+- `mvn test` — 成功
+- Git タグ push: `v2026.04.14-model-auth-check`
+- GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.14-model-auth-check
+
 ## 2026-04-14 (v2026.04.14-rubber-duck)
 
 ### 概要

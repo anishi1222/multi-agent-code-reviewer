@@ -28,6 +28,33 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-04-14 (v2026.04.14-model-auth-check)
+
+### Summary
+- Aligned bundled agent model defaults by updating agent frontmatter models to `claude-opus-4.6-1m`.
+- Improved Copilot CLI auth pre-check compatibility by preserving fallback behavior when `gh copilot -- auth status` is unsupported.
+- Synchronized EN/JA README and EN/JA release notes for this release.
+- Published GitHub Release `v2026.04.14-model-auth-check`.
+
+### Highlights
+
+#### Added
+- None.
+
+#### Changed
+- Updated `model` in 18 bundled agent definition files (`agents/*.agent.md`, `.github/agents/*.agent.md`):
+  - `GPT-5.3-Codex` -> `claude-opus-4.6-1m`
+- Kept reviewer model defaults aligned across runtime config and bundled agent definitions.
+- Updated latest release references in `README_en.md` and `README_ja.md`.
+
+#### Fixed
+- `CopilotCliHealthChecker` now handles CLI auth-check command incompatibility more robustly while continuing execution via fallback paths.
+
+### Validation
+- `mvn test` — passed
+- Git tag pushed: `v2026.04.14-model-auth-check`
+- GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.14-model-auth-check
+
 ## 2026-04-14 (v2026.04.14-rubber-duck)
 
 ### Summary
