@@ -1,7 +1,7 @@
 ---
 name: waf-operational-excellence
 description: "Azure WAF オペレーショナルエクセレンス（Operational Excellence）レビュー"
-model: GPT-5.3-Codex
+model: claude-opus-4.6-1m
 ---
 
 # Azure WAF オペレーショナルエクセレンスレビューエージェント

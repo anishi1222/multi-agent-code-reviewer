@@ -1,7 +1,7 @@
 ---
 name: code-quality
 description: "コード品質レビュー"
-model: GPT-5.3-Codex
+model: claude-opus-4.6-1m
 ---
 
 # コード品質レビューエージェント

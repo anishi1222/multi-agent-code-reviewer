@@ -21,6 +21,7 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 - **Default Model Externalization**: Configure the default model in `application.yml` (changeable without rebuild)
 - **Token Lifetime Minimization**: Runtime token handling is narrowed to execution boundaries to reduce in-memory exposure time
 - **DI-Consistent Service Construction**: `CopilotService` is unified to DI constructor usage (no no-arg path)
+- **Rubber-Duck Peer Discussion Mode**: Two-model dialogue per agent — a primary model and a peer model debate findings across configurable rounds before producing a synthesized final review
 
 ## Latest Remediation Status
 
@@ -242,6 +243,9 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `--parallelism` | - | Number of parallel executions | 4 |
 | `--no-summary` | - | Skip summary generation | false |
 | `--no-shared-session` | - | Force isolated session per review pass (disable shared session reuse) | false |
+| `--rubber-duck` | - | Enable rubber-duck peer-discussion review mode | false |
+| `--dialogue-rounds` | - | Override rubber-duck dialogue rounds (1–10) | 2 |
+| `--peer-model` | - | Override peer model for rubber-duck mode (must differ from review model) | - |
 | `--model` | - | Default model for all stages | - |
 | `--review-model` | - | Model for review | Agent config |
 | `--report-model` | - | Model for report generation | review-model |
@@ -263,6 +267,7 @@ Displays a list of available agents. Additional directories can be specified wit
 | `COPILOT_START_TIMEOUT_SECONDS` | Copilot client start timeout (seconds) | 60 |
 | `COPILOT_CLI_HEALTHCHECK_SECONDS` | CLI health check timeout (seconds) | 10 |
 | `COPILOT_CLI_AUTHCHECK_SECONDS` | CLI auth check timeout (seconds) | 15 |
+| `RUBBER_DUCK_PEER_MODEL` | Default peer model for rubber-duck mode | *(none)* |
 
 ```bash
 gh auth login
@@ -397,6 +402,11 @@ reviewer:
     max-content-per-agent: 50000     # Max characters per agent content for summary prompt
     max-total-prompt-content: 200000 # Max total prompt characters for summary generation
     fallback-excerpt-length: 180     # Excerpt length used by fallback summary formatter
+  rubber-duck:
+    enabled: false                   # Enable rubber-duck peer-discussion mode globally
+    dialogue-rounds: 2               # Number of dialogue rounds (1–10)
+    peer-model: ${RUBBER_DUCK_PEER_MODEL:}  # Peer model (env var or explicit)
+    synthesis-strategy: last-responder  # last-responder | dedicated-session
 ```
 
 ### External Configuration Override
@@ -473,6 +483,47 @@ When an agent review fails due to timeout or empty response, it is automatically
 - **Set `max-retries: 0`** to disable retries
 - Retried on: timeout (`TimeoutException`), empty response, SDK exceptions
 
+### Rubber-Duck Peer Discussion Mode
+
+Each agent can optionally run in **rubber-duck mode**, where two different LLM models debate review findings in a multi-round dialogue before producing a synthesized final review.
+
+```bash
+# Enable rubber-duck mode for all agents
+java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
+  run \
+  --repo owner/repository \
+  --all \
+  --rubber-duck \
+  --peer-model gpt-4.1
+
+# With custom dialogue rounds
+java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
+  run \
+  --repo owner/repository \
+  --all \
+  --rubber-duck \
+  --peer-model gpt-4.1 \
+  --dialogue-rounds 3
+```
+
+**How it works:**
+1. **Session A** (agent's model) performs the initial review.
+2. **Session B** (peer model) provides a peer review of Session A's findings.
+3. Subsequent rounds alternate counter-arguments between the two models.
+4. After all rounds, a synthesis prompt merges both perspectives into a single unified review.
+
+**Key constraints:**
+- The **peer model must differ** from the agent's review model — same-model pairing is rejected.
+- When rubber-duck mode is enabled, **multi-pass review is forced to 1 pass** per agent. The dialogue itself replaces multi-pass coverage.
+- Timeout is automatically scaled based on the number of dialogue rounds.
+- Specifying `--peer-model` or `--dialogue-rounds` on the CLI **auto-enables** rubber-duck mode (no need to also pass `--rubber-duck`).
+
+**Synthesis strategies** (configurable via `reviewer.rubber-duck.synthesis-strategy`):
+- `last-responder` (default): The synthesis prompt is sent to the last active session (Session B).
+- `dedicated-session`: A new third session is created specifically for synthesis.
+
+**Per-agent configuration:** Rubber-duck settings can also be specified per-agent in `.agent.md` frontmatter (see Agent Definition File section).
+
 ### Agent Directories
 
 The following directories are automatically searched:
@@ -494,6 +545,15 @@ Following the GitHub Copilot Custom Agent format, all section names are in Engli
 | `## Output Format` | Output format specification |
 
 In `Instruction`, you can use placeholders: `${repository}`, `${displayName}`, `${focusAreas}`.
+
+Additional frontmatter fields for rubber-duck mode:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `peer-model` | string | *(global config)* | Per-agent peer model override |
+| `rubber-duck` | boolean | `false` | Enable rubber-duck mode for this agent |
+| `dialogue-rounds` | int | `0` (defer to global) | Per-agent dialogue rounds override |
+| `language` | string | `ja` | Template language for rubber-duck prompts (`ja`/`en`) |
 
 ```markdown
 ---
@@ -827,6 +887,14 @@ templates/
 ├── local-source-header.md         # Local source header
 ├── custom-instruction-section.md  # Custom instruction section
 └── review-custom-instruction.md   # Review custom instruction
+├── rubber-duck-initial-en.md      # Rubber-duck initial review prompt (EN)
+├── rubber-duck-initial-ja.md      # Rubber-duck initial review prompt (JA)
+├── rubber-duck-peer-review-en.md  # Rubber-duck peer review prompt (EN)
+├── rubber-duck-peer-review-ja.md  # Rubber-duck peer review prompt (JA)
+├── rubber-duck-counter-en.md      # Rubber-duck counter-argument prompt (EN)
+├── rubber-duck-counter-ja.md      # Rubber-duck counter-argument prompt (JA)
+├── rubber-duck-synthesis-en.md    # Rubber-duck synthesis prompt (EN)
+└── rubber-duck-synthesis-ja.md    # Rubber-duck synthesis prompt (JA)
 ```
 
 ### Template Configuration
@@ -911,7 +979,10 @@ multi-agent-reviewer/
     │   ├── ReviewSystemPromptFormatter.java # System prompt formatter
     │   ├── ReviewTargetInstructionResolver.java # Target instruction resolver
     │   ├── SessionEventException.java   # Session event exception
-    │   └── SharedCircuitBreaker.java    # Shared circuit breaker
+    │   ├── SharedCircuitBreaker.java    # Shared circuit breaker
+    │   ├── DialogueRound.java           # Rubber-duck dialogue round record
+    │   ├── RubberDuckDialogueExecutor.java # Rubber-duck two-model dialogue executor
+    │   └── SynthesisStrategy.java       # Rubber-duck synthesis strategy (sealed interface)
     ├── cli/
     │   ├── CliOutput.java               # CLI output utilities
     │   ├── CliParsing.java              # CLI option parsing
@@ -944,6 +1015,7 @@ multi-agent-reviewer/
     │   ├── GithubMcpConfig.java         # GitHub MCP config
     │   ├── LocalFileConfig.java         # Local file config
     │   ├── ModelConfig.java             # LLM model config
+    │   ├── RubberDuckConfig.java        # Rubber-duck peer discussion config
     │   ├── SensitiveHeaderMasking.java  # Sensitive header masking
     │   ├── SkillConfig.java             # Skill config
     │   ├── SummaryConfig.java           # Summary generation limits config
