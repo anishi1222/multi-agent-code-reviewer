@@ -208,7 +208,7 @@ public class SkillExecutor implements AutoCloseable {
             .setModel(defaultModel)
             .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL);
         if (!cachedMcpServers.isEmpty()) {
-            sessionConfig.setMcpServers(cachedMcpServers);
+            sessionConfig.setMcpServers(castMcpServers(cachedMcpServers));
         }
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             sessionConfig.setSystemMessage(new SystemMessageConfig()
@@ -216,6 +216,11 @@ public class SkillExecutor implements AutoCloseable {
                 .setContent(systemPrompt));
         }
         return sessionConfig;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, com.github.copilot.sdk.json.McpServerConfig> castMcpServers(Map<String, Object> mcpServers) {
+        return (Map<String, com.github.copilot.sdk.json.McpServerConfig>) (Map<?, ?>) mcpServers;
     }
 
     /// No-op lifecycle hook; retained for API symmetry with other closeable services.

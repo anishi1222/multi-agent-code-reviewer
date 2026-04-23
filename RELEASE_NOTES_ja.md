@@ -28,6 +28,37 @@
 ### 検証
 - Pending
 
+## 2026-04-23 (v2026.04.23-copilot-sdk-compat)
+
+### 概要
+- GitHub Copilot SDK for Java を `0.3.0-java-preview.1` へ更新しました。
+- SDK API 変更に伴う Maven コンパイルエラー（イベントパッケージ移動・MCPサーバー型変更）へ対応しました。
+- 本リリースに合わせて README（ルート/EN/JA）と EN/JA リリースノートを同期しました。
+
+### 主な変更
+
+#### 追加
+- なし。
+
+#### 変更
+- `pom.xml`:
+  - `copilot.sdk.version` を `0.2.2-java.1` から `0.3.0-java-preview.1` へ更新。
+- 以下でイベント import を `com.github.copilot.sdk.events.*` から `com.github.copilot.sdk.generated.*` へ変更:
+  - `ReviewAgent`
+  - `RubberDuckDialogueExecutor`
+- SDK の `Map<String, McpServerConfig>` シグネチャへ合わせ、MCPサーバー設定の受け渡しを更新:
+  - `ReviewSessionConfigFactory`
+  - `RubberDuckDialogueExecutor`
+  - `SkillExecutor`
+
+#### 修正
+- SDK更新後に発生していた `com.github.copilot.sdk.events` 不存在エラー、および `setMcpServers(...)` のジェネリクス型不一致によるコンパイル失敗を解消。
+
+### 検証
+- `./mvnw -q -DskipTests compile` — 成功
+- Git タグ push: `v2026.04.23-copilot-sdk-compat`
+- GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.23-copilot-sdk-compat
+
 ## 2026-04-14 (v2026.04.14-model-auth-check)
 
 ### 概要

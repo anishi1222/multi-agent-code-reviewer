@@ -2,9 +2,9 @@ package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
-import com.github.copilot.sdk.events.AssistantMessageEvent;
-import com.github.copilot.sdk.events.SessionErrorEvent;
-import com.github.copilot.sdk.events.SessionIdleEvent;
+import com.github.copilot.sdk.generated.AssistantMessageEvent;
+import com.github.copilot.sdk.generated.SessionErrorEvent;
+import com.github.copilot.sdk.generated.SessionIdleEvent;
 import com.github.copilot.sdk.json.MessageOptions;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
@@ -196,13 +196,18 @@ final class RubberDuckDialogueExecutor {
                 .setContent(systemPrompt));
 
         if (mcpServers != null) {
-            sessionConfig.setMcpServers(mcpServers);
+            sessionConfig.setMcpServers(castMcpServers(mcpServers));
         }
         String effort = ModelConfig.resolveReasoningEffort(model, ctx.reasoningEffort());
         if (effort != null) {
             sessionConfig.setReasoningEffort(effort);
         }
         return sessionConfig;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, com.github.copilot.sdk.json.McpServerConfig> castMcpServers(Map<String, Object> mcpServers) {
+        return (Map<String, com.github.copilot.sdk.json.McpServerConfig>) (Map<?, ?>) mcpServers;
     }
 
     private String buildSessionId(String sessionTag) {

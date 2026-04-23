@@ -38,8 +38,13 @@ final class ReviewSessionConfigFactory {
 
     private void applyMcpServers(SessionConfig sessionConfig, Map<String, Object> mcpServers) {
         if (mcpServers != null) {
-            sessionConfig.setMcpServers(mcpServers);
+            sessionConfig.setMcpServers(castMcpServers(mcpServers));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, com.github.copilot.sdk.json.McpServerConfig> castMcpServers(Map<String, Object> mcpServers) {
+        return (Map<String, com.github.copilot.sdk.json.McpServerConfig>) (Map<?, ?>) mcpServers;
     }
 
     private void applyReasoningEffort(AgentConfig config,

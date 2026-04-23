@@ -24,10 +24,10 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Latest Remediation
 
-- 2026-04-14 (`v2026.04.14-rubber-duck`): Added rubber-duck peer discussion review mode with agent-level two-model dialogue and synthesized final output. Added CLI/config controls (`--rubber-duck`, `--dialogue-rounds`, `--peer-model`, `reviewer.rubber-duck.*`) and aligned timeout/mode handling for rubber-duck execution.
-- Dependency update: `org.owasp:dependency-check-maven` 12.2.0 -> 12.2.1 (PR #118)
+- 2026-04-23 (`v2026.04.23-copilot-sdk-compat`): Upgraded GitHub Copilot SDK for Java to `0.3.0-java-preview.1` and aligned the codebase with SDK API changes.
+- Compatibility fixes: switched event imports to `com.github.copilot.sdk.generated.*` and adjusted MCP server handoff for the new `setMcpServers(Map<String, McpServerConfig>)` signature.
 - Release Notes: [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md), [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md)
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.14-rubber-duck
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.23-copilot-sdk-compat
 
 ## Architecture
 

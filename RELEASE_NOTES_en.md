@@ -28,6 +28,37 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-04-23 (v2026.04.23-copilot-sdk-compat)
+
+### Summary
+- Upgraded GitHub Copilot SDK for Java to `0.3.0-java-preview.1`.
+- Fixed Maven compilation issues caused by SDK API changes (event package relocation and MCP server type changes).
+- Synchronized README (root/EN/JA) and EN/JA release notes for this release.
+
+### Highlights
+
+#### Added
+- None.
+
+#### Changed
+- `pom.xml`:
+  - `copilot.sdk.version` updated from `0.2.2-java.1` to `0.3.0-java-preview.1`.
+- Updated event imports from `com.github.copilot.sdk.events.*` to `com.github.copilot.sdk.generated.*` in:
+  - `ReviewAgent`
+  - `RubberDuckDialogueExecutor`
+- Updated MCP server configuration handoff to satisfy the new SDK signature `Map<String, McpServerConfig>` in:
+  - `ReviewSessionConfigFactory`
+  - `RubberDuckDialogueExecutor`
+  - `SkillExecutor`
+
+#### Fixed
+- Resolved compilation failures such as missing `com.github.copilot.sdk.events` package and `setMcpServers(...)` generic type mismatch after SDK upgrade.
+
+### Validation
+- `./mvnw -q -DskipTests compile` — passed
+- Git tag pushed: `v2026.04.23-copilot-sdk-compat`
+- GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.23-copilot-sdk-compat
+
 ## 2026-04-14 (v2026.04.14-model-auth-check)
 
 ### Summary
