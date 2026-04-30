@@ -48,7 +48,9 @@ jobs:
         run: ./mvnw -B -ntp verify
 
       - name: Generate SBOM (CycloneDX)
-        run: ./mvnw -B -ntp -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
+        run: >
+          ./mvnw -B -ntp -DskipTests
+          org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
 
       - name: Prepare release artifacts
         run: |
