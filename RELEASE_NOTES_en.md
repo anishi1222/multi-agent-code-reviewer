@@ -28,6 +28,38 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-04-30 (v2026.04.30-micronaut5-snapshot)
+
+### Summary
+- Tracked the in-development Micronaut 5 line by upgrading the parent BOM and platform version to `5.0.0-SNAPSHOT`.
+- Added Sonatype Central Snapshots repository for dependency and plugin resolution.
+- Adjusted Maven Enforcer and `micronaut-maven-plugin` configuration to accommodate SNAPSHOT artifacts and Micronaut 5's stricter configuration validation.
+- Verified build and full test suite on Java 26 (Oracle 26.0.1).
+
+### Highlights
+
+#### Added
+- `pom.xml`: Sonatype Central Snapshots repository (`https://central.sonatype.com/repository/maven-snapshots/`) registered for both `<repositories>` and `<pluginRepositories>` to resolve Micronaut 5 SNAPSHOT artifacts.
+
+#### Changed
+- `pom.xml`:
+  - Parent `io.micronaut.platform:micronaut-parent` upgraded from `4.10.13` to `5.0.0-SNAPSHOT`.
+  - Property `micronaut.version` updated from `4.10.22` to `5.0.0-SNAPSHOT`.
+  - Maven Enforcer rule `requireReleaseDeps` temporarily disabled (annotated TODO) while tracking Micronaut 5 SNAPSHOT; `dependencyConvergence` is preserved.
+  - `micronaut-maven-plugin` configured with `<configurationValidation><failOnNotPresent>false</failOnNotPresent></configurationValidation>` to avoid false positives where the annotation-processor argument `micronaut.processing.*` is reported as an unknown configuration property by Micronaut 5's strict validator. To be re-tightened at Micronaut 5 GA.
+
+#### Fixed
+- Resolved `validate-test-configuration` failure on Micronaut Maven Plugin 5.0.0-M2 caused by the new strict configuration validator misclassifying `-Amicronaut.processing.group` / `-Amicronaut.processing.module` annotation processor flags.
+
+### Validation
+- `mvn clean package` — BUILD SUCCESS on Java 26 (Oracle 26.0.1)
+- Test suite — 829 tests passed (0 failures, 0 errors)
+- Smoke test — `java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar --version` started, printed version, and shut down cleanly (Copilot client lifecycle OK)
+
+### Notes
+- This release intentionally rides Micronaut 5 SNAPSHOT for early validation; SNAPSHOT artifacts are resolved exclusively from the Sonatype Central Snapshots repository.
+- At Micronaut 5 GA, restore the SNAPSHOT enforcer rule and remove the validation override.
+
 ## 2026-04-23 (v2026.04.23-copilot-sdk-compat)
 
 ### Summary
