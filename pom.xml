@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.micronaut.platform</groupId>
         <artifactId>micronaut-parent</artifactId>
-        <version>4.10.13</version>
+        <version>5.0.0-SNAPSHOT</version>
     </parent>
 
     <groupId>dev.logicojp</groupId>
@@ -21,7 +21,7 @@
     <properties>
         <jdk.version>26</jdk.version>
         <release.version>26</release.version>
-        <micronaut.version>4.10.22</micronaut.version>
+        <micronaut.version>5.0.0-SNAPSHOT</micronaut.version>
         <micronaut.runtime>none</micronaut.runtime>
         <exec.mainClass>dev.logicojp.reviewer.ReviewApp</exec.mainClass>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -44,7 +44,32 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
+        <!-- Required for Micronaut 5 SNAPSHOT artifacts -->
+        <repository>
+            <id>central-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
     </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
 
     <!-- Override jackson-core to fix GHSA-72hv-8253-57qq (DoS via async parser) -->
     <dependencyManagement>
@@ -143,9 +168,8 @@
                         </goals>
                         <configuration>
                             <rules>
-                                <requireReleaseDeps>
-                                    <message>SNAPSHOT dependencies/plugins are not allowed.</message>
-                                </requireReleaseDeps>
+                                <!-- Temporarily allow SNAPSHOTs while tracking Micronaut 5.0.0-SNAPSHOT.
+                                     Re-enable requireReleaseDeps once Micronaut 5 GA is published. -->
                                 <dependencyConvergence/>
                             </rules>
                             <fail>true</fail>
@@ -161,6 +185,15 @@
                 <extensions>true</extensions>
                 <configuration>
                     <configFile>aot-${packaging}.properties</configFile>
+                    <!--
+                      Micronaut 5 introduces strict configuration validation that
+                      surfaces the annotation-processor arg "micronaut.processing"
+                      as an unknown property. Relax the strict check while we
+                      track 5.0.0-SNAPSHOT; tighten again at GA.
+                    -->
+                    <configurationValidation>
+                        <failOnNotPresent>false</failOnNotPresent>
+                    </configurationValidation>
                 </configuration>
             </plugin>
 
