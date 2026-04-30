@@ -28,6 +28,29 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-04-30 (v2026.04.30-copilot-sdk-stable)
+
+### Summary
+- Upgraded GitHub Copilot SDK for Java from preview `0.3.0-java-preview.1` to stable `0.3.0-java.2`.
+- Normalized JDK version across GitHub Actions workflows from `26.0.1` to `26` (`ci.yml`, `codeql.yml`, `dependency-audit.yml`, `release.yml`).
+- Pinned CycloneDX Maven plugin to `2.9.1` in the release workflow and refactored the SBOM generation command for readability.
+- Granted `contents: write` to the `publish-release` job so `gh release create` succeeds under the workflow-level least-privilege default of `contents: read`.
+
+### Highlights
+
+#### Changed
+- `pom.xml`: `copilot.sdk.version` `0.3.0-java-preview.1` → `0.3.0-java.2`.
+- `.github/workflows/ci.yml`, `.github/workflows/codeql.yml`, `.github/workflows/dependency-audit.yml`, `.github/workflows/release.yml`: `JDK_VERSION` `26.0.1` → `26`.
+- `.github/workflows/release.yml`: SBOM generation step pinned to `org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom` (split across lines for readability).
+
+#### Fixed
+- `.github/workflows/release.yml`: added job-level `permissions: contents: write` to the `publish-release` job so the GitHub Release publish step can create releases under the workflow-level least-privilege default (`contents: read`).
+
+### Validation
+- `mvn clean package` — BUILD SUCCESS on Java 26
+- Git tag pushed: `v2026.04.30-copilot-sdk-stable`
+- GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.30-copilot-sdk-stable
+
 ## 2026-04-30 (v2026.04.30-micronaut5-snapshot)
 
 ### Summary

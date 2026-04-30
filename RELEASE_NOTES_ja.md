@@ -28,6 +28,29 @@
 ### 検証
 - Pending
 
+## 2026-04-30 (v2026.04.30-copilot-sdk-stable)
+
+### 概要
+- GitHub Copilot SDK for Java を preview の `0.3.0-java-preview.1` から安定版 `0.3.0-java.2` へ更新しました。
+- GitHub Actions ワークフローの JDK バージョン表記を `26.0.1` から `26` に統一しました（`ci.yml` / `codeql.yml` / `dependency-audit.yml` / `release.yml`）。
+- リリースワークフローの CycloneDX Maven プラグインを `2.9.1` にピン留めし、SBOM 生成コマンドを可読性のためマルチライン化しました。
+- `publish-release` ジョブに `contents: write` 権限を付与し、ワークフローレベルの最小権限デフォルト（`contents: read`）下でも `gh release create` が成功するようにしました。
+
+### 主な変更
+
+#### 変更
+- `pom.xml`: `copilot.sdk.version` を `0.3.0-java-preview.1` → `0.3.0-java.2` に更新。
+- `.github/workflows/ci.yml` / `codeql.yml` / `dependency-audit.yml` / `release.yml`: `JDK_VERSION` を `26.0.1` → `26` に統一。
+- `.github/workflows/release.yml`: SBOM 生成ステップを `org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom` にピン留め（可読性のためマルチライン化）。
+
+#### 修正
+- `.github/workflows/release.yml`: `publish-release` ジョブにジョブ単位の `permissions: contents: write` を追加。ワークフローレベルの最小権限デフォルト（`contents: read`）下でも GitHub Release 公開ステップ（`gh release create`）が動作するようにしました。
+
+### 検証
+- `mvn clean package` — Java 26 で BUILD SUCCESS
+- Git タグ push: `v2026.04.30-copilot-sdk-stable`
+- GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.30-copilot-sdk-stable
+
 ## 2026-04-30 (v2026.04.30-micronaut5-snapshot)
 
 ### 概要
