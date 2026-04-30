@@ -20,7 +20,7 @@ concurrency:
 
 env:
   # Keep in sync with pom.xml <jdk.version> and .sdkmanrc
-  JDK_VERSION: '26.0.1'
+  JDK_VERSION: '2'
   GRAALVM_JAVA_VERSION: '25.0.3'
   GRAALVM_DISTRIBUTION: 'graalvm'
 
