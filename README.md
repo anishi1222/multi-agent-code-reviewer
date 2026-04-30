@@ -24,10 +24,11 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Latest Remediation
 
+- 2026-04-30 (`v2026.04.30-micronaut5-snapshot`): Tracked Micronaut 5 by upgrading the parent BOM and platform version to `5.0.0-SNAPSHOT`, registered the Sonatype Central Snapshots repository, relaxed the SNAPSHOT enforcer rule (annotated TODO), and disabled `failOnNotPresent` in the new Micronaut 5 configuration validator to ignore the annotation processor `micronaut.processing.*` argument. Verified `mvn clean package` and 829 tests on Java 26 (Oracle 26.0.1).
 - 2026-04-23 (`v2026.04.23-copilot-sdk-compat`): Upgraded GitHub Copilot SDK for Java to `0.3.0-java-preview.1` and aligned the codebase with SDK API changes.
 - Compatibility fixes: switched event imports to `com.github.copilot.sdk.generated.*` and adjusted MCP server handoff for the new `setMcpServers(Map<String, McpServerConfig>)` signature.
 - Release Notes: [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md), [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md)
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.23-copilot-sdk-compat
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.30-micronaut5-snapshot
 
 ## Architecture
 

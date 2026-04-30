@@ -28,6 +28,38 @@
 ### 検証
 - Pending
 
+## 2026-04-30 (v2026.04.30-micronaut5-snapshot)
+
+### 概要
+- 開発中の Micronaut 5 系統に追従するため、親 BOM とプラットフォームバージョンを `5.0.0-SNAPSHOT` へ更新しました。
+- Sonatype Central Snapshots リポジトリを依存関係およびプラグインの解決先として追加しました。
+- SNAPSHOT 成果物の利用および Micronaut 5 で厳格化された構成バリデーションに合わせて、Maven Enforcer と `micronaut-maven-plugin` の設定を調整しました。
+- Java 26（Oracle 26.0.1）でのビルドと全テストスイート合格を確認しました。
+
+### 主な変更
+
+#### 追加
+- `pom.xml`: Micronaut 5 SNAPSHOT 成果物を解決するため、Sonatype Central Snapshots リポジトリ（`https://central.sonatype.com/repository/maven-snapshots/`）を `<repositories>` および `<pluginRepositories>` に追加。
+
+#### 変更
+- `pom.xml`:
+  - 親 `io.micronaut.platform:micronaut-parent` を `4.10.13` から `5.0.0-SNAPSHOT` へ更新。
+  - プロパティ `micronaut.version` を `4.10.22` から `5.0.0-SNAPSHOT` へ更新。
+  - Micronaut 5 SNAPSHOT 追従中のため、Maven Enforcer の `requireReleaseDeps` ルールを TODO コメント付きで一時的に無効化（`dependencyConvergence` は維持）。
+  - `micronaut-maven-plugin` に `<configurationValidation><failOnNotPresent>false</failOnNotPresent></configurationValidation>` を追加し、Micronaut 5 の厳格バリデータが注釈プロセッサ引数 `micronaut.processing.*` を未知プロパティとして誤検出する問題を回避（Micronaut 5 GA 時に再有効化予定）。
+
+#### 修正
+- Micronaut Maven Plugin 5.0.0-M2 の `validate-test-configuration` で、`-Amicronaut.processing.group` / `-Amicronaut.processing.module` が新しい厳格な構成バリデータにより未知プロパティと判定されてビルド失敗していた問題を解消。
+
+### 検証
+- `mvn clean package` — Java 26（Oracle 26.0.1）で BUILD SUCCESS
+- テストスイート — 829 件合格（失敗 0 / エラー 0）
+- スモークテスト — `java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar --version` が正常起動・バージョン表示・正常終了（Copilot クライアントのライフサイクル正常）
+
+### 注意
+- 本リリースは検証目的で意図的に Micronaut 5 SNAPSHOT に追従しています。SNAPSHOT 成果物は Sonatype Central Snapshots リポジトリ経由のみで解決されます。
+- Micronaut 5 GA の際は、SNAPSHOT 禁止 Enforcer ルールとバリデーションオーバーライドを元に戻してください。
+
 ## 2026-04-23 (v2026.04.23-copilot-sdk-compat)
 
 ### 概要

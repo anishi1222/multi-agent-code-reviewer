@@ -28,7 +28,7 @@ concurrency:
 
 env:
   # Keep in sync with pom.xml <jdk.version>
-  JDK_VERSION: '26'
+  JDK_VERSION: '26.0.1'
 
 jobs:
   analyze:
