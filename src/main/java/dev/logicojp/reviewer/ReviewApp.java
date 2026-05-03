@@ -57,7 +57,7 @@ public class ReviewApp {
     public static void main(String[] args) {
         ensureSecureLogDirectory();
         warnOnInsecureJvmFlags();
-        int exitCode;
+        int exitCode = ExitCodes.SOFTWARE;
         try (var context = ApplicationContext.run()) {
             var app = context.getBean(ReviewApp.class);
             exitCode = app.execute(args);

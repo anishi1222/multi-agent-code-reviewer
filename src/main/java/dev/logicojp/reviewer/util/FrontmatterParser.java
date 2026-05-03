@@ -136,6 +136,7 @@ public final class FrontmatterParser {
         return matcher.group(1);
     }
 
+    /// Security threshold to prevent DoS attacks via oversized YAML documents.
     private static final int YAML_CODE_POINT_LIMIT = 64 * 1024;
     private static final int YAML_NESTING_DEPTH_LIMIT = 10;
     private static final int YAML_MAX_ALIASES = 50;
