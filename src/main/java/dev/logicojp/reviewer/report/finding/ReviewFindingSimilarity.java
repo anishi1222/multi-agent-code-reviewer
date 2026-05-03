@@ -42,14 +42,24 @@ public final class ReviewFindingSimilarity {
     }
 
      static Set<String> bigrams(String text) {
-        String compact = text.replace(" ", "");
-        if (compact.length() < 2) {
-            return compact.isEmpty() ? Set.of() : Set.of(compact);
+        if (text.length() < 2) {
+            return text.isEmpty() ? Set.of() : Set.of(text);
         }
 
-        Set<String> grams = HashSet.newHashSet(compact.length() - 1);
-        for (int i = 0; i < compact.length() - 1; i++) {
-            grams.add(compact.substring(i, i + 2));
+        Set<String> grams = HashSet.newHashSet(text.length());
+        char prev = 0;
+        boolean hasPrev = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == ' ') {
+                hasPrev = false;
+                continue;
+            }
+            if (hasPrev) {
+                grams.add(new String(new char[]{prev, c}));
+            }
+            prev = c;
+            hasPrev = true;
         }
         return grams;
     }

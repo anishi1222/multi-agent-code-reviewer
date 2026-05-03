@@ -4,8 +4,9 @@ import dev.logicojp.reviewer.report.core.ReviewResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /// Thread-safe metrics collector for a single orchestration run.
 ///
@@ -63,7 +64,7 @@ final class OrchestratorMetrics {
     /// Threshold above which a permit wait is considered "backpressure" and logged at INFO.
     private static final long PERMIT_WAIT_LOG_THRESHOLD_MS = 50;
 
-    private final CopyOnWriteArrayList<AgentExecutionRecord> records = new CopyOnWriteArrayList<>();
+    private final ConcurrentLinkedQueue<AgentExecutionRecord> records = new ConcurrentLinkedQueue<>();
     private volatile long runStartNanos;
     private volatile long runEndNanos;
 
@@ -102,18 +103,25 @@ final class OrchestratorMetrics {
         if (results.isEmpty()) {
             return OutcomeType.FAILURE;
         }
-        if (results.stream().allMatch(ReviewResult::success)) {
+        boolean allSuccess = true;
+        boolean hasTimeout = false;
+        boolean hasInterrupted = false;
+        for (ReviewResult r : results) {
+            if (!r.success()) {
+                allSuccess = false;
+                String msg = r.errorMessage();
+                if (msg != null) {
+                    if (msg.contains("timed out")) hasTimeout = true;
+                    if (msg.contains("interrupted")) hasInterrupted = true;
+                }
+            }
+        }
+        if (allSuccess) {
             return OutcomeType.SUCCESS;
         }
-        boolean hasTimeout = results.stream()
-            .filter(r -> !r.success())
-            .anyMatch(r -> r.errorMessage() != null && r.errorMessage().contains("timed out"));
         if (hasTimeout) {
             return OutcomeType.TIMEOUT;
         }
-        boolean hasInterrupted = results.stream()
-            .filter(r -> !r.success())
-            .anyMatch(r -> r.errorMessage() != null && r.errorMessage().contains("interrupted"));
         return hasInterrupted ? OutcomeType.INTERRUPTED : OutcomeType.FAILURE;
     }
 
@@ -121,7 +129,7 @@ final class OrchestratorMetrics {
 
     Snapshot snapshot() {
         long runDuration = nanosToMillis(runEndNanos - runStartNanos);
-        int count = records.size();
+        int count = 0;
         int success = 0;
         int failure = 0;
         int timeout = 0;
@@ -132,6 +140,7 @@ final class OrchestratorMetrics {
         long maxWait = 0;
 
         for (var r : records) {
+            count++;
             switch (r.outcome()) {
                 case SUCCESS -> success++;
                 case FAILURE -> failure++;
@@ -170,7 +179,7 @@ final class OrchestratorMetrics {
     // ---- Accessors for testing ----
 
     List<AgentExecutionRecord> records() {
-        return List.copyOf(records);
+        return List.copyOf(new ArrayList<>(records));
     }
 
     // ---- Helpers ----
