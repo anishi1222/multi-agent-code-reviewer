@@ -119,7 +119,7 @@ final class LocalFileCandidateProcessor {
         // In that common case, avoid ByteArrayOutputStream re-allocation/copy churn.
         if (expectedSize <= maxBytes) {
             String content = Files.readString(path, StandardCharsets.UTF_8);
-            long actualSize = Files.size(path);
+            long actualSize = content.getBytes(StandardCharsets.UTF_8).length;
             if (actualSize > maxBytes) {
                 return ReadResult.exceeded();
             }

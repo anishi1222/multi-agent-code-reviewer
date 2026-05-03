@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /// Executes a rubber-duck peer-discussion dialogue between two models for a single agent.
 ///
@@ -31,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 final class RubberDuckDialogueExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(RubberDuckDialogueExecutor.class);
+    private static final Pattern SESSION_TOKEN_UNSUPPORTED = Pattern.compile("[^A-Za-z0-9._-]");
 
     private final AgentConfig config;
     private final ReviewContext ctx;
@@ -364,6 +366,6 @@ final class RubberDuckDialogueExecutor {
         if (value == null || value.isBlank()) {
             return "unknown";
         }
-        return value.replaceAll("[^A-Za-z0-9._-]", "-");
+        return SESSION_TOKEN_UNSUPPORTED.matcher(value).replaceAll("-");
     }
 }
