@@ -25,24 +25,20 @@ public final class SecurityAuditLogger {
                            String eventAction,
                            String message,
                            Map<String, String> attributes) {
-        List<String> addedKeys = new ArrayList<>();
-        addedKeys.add("event.category");
-        MDC.put("event.category", sanitizeForLogValue(eventCategory));
-        addedKeys.add("event.action");
-        MDC.put("event.action", sanitizeForLogValue(eventAction));
-        if (attributes != null) {
-            attributes.forEach((key, value) -> {
-                if (key != null && !key.isBlank()) {
-                    String mdcKey = "audit." + key;
-                    MDC.put(mdcKey, sanitizeForLogValue(value));
-                    addedKeys.add(mdcKey);
-                }
-            });
-        }
+        List<MDC.MDCCloseable> closeables = new ArrayList<>();
         try {
+            closeables.add(MDC.putCloseable("event.category", sanitizeForLogValue(eventCategory)));
+            closeables.add(MDC.putCloseable("event.action", sanitizeForLogValue(eventAction)));
+            if (attributes != null) {
+                attributes.forEach((key, value) -> {
+                    if (key != null && !key.isBlank()) {
+                        closeables.add(MDC.putCloseable("audit." + key, sanitizeForLogValue(value)));
+                    }
+                });
+            }
             AUDIT_LOGGER.info(sanitizeForLogValue(message));
         } finally {
-            addedKeys.forEach(MDC::remove);
+            closeables.forEach(MDC.MDCCloseable::close);
         }
     }
 

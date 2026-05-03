@@ -50,7 +50,7 @@ public final class FindingsExtractor {
     public static String buildFindingsSummary(List<ReviewResult> results) {
         return buildFindingsSummary(
             results,
-            (content, agentName, category) -> extractFindings(content, agentName, category),
+            FindingsExtractor::extractFindings,
             FindingsSummaryFormatter::formatSummary
         );
     }
