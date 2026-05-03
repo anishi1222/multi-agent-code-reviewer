@@ -136,16 +136,24 @@ public final class FrontmatterParser {
         return matcher.group(1);
     }
 
+    private static final int YAML_CODE_POINT_LIMIT = 64 * 1024;
+    private static final int YAML_NESTING_DEPTH_LIMIT = 10;
+    private static final int YAML_MAX_ALIASES = 50;
+
+    private static LoaderOptions createSafeLoaderOptions() {
+        var options = new LoaderOptions();
+        options.setCodePointLimit(YAML_CODE_POINT_LIMIT);
+        options.setNestingDepthLimit(YAML_NESTING_DEPTH_LIMIT);
+        options.setMaxAliasesForCollections(YAML_MAX_ALIASES);
+        return options;
+    }
+
     /// Parses top-level key-value fields from frontmatter text using SnakeYAML.
     /// Falls back to manual line-based parsing when the frontmatter contains
     /// YAML special characters (e.g. unquoted glob patterns like {@code **/*.py}).
     private static Map<String, String> parseFields(String frontmatter) {
         try {
-            var loaderOptions = new LoaderOptions();
-            loaderOptions.setCodePointLimit(64 * 1024);
-            loaderOptions.setNestingDepthLimit(10);
-            loaderOptions.setMaxAliasesForCollections(50);
-            var yaml = new Yaml(new SafeConstructor(loaderOptions));
+            var yaml = new Yaml(new SafeConstructor(createSafeLoaderOptions()));
             Map<?, ?> parsed = yaml.loadAs(frontmatter, Map.class);
             if (parsed == null) {
                 return Map.of();
