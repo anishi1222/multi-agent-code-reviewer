@@ -110,8 +110,12 @@ final class OrchestratorMetrics {
                 allSuccess = false;
                 String msg = r.errorMessage();
                 if (msg != null) {
-                    if (msg.contains("timed out")) hasTimeout = true;
-                    if (msg.contains("interrupted")) hasInterrupted = true;
+                    if (msg.contains("timed out")) {
+                        hasTimeout = true;
+                        break; // TIMEOUT is the highest-priority non-success outcome; no need to scan further
+                    } else if (msg.contains("interrupted")) {
+                        hasInterrupted = true;
+                    }
                 }
             }
         }
