@@ -1,5 +1,11 @@
 package dev.logicojp.reviewer.agent;
 
+import com.github.copilot.sdk.CopilotSession;
+import com.github.copilot.sdk.generated.AssistantMessageEvent;
+import com.github.copilot.sdk.generated.SessionErrorEvent;
+import com.github.copilot.sdk.generated.SessionIdleEvent;
+import org.slf4j.Logger;
+
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -25,6 +31,35 @@ final class ReviewSessionEvents {
     }
 
     private ReviewSessionEvents() {
+    }
+
+    /// Registers event listeners on a CopilotSession, wiring them to the content collector.
+    /// This convenience method eliminates duplicated event-registration boilerplate
+    /// across ReviewAgent and RubberDuckDialogueExecutor.
+    static EventSubscriptions registerOnSession(String agentName,
+                                                CopilotSession session,
+                                                ContentCollector collector,
+                                                Logger logger) {
+        return register(
+            agentName,
+            collector,
+            handler -> session.on(event -> handler.accept(
+                new EventData(event.getType(), null, 0, null)
+            )),
+            handler -> session.on(AssistantMessageEvent.class, event -> {
+                var data = event.getData();
+                int toolCalls = data.toolRequests() != null ? data.toolRequests().size() : 0;
+                handler.accept(new EventData("assistant", data.content(), toolCalls, null));
+            }),
+            handler -> session.on(SessionIdleEvent.class, _ ->
+                handler.accept(new EventData("idle", null, 0, null))),
+            handler -> session.on(SessionErrorEvent.class, event -> {
+                var data = event.getData();
+                handler.accept(new EventData(
+                    "error", null, 0, data != null ? data.message() : "session error"));
+            }),
+            trace -> { if (logger.isTraceEnabled()) logger.trace("{}", trace.get()); }
+        );
     }
 
     static EventSubscriptions register(String agentName,

@@ -2,9 +2,6 @@ package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
-import com.github.copilot.sdk.generated.AssistantMessageEvent;
-import com.github.copilot.sdk.generated.SessionErrorEvent;
-import com.github.copilot.sdk.generated.SessionIdleEvent;
 import com.github.copilot.sdk.json.MessageOptions;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
@@ -243,26 +240,28 @@ final class RubberDuckDialogueExecutor {
             template, Map.of("peerReviewContent", safeContent(peerContent)));
     }
 
+    private static final String ROLE_DESCRIPTION_A =
+        "You are participating in a peer-discussion code review. "
+            + "Engage constructively with the other reviewer's perspective. ";
+
+    private static final String ROLE_DESCRIPTION_B =
+        "You are a peer reviewer providing an independent perspective. "
+            + "Challenge assumptions and offer alternative viewpoints constructively. ";
+
     private String buildSystemPromptA() {
-        var sb = new StringBuilder();
-        if (config.systemPrompt() != null) {
-            sb.append(config.systemPrompt());
-        }
-        sb.append("\n\nYou are participating in a peer-discussion code review. ")
-            .append("Engage constructively with the other reviewer's perspective. ");
-        if (ctx.outputConstraints() != null) {
-            sb.append("\n\n").append(ctx.outputConstraints());
-        }
-        return sb.toString();
+        return buildSystemPrompt(ROLE_DESCRIPTION_A);
     }
 
     private String buildSystemPromptB() {
+        return buildSystemPrompt(ROLE_DESCRIPTION_B);
+    }
+
+    private String buildSystemPrompt(String roleDescription) {
         var sb = new StringBuilder();
         if (config.systemPrompt() != null) {
             sb.append(config.systemPrompt());
         }
-        sb.append("\n\nYou are a peer reviewer providing an independent perspective. ")
-            .append("Challenge assumptions and offer alternative viewpoints constructively. ");
+        sb.append("\n\n").append(roleDescription);
         if (ctx.outputConstraints() != null) {
             sb.append("\n\n").append(ctx.outputConstraints());
         }
@@ -304,27 +303,7 @@ final class RubberDuckDialogueExecutor {
 
     private EventSubscriptions registerEventListeners(CopilotSession session,
                                                        ContentCollector collector) {
-        return ReviewSessionEvents.register(
-            config.name(),
-            collector,
-            handler -> session.on(event -> handler.accept(
-                new ReviewSessionEvents.EventData(event.getType(), null, 0, null)
-            )),
-            handler -> session.on(AssistantMessageEvent.class, event -> {
-                var data = event.getData();
-                int toolCalls = data.toolRequests() != null ? data.toolRequests().size() : 0;
-                handler.accept(new ReviewSessionEvents.EventData(
-                    "assistant", data.content(), toolCalls, null));
-            }),
-            handler -> session.on(SessionIdleEvent.class, _ ->
-                handler.accept(new ReviewSessionEvents.EventData("idle", null, 0, null))),
-            handler -> session.on(SessionErrorEvent.class, event -> {
-                var data = event.getData();
-                handler.accept(new ReviewSessionEvents.EventData(
-                    "error", null, 0, data != null ? data.message() : "session error"));
-            }),
-            trace -> { if (logger.isTraceEnabled()) logger.trace("{}", trace.get()); }
-        );
+        return ReviewSessionEvents.registerOnSession(config.name(), session, collector, logger);
     }
 
     // --- Resolution helpers ---
@@ -340,10 +319,7 @@ final class RubberDuckDialogueExecutor {
     }
 
     private int resolveDialogueRounds() {
-        if (config.dialogueRounds() > 0) {
-            return config.dialogueRounds();
-        }
-        return rubberDuckConfig.dialogueRounds();
+        return config.effectiveDialogueRounds(rubberDuckConfig);
     }
 
     private void validatePeerModel(String peerModel) {

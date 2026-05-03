@@ -84,6 +84,15 @@ public record AgentConfig(
             .build();
     }
 
+    /// Resolves the effective dialogue rounds, using the agent-level override if positive,
+    /// otherwise falling back to the global RubberDuckConfig default.
+    public int effectiveDialogueRounds(dev.logicojp.reviewer.config.RubberDuckConfig rubberDuckConfig) {
+        if (dialogueRounds > 0) {
+            return dialogueRounds;
+        }
+        return rubberDuckConfig.dialogueRounds();
+    }
+
     public static Builder builder() {
         return new Builder();
     }

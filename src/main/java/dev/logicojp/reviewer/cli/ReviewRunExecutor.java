@@ -126,17 +126,8 @@ class ReviewRunExecutor {
     }
 
     private void generatePassReports(List<ReviewResult> passResults, Path outputDirectory) {
-        output.println("\nGenerating pass reports...");
         Path passDirectory = outputDirectory.resolve(CHECKPOINTS_DIR).resolve(PASS_REPORTS_DIR);
-        List<Path> reports;
-        try {
-            reports = reportsGenerator.generate(passResults, passDirectory);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Pass report generation failed", e);
-        }
-        for (Path report : reports) {
-            output.println("  ✓ " + report.getFileName());
-        }
+        generateAndPrintReports(passResults, passDirectory, "Generating pass reports...");
     }
 
     private List<ReviewResult> sanitizePassResults(List<ReviewResult> passResults) {
@@ -167,12 +158,16 @@ class ReviewRunExecutor {
     }
 
     private void generateReports(List<ReviewResult> results, Path outputDirectory) {
-        output.println("\nGenerating reports...");
+        generateAndPrintReports(results, outputDirectory, "Generating reports...");
+    }
+
+    private void generateAndPrintReports(List<ReviewResult> results, Path directory, String label) {
+        output.println("\n" + label);
         List<Path> reports;
         try {
-            reports = reportsGenerator.generate(results, outputDirectory);
+            reports = reportsGenerator.generate(results, directory);
         } catch (IOException e) {
-            throw new UncheckedIOException("Report generation failed", e);
+            throw new UncheckedIOException(label + " failed", e);
         }
         for (Path report : reports) {
             output.println("  ✓ " + report.getFileName());

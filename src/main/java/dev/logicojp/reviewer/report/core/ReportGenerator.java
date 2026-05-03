@@ -73,7 +73,7 @@ public class ReportGenerator {
                 int sequence = agentSequence.merge(agentName, 1, Integer::sum);
                 paths.add(generateReport(result, sequence));
             } catch (IOException e) {
-                String agentName = result.agentConfig().name();
+                String agentName = result.agentConfig() != null ? result.agentConfig().name() : "unknown";
                 logger.error("Failed to generate report for {}: {}", agentName, e.getMessage(), e);
                 failures.add(agentName);
             }
