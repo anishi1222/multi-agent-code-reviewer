@@ -329,10 +329,7 @@ public class ReviewOrchestrator implements AutoCloseable {
     }
 
     private int effectiveDialogueRounds(AgentConfig config) {
-        if (config.dialogueRounds() > 0) {
-            return config.dialogueRounds();
-        }
-        return orchestratorConfig.rubberDuckConfig().dialogueRounds();
+        return config.effectiveDialogueRounds(orchestratorConfig.rubberDuckConfig());
     }
 
     private TemplateService requireTemplateService() {

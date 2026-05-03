@@ -4,9 +4,6 @@ import dev.logicojp.reviewer.report.sanitize.ContentSanitizer;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import com.github.copilot.sdk.CopilotSession;
-import com.github.copilot.sdk.generated.AssistantMessageEvent;
-import com.github.copilot.sdk.generated.SessionErrorEvent;
-import com.github.copilot.sdk.generated.SessionIdleEvent;
 import com.github.copilot.sdk.json.MessageOptions;
 import com.github.copilot.sdk.json.SessionConfig;
 import org.slf4j.Logger;
@@ -568,27 +565,7 @@ public class ReviewAgent {
 
     /// Registers event listeners on the session, wiring them to the content collector.
     private EventSubscriptions registerEventListeners(CopilotSession session, ContentCollector collector) {
-        return ReviewSessionEvents.register(
-            config.name(),
-            collector,
-            handler -> session.on(event -> handler.accept(
-                new ReviewSessionEvents.EventData(event.getType(), null, 0, null)
-            )),
-            handler -> session.on(AssistantMessageEvent.class, event -> {
-                var data = event.getData();
-                int toolCalls = data.toolRequests() != null ? data.toolRequests().size() : 0;
-                handler.accept(new ReviewSessionEvents.EventData("assistant", data.content(), toolCalls, null));
-            }),
-            handler -> session.on(SessionIdleEvent.class, _ ->
-                handler.accept(new ReviewSessionEvents.EventData("idle", null, 0, null))),
-            handler -> session.on(SessionErrorEvent.class, event -> {
-                var data = event.getData();
-                handler.accept(new ReviewSessionEvents.EventData(
-                    "error", null, 0, data != null ? data.message() : "session error"
-                ));
-            }),
-            trace -> { if (logger.isTraceEnabled()) logger.trace("{}", trace.get()); }
-        );
+        return ReviewSessionEvents.registerOnSession(config.name(), session, collector, logger);
     }
 
     /// Schedules periodic idle-timeout checks using the shared scheduler.

@@ -177,10 +177,7 @@ final class AgentReviewExecutor {
     }
 
     private int effectiveDialogueRounds(AgentConfig config, RubberDuckConfig rubberDuckConfig) {
-        if (config.dialogueRounds() > 0) {
-            return config.dialogueRounds();
-        }
-        return rubberDuckConfig.dialogueRounds();
+        return config.effectiveDialogueRounds(rubberDuckConfig);
     }
 
     @SuppressWarnings("unchecked")
