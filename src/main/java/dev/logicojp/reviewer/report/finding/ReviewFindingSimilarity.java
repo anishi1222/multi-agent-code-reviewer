@@ -42,17 +42,14 @@ public final class ReviewFindingSimilarity {
     }
 
      static Set<String> bigrams(String text) {
-        if (text.length() < 2) {
-            return text.isEmpty() ? Set.of() : Set.of(text);
-        }
-
         Set<String> grams = HashSet.newHashSet(text.length());
         char prev = 0;
         boolean hasPrev = false;
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == ' ') {
-                hasPrev = false;
+                // Skip spaces but keep hasPrev so bigrams cross word boundaries,
+                // preserving the original compact-string behaviour of replace(" ", "").
                 continue;
             }
             if (hasPrev) {
@@ -60,6 +57,12 @@ public final class ReviewFindingSimilarity {
             }
             prev = c;
             hasPrev = true;
+        }
+        // Equivalent to the original compact.length() < 2 early-return cases:
+        // - no non-space chars  → return Set.of()
+        // - exactly one non-space char → return Set.of(that char)
+        if (grams.isEmpty()) {
+            return hasPrev ? Set.of(String.valueOf(prev)) : Set.of();
         }
         return grams;
     }

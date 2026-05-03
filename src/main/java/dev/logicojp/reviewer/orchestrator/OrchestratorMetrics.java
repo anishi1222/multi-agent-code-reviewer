@@ -4,7 +4,6 @@ import dev.logicojp.reviewer.report.core.ReviewResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -179,7 +178,7 @@ final class OrchestratorMetrics {
     // ---- Accessors for testing ----
 
     List<AgentExecutionRecord> records() {
-        return List.copyOf(new ArrayList<>(records));
+        return List.copyOf(records);
     }
 
     // ---- Helpers ----
