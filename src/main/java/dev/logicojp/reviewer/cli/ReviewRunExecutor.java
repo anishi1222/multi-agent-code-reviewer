@@ -127,7 +127,7 @@ class ReviewRunExecutor {
 
     private void generatePassReports(List<ReviewResult> passResults, Path outputDirectory) {
         Path passDirectory = outputDirectory.resolve(CHECKPOINTS_DIR).resolve(PASS_REPORTS_DIR);
-        generateAndPrintReports(passResults, passDirectory, "Generating pass reports...");
+        generateAndPrintReports(passResults, passDirectory, "Generating pass reports");
     }
 
     private List<ReviewResult> sanitizePassResults(List<ReviewResult> passResults) {
@@ -158,16 +158,16 @@ class ReviewRunExecutor {
     }
 
     private void generateReports(List<ReviewResult> results, Path outputDirectory) {
-        generateAndPrintReports(results, outputDirectory, "Generating reports...");
+        generateAndPrintReports(results, outputDirectory, "Generating reports");
     }
 
     private void generateAndPrintReports(List<ReviewResult> results, Path directory, String label) {
-        output.println("\n" + label);
+        output.println("\n" + label + "...");
         List<Path> reports;
         try {
             reports = reportsGenerator.generate(results, directory);
         } catch (IOException e) {
-            throw new UncheckedIOException(label + " failed", e);
+            throw new UncheckedIOException("Failed: " + label, e);
         }
         for (Path report : reports) {
             output.println("  ✓ " + report.getFileName());
