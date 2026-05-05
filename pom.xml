@@ -29,7 +29,7 @@
         <!-- Application dependencies -->
          <assertj.version>3.27.7</assertj.version>
         <copilot.sdk.version>0.3.0-java.2</copilot.sdk.version>
-        <dependency.check.version>12.2.1</dependency.check.version>
+        <dependency.check.version>12.2.2</dependency.check.version>
     </properties>
 
     <repositories>
