@@ -217,6 +217,6 @@ class ReviewAgentTest {
     }
 
     private static ReviewSessionMessageSender stubSender() {
-        return new ReviewSessionMessageSender("test-agent", 4096, 256);
+        return new ReviewSessionMessageSender("test-agent");
     }
 }

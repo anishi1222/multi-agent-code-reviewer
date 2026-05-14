@@ -3,7 +3,6 @@ package dev.logicojp.reviewer.agent;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.json.McpServerConfig;
-import com.github.copilot.sdk.json.MessageOptions;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
@@ -41,7 +40,6 @@ final class RubberDuckDialogueExecutor {
     private final TemplateService templateService;
     private final ReviewSessionMessageSender messageSenderA;
     private final ReviewSessionMessageSender messageSenderB;
-    private final IdleTimeoutScheduler idleTimeoutScheduler;
     private final ReviewResultFactory reviewResultFactory;
     private final SynthesisStrategy synthesisStrategy;
 
@@ -50,9 +48,8 @@ final class RubberDuckDialogueExecutor {
                                RubberDuckConfig rubberDuckConfig,
                                TemplateService templateService) {
         this(config, ctx, rubberDuckConfig, templateService,
-            createMessageSender(config, ctx, "A"),
-            createMessageSender(config, ctx, "B"),
-            IdleTimeoutScheduler.defaultScheduler(),
+            createMessageSender(config, "A"),
+            createMessageSender(config, "B"),
             new ReviewResultFactory());
     }
 
@@ -62,7 +59,6 @@ final class RubberDuckDialogueExecutor {
                                TemplateService templateService,
                                ReviewSessionMessageSender messageSenderA,
                                ReviewSessionMessageSender messageSenderB,
-                               IdleTimeoutScheduler idleTimeoutScheduler,
                                ReviewResultFactory reviewResultFactory) {
         this.config = Objects.requireNonNull(config);
         this.ctx = Objects.requireNonNull(ctx);
@@ -70,7 +66,6 @@ final class RubberDuckDialogueExecutor {
         this.templateService = Objects.requireNonNull(templateService);
         this.messageSenderA = messageSenderA;
         this.messageSenderB = messageSenderB;
-        this.idleTimeoutScheduler = idleTimeoutScheduler;
         this.reviewResultFactory = reviewResultFactory;
         this.synthesisStrategy = resolveSynthesisStrategy();
     }
@@ -170,7 +165,7 @@ final class RubberDuckDialogueExecutor {
                     config.model(), buildSystemPromptA(), null, "synthesis");
                 try (var synthSession = createSession(synthConfig)) {
                     yield sendMessage(synthSession,
-                        createMessageSender(config, ctx, "synth"), synthesisPrompt);
+                        createMessageSender(config, "synth"), synthesisPrompt);
                 }
             }
         };
@@ -278,30 +273,13 @@ final class RubberDuckDialogueExecutor {
         }
     }
 
-    // --- Message sending (reuses existing infrastructure) ---
+    // --- Message sending (uses SDK sendAndWait) ---
 
     private String sendMessage(CopilotSession session,
                                ReviewSessionMessageSender sender,
                                String prompt) throws Exception {
-        long idleTimeoutMs = TimeUnit.MINUTES.toMillis(ctx.timeoutConfig().idleTimeoutMinutes());
         long maxTimeoutMs = TimeUnit.MINUTES.toMillis(ctx.timeoutConfig().timeoutMinutes());
-
-        return sender.sendWithActivityTimeout(
-            prompt,
-            maxTimeoutMs,
-            sendPrompt -> session.send(new MessageOptions().setPrompt(sendPrompt)),
-            collector -> registerEventListeners(session, collector),
-            collector -> {
-                var scheduledTask = idleTimeoutScheduler.schedule(
-                    ctx.sharedScheduler(), collector, idleTimeoutMs);
-                return () -> scheduledTask.cancel(false);
-            }
-        );
-    }
-
-    private EventSubscriptions registerEventListeners(CopilotSession session,
-                                                       ContentCollector collector) {
-        return ReviewSessionEvents.registerOnSession(config.name(), session, collector, logger);
+        return sender.sendAndAwait(session, prompt, maxTimeoutMs);
     }
 
     // --- Resolution helpers ---
@@ -350,12 +328,8 @@ final class RubberDuckDialogueExecutor {
     }
 
     private static ReviewSessionMessageSender createMessageSender(
-            AgentConfig config, ReviewContext ctx, String tag) {
-        var tuning = ctx.agentTuningConfig();
-        return new ReviewSessionMessageSender(
-            config.name() + "-" + tag,
-            tuning.maxAccumulatedSize(),
-            tuning.initialAccumulatedCapacity());
+            AgentConfig config, String tag) {
+        return new ReviewSessionMessageSender(config.name() + "-" + tag);
     }
 
     private static String sanitizeToken(String value) {
