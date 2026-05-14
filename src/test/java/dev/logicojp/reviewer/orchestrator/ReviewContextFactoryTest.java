@@ -22,7 +22,6 @@ class ReviewContextFactoryTest {
     @DisplayName("設定値を反映したReviewContextを生成する")
     void createsContextWithConfiguredValues() {
         CopilotClient client = new CopilotClient(new CopilotClientOptions());
-        var scheduler = Executors.newSingleThreadScheduledExecutor();
         try {
             var executionConfig = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 10, 5, 3, 5, 5, 10, 2, 0, 0, 0);
             Map<String, McpServerConfig> cachedMcp = Map.of(
@@ -39,7 +38,6 @@ class ReviewContextFactoryTest {
                 "2026-03-05-12-34-56",
                 cachedMcp,
                 localFileConfig,
-                scheduler,
                 SharedCircuitBreaker.withDefaultConfig()
             );
 
@@ -55,9 +53,7 @@ class ReviewContextFactoryTest {
             assertThat(context.sharedSessionEnabled()).isTrue();
             assertThat(context.cachedResources().mcpServers()).isEqualTo(cachedMcp);
             assertThat(context.cachedResources().sourceContent()).isEqualTo("SOURCE_CONTENT");
-            assertThat(context.sharedScheduler()).isSameAs(scheduler);
         } finally {
-            scheduler.close();
             client.close();
         }
     }

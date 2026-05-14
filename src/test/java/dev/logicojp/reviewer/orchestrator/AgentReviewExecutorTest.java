@@ -38,7 +38,6 @@ class AgentReviewExecutorTest {
             .idleTimeoutMinutes(1)
             .maxRetries(0)
             .localFileConfig(new LocalFileConfig())
-            .sharedScheduler(Executors.newSingleThreadScheduledExecutor())
             .build();
     }
 
@@ -97,7 +96,6 @@ class AgentReviewExecutorTest {
         } finally {
             executorService.close();
             ctx.client().close();
-            ctx.sharedScheduler().close();
         }
     }
 
@@ -140,7 +138,6 @@ class AgentReviewExecutorTest {
         } finally {
             executorService.close();
             ctx.client().close();
-            ctx.sharedScheduler().close();
         }
     }
 
@@ -197,7 +194,6 @@ class AgentReviewExecutorTest {
         } finally {
             executorService.close();
             ctx.client().close();
-            ctx.sharedScheduler().close();
         }
     }
 
@@ -240,7 +236,6 @@ class AgentReviewExecutorTest {
             ExecutionCorrelation.clearExecutionId();
             executorService.close();
             ctx.client().close();
-            ctx.sharedScheduler().close();
         }
     }
 
@@ -279,7 +274,6 @@ class AgentReviewExecutorTest {
         } finally {
             interruptedExecutor.shutdownNow();
             ctx.client().close();
-            ctx.sharedScheduler().close();
             Thread.interrupted();
         }
     }

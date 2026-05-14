@@ -9,7 +9,6 @@ import com.github.copilot.sdk.json.McpServerConfig;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
 
 final class ReviewContextFactory {
 
@@ -20,7 +19,6 @@ final class ReviewContextFactory {
     private final String invocationTimestamp;
     private final Map<String, McpServerConfig> cachedMcpServers;
     private final LocalFileConfig localFileConfig;
-    private final ScheduledExecutorService sharedScheduler;
     private final SharedCircuitBreaker reviewCircuitBreaker;
 
     ReviewContextFactory(CopilotClient client,
@@ -30,7 +28,6 @@ final class ReviewContextFactory {
                          String invocationTimestamp,
                          Map<String, McpServerConfig> cachedMcpServers,
                          LocalFileConfig localFileConfig,
-                         ScheduledExecutorService sharedScheduler,
                          SharedCircuitBreaker reviewCircuitBreaker) {
         this.client = client;
         this.executionConfig = executionConfig;
@@ -39,7 +36,6 @@ final class ReviewContextFactory {
         this.invocationTimestamp = invocationTimestamp;
         this.cachedMcpServers = cachedMcpServers;
         this.localFileConfig = localFileConfig;
-        this.sharedScheduler = sharedScheduler;
         this.reviewCircuitBreaker = reviewCircuitBreaker;
     }
 
@@ -56,11 +52,8 @@ final class ReviewContextFactory {
             .cachedMcpServers(cachedMcpServers)
             .cachedSourceContent(cachedSourceContent.orElse(null))
             .localFileConfig(localFileConfig)
-            .sharedScheduler(sharedScheduler)
             .reviewCircuitBreaker(reviewCircuitBreaker)
             .agentTuningConfig(new ReviewContext.AgentTuningConfig(
-                executionConfig.maxAccumulatedSize(),
-                executionConfig.initialAccumulatedCapacity(),
                 executionConfig.instructionBufferExtraCapacity()))
             .build();
     }

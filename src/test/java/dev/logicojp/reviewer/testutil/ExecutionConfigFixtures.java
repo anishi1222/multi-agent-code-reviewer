@@ -7,6 +7,9 @@ public final class ExecutionConfigFixtures {
     private ExecutionConfigFixtures() {
     }
 
+    /// Convenience overload retained for backward compatibility with the test suite.
+    /// {@code maxAccumulatedSize} and {@code initialAccumulatedCapacity} are accepted
+    /// but ignored after Phase 3c removed the legacy event accumulator.
     public static ExecutionConfig config(int parallelism,
                                          int reviewPasses,
                                          long orchestratorTimeoutMinutes,
@@ -16,8 +19,8 @@ public final class ExecutionConfigFixtures {
                                          long summaryTimeoutMinutes,
                                          long ghAuthTimeoutSeconds,
                                          int maxRetries,
-                                         int maxAccumulatedSize,
-                                         int initialAccumulatedCapacity,
+                                         @SuppressWarnings("unused") int maxAccumulatedSize,
+                                         @SuppressWarnings("unused") int initialAccumulatedCapacity,
                                          int instructionBufferExtraCapacity) {
         return ExecutionConfig.Builder.from(ExecutionConfig.defaults())
             .parallelism(parallelism)
@@ -30,8 +33,6 @@ public final class ExecutionConfigFixtures {
             .ghAuthTimeoutSeconds(ghAuthTimeoutSeconds)
             .ghAuthFallbackEnabled(false)
             .maxRetries(maxRetries)
-            .maxAccumulatedSize(maxAccumulatedSize)
-            .initialAccumulatedCapacity(initialAccumulatedCapacity)
             .instructionBufferExtraCapacity(instructionBufferExtraCapacity)
             .build();
     }

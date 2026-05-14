@@ -20,13 +20,12 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 
 /// Orchestrates parallel execution of multiple review agents.
 ///
 /// **Lifecycle**: This class is intentionally NOT managed by Micronaut DI
-/// because it owns per-invocation resources (`ExecutorService`, `ScheduledExecutorService`)
+/// because it owns per-invocation resources (`ExecutorService`)
 /// whose lifecycle must be bound to a single review execution.
 /// Always use via try-with-resources:
 /// ```java
@@ -39,7 +38,6 @@ import java.util.concurrent.Semaphore;
 public class ReviewOrchestrator implements AutoCloseable {
 
     private static final int EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS = 60;
-    private static final int SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS = 10;
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewOrchestrator.class);
 
@@ -47,8 +45,6 @@ public class ReviewOrchestrator implements AutoCloseable {
     private final OrchestratorConfig orchestratorConfig;
     /// Dedicated executor for per-agent review execution to avoid commonPool usage.
     private final java.util.concurrent.ExecutorService agentExecutionExecutor;
-    /// Shared scheduler for idle-timeout handling across all agents.
-    private final ScheduledExecutorService sharedScheduler;
     private final ReviewExecutionModeRunner reviewExecutionModeRunner;
     private final AgentReviewExecutor agentReviewExecutor;
     private final ReviewContextFactory reviewContextFactory;
@@ -86,7 +82,6 @@ public class ReviewOrchestrator implements AutoCloseable {
         this.orchestratorConfig = orchestratorConfig;
         var resources = collaborators.executorResources();
         this.agentExecutionExecutor = resources.agentExecutionExecutor();
-        this.sharedScheduler = resources.sharedScheduler();
         this.agentReviewExecutor = collaborators.agentReviewExecutor();
         this.reviewExecutionModeRunner = collaborators.reviewExecutionModeRunner();
         this.reviewContextFactory = collaborators.reviewContextFactory();
@@ -131,13 +126,7 @@ public class ReviewOrchestrator implements AutoCloseable {
         Semaphore concurrencyLimit = new Semaphore(orchestratorConfig.executionConfig().parallelism());
         var agentExecutionExecutor = Executors.newThreadPerTaskExecutor(
             Thread.ofVirtual().name("agent-execution-", 0).factory());
-        // Scheduler uses one lightweight platform thread intentionally:
-        // it only triggers periodic timeout checks and should not run blocking review work.
-        ScheduledExecutorService sharedScheduler = Executors.newSingleThreadScheduledExecutor(
-            Thread.ofPlatform().daemon(true).name("idle-timeout-shared").factory()
-        );
-        return new ExecutorResources(agentExecutionExecutor,
-            sharedScheduler, concurrencyLimit);
+        return new ExecutorResources(agentExecutionExecutor, concurrencyLimit);
     }
 
     private static OrchestratorCollaborators assembleCollaborators(
@@ -156,7 +145,7 @@ public class ReviewOrchestrator implements AutoCloseable {
             orchestratorConfig, resources, reviewerFactory);
 
         ReviewContextFactory reviewContextFactory = createReviewContextFactory(
-            client, orchestratorConfig, cachedMcpServers, resources, reviewCircuitBreaker);
+            client, orchestratorConfig, cachedMcpServers, reviewCircuitBreaker);
 
         LocalSourcePrecomputer localSourcePrecomputer = new LocalSourcePrecomputer(
             localSourceCollectorFactory, orchestratorConfig.localFileConfig());
@@ -190,7 +179,6 @@ public class ReviewOrchestrator implements AutoCloseable {
             CopilotClient client,
             OrchestratorConfig orchestratorConfig,
             Map<String, McpServerConfig> cachedMcpServers,
-            ExecutorResources resources,
             SharedCircuitBreaker reviewCircuitBreaker) {
         return new ReviewContextFactory(
             client, orchestratorConfig.executionConfig(),
@@ -198,7 +186,7 @@ public class ReviewOrchestrator implements AutoCloseable {
             orchestratorConfig.outputConstraints(),
             orchestratorConfig.invocationTimestamp(),
             cachedMcpServers,
-            orchestratorConfig.localFileConfig(), resources.sharedScheduler(),
+            orchestratorConfig.localFileConfig(),
             reviewCircuitBreaker);
     }
 
@@ -353,6 +341,5 @@ public class ReviewOrchestrator implements AutoCloseable {
     @Override
     public void close() {
         ExecutorUtils.shutdownGracefully(agentExecutionExecutor, EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS);
-        ExecutorUtils.shutdownGracefully(sharedScheduler, SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS);
     }
 }

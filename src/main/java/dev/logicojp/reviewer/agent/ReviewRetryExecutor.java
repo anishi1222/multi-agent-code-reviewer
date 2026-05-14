@@ -152,7 +152,7 @@ final class ReviewRetryExecutor {
     }
 
     private boolean isTransientException(Exception exception) {
-        return exception instanceof SessionEventException || RetryPolicyUtils.isTransientException(exception);
+        return RetryPolicyUtils.isTransientException(exception);
     }
 
     private boolean isRetryableFailure(ReviewResult result) {
