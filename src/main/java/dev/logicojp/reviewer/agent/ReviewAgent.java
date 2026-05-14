@@ -523,7 +523,7 @@ public class ReviewAgent {
         return ContentSanitizer.sanitize(content);
     }
 
-    /// Sends a prompt via the SDK's {@link CopilotSession#sendAndWait(MessageOptions, long)}
+    /// Sends a prompt via the SDK's {@link CopilotSession#sendAndWait(com.github.copilot.sdk.json.MessageOptions, long)}
     /// and waits for the assistant response, capped by {@code maxTimeoutMs}.
     private String sendViaSdk(CopilotSession session, String prompt, long maxTimeoutMs) throws Exception {
         logger.debug("Agent {}: sending prompt via SDK sendAndWait (max: {} min)",
