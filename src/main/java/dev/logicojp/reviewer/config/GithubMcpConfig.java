@@ -42,6 +42,7 @@ public record GithubMcpConfig(
 
     public GithubMcpConfig {
         type = ConfigDefaults.defaultIfBlank(type, "http");
+        validateType(type);
         url = ConfigDefaults.defaultIfBlank(url, DEFAULT_MCP_URL);
         Set<String> effectiveAllowedHosts = sanitizeAllowedHosts(allowedHosts);
         validateUrl(url, effectiveAllowedHosts);
@@ -50,6 +51,12 @@ public record GithubMcpConfig(
         authHeaderName = ConfigDefaults.defaultIfBlank(authHeaderName, "Authorization");
         authHeaderTemplate = ConfigDefaults.defaultIfBlank(authHeaderTemplate, "Bearer {token}");
         allowedHosts = List.copyOf(effectiveAllowedHosts);
+    }
+
+    private static void validateType(String type) {
+        if (!"http".equalsIgnoreCase(type)) {
+            throw new IllegalArgumentException("GitHub MCP type must be 'http': " + type);
+        }
     }
 
     private static Set<String> sanitizeAllowedHosts(@Nullable List<String> allowedHosts) {

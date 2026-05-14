@@ -103,6 +103,20 @@ class GithubMcpConfigTest {
     }
 
     @Nested
+    @DisplayName("type validation")
+    class TypeValidation {
+
+        @Test
+        @DisplayName("http以外のtypeは拒否される")
+        void rejectsNonHttpType() {
+            assertThatThrownBy(() -> new GithubMcpConfig(
+                "stdio", "https://api.githubcopilot.com/mcp/", List.of("*"), Map.of(), "Authorization", "Bearer {token}"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("type must be 'http'");
+        }
+    }
+
+    @Nested
     @DisplayName("toMcpServer")
     class ToMcpServer {
 
