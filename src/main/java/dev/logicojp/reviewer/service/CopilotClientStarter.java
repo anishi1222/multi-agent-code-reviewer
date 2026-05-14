@@ -10,11 +10,12 @@ import java.util.concurrent.TimeoutException;
 
 /// Starts the Copilot SDK client with retry and exponential backoff.
 ///
-/// Retries are limited because the SDK is configured with
-/// {@link com.github.copilot.sdk.json.CopilotClientOptions#setAutoRestart(boolean)
-/// setAutoRestart(true)} (see {@link CopilotService}), which handles
-/// CLI subprocess restarts after a successful initial connection. This starter
-/// only needs to absorb transient *initial* connect failures.
+/// Phase 3a verification (see session artifact `phase3a-sdk-behavior-verification.md`)
+/// confirmed that {@link com.github.copilot.sdk.json.CopilotClientOptions#setAutoRestart(boolean)
+/// setAutoRestart(true)} is currently a **no-op** in SDK `0.3.0-java.2`: the field is set but
+/// never consumed by `CliServerManager` / `CopilotClient`. We therefore retain three start
+/// attempts to absorb transient initial-connect failures, and rely on
+/// {@link CopilotService#ensureHealthyOrReinitialize()} for post-init recovery.
 @Singleton
 public class CopilotClientStarter {
 
@@ -25,7 +26,7 @@ public class CopilotClientStarter {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(CopilotClientStarter.class);
-    private static final int MAX_START_ATTEMPTS = 2;
+    private static final int MAX_START_ATTEMPTS = 3;
     private static final long START_BACKOFF_BASE_MS = 2_000L;
     private static final long START_BACKOFF_MAX_MS = 15_000L;
 

@@ -168,9 +168,12 @@ public class CopilotService {
         options.setUseLoggedInUser(Boolean.TRUE);
     }
 
-    /// Enables SDK-side process supervision so that CLI subprocess crashes are
-    /// recovered without requiring our {@link CopilotClientStarter} retry loop
-    /// to fire on every transient failure.
+    /// Forward-compatible flag for SDK-side process supervision. Phase 3a
+    /// verification confirmed this is currently a **no-op** in SDK
+    /// `0.3.0-java.2` (the field is set but never consumed by `CliServerManager`
+    /// or `CopilotClient`). We keep the call so that future SDK releases that
+    /// implement supervision will benefit automatically. CLI subprocess crash
+    /// recovery is handled by {@link #ensureHealthyOrReinitialize()}.
     private void applyResilienceOptions(CopilotClientOptions options) {
         options.setAutoRestart(true);
     }
