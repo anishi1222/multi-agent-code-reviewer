@@ -1,5 +1,7 @@
 package dev.logicojp.reviewer.agent;
 
+import com.github.copilot.sdk.json.McpHttpServerConfig;
+import com.github.copilot.sdk.json.McpServerConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;
@@ -38,7 +40,10 @@ class ReviewTargetInstructionResolverTest {
             () -> {
             }
         );
-        Map<String, Object> mcp = Map.of("github", Map.of("type", "http"));
+        Map<String, McpServerConfig> mcp = Map.of(
+            "github",
+            new McpHttpServerConfig().setUrl("https://api.githubcopilot.com/mcp/")
+        );
 
         var resolved = resolver.resolve(ReviewTarget.gitHub("owner/repo"), null, mcp);
 

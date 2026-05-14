@@ -5,9 +5,9 @@ import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.SkillConfig;
 import dev.logicojp.reviewer.config.CircuitBreakerConfig;
 import dev.logicojp.reviewer.config.CopilotConfig;
-import dev.logicojp.reviewer.service.CopilotCliHealthChecker;
 import dev.logicojp.reviewer.service.CopilotCliPathResolver;
 import dev.logicojp.reviewer.service.CopilotClientStarter;
+import dev.logicojp.reviewer.service.CopilotHealthProbe;
 import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.CopilotStartupErrorFormatter;
 import dev.logicojp.reviewer.service.CopilotTimeoutResolver;
@@ -91,7 +91,7 @@ class SkillCommandTest {
             new SkillRegistry(),
             new CopilotService(
                 new CopilotCliPathResolver(copilotConfig, System.getenv("PATH")),
-                new CopilotCliHealthChecker(new CopilotTimeoutResolver(copilotConfig)),
+                new CopilotHealthProbe(new CopilotTimeoutResolver(copilotConfig)),
                 copilotConfig,
                 new CopilotStartupErrorFormatter(),
                 new CopilotClientStarter()

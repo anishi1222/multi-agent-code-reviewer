@@ -27,6 +27,7 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 All review findings from 2026-02-16 through 2026-04-30 review cycles have been fully addressed.
 
+- 2026-05-15 (v2026.05.15-sdk-refactor): Copilot SDK for Java native-feature alignment refactor (Phases 1–3) — typed MCP server handoff with `McpHttpServerConfig` instead of `Map<String, Object>` casts (Phase 1, commit `96df653`); replaced subprocess-based `CopilotCliHealthChecker` with SDK `client.getStatus()` / `getAuthStatus()` based `CopilotHealthProbe`, set `setAutoRestart(true)` and env-driven `setLogLevel(...)`, rewrote `DoctorCommand` on top of the SDK probe (Phase 2, commit `b657c64` + corrections in `a9310fc`); migrated `ReviewSessionMessageSender`, `ReviewAgent`, and `RubberDuckDialogueExecutor` from custom event subscription + idle-timeout watchdog to SDK `session.sendAndWait(MessageOptions, timeoutMs)` with a defensive `AssistantMessageEvent` accumulator for the empty-final-response edge case (Phase 3b, commit `868aafe`); deleted `IdleTimeoutScheduler`, `EventSubscriptions`, `ReviewSessionEvents`, `ContentCollector`, `SessionEventException` and pruned `sharedScheduler` plumbing from orchestrator/context, reducing `AgentTuningConfig` and `BufferSettings` to a single field (Phase 3c, commit `293f2e5`). Net change across phases: ~ -1,100 production LoC. Verified with `mvn test` (820 passing; one pre-existing `/bin/true` env-dependent error in `CliPathResolverTest`).
 - 2026-04-30 (v2026.04.30-copilot-sdk-stable): Copilot SDK stable migration and CI alignment — upgraded `copilot.sdk.version` from preview `0.3.0-java-preview.1` to stable `0.3.0-java.2`, normalized GitHub Actions `JDK_VERSION` from `26.0.1` to `26` across `ci.yml`/`codeql.yml`/`dependency-audit.yml`/`release.yml`, pinned the CycloneDX Maven plugin to `2.9.1` in the release workflow with the SBOM step refactored for readability, and granted job-level `permissions: contents: write` to the `publish-release` job so `gh release create` succeeds under the workflow-level least-privilege default (`contents: read`). Verified with `mvn clean package` on Java 26
 - 2026-04-30 (v2026.04.30-micronaut5-snapshot): Micronaut 5 SNAPSHOT tracking — upgraded `io.micronaut.platform:micronaut-parent` and `micronaut.version` to `5.0.0-SNAPSHOT`, added Sonatype Central Snapshots repository for both dependencies and plugins, temporarily disabled the SNAPSHOT-blocking enforcer rule with an annotated TODO, and configured `micronaut-maven-plugin` with `<configurationValidation><failOnNotPresent>false</failOnNotPresent></configurationValidation>` so the new Micronaut 5 strict validator does not misclassify `-Amicronaut.processing.*` annotation processor arguments as unknown configuration properties. Verified with `mvn clean package` (BUILD SUCCESS) and 829 passing tests on Java 26 (Oracle 26.0.1)
 - 2026-04-23 (v2026.04.23-copilot-sdk-compat): Copilot SDK compatibility alignment — upgraded `copilot.sdk.version` to `0.3.0-java-preview.1`, migrated event imports from `com.github.copilot.sdk.events.*` to `com.github.copilot.sdk.generated.*`, and updated MCP server handoff to satisfy the new `setMcpServers(Map<String, McpServerConfig>)` type requirement. Verified with `./mvnw -q -DskipTests compile`
@@ -835,8 +836,8 @@ flowchart TB
         SDK lifecycle management"]
       CopilotClientStarter["CopilotClientStarter
       SDK client bootstrap"]
-      CopilotCliHealthChecker["CopilotCliHealthChecker
-      gh copilot health/auth checks"]
+      CopilotHealthProbe["CopilotHealthProbe
+      SDK getStatus / getAuthStatus probe"]
         TemplateService
         SecurityAuditLogger["SecurityAuditLogger
         Structured security audit logging"]
@@ -844,7 +845,7 @@ flowchart TB
 
     ReviewExecutionCoordinator --> CopilotService
     CopilotService --> CopilotClientStarter
-    CopilotService --> CopilotCliHealthChecker
+    CopilotService --> CopilotHealthProbe
 
     %% ── External ──
     subgraph External["External"]
@@ -969,20 +970,15 @@ multi-agent-reviewer/
     │   ├── AgentMarkdownParser.java     # .agent.md parser
     │   ├── AgentPromptBuilder.java      # Agent prompt builder
     │   ├── CircuitBreakerFactory.java   # Circuit breaker factory
-    │   ├── ContentCollector.java        # Review content collector
-    │   ├── EventSubscriptions.java      # Event subscriptions
-    │   ├── IdleTimeoutScheduler.java    # Idle timeout scheduler
     │   ├── ReviewAgent.java             # Review agent
     │   ├── ReviewContext.java           # Shared review context
     │   ├── ReviewMessageFlow.java       # Review message flow
     │   ├── ReviewResultFactory.java     # Review result factory
     │   ├── ReviewRetryExecutor.java     # Review retry executor
     │   ├── ReviewSessionConfigFactory.java # Session config factory
-    │   ├── ReviewSessionEvents.java     # Session event management
-    │   ├── ReviewSessionMessageSender.java # Session message sender
+    │   ├── ReviewSessionMessageSender.java # SDK sendAndWait wrapper
     │   ├── ReviewSystemPromptFormatter.java # System prompt formatter
     │   ├── ReviewTargetInstructionResolver.java # Target instruction resolver
-    │   ├── SessionEventException.java   # Session event exception
     │   ├── SharedCircuitBreaker.java    # Shared circuit breaker
     │   ├── DialogueRound.java           # Rubber-duck dialogue round record
     │   ├── RubberDuckDialogueExecutor.java # Rubber-duck two-model dialogue executor
@@ -1078,8 +1074,8 @@ multi-agent-reviewer/
     │   ├── AgentService.java            # Agent management
     │   ├── CopilotClientStarter.java    # Copilot client starter
     │   ├── CopilotCliException.java     # Copilot CLI exception
-    │   ├── CopilotCliHealthChecker.java # Copilot CLI health checker
     │   ├── CopilotCliPathResolver.java  # Copilot CLI path resolver
+    │   ├── CopilotHealthProbe.java      # SDK getStatus / getAuthStatus probe
     │   ├── CopilotService.java          # Copilot SDK integration
     │   ├── CopilotStartupErrorFormatter.java # Startup error formatter
     │   ├── CopilotTimeoutResolver.java  # Timeout resolver

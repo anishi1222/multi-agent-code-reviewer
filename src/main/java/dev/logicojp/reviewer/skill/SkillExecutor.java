@@ -8,6 +8,7 @@ import dev.logicojp.reviewer.util.RetryExecutor;
 import dev.logicojp.reviewer.util.RetryPolicyUtils;
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.SystemMessageMode;
+import com.github.copilot.sdk.json.McpServerConfig;
 import com.github.copilot.sdk.json.MessageOptions;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
@@ -32,7 +33,7 @@ public class SkillExecutor implements AutoCloseable {
     private final String defaultModel;
     private final long timeoutMinutes;
     private final int maxParameterValueLength;
-    private final Map<String, Object> cachedMcpServers;
+    private final Map<String, McpServerConfig> cachedMcpServers;
     private final SharedCircuitBreaker circuitBreaker;
 
     public SkillExecutor(CopilotClient client, String githubToken,
@@ -208,7 +209,7 @@ public class SkillExecutor implements AutoCloseable {
             .setModel(defaultModel)
             .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL);
         if (!cachedMcpServers.isEmpty()) {
-            sessionConfig.setMcpServers(castMcpServers(cachedMcpServers));
+            sessionConfig.setMcpServers(cachedMcpServers);
         }
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             sessionConfig.setSystemMessage(new SystemMessageConfig()
@@ -216,11 +217,6 @@ public class SkillExecutor implements AutoCloseable {
                 .setContent(systemPrompt));
         }
         return sessionConfig;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, com.github.copilot.sdk.json.McpServerConfig> castMcpServers(Map<String, Object> mcpServers) {
-        return (Map<String, com.github.copilot.sdk.json.McpServerConfig>) (Map<?, ?>) mcpServers;
     }
 
     /// No-op lifecycle hook; retained for API symmetry with other closeable services.

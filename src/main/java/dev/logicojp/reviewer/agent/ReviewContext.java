@@ -3,11 +3,11 @@ package dev.logicojp.reviewer.agent;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.sdk.json.McpServerConfig;
 import io.micronaut.core.annotation.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ScheduledExecutorService;
 
 /// Shared, immutable context for executing review agents.
 ///
@@ -23,7 +23,6 @@ import java.util.concurrent.ScheduledExecutorService;
 /// @param outputConstraints   Output constraints template content (nullable)
 /// @param cachedResources     Pre-computed cached resources for reuse across agents (nullable fields)
 /// @param localFileConfig     Local file collection configuration (used by fallback path)
-/// @param sharedScheduler     Shared ScheduledExecutorService for idle-timeout scheduling
 /// @param agentTuningConfig   Internal tuning parameters for agent execution
 public record ReviewContext(
     CopilotClient client,
@@ -34,7 +33,6 @@ public record ReviewContext(
     @Nullable String outputConstraints,
     CachedResources cachedResources,
     LocalFileConfig localFileConfig,
-    ScheduledExecutorService sharedScheduler,
     AgentTuningConfig agentTuningConfig,
     SharedCircuitBreaker reviewCircuitBreaker
 ) {
@@ -43,30 +41,34 @@ public record ReviewContext(
         SharedCircuitBreaker.forReviewDomain();
 
     /// Groups timeout and retry parameters.
+    ///
+    /// {@code idleTimeoutMinutes} is retained for YAML / CLI backward compatibility but is
+    /// no longer consumed by the SDK-based message sender (Phase 3b). It may be reused in a
+    /// future iteration if a per-call idle timeout becomes useful again.
     public record TimeoutConfig(long timeoutMinutes, long idleTimeoutMinutes, int maxRetries) {}
 
     /// Groups pre-computed resources that are shared across agents.
     public record CachedResources(
-        @Nullable Map<String, Object> mcpServers,
+        @Nullable Map<String, McpServerConfig> mcpServers,
         @Nullable String sourceContent
     ) {}
 
     /// Internal tuning parameters for agent execution.
+    ///
+    /// As of Phase 3c only {@code instructionBufferExtraCapacity} is in use
+    /// (consumed by {@link ReviewMessageFlow}). The legacy
+    /// {@code maxAccumulatedSize} / {@code initialAccumulatedCapacity} fields
+    /// were removed when {@code ContentCollector} was deleted.
     public record AgentTuningConfig(
-        int maxAccumulatedSize,
-        int initialAccumulatedCapacity,
         int instructionBufferExtraCapacity
     ) {
         public static final AgentTuningConfig DEFAULTS = new AgentTuningConfig(
-            ExecutionConfig.DEFAULT_MAX_ACCUMULATED_SIZE,
-            ExecutionConfig.DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
             ExecutionConfig.DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
         );
     }
 
     public ReviewContext {
         Objects.requireNonNull(client, "client must not be null");
-        Objects.requireNonNull(sharedScheduler, "sharedScheduler must not be null");
         timeoutConfig = timeoutConfig != null ? timeoutConfig : new TimeoutConfig(0, 0, 0);
         invocationTimestamp = invocationTimestamp != null ? invocationTimestamp : "unknown-start-time";
         cachedResources = cachedResources != null ? cachedResources : new CachedResources(null, null);
@@ -89,10 +91,9 @@ public record ReviewContext(
         private String reasoningEffort;
         private int maxRetries;
         private String outputConstraints;
-        private Map<String, Object> cachedMcpServers;
+        private Map<String, McpServerConfig> cachedMcpServers;
         private String cachedSourceContent;
         private LocalFileConfig localFileConfig;
-        private ScheduledExecutorService sharedScheduler;
         private AgentTuningConfig agentTuningConfig;
         private SharedCircuitBreaker reviewCircuitBreaker;
 
@@ -136,7 +137,7 @@ public record ReviewContext(
             return this;
         }
 
-        public Builder cachedMcpServers(Map<String, Object> cachedMcpServers) {
+        public Builder cachedMcpServers(Map<String, McpServerConfig> cachedMcpServers) {
             this.cachedMcpServers = cachedMcpServers;
             return this;
         }
@@ -148,11 +149,6 @@ public record ReviewContext(
 
         public Builder localFileConfig(LocalFileConfig localFileConfig) {
             this.localFileConfig = localFileConfig;
-            return this;
-        }
-
-        public Builder sharedScheduler(ScheduledExecutorService sharedScheduler) {
-            this.sharedScheduler = sharedScheduler;
             return this;
         }
 
@@ -168,7 +164,6 @@ public record ReviewContext(
 
         public ReviewContext build() {
             Objects.requireNonNull(client, "client must not be null");
-            Objects.requireNonNull(sharedScheduler, "sharedScheduler must not be null");
             requirePositive(timeoutMinutes, "timeoutMinutes");
             requirePositive(idleTimeoutMinutes, "idleTimeoutMinutes");
 
@@ -183,7 +178,6 @@ public record ReviewContext(
                 outputConstraints,
                 new CachedResources(cachedMcpServers, cachedSourceContent),
                 effectiveLocalFileConfig,
-                sharedScheduler,
                 agentTuningConfig,
                 reviewCircuitBreaker
             );

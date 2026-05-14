@@ -15,7 +15,7 @@ class ExecutorResourcesTest {
     @Test
     @DisplayName("必須リソースがnullの場合は例外を投げる")
     void throwsWhenRequiredResourcesAreNull() {
-        assertThatThrownBy(() -> new ExecutorResources(null, null, null))
+        assertThatThrownBy(() -> new ExecutorResources(null, null))
             .isInstanceOf(NullPointerException.class);
     }
 
@@ -23,12 +23,10 @@ class ExecutorResourcesTest {
     @DisplayName("shutdownGracefullyでリソースを停止できる")
     void shutdownGracefullyClosesExecutors() {
         var agentExecutor = Executors.newVirtualThreadPerTaskExecutor();
-        var scheduler = Executors.newSingleThreadScheduledExecutor();
 
-        var resources = new ExecutorResources(agentExecutor, scheduler, new Semaphore(1));
+        var resources = new ExecutorResources(agentExecutor, new Semaphore(1));
         resources.shutdownGracefully();
 
         assertThat(agentExecutor.isShutdown()).isTrue();
-        assertThat(scheduler.isShutdown()).isTrue();
     }
 }

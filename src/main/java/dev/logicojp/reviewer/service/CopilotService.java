@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.service;
 
+import com.github.copilot.sdk.ConnectionState;
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.json.CopilotClientOptions;
 import dev.logicojp.reviewer.config.CopilotConfig;
@@ -11,7 +12,9 @@ import dev.logicojp.reviewer.util.SecurityAuditLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -19,12 +22,16 @@ import java.util.concurrent.TimeoutException;
 /// Service for managing the Copilot SDK client lifecycle.
 @Singleton
 public class CopilotService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(CopilotService.class);
     private static final long DEFAULT_START_TIMEOUT_SECONDS = 60;
+    private static final String DEFAULT_SDK_LOG_LEVEL = "warn";
+    private static final Set<String> SUPPORTED_SDK_LOG_LEVELS =
+        Set.of("trace", "debug", "info", "warn", "error", "off");
+    private static final String SDK_LOG_LEVEL_ENV = "COPILOT_SDK_LOG_LEVEL";
 
     private final CopilotCliPathResolver cliPathResolver;
-    private final CopilotCliHealthChecker cliHealthChecker;
+    private final CopilotHealthProbe healthProbe;
     private final CopilotConfig copilotConfig;
     private final CopilotStartupErrorFormatter startupErrorFormatter;
     private final CopilotClientStarter clientStarter;
@@ -34,12 +41,12 @@ public class CopilotService {
 
     @Inject
     public CopilotService(CopilotCliPathResolver cliPathResolver,
-                          CopilotCliHealthChecker cliHealthChecker,
+                          CopilotHealthProbe healthProbe,
                           CopilotConfig copilotConfig,
                           CopilotStartupErrorFormatter startupErrorFormatter,
                           CopilotClientStarter clientStarter) {
         this.cliPathResolver = cliPathResolver;
-        this.cliHealthChecker = cliHealthChecker;
+        this.healthProbe = healthProbe;
         this.copilotConfig = copilotConfig;
         this.startupErrorFormatter = startupErrorFormatter;
         this.clientStarter = clientStarter;
@@ -55,7 +62,7 @@ public class CopilotService {
             logger.debug("Skipping eager Copilot initialization at startup: {}", e.getMessage(), e);
         }
     }
-    
+
     /// Initializes the Copilot client, wrapping checked exceptions as RuntimeException.
     /// Convenience method for callers that cannot handle checked exceptions.
     public void initializeOrThrow() {
@@ -121,12 +128,13 @@ public class CopilotService {
         );
     }
 
-    private CopilotClientOptions buildClientOptions() throws InterruptedException {
+    private CopilotClientOptions buildClientOptions() {
         CopilotClientOptions options = new CopilotClientOptions();
         String cliPath = cliPathResolver.resolveCliPath();
         applyCliPathOption(options, cliPath);
-        cliHealthChecker.verifyCliHealthy(cliPath);
         applyAuthOptions(options);
+        applyResilienceOptions(options);
+        applyLoggingOptions(options);
         return options;
     }
 
@@ -160,6 +168,38 @@ public class CopilotService {
         options.setUseLoggedInUser(Boolean.TRUE);
     }
 
+    /// Forward-compatible flag for SDK-side process supervision. Phase 3a
+    /// verification confirmed this is currently a **no-op** in SDK
+    /// `0.3.0-java.2` (the field is set but never consumed by `CliServerManager`
+    /// or `CopilotClient`). We keep the call so that future SDK releases that
+    /// implement supervision will benefit automatically. CLI subprocess crash
+    /// recovery is handled by {@link #ensureHealthyOrReinitialize()}.
+    private void applyResilienceOptions(CopilotClientOptions options) {
+        options.setAutoRestart(true);
+    }
+
+    /// Maps the {@code COPILOT_SDK_LOG_LEVEL} environment variable to the SDK
+    /// log level option, defaulting to {@value #DEFAULT_SDK_LOG_LEVEL} so that
+    /// noisy CLI subprocess logs do not flood the console even when our app
+    /// logger is in debug mode.
+    private void applyLoggingOptions(CopilotClientOptions options) {
+        options.setLogLevel(resolveSdkLogLevel());
+    }
+
+    private String resolveSdkLogLevel() {
+        String configured = System.getenv(SDK_LOG_LEVEL_ENV);
+        if (configured == null || configured.isBlank()) {
+            return DEFAULT_SDK_LOG_LEVEL;
+        }
+        String normalized = configured.trim().toLowerCase(Locale.ROOT);
+        if (!SUPPORTED_SDK_LOG_LEVELS.contains(normalized)) {
+            logger.warn("Unsupported {} value '{}', falling back to '{}'. Supported: {}",
+                SDK_LOG_LEVEL_ENV, configured, DEFAULT_SDK_LOG_LEVEL, SUPPORTED_SDK_LOG_LEVELS);
+            return DEFAULT_SDK_LOG_LEVEL;
+        }
+        return normalized;
+    }
+
     /// Gets the Copilot client. Must call initialize() first.
     /// @return The initialized CopilotClient
     /// @throws IllegalStateException if not initialized
@@ -170,43 +210,33 @@ public class CopilotService {
         }
         return localClient;
     }
-    
+
     /// Checks if the service is initialized.
     public boolean isInitialized() {
         return client != null;
     }
 
-    /// Checks whether the Copilot client is initialized and responsive enough for API use.
-    /// This performs a lightweight health verification via CLI probes.
+    /// Checks whether the Copilot client is initialized and currently in
+    /// {@link ConnectionState#CONNECTED}. This probe is synchronous and
+    /// performs no JSON-RPC roundtrip, so it is safe to call frequently.
     public boolean isHealthy() {
-        CopilotClient localClient = client;
-        if (localClient == null) {
-            return false;
-        }
-        try {
-            String cliPath = cliPathResolver.resolveCliPath();
-            cliHealthChecker.verifyCliHealthy(cliPath);
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.warn("Copilot client health check interrupted", e);
-            return false;
-        } catch (RuntimeException e) {
-            logger.warn("Copilot client health check failed: {}", e.getMessage());
-            return false;
-        }
+        return healthProbe.isClientHealthy(client);
     }
 
-    /// Re-initializes the client only when it is currently unhealthy.
+    /// Re-initializes the client only when it is currently unhealthy. Uses the
+    /// cheap {@link #isHealthy()} probe first; if that reports healthy, no
+    /// further action is taken.
     public synchronized void ensureHealthyOrReinitialize() throws InterruptedException {
         if (isHealthy()) {
             return;
         }
-        logger.warn("Copilot client is unhealthy; attempting re-initialization");
+        ConnectionState lastState = healthProbe.getConnectionState(client);
+        logger.warn("Copilot client is unhealthy (state={}); attempting re-initialization",
+            lastState == null ? "uninitialized" : lastState);
         closeCurrentClient();
         initialize();
     }
-    
+
     /// Shuts down the Copilot client.
     @PreDestroy
     public synchronized void shutdown() {

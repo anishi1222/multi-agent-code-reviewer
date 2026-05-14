@@ -4,7 +4,7 @@ import dev.logicojp.reviewer.report.sanitize.ContentSanitizer;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import com.github.copilot.sdk.CopilotSession;
-import com.github.copilot.sdk.json.MessageOptions;
+import com.github.copilot.sdk.json.McpServerConfig;
 import com.github.copilot.sdk.json.SessionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeUnit;
-
 /// Executes a code review using the Copilot SDK with a specific agent configuration.
 public class ReviewAgent {
     
@@ -70,7 +69,6 @@ public class ReviewAgent {
     
     private final AgentConfig config;
     private final ReviewContext ctx;
-    private final IdleTimeoutScheduler idleTimeoutScheduler;
     private final ReviewSystemPromptFormatter reviewSystemPromptFormatter;
     private final ReviewTargetInstructionResolver reviewTargetInstructionResolver;
     private final ReviewSessionMessageSender reviewSessionMessageSender;
@@ -86,15 +84,13 @@ public class ReviewAgent {
     /// objects whose lifecycle is bound to a single review execution — not shared singletons.
     /// For testing, use the full-parameter constructor to inject custom collaborators.
     static AgentCollaborators defaultCollaborators(AgentConfig config, ReviewContext ctx) {
-        var tuning = ctx.agentTuningConfig();
         return new AgentCollaborators(
             new ReviewTargetInstructionResolver(
                 config,
                 ctx.localFileConfig(),
                 () -> logger.debug("Computed source content locally for agent: {}", config.name())
             ),
-            new ReviewSessionMessageSender(config.name(),
-                tuning.maxAccumulatedSize(), tuning.initialAccumulatedCapacity()),
+            new ReviewSessionMessageSender(config.name()),
             new ReviewRetryExecutor(
                 config.name(),
                 ctx.timeoutConfig().maxRetries(),
@@ -116,7 +112,6 @@ public class ReviewAgent {
         this(
             config,
             ctx,
-            IdleTimeoutScheduler.defaultScheduler(),
             new ReviewSystemPromptFormatter(),
             promptTemplates.focusAreasGuidance(),
             promptTemplates.localSourceHeader(),
@@ -128,7 +123,6 @@ public class ReviewAgent {
     /// Full-parameter constructor for testing — all collaborators are injectable.
     ReviewAgent(AgentConfig config,
                 ReviewContext ctx,
-                IdleTimeoutScheduler idleTimeoutScheduler,
                 ReviewSystemPromptFormatter reviewSystemPromptFormatter,
                 String focusAreasGuidance,
                 String localSourceHeaderPrompt,
@@ -136,7 +130,6 @@ public class ReviewAgent {
                 AgentCollaborators collaborators) {
         this.config = config;
         this.ctx = ctx;
-        this.idleTimeoutScheduler = idleTimeoutScheduler;
         this.reviewSystemPromptFormatter = reviewSystemPromptFormatter;
         this.focusAreasGuidance = focusAreasGuidance;
         this.localSourceHeaderPrompt = localSourceHeaderPrompt;
@@ -280,7 +273,7 @@ public class ReviewAgent {
         String displayName = params.displayName();
         String instruction = params.instruction();
         String localSourceContent = params.localSourceContent();
-        Map<String, Object> mcpServers = params.mcpServers();
+        Map<String, McpServerConfig> mcpServers = params.mcpServers();
 
         String systemPrompt = buildSystemPrompt();
         SessionConfig sessionConfig = reviewSessionConfigFactory.create(
@@ -407,7 +400,7 @@ public class ReviewAgent {
     private record ResolvedReviewParams(String displayName,
                                         String instruction,
                                         String localSourceContent,
-                                        Map<String, Object> mcpServers) {
+                                        Map<String, McpServerConfig> mcpServers) {
     }
 
     static String resolveLocalSourceContentForPass(ReviewTarget target,
@@ -441,7 +434,7 @@ public class ReviewAgent {
     private ReviewResult executeReviewCommon(String displayName,
                                              String instruction,
                                              String localSourceContent,
-                                             Map<String, Object> mcpServers,
+                                             Map<String, McpServerConfig> mcpServers,
                                              int currentPass,
                                              int totalPasses) throws Exception {
         String systemPrompt = buildSystemPrompt();
@@ -463,7 +456,7 @@ public class ReviewAgent {
     private ReviewResult executeReviewWithSession(String displayName,
                                                   String instruction,
                                                   String localSourceContent,
-                                                  Map<String, Object> mcpServers,
+                                                  Map<String, McpServerConfig> mcpServers,
                                                   CopilotSession session) throws Exception {
         String content = sendAndCollectContent(session, instruction, localSourceContent);
         ReviewResult result = reviewResultFactory.fromContent(config, displayName, content, mcpServers != null);
@@ -477,20 +470,17 @@ public class ReviewAgent {
         return result;
     }
     
-    /// Sends an instruction asynchronously and collects the response content using
-    /// activity-based idle timeout instead of a fixed wall-clock deadline.
+    /// Sends an instruction synchronously via the SDK's {@code sendAndWait} API.
     ///
-    /// Unlike `sendAndWait(options, timeoutMs)` which imposes a hard deadline from the
-    /// moment the message is sent, this method uses `send()` (fire-and-forget) combined
-    /// with event listeners and an idle timer that resets on every incoming event.
-    /// This means MCP tool calls that take a long time but are actively progressing will
-    /// NOT cause a timeout — the timeout only fires after `idleTimeoutMinutes` of
-    /// complete silence (no events at all).
+    /// The SDK's wall-clock timeout {@code maxTimeoutMs} corresponds to
+    /// {@code timeoutMinutes}. CLI-side {@code SessionIdleEvent} (driven by the
+    /// CLI's own idle-detection logic) signals completion to {@code sendAndWait}.
     ///
-    /// Fallback strategies when the final event's content is empty:
-    /// 1. Use accumulated content from intermediate `AssistantMessageEvent`s
-    /// 2. Send an in-session follow-up prompt — much faster than a full retry
-    ///    since MCP context is already loaded
+    /// Fallback strategies when the final {@code AssistantMessageEvent} content is empty:
+    /// 1. Use the most recent non-blank content captured by {@link ReviewSessionMessageSender}'s
+    ///    side listener (defensive accumulator).
+    /// 2. Send an in-session follow-up prompt via {@link ReviewMessageFlow} — much faster
+    ///    than a full retry since MCP context is already loaded.
     ///
     /// @param session     the active Copilot session
     /// @param instruction the review instruction to send
@@ -499,7 +489,6 @@ public class ReviewAgent {
     private String sendAndCollectContent(CopilotSession session,
                                          String instruction,
                                          String localSourceContent) throws Exception {
-        long idleTimeoutMs = resolveIdleTimeoutMs();
         long maxTimeoutMs = resolveMaxTimeoutMs();
 
         var messageFlow = createReviewMessageFlow();
@@ -507,14 +496,10 @@ public class ReviewAgent {
         String content = messageFlow.execute(
             instruction,
             localSourceContent,
-            prompt -> sendWithActivityTimeout(session, prompt, idleTimeoutMs, maxTimeoutMs)
+            prompt -> sendViaSdk(session, prompt, maxTimeoutMs)
         );
 
         return sanitizeReviewContent(content);
-    }
-
-    private long resolveIdleTimeoutMs() {
-        return TimeUnit.MINUTES.toMillis(ctx.timeoutConfig().idleTimeoutMinutes());
     }
 
     private long resolveMaxTimeoutMs() {
@@ -538,40 +523,12 @@ public class ReviewAgent {
         return ContentSanitizer.sanitize(content);
     }
 
-    /// Sends a prompt via the async `send()` API and waits for completion using
-    /// an activity-based idle timeout.
-    ///
-    /// Timeout semantics:
-    /// - **Idle timeout** (`idleTimeoutMs`): Resets on every incoming event.
-    ///   Only fires if there are no events for this duration. Prevents false timeouts
-    ///   during active MCP tool processing.
-    /// - **Max timeout** (`maxTimeoutMs`): Absolute wall-clock safety net.
-    ///   Prevents runaway sessions regardless of activity.
-    private String sendWithActivityTimeout(CopilotSession session, String prompt,
-                                           long idleTimeoutMs, long maxTimeoutMs) throws Exception {
-        logger.debug("Agent {}: sending prompt asynchronously (idle timeout: {} min, max: {} min)",
-            config.name(), ctx.timeoutConfig().idleTimeoutMinutes(), ctx.timeoutConfig().timeoutMinutes());
-        return reviewSessionMessageSender.sendWithActivityTimeout(
-            prompt,
-            maxTimeoutMs,
-            sendPrompt -> session.send(new MessageOptions().setPrompt(sendPrompt)),
-            collector -> registerEventListeners(session, collector),
-            collector -> {
-                var scheduledTask = scheduleIdleTimeout(collector, idleTimeoutMs);
-                return () -> scheduledTask.cancel(false);
-            }
-        );
-    }
-
-    /// Registers event listeners on the session, wiring them to the content collector.
-    private EventSubscriptions registerEventListeners(CopilotSession session, ContentCollector collector) {
-        return ReviewSessionEvents.registerOnSession(config.name(), session, collector, logger);
-    }
-
-    /// Schedules periodic idle-timeout checks using the shared scheduler.
-    private java.util.concurrent.ScheduledFuture<?> scheduleIdleTimeout(
-            ContentCollector collector, long idleTimeoutMs) {
-        return idleTimeoutScheduler.schedule(ctx.sharedScheduler(), collector, idleTimeoutMs);
+    /// Sends a prompt via the SDK's {@link CopilotSession#sendAndWait(MessageOptions, long)}
+    /// and waits for the assistant response, capped by {@code maxTimeoutMs}.
+    private String sendViaSdk(CopilotSession session, String prompt, long maxTimeoutMs) throws Exception {
+        logger.debug("Agent {}: sending prompt via SDK sendAndWait (max: {} min)",
+            config.name(), ctx.timeoutConfig().timeoutMinutes());
+        return reviewSessionMessageSender.sendAndAwait(session, prompt, maxTimeoutMs);
     }
 
     /// Builds the system prompt including output constraints.

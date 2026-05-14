@@ -1,5 +1,7 @@
 package dev.logicojp.reviewer.config;
 
+import com.github.copilot.sdk.json.McpHttpServerConfig;
+import com.github.copilot.sdk.json.McpServerConfig;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.core.annotation.Nullable;
 
@@ -40,6 +42,7 @@ public record GithubMcpConfig(
 
     public GithubMcpConfig {
         type = ConfigDefaults.defaultIfBlank(type, "http");
+        validateType(type);
         url = ConfigDefaults.defaultIfBlank(url, DEFAULT_MCP_URL);
         Set<String> effectiveAllowedHosts = sanitizeAllowedHosts(allowedHosts);
         validateUrl(url, effectiveAllowedHosts);
@@ -48,6 +51,12 @@ public record GithubMcpConfig(
         authHeaderName = ConfigDefaults.defaultIfBlank(authHeaderName, "Authorization");
         authHeaderTemplate = ConfigDefaults.defaultIfBlank(authHeaderTemplate, "Bearer {token}");
         allowedHosts = List.copyOf(effectiveAllowedHosts);
+    }
+
+    private static void validateType(String type) {
+        if (!"http".equalsIgnoreCase(type)) {
+            throw new IllegalArgumentException("GitHub MCP type must be 'http': " + type);
+        }
     }
 
     private static Set<String> sanitizeAllowedHosts(@Nullable List<String> allowedHosts) {
@@ -82,40 +91,9 @@ public record GithubMcpConfig(
         }
     }
 
-    /// Type-safe intermediate representation of MCP server configuration.
-    /// Provides compile-time safety within the application; converted to
-    /// {@code Map<String, Object>} only at the SDK boundary.
-    public record McpServerConfig(String type, String url, List<String> tools, Map<String, String> headers) {
-        public McpServerConfig {
-            tools = tools != null ? List.copyOf(tools) : List.of();
-            headers = headers != null ? Map.copyOf(headers) : Map.of();
-        }
-
-        /// Converts to an immutable Map for SDK compatibility.
-        public Map<String, Object> toMap() {
-            return Map.of(
-                "type", type,
-                "url", url,
-                "tools", tools,
-                "headers", headers
-            );
-        }
-
-        @Override
-        public String toString() {
-            Map<String, String> maskedHeaders = headers.entrySet().stream()
-                .collect(Collectors.toUnmodifiableMap(
-                    Map.Entry::getKey,
-                    entry -> SensitiveHeaderMasking.maskHeaderValue(entry.getKey(), entry.getValue())
-                ));
-            return "McpServerConfig{type='%s', url='%s', tools=%s, headers=%s}"
-                .formatted(type, url, tools, maskedHeaders);
-        }
-    }
-
-    /// Builds MCP server map from a token and config.
-    /// Returns {@link Optional#empty()} when inputs are invalid.
-    public static Optional<Map<String, Object>> buildMcpServers(String githubToken, GithubMcpConfig config) {
+    /// Builds an MCP server map suitable for {@code SessionConfig#setMcpServers}.
+    /// Returns {@link Optional#empty()} when inputs are invalid (no token or no config).
+    public static Optional<Map<String, McpServerConfig>> buildMcpServers(String githubToken, GithubMcpConfig config) {
         if (canBuildMcpServers(githubToken, config)) {
             return Optional.of(Map.of("github", config.toMcpServer(githubToken)));
         }
@@ -126,15 +104,20 @@ public record GithubMcpConfig(
         return githubToken != null && !githubToken.isBlank() && config != null;
     }
 
-    public Map<String, Object> toMcpServer(String token) {
+    /// Builds an SDK {@link McpHttpServerConfig} for this GitHub MCP configuration.
+    /// The returned object's headers map masks sensitive values (e.g. Authorization)
+    /// in {@code toString()}/{@code entrySet().toString()} renderings to prevent
+    /// token leakage via SDK debug logging while keeping the raw value available
+    /// for actual HTTP requests via {@code Map#get}.
+    public McpHttpServerConfig toMcpServer(String token) {
         Map<String, String> combinedHeaders = new HashMap<>(headers != null ? headers : Map.of());
         applyAuthHeader(token, combinedHeaders);
         Map<String, String> immutableHeaders = Map.copyOf(combinedHeaders);
-        McpServerConfig config = new McpServerConfig(type, url, tools, immutableHeaders);
-        Map<String, Object> rawMap = config.toMap();
-        Map<String, Object> protectedMap = new HashMap<>(rawMap);
-        protectedMap.put("headers", SensitiveHeaderMasking.wrapHeaders(immutableHeaders));
-        return SensitiveHeaderMasking.wrapWithMaskedToString(protectedMap, config.toString());
+        Map<String, String> maskedHeaders = SensitiveHeaderMasking.wrapHeaders(immutableHeaders);
+        return new McpHttpServerConfig()
+            .setUrl(url)
+            .setHeaders(maskedHeaders)
+            .setTools(tools);
     }
 
     private void applyAuthHeader(String token, Map<String, String> combinedHeaders) {

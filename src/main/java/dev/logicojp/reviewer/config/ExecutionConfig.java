@@ -64,16 +64,9 @@ public record ExecutionConfig(
 
     @ConfigurationProperties("buffers")
     public record BufferSettings(
-        @Bindable(defaultValue = "4194304") int maxAccumulatedSize,
-        @Bindable(defaultValue = "4096") int initialAccumulatedCapacity,
         @Bindable(defaultValue = "32") int instructionBufferExtraCapacity
     ) {
         public BufferSettings {
-            maxAccumulatedSize = ConfigDefaults.defaultIfNonPositive(maxAccumulatedSize, DEFAULT_MAX_ACCUMULATED_SIZE);
-            initialAccumulatedCapacity = ConfigDefaults.defaultIfNonPositive(
-                initialAccumulatedCapacity,
-                DEFAULT_INITIAL_ACCUMULATED_CAPACITY
-            );
             instructionBufferExtraCapacity = ConfigDefaults.defaultIfNonPositive(
                 instructionBufferExtraCapacity,
                 DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
@@ -92,8 +85,6 @@ public record ExecutionConfig(
     private static final long DEFAULT_SKILL_TIMEOUT_MINUTES = 5;
     private static final long DEFAULT_SUMMARY_TIMEOUT_MINUTES = 5;
     private static final long DEFAULT_GH_AUTH_TIMEOUT_SECONDS = 10;
-    public static final int DEFAULT_MAX_ACCUMULATED_SIZE = 4 * 1024 * 1024;
-    public static final int DEFAULT_INITIAL_ACCUMULATED_CAPACITY = 4096;
     public static final int DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY = 32;
 
     public ExecutionConfig {
@@ -131,8 +122,6 @@ public record ExecutionConfig(
 
     private static BufferSettings defaultBuffers() {
         return new BufferSettings(
-            DEFAULT_MAX_ACCUMULATED_SIZE,
-            DEFAULT_INITIAL_ACCUMULATED_CAPACITY,
             DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
         );
     }
@@ -211,14 +200,6 @@ public record ExecutionConfig(
         return retry.maxRetries();
     }
 
-    public int maxAccumulatedSize() {
-        return buffers.maxAccumulatedSize();
-    }
-
-    public int initialAccumulatedCapacity() {
-        return buffers.initialAccumulatedCapacity();
-    }
-
     public int instructionBufferExtraCapacity() {
         return buffers.instructionBufferExtraCapacity();
     }
@@ -275,8 +256,6 @@ public record ExecutionConfig(
         private long summaryTimeoutMinutes;
         private long ghAuthTimeoutSeconds;
         private int maxRetries;
-        private int maxAccumulatedSize;
-        private int initialAccumulatedCapacity;
         private int instructionBufferExtraCapacity;
         private boolean sharedSessionEnabled;
         private boolean ghAuthFallbackEnabled;
@@ -292,8 +271,6 @@ public record ExecutionConfig(
             b.summaryTimeoutMinutes = source.summaryTimeoutMinutes();
             b.ghAuthTimeoutSeconds = source.ghAuthTimeoutSeconds();
             b.maxRetries = source.maxRetries();
-            b.maxAccumulatedSize = source.maxAccumulatedSize();
-            b.initialAccumulatedCapacity = source.initialAccumulatedCapacity();
             b.instructionBufferExtraCapacity = source.instructionBufferExtraCapacity();
             b.sharedSessionEnabled = source.isSharedSessionEnabled();
             b.ghAuthFallbackEnabled = source.isGhAuthFallbackEnabled();
@@ -339,16 +316,6 @@ public record ExecutionConfig(
             return this;
         }
 
-        public Builder maxAccumulatedSize(int maxAccumulatedSize) {
-            this.maxAccumulatedSize = maxAccumulatedSize;
-            return this;
-        }
-
-        public Builder initialAccumulatedCapacity(int initialAccumulatedCapacity) {
-            this.initialAccumulatedCapacity = initialAccumulatedCapacity;
-            return this;
-        }
-
         public Builder instructionBufferExtraCapacity(int instructionBufferExtraCapacity) {
             this.instructionBufferExtraCapacity = instructionBufferExtraCapacity;
             return this;
@@ -377,8 +344,6 @@ public record ExecutionConfig(
                 ),
                 new RetrySettings(maxRetries),
                 new BufferSettings(
-                    maxAccumulatedSize,
-                    initialAccumulatedCapacity,
                     instructionBufferExtraCapacity
                 ),
                 sharedSessionEnabled,

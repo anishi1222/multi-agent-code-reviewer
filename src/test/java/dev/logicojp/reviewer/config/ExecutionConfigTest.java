@@ -297,7 +297,7 @@ class ExecutionConfigTest {
                 new ExecutionConfig.ConcurrencySettings(3, 2),
                 new ExecutionConfig.TimeoutSettings(20, 10, 6, 8, 9, 30),
                 new ExecutionConfig.RetrySettings(4),
-                new ExecutionConfig.BufferSettings(8192, 1024, 64)
+                new ExecutionConfig.BufferSettings(64)
             );
 
             assertThat(config.parallelism()).isEqualTo(3);
@@ -309,8 +309,6 @@ class ExecutionConfigTest {
             assertThat(config.summaryTimeoutMinutes()).isEqualTo(9);
             assertThat(config.ghAuthTimeoutSeconds()).isEqualTo(30);
             assertThat(config.maxRetries()).isEqualTo(4);
-            assertThat(config.maxAccumulatedSize()).isEqualTo(8192);
-            assertThat(config.initialAccumulatedCapacity()).isEqualTo(1024);
             assertThat(config.instructionBufferExtraCapacity()).isEqualTo(64);
         }
 
@@ -323,7 +321,7 @@ class ExecutionConfigTest {
             assertThat(config.concurrency().reviewPasses()).isEqualTo(3);
             assertThat(config.timeouts().orchestratorTimeoutMinutes()).isEqualTo(21);
             assertThat(config.retry().maxRetries()).isEqualTo(2);
-            assertThat(config.buffers().maxAccumulatedSize()).isEqualTo(4096);
+            assertThat(config.buffers().instructionBufferExtraCapacity()).isEqualTo(48);
         }
 
         @Test
@@ -333,7 +331,7 @@ class ExecutionConfigTest {
                 new ExecutionConfig.ConcurrencySettings(3, 2),
                 new ExecutionConfig.TimeoutSettings(20, 10, 6, 8, 9, 30),
                 new ExecutionConfig.RetrySettings(4),
-                new ExecutionConfig.BufferSettings(8192, 1024, 64),
+                new ExecutionConfig.BufferSettings(64),
                 false
             );
 
@@ -347,7 +345,7 @@ class ExecutionConfigTest {
                 new ExecutionConfig.ConcurrencySettings(3, 2),
                 new ExecutionConfig.TimeoutSettings(20, 10, 6, 8, 9, 30),
                 new ExecutionConfig.RetrySettings(4),
-                new ExecutionConfig.BufferSettings(8192, 1024, 64),
+                new ExecutionConfig.BufferSettings(64),
                 false,
                 true
             );

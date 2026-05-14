@@ -208,7 +208,7 @@ class ReviewAgentTest {
 
     private static ReviewTargetInstructionResolver stubResolver(String instruction,
                                                                  String localSource,
-                                                                 Map<String, Object> mcpServers) {
+                                                                 Map<String, com.github.copilot.sdk.json.McpServerConfig> mcpServers) {
         return new ReviewTargetInstructionResolver(
             agentConfig(),
             new LocalFileConfig(),
@@ -217,6 +217,6 @@ class ReviewAgentTest {
     }
 
     private static ReviewSessionMessageSender stubSender() {
-        return new ReviewSessionMessageSender("test-agent", 4096, 256);
+        return new ReviewSessionMessageSender("test-agent");
     }
 }

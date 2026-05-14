@@ -1,5 +1,7 @@
 package dev.logicojp.reviewer.orchestrator;
 
+import com.github.copilot.sdk.json.McpServerConfig;
+
 import java.util.Map;
 import java.util.Objects;
 
@@ -7,7 +9,7 @@ record OrchestratorCollaborators(
     AgentReviewerFactory reviewerFactory,
     LocalSourceCollectorFactory localSourceCollectorFactory,
     ExecutorResources executorResources,
-    Map<String, Object> cachedMcpServers,
+    Map<String, McpServerConfig> cachedMcpServers,
     ReviewResultPipeline reviewResultPipeline,
     AgentReviewExecutor agentReviewExecutor,
     ReviewExecutionModeRunner reviewExecutionModeRunner,

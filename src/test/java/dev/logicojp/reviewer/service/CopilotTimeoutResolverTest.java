@@ -19,19 +19,19 @@ class CopilotTimeoutResolverTest {
     }
 
     @Test
-    @DisplayName("CLIヘルスチェックタイムアウトを設定値から解決する")
-    void resolvesCliHealthcheckTimeout() {
+    @DisplayName("SDKステータスタイムアウトを設定値から解決する")
+    void resolvesSdkStatusTimeout() {
         var resolver = new CopilotTimeoutResolver(new CopilotConfig(null, null, 60, 11, 15));
-        long value = resolver.resolveCliHealthcheckSeconds();
+        long value = resolver.resolveSdkStatusTimeoutSeconds();
 
         assertThat(value).isEqualTo(11L);
     }
 
     @Test
-    @DisplayName("CLI認証チェックタイムアウトを設定値から解決する")
-    void resolvesCliAuthcheckTimeout() {
+    @DisplayName("SDK認証ステータスタイムアウトを設定値から解決する")
+    void resolvesSdkAuthStatusTimeout() {
         var resolver = new CopilotTimeoutResolver(new CopilotConfig(null, null, 60, 10, 17));
-        long value = resolver.resolveCliAuthcheckSeconds();
+        long value = resolver.resolveSdkAuthStatusTimeoutSeconds();
 
         assertThat(value).isEqualTo(17L);
     }
@@ -42,7 +42,7 @@ class CopilotTimeoutResolverTest {
         var resolver = new CopilotTimeoutResolver(new CopilotConfig(null, null, -1, 0, -5));
 
         assertThat(resolver.resolveStartTimeoutSeconds()).isEqualTo(60L);
-        assertThat(resolver.resolveCliHealthcheckSeconds()).isEqualTo(10L);
-        assertThat(resolver.resolveCliAuthcheckSeconds()).isEqualTo(15L);
+        assertThat(resolver.resolveSdkStatusTimeoutSeconds()).isEqualTo(10L);
+        assertThat(resolver.resolveSdkAuthStatusTimeoutSeconds()).isEqualTo(15L);
     }
 }

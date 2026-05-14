@@ -7,8 +7,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.Executors;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -22,8 +20,7 @@ class ReviewContextTest {
         @Test
         @DisplayName("toStringは主要フィールドを含む")
         void toStringContainsContextSummary() {
-            var client = new com.github.copilot.sdk.CopilotClient(new com.github.copilot.sdk.json.CopilotClientOptions());
-            var scheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+            var client = new CopilotClient(new CopilotClientOptions());
             try {
                 var context = new ReviewContext(
                     client,
@@ -34,7 +31,6 @@ class ReviewContextTest {
                     null,
                     new ReviewContext.CachedResources(null, null),
                     new LocalFileConfig(),
-                    scheduler,
                     null,
                     null);
 
@@ -43,7 +39,6 @@ class ReviewContextTest {
                 assertThat(result).contains("ReviewContext");
                 assertThat(result).contains("timeoutMinutes=5");
             } finally {
-                scheduler.shutdownNow();
                 client.close();
             }
         }
@@ -56,8 +51,7 @@ class ReviewContextTest {
         @Test
         @DisplayName("nullフィールドはデフォルト値で正規化される")
         void nullFieldsNormalizedToDefaults() {
-            var client = new com.github.copilot.sdk.CopilotClient(new com.github.copilot.sdk.json.CopilotClientOptions());
-            var scheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+            var client = new CopilotClient(new CopilotClientOptions());
             try {
                 var context = new ReviewContext(
                     client,
@@ -68,14 +62,12 @@ class ReviewContextTest {
                     null,
                     null,
                     new LocalFileConfig(),
-                    scheduler,
                     null,
                     null);
 
                 assertThat(context.timeoutConfig()).isNotNull();
                 assertThat(context.cachedResources()).isNotNull();
             } finally {
-                scheduler.shutdownNow();
                 client.close();
             }
         }
@@ -83,7 +75,6 @@ class ReviewContextTest {
         @Test
         @DisplayName("BuilderでReviewContextを構築できる")
         void buildWithBuilder() {
-            var scheduler = Executors.newSingleThreadScheduledExecutor();
             var client = new CopilotClient(new CopilotClientOptions());
             var context = ReviewContext.builder()
                 .client(client)
@@ -91,7 +82,6 @@ class ReviewContextTest {
                 .idleTimeoutMinutes(3)
                 .invocationTimestamp("2026-03-05-12-00-00")
                 .maxRetries(2)
-                .sharedScheduler(scheduler)
                 .build();
 
             try {
@@ -100,7 +90,6 @@ class ReviewContextTest {
                 assertThat(context.timeoutConfig().maxRetries()).isEqualTo(2);
                 assertThat(context.localFileConfig()).isNotNull();
             } finally {
-                scheduler.shutdownNow();
                 client.close();
             }
         }
@@ -108,35 +97,12 @@ class ReviewContextTest {
         @Test
         @DisplayName("Builderでclient未設定の場合は例外を投げる")
         void builderWithoutClientThrows() {
-            var scheduler = Executors.newSingleThreadScheduledExecutor();
-            try {
-                assertThatThrownBy(() -> ReviewContext.builder()
-                    .timeoutMinutes(5)
-                    .idleTimeoutMinutes(3)
-                    .sharedScheduler(scheduler)
-                    .build())
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("client");
-            } finally {
-                scheduler.shutdownNow();
-            }
-        }
-
-        @Test
-        @DisplayName("BuilderでsharedScheduler未設定の場合は例外を投げる")
-        void builderWithoutSchedulerThrows() {
-            var client = new CopilotClient(new CopilotClientOptions());
-            try {
-                assertThatThrownBy(() -> ReviewContext.builder()
-                    .client(client)
-                    .timeoutMinutes(5)
-                    .idleTimeoutMinutes(3)
-                    .build())
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("sharedScheduler");
-            } finally {
-                client.close();
-            }
+            assertThatThrownBy(() -> ReviewContext.builder()
+                .timeoutMinutes(5)
+                .idleTimeoutMinutes(3)
+                .build())
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("client");
         }
     }
 }

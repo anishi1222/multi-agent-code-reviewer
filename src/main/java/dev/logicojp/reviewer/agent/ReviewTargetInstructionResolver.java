@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.agent;
 
+import com.github.copilot.sdk.json.McpServerConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
@@ -12,7 +13,7 @@ final class ReviewTargetInstructionResolver {
 
     record ResolvedInstruction(String instruction,
                                @Nullable String localSourceContent,
-                               @Nullable Map<String, Object> mcpServers) {
+                               @Nullable Map<String, McpServerConfig> mcpServers) {
     }
 
     @FunctionalInterface
@@ -34,7 +35,7 @@ final class ReviewTargetInstructionResolver {
 
     ResolvedInstruction resolve(ReviewTarget target,
                                 @Nullable String cachedSourceContent,
-                                @Nullable Map<String, Object> cachedMcpServers) {
+                                @Nullable Map<String, McpServerConfig> cachedMcpServers) {
         return switch (target) {
             case ReviewTarget.LocalTarget(Path directory) ->
                 resolveLocalInstruction(target, directory, cachedSourceContent);
@@ -62,7 +63,7 @@ final class ReviewTargetInstructionResolver {
     }
 
     private ResolvedInstruction resolveGitHubInstruction(String repository,
-                                                         @Nullable Map<String, Object> cachedMcpServers) {
+                                                         @Nullable Map<String, McpServerConfig> cachedMcpServers) {
         return new ResolvedInstruction(AgentPromptBuilder.buildInstruction(config, repository), null, cachedMcpServers);
     }
 }
