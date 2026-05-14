@@ -5,6 +5,7 @@ import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.sdk.json.McpServerConfig;
 
 import java.util.Map;
 import java.util.Optional;
@@ -17,7 +18,7 @@ final class ReviewContextFactory {
     private final String reasoningEffort;
     private final String outputConstraints;
     private final String invocationTimestamp;
-    private final Map<String, Object> cachedMcpServers;
+    private final Map<String, McpServerConfig> cachedMcpServers;
     private final LocalFileConfig localFileConfig;
     private final ScheduledExecutorService sharedScheduler;
     private final SharedCircuitBreaker reviewCircuitBreaker;
@@ -27,7 +28,7 @@ final class ReviewContextFactory {
                          String reasoningEffort,
                          String outputConstraints,
                          String invocationTimestamp,
-                         Map<String, Object> cachedMcpServers,
+                         Map<String, McpServerConfig> cachedMcpServers,
                          LocalFileConfig localFileConfig,
                          ScheduledExecutorService sharedScheduler,
                          SharedCircuitBreaker reviewCircuitBreaker) {

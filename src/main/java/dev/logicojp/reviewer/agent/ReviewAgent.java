@@ -4,6 +4,7 @@ import dev.logicojp.reviewer.report.sanitize.ContentSanitizer;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import com.github.copilot.sdk.CopilotSession;
+import com.github.copilot.sdk.json.McpServerConfig;
 import com.github.copilot.sdk.json.MessageOptions;
 import com.github.copilot.sdk.json.SessionConfig;
 import org.slf4j.Logger;
@@ -280,7 +281,7 @@ public class ReviewAgent {
         String displayName = params.displayName();
         String instruction = params.instruction();
         String localSourceContent = params.localSourceContent();
-        Map<String, Object> mcpServers = params.mcpServers();
+        Map<String, McpServerConfig> mcpServers = params.mcpServers();
 
         String systemPrompt = buildSystemPrompt();
         SessionConfig sessionConfig = reviewSessionConfigFactory.create(
@@ -407,7 +408,7 @@ public class ReviewAgent {
     private record ResolvedReviewParams(String displayName,
                                         String instruction,
                                         String localSourceContent,
-                                        Map<String, Object> mcpServers) {
+                                        Map<String, McpServerConfig> mcpServers) {
     }
 
     static String resolveLocalSourceContentForPass(ReviewTarget target,
@@ -441,7 +442,7 @@ public class ReviewAgent {
     private ReviewResult executeReviewCommon(String displayName,
                                              String instruction,
                                              String localSourceContent,
-                                             Map<String, Object> mcpServers,
+                                             Map<String, McpServerConfig> mcpServers,
                                              int currentPass,
                                              int totalPasses) throws Exception {
         String systemPrompt = buildSystemPrompt();
@@ -463,7 +464,7 @@ public class ReviewAgent {
     private ReviewResult executeReviewWithSession(String displayName,
                                                   String instruction,
                                                   String localSourceContent,
-                                                  Map<String, Object> mcpServers,
+                                                  Map<String, McpServerConfig> mcpServers,
                                                   CopilotSession session) throws Exception {
         String content = sendAndCollectContent(session, instruction, localSourceContent);
         ReviewResult result = reviewResultFactory.fromContent(config, displayName, content, mcpServers != null);

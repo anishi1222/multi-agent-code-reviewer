@@ -13,6 +13,7 @@ import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import dev.logicojp.reviewer.util.ExecutorUtils;
 import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.sdk.json.McpServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,7 +147,7 @@ public class ReviewOrchestrator implements AutoCloseable {
             LocalSourceCollectorFactory localSourceCollectorFactory,
             ExecutorResources resources,
             SharedCircuitBreaker reviewCircuitBreaker) {
-        Map<String, Object> cachedMcpServers = GithubMcpConfig.buildMcpServers(
+        Map<String, McpServerConfig> cachedMcpServers = GithubMcpConfig.buildMcpServers(
             orchestratorConfig.githubToken(),
             orchestratorConfig.githubMcpConfig()
         ).orElse(Map.of());
@@ -188,7 +189,7 @@ public class ReviewOrchestrator implements AutoCloseable {
     private static ReviewContextFactory createReviewContextFactory(
             CopilotClient client,
             OrchestratorConfig orchestratorConfig,
-            Map<String, Object> cachedMcpServers,
+            Map<String, McpServerConfig> cachedMcpServers,
             ExecutorResources resources,
             SharedCircuitBreaker reviewCircuitBreaker) {
         return new ReviewContextFactory(

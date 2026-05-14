@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.SystemMessageMode;
+import com.github.copilot.sdk.json.McpServerConfig;
 import com.github.copilot.sdk.json.MessageOptions;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
@@ -78,7 +79,7 @@ final class RubberDuckDialogueExecutor {
     ReviewResult execute(ReviewTarget target,
                          String instruction,
                          String localSourceContent,
-                         Map<String, Object> mcpServers) {
+                         Map<String, McpServerConfig> mcpServers) {
         String peerModel = resolvePeerModel();
         int rounds = resolveDialogueRounds();
         String language = config.language();
@@ -184,7 +185,7 @@ final class RubberDuckDialogueExecutor {
 
     private SessionConfig buildSessionConfig(String model,
                                               String systemPrompt,
-                                              Map<String, Object> mcpServers,
+                                              Map<String, McpServerConfig> mcpServers,
                                               String sessionTag) {
         var sessionConfig = new SessionConfig()
             .setModel(model)
@@ -194,19 +195,14 @@ final class RubberDuckDialogueExecutor {
                 .setMode(SystemMessageMode.APPEND)
                 .setContent(systemPrompt));
 
-        if (mcpServers != null) {
-            sessionConfig.setMcpServers(castMcpServers(mcpServers));
+        if (mcpServers != null && !mcpServers.isEmpty()) {
+            sessionConfig.setMcpServers(mcpServers);
         }
         String effort = ModelConfig.resolveReasoningEffort(model, ctx.reasoningEffort());
         if (effort != null) {
             sessionConfig.setReasoningEffort(effort);
         }
         return sessionConfig;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, com.github.copilot.sdk.json.McpServerConfig> castMcpServers(Map<String, Object> mcpServers) {
-        return (Map<String, com.github.copilot.sdk.json.McpServerConfig>) (Map<?, ?>) mcpServers;
     }
 
     private String buildSessionId(String sessionTag) {

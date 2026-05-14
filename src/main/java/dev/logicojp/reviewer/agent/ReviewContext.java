@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.agent;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.sdk.json.McpServerConfig;
 import io.micronaut.core.annotation.Nullable;
 
 import java.util.Map;
@@ -47,7 +48,7 @@ public record ReviewContext(
 
     /// Groups pre-computed resources that are shared across agents.
     public record CachedResources(
-        @Nullable Map<String, Object> mcpServers,
+        @Nullable Map<String, McpServerConfig> mcpServers,
         @Nullable String sourceContent
     ) {}
 
@@ -89,7 +90,7 @@ public record ReviewContext(
         private String reasoningEffort;
         private int maxRetries;
         private String outputConstraints;
-        private Map<String, Object> cachedMcpServers;
+        private Map<String, McpServerConfig> cachedMcpServers;
         private String cachedSourceContent;
         private LocalFileConfig localFileConfig;
         private ScheduledExecutorService sharedScheduler;
@@ -136,7 +137,7 @@ public record ReviewContext(
             return this;
         }
 
-        public Builder cachedMcpServers(Map<String, Object> cachedMcpServers) {
+        public Builder cachedMcpServers(Map<String, McpServerConfig> cachedMcpServers) {
             this.cachedMcpServers = cachedMcpServers;
             return this;
         }

@@ -1,5 +1,7 @@
 package dev.logicojp.reviewer.config;
 
+import com.github.copilot.sdk.json.McpHttpServerConfig;
+import com.github.copilot.sdk.json.McpServerConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -105,42 +107,35 @@ class GithubMcpConfigTest {
     class ToMcpServer {
 
         @Test
-        @DisplayName("トークン付きでMCPサーバー設定を生成する")
+        @DisplayName("トークン付きでSDKのMcpHttpServerConfigを生成する")
         void generatesMcpServerWithToken() {
             GithubMcpConfig config = new GithubMcpConfig(
                 "http", "https://api.example.com/mcp/",
                 List.of("tool1"), Map.of(), "Authorization", "Bearer {token}", List.of("api.example.com"));
-            Map<String, Object> server = config.toMcpServer("my-token");
+            McpHttpServerConfig server = config.toMcpServer("my-token");
 
-            assertThat(server).containsEntry("type", "http");
-            assertThat(server).containsEntry("url", "https://api.example.com/mcp/");
-            assertThat(server).containsEntry("tools", List.of("tool1"));
-
-            @SuppressWarnings("unchecked")
-            Map<String, String> headers = (Map<String, String>) server.get("headers");
-            assertThat(headers).containsEntry("Authorization", "Bearer my-token");
+            assertThat(server.getType()).isEqualTo("http");
+            assertThat(server.getUrl()).isEqualTo("https://api.example.com/mcp/");
+            assertThat(server.getTools()).containsExactly("tool1");
+            assertThat(server.getHeaders()).containsEntry("Authorization", "Bearer my-token");
         }
 
         @Test
         @DisplayName("トークンがnullの場合はAuthorizationヘッダーを追加しない")
         void nullTokenSkipsAuthHeader() {
             GithubMcpConfig config = new GithubMcpConfig(null, null, null, null, null, null);
-            Map<String, Object> server = config.toMcpServer(null);
+            McpHttpServerConfig server = config.toMcpServer(null);
 
-            @SuppressWarnings("unchecked")
-            Map<String, String> headers = (Map<String, String>) server.get("headers");
-            assertThat(headers).doesNotContainKey("Authorization");
+            assertThat(server.getHeaders()).doesNotContainKey("Authorization");
         }
 
         @Test
         @DisplayName("空白トークンの場合はAuthorizationヘッダーを追加しない")
         void blankTokenSkipsAuthHeader() {
             GithubMcpConfig config = new GithubMcpConfig(null, null, null, null, null, null);
-            Map<String, Object> server = config.toMcpServer("  ");
+            McpHttpServerConfig server = config.toMcpServer("  ");
 
-            @SuppressWarnings("unchecked")
-            Map<String, String> headers = (Map<String, String>) server.get("headers");
-            assertThat(headers).doesNotContainKey("Authorization");
+            assertThat(server.getHeaders()).doesNotContainKey("Authorization");
         }
 
         @Test
@@ -150,12 +145,10 @@ class GithubMcpConfigTest {
                 "http", "https://api.example.com/",
                 List.of("*"), Map.of("X-Custom", "value"),
                 "Authorization", "Bearer {token}", List.of("api.example.com"));
-            Map<String, Object> server = config.toMcpServer("tok");
+            McpHttpServerConfig server = config.toMcpServer("tok");
 
-            @SuppressWarnings("unchecked")
-            Map<String, String> headers = (Map<String, String>) server.get("headers");
-            assertThat(headers).containsEntry("X-Custom", "value");
-            assertThat(headers).containsEntry("Authorization", "Bearer tok");
+            assertThat(server.getHeaders()).containsEntry("X-Custom", "value");
+            assertThat(server.getHeaders()).containsEntry("Authorization", "Bearer tok");
         }
 
         @Test
@@ -165,103 +158,31 @@ class GithubMcpConfigTest {
                 "http", "https://api.example.com/",
                 List.of("*"), Map.of(),
                 "Authorization", "token ${token}", List.of("api.example.com"));
-            Map<String, Object> server = config.toMcpServer("abc123");
+            McpHttpServerConfig server = config.toMcpServer("abc123");
 
-            @SuppressWarnings("unchecked")
-            Map<String, String> headers = (Map<String, String>) server.get("headers");
             // ${token} contains {token} which gets replaced, leaving the $ prefix
-            assertThat(headers).containsEntry("Authorization", "token $abc123");
+            assertThat(server.getHeaders()).containsEntry("Authorization", "token $abc123");
         }
 
         @Test
-        @DisplayName("entrySetとvaluesのtoStringでもAuthorization値をマスクする")
-        void masksAuthorizationInEntrySetAndValuesToString() {
+        @DisplayName("ヘッダーマップのtoString()でAuthorization値をマスクする")
+        void masksAuthorizationInHeadersToString() {
             GithubMcpConfig config = new GithubMcpConfig(
                 "http", "https://api.example.com/",
                 List.of("*"), Map.of("X-Custom", "value"),
                 "Authorization", "Bearer {token}", List.of("api.example.com"));
-            Map<String, Object> server = config.toMcpServer("ghp_secret123");
+            McpHttpServerConfig server = config.toMcpServer("ghp_secret123");
 
-            @SuppressWarnings("unchecked")
-            Map<String, String> headers = (Map<String, String>) server.get("headers");
+            // Raw value remains accessible for actual HTTP requests
+            assertThat(server.getHeaders().get("Authorization")).isEqualTo("Bearer ghp_secret123");
 
-            assertThat(headers.get("Authorization")).isEqualTo("Bearer ghp_secret123");
-            assertThat(headers.entrySet().toString()).contains("Bearer ***");
-            assertThat(headers.entrySet().toString()).doesNotContain("ghp_secret123");
-            assertThat(headers.values().toString()).contains("Bearer ***");
-            assertThat(headers.values().toString()).doesNotContain("ghp_secret123");
-        }
-
-        @Test
-        @DisplayName("MCPサーバーマップのentrySet文字列化でもトークンをマスクする")
-        void masksAuthorizationInServerEntrySetToString() {
-            GithubMcpConfig config = new GithubMcpConfig(
-                "http", "https://api.example.com/",
-                List.of("*"), Map.of(),
-                "Authorization", "Bearer {token}", List.of("api.example.com"));
-            Map<String, Object> server = config.toMcpServer("ghp_secret456");
-
-            String entrySetString = server.entrySet().toString();
-
-            assertThat(entrySetString).contains("Bearer ***");
-            assertThat(entrySetString).doesNotContain("ghp_secret456");
-        }
-    }
-
-    @Nested
-    @DisplayName("McpServerConfig")
-    class McpServerConfigTests {
-
-        @Test
-        @DisplayName("toMapは型安全な表現からMapに変換する")
-        void toMapConvertsCorrectly() {
-            var mcpConfig = new GithubMcpConfig.McpServerConfig(
-                "http", "https://api.example.com/",
-                List.of("tool1", "tool2"),
-                Map.of("X-Header", "value"));
-            Map<String, Object> map = mcpConfig.toMap();
-
-            assertThat(map).containsEntry("type", "http");
-            assertThat(map).containsEntry("url", "https://api.example.com/");
-            assertThat(map).containsEntry("tools", List.of("tool1", "tool2"));
-            assertThat(map).containsEntry("headers", Map.of("X-Header", "value"));
-        }
-
-        @Test
-        @DisplayName("toMapは不変Mapを返す")
-        void toMapReturnsImmutableMap() {
-            var mcpConfig = new GithubMcpConfig.McpServerConfig(
-                "http", "https://api.example.com/",
-                List.of("*"), Map.of());
-            Map<String, Object> map = mcpConfig.toMap();
-            assertThat(map).isUnmodifiable();
-        }
-
-        @Test
-        @DisplayName("toStringでAuthorizationヘッダーがマスクされる")
-        void toStringMasksAuthorizationHeader() {
-            var mcpConfig = new GithubMcpConfig.McpServerConfig(
-                "http", "https://api.example.com/",
-                List.of("*"),
-                Map.of("Authorization", "Bearer ghp_secret123", "X-Custom", "visible"));
-            String str = mcpConfig.toString();
-
-            assertThat(str).contains("Bearer ***");
-            assertThat(str).doesNotContain("ghp_secret123");
-            assertThat(str).contains("visible");
-        }
-
-        @Test
-        @DisplayName("toStringでAuthorizationヘッダーなしの場合はそのまま出力される")
-        void toStringWithoutAuthorizationHeader() {
-            var mcpConfig = new GithubMcpConfig.McpServerConfig(
-                "http", "https://api.example.com/",
-                List.of("*"),
-                Map.of("X-Custom", "value"));
-            String str = mcpConfig.toString();
-
-            assertThat(str).contains("X-Custom");
-            assertThat(str).doesNotContain("Bearer ***");
+            // toString() variants mask the sensitive value to prevent log leakage
+            assertThat(server.getHeaders().toString()).contains("Bearer ***");
+            assertThat(server.getHeaders().toString()).doesNotContain("ghp_secret123");
+            assertThat(server.getHeaders().entrySet().toString()).contains("Bearer ***");
+            assertThat(server.getHeaders().entrySet().toString()).doesNotContain("ghp_secret123");
+            assertThat(server.getHeaders().values().toString()).contains("Bearer ***");
+            assertThat(server.getHeaders().values().toString()).doesNotContain("ghp_secret123");
         }
     }
 
@@ -277,7 +198,9 @@ class GithubMcpConfigTest {
             var servers = GithubMcpConfig.buildMcpServers("ghp_token", config);
 
             assertThat(servers).isPresent();
-            assertThat(servers.orElseThrow()).containsKey("github");
+            Map<String, McpServerConfig> map = servers.orElseThrow();
+            assertThat(map).containsKey("github");
+            assertThat(map.get("github")).isInstanceOf(McpHttpServerConfig.class);
         }
 
         @Test

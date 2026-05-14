@@ -2,13 +2,14 @@ package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.sdk.SystemMessageMode;
 import com.github.copilot.sdk.json.CopilotClientOptions;
+import com.github.copilot.sdk.json.McpHttpServerConfig;
+import com.github.copilot.sdk.json.McpServerConfig;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.CopilotClient;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -86,7 +87,10 @@ class ReviewSessionConfigFactoryTest {
         @DisplayName("MCPサーバーが指定された場合は設定される")
         void setsMcpServers() {
             ReviewContext ctx = createContext(null);
-            Map<String, Object> mcpServers = Map.of("github", Map.of("url", "https://api.example.com"));
+            Map<String, McpServerConfig> mcpServers = Map.of(
+                "github",
+                new McpHttpServerConfig().setUrl("https://api.example.com")
+            );
 
             SessionConfig result = factory.create(
                 AGENT_CONFIG, ctx, SYSTEM_PROMPT, mcpServers, 2, 3);

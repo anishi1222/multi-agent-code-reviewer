@@ -2,8 +2,9 @@ package dev.logicojp.reviewer.orchestrator;
 
 import com.github.copilot.sdk.CopilotClient;
 import com.github.copilot.sdk.json.CopilotClientOptions;
+import com.github.copilot.sdk.json.McpHttpServerConfig;
+import com.github.copilot.sdk.json.McpServerConfig;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
-import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,10 @@ class ReviewContextFactoryTest {
         var scheduler = Executors.newSingleThreadScheduledExecutor();
         try {
             var executionConfig = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 10, 5, 3, 5, 5, 10, 2, 0, 0, 0);
-            Map<String, Object> cachedMcp = Map.of("github", Map.of("type", "http"));
+            Map<String, McpServerConfig> cachedMcp = Map.of(
+                "github",
+                new McpHttpServerConfig().setUrl("https://api.githubcopilot.com/mcp/")
+            );
             var localFileConfig = new LocalFileConfig();
 
             var factory = new ReviewContextFactory(

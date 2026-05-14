@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.sdk.SystemMessageMode;
+import com.github.copilot.sdk.json.McpServerConfig;
 import com.github.copilot.sdk.json.SessionConfig;
 import com.github.copilot.sdk.json.SystemMessageConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
@@ -20,7 +21,7 @@ final class ReviewSessionConfigFactory {
     SessionConfig create(AgentConfig config,
                          ReviewContext ctx,
                          String systemPrompt,
-                         Map<String, Object> mcpServers,
+                         Map<String, McpServerConfig> mcpServers,
                          int currentPass,
                          int totalPasses) {
         var sessionConfig = new SessionConfig()
@@ -36,15 +37,10 @@ final class ReviewSessionConfigFactory {
         return sessionConfig;
     }
 
-    private void applyMcpServers(SessionConfig sessionConfig, Map<String, Object> mcpServers) {
-        if (mcpServers != null) {
-            sessionConfig.setMcpServers(castMcpServers(mcpServers));
+    private void applyMcpServers(SessionConfig sessionConfig, Map<String, McpServerConfig> mcpServers) {
+        if (mcpServers != null && !mcpServers.isEmpty()) {
+            sessionConfig.setMcpServers(mcpServers);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, com.github.copilot.sdk.json.McpServerConfig> castMcpServers(Map<String, Object> mcpServers) {
-        return (Map<String, com.github.copilot.sdk.json.McpServerConfig>) (Map<?, ?>) mcpServers;
     }
 
     private void applyReasoningEffort(AgentConfig config,
