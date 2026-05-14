@@ -22,7 +22,7 @@ class SkillServiceTest {
         var copilotConfig = new CopilotConfig(null, null, 60, 10, 15);
         return new CopilotService(
             new CopilotCliPathResolver(),
-            new CopilotCliHealthChecker(new CopilotTimeoutResolver(copilotConfig)),
+            new CopilotHealthProbe(new CopilotTimeoutResolver(copilotConfig)),
             copilotConfig,
             new CopilotStartupErrorFormatter(),
             new CopilotClientStarter()

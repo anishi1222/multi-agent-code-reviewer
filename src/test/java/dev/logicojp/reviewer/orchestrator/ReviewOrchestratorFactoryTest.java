@@ -9,9 +9,9 @@ import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.config.TemplateConfig;
-import dev.logicojp.reviewer.service.CopilotCliHealthChecker;
 import dev.logicojp.reviewer.service.CopilotCliPathResolver;
 import dev.logicojp.reviewer.service.CopilotClientStarter;
+import dev.logicojp.reviewer.service.CopilotHealthProbe;
 import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.CopilotStartupErrorFormatter;
 import dev.logicojp.reviewer.service.CopilotTimeoutResolver;
@@ -40,7 +40,7 @@ class ReviewOrchestratorFactoryTest {
         CopilotConfig copilotConfig = new CopilotConfig(null, null, 60, 10, 15);
         CopilotService copilotService = new CopilotService(
             new CopilotCliPathResolver(copilotConfig, System.getenv("PATH")),
-            new CopilotCliHealthChecker(new CopilotTimeoutResolver(copilotConfig)),
+            new CopilotHealthProbe(new CopilotTimeoutResolver(copilotConfig)),
             copilotConfig,
             new CopilotStartupErrorFormatter(),
             new CopilotClientStarter()

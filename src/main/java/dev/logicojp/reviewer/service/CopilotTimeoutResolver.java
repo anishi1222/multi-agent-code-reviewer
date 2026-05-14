@@ -7,6 +7,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /// Resolves Copilot-related timeout settings from centralized Micronaut configuration.
+///
+/// The SDK-status and SDK-auth-status timeouts are bound to the legacy
+/// `cli-healthcheck-seconds` / `cli-authcheck-seconds` configuration keys for
+/// backward compatibility with existing deployments. They now govern the SDK
+/// `getStatus()` / `getAuthStatus()` JSON-RPC timeouts rather than CLI
+/// subprocess execution.
 @Singleton
 public class CopilotTimeoutResolver {
 
@@ -28,15 +34,19 @@ public class CopilotTimeoutResolver {
         return value;
     }
 
-    public long resolveCliHealthcheckSeconds() {
+    /// Timeout for {@link com.github.copilot.sdk.CopilotClient#getStatus()} requests.
+    /// Bound to the legacy `cli-healthcheck-seconds` configuration key.
+    public long resolveSdkStatusTimeoutSeconds() {
         long value = copilotConfig.cliHealthcheckSeconds();
-        logger.debug("Resolved Copilot CLI healthcheck timeout: {}s", value);
+        logger.debug("Resolved Copilot SDK status timeout: {}s", value);
         return value;
     }
 
-    public long resolveCliAuthcheckSeconds() {
+    /// Timeout for {@link com.github.copilot.sdk.CopilotClient#getAuthStatus()} requests.
+    /// Bound to the legacy `cli-authcheck-seconds` configuration key.
+    public long resolveSdkAuthStatusTimeoutSeconds() {
         long value = copilotConfig.cliAuthcheckSeconds();
-        logger.debug("Resolved Copilot CLI authcheck timeout: {}s", value);
+        logger.debug("Resolved Copilot SDK auth-status timeout: {}s", value);
         return value;
     }
 }

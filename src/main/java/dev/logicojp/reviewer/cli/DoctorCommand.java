@@ -1,8 +1,13 @@
 package dev.logicojp.reviewer.cli;
 
+import com.github.copilot.sdk.ConnectionState;
+import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.sdk.json.GetAuthStatusResponse;
+import com.github.copilot.sdk.json.GetStatusResponse;
 import dev.logicojp.reviewer.service.CopilotCliException;
-import dev.logicojp.reviewer.service.CopilotCliHealthChecker;
 import dev.logicojp.reviewer.service.CopilotCliPathResolver;
+import dev.logicojp.reviewer.service.CopilotHealthProbe;
+import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.CopilotTimeoutResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -14,26 +19,30 @@ import java.util.List;
 
 /// Self-service runtime diagnostics command.
 ///
-/// Verifies that all external dependencies (Copilot CLI, authentication)
-/// and configuration are healthy, reporting granular pass/fail status
-/// for each check. Use this to diagnose startup or authentication failures.
+/// Verifies that all external dependencies (Copilot CLI binary on disk, SDK
+/// connectivity, authentication) and configuration are healthy by exercising
+/// the Copilot SDK directly rather than spawning CLI subprocesses. Reports
+/// granular pass/fail status for each check.
 @Singleton
 public class DoctorCommand implements CliCommand {
 
     private static final Logger logger = LoggerFactory.getLogger(DoctorCommand.class);
 
     private final CopilotCliPathResolver cliPathResolver;
-    private final CopilotCliHealthChecker cliHealthChecker;
+    private final CopilotService copilotService;
+    private final CopilotHealthProbe healthProbe;
     private final CopilotTimeoutResolver timeoutResolver;
     private final CliOutput output;
 
     @Inject
     public DoctorCommand(CopilotCliPathResolver cliPathResolver,
-                         CopilotCliHealthChecker cliHealthChecker,
+                         CopilotService copilotService,
+                         CopilotHealthProbe healthProbe,
                          CopilotTimeoutResolver timeoutResolver,
                          CliOutput output) {
         this.cliPathResolver = cliPathResolver;
-        this.cliHealthChecker = cliHealthChecker;
+        this.copilotService = copilotService;
+        this.healthProbe = healthProbe;
         this.timeoutResolver = timeoutResolver;
         this.output = output;
     }
@@ -78,9 +87,11 @@ public class DoctorCommand implements CliCommand {
         printSeparator();
 
         String cliPath = checkCliPath(results);
-        if (cliPath != null) {
-            checkCliVersion(cliPath, results);
-            checkCliAuth(cliPath, results);
+        if (cliPath != null && checkClientInitialization(results)) {
+            CopilotClient client = copilotService.getClient();
+            checkConnectionState(client, results);
+            checkSdkStatus(client, results);
+            checkSdkAuthStatus(client, results);
         }
         printSeparator();
 
@@ -119,49 +130,108 @@ public class DoctorCommand implements CliCommand {
         }
     }
 
-    private void checkCliVersion(String cliPath, List<CheckResult> results) {
+    private boolean checkClientInitialization(List<CheckResult> results) {
         try {
-            cliHealthChecker.checkCliVersion(cliPath);
-            output.println("  Health:  OK  \u2713");
-            results.add(CheckResult.pass("CLI version/health"));
+            copilotService.initializeOrThrow();
+            output.println("  Init:    OK  \u2713");
+            results.add(CheckResult.pass("Copilot client initialization"));
+            return true;
         } catch (CopilotCliException e) {
-            output.println("  Health:  FAILED  \u2717");
+            output.println("  Init:    FAILED  \u2717");
             output.println("  \u26a0 " + e.getMessage());
-            results.add(CheckResult.fail("CLI version/health", e.getMessage()));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            output.println("  Health:  INTERRUPTED  \u2717");
-            results.add(CheckResult.fail("CLI version/health", "Interrupted"));
+            results.add(CheckResult.fail("Copilot client initialization", e.getMessage()));
+            return false;
+        } catch (RuntimeException e) {
+            output.println("  Init:    FAILED  \u2717");
+            output.println("  \u26a0 " + e.getMessage());
+            results.add(CheckResult.fail("Copilot client initialization", e.getMessage()));
+            return false;
         }
     }
 
-    private void checkCliAuth(String cliPath, List<CheckResult> results) {
+    private void checkConnectionState(CopilotClient client, List<CheckResult> results) {
+        ConnectionState state = healthProbe.getConnectionState(client);
+        if (state == ConnectionState.CONNECTED) {
+            output.println("  State:   CONNECTED  \u2713");
+            results.add(CheckResult.pass("Copilot connection state"));
+        } else {
+            String label = state == null ? "UNKNOWN" : state.name();
+            output.println("  State:   " + label + "  \u2717");
+            results.add(CheckResult.fail("Copilot connection state", label));
+        }
+    }
+
+    private void checkSdkStatus(CopilotClient client, List<CheckResult> results) {
         try {
-            boolean supported = cliHealthChecker.checkCliAuth(cliPath);
-            if (supported) {
-                output.println("  Auth:    OK  \u2713");
-                results.add(CheckResult.pass("CLI authentication"));
+            GetStatusResponse status = healthProbe.fetchStatus(client);
+            output.println("  Status:  v" + nullableString(status.getVersion())
+                + " (protocol " + status.getProtocolVersion() + ")  \u2713");
+            results.add(CheckResult.pass("SDK status"));
+        } catch (CopilotCliException e) {
+            output.println("  Status:  FAILED  \u2717");
+            output.println("  \u26a0 " + e.getMessage());
+            results.add(CheckResult.fail("SDK status", e.getMessage()));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            output.println("  Status:  INTERRUPTED  \u2717");
+            results.add(CheckResult.fail("SDK status", "Interrupted"));
+        }
+    }
+
+    private void checkSdkAuthStatus(CopilotClient client, List<CheckResult> results) {
+        try {
+            GetAuthStatusResponse auth = healthProbe.fetchAuthStatus(client);
+            if (auth.isAuthenticated()) {
+                String detail = describeAuthenticated(auth);
+                output.println("  Auth:    " + detail + "  \u2713");
+                results.add(CheckResult.pass("SDK authentication"));
             } else {
-                output.println("  Auth:    SKIPPED (auth status not supported by this CLI version)");
-                results.add(CheckResult.pass("CLI authentication (skipped)"));
+                String detail = describeUnauthenticated(auth);
+                output.println("  Auth:    NOT AUTHENTICATED  \u2717");
+                output.println("  \u26a0 " + detail);
+                output.println("  \u26a0 Run `github-copilot auth login` or `gh auth login` to authenticate.");
+                results.add(CheckResult.fail("SDK authentication", detail));
             }
         } catch (CopilotCliException e) {
             output.println("  Auth:    FAILED  \u2717");
             output.println("  \u26a0 " + e.getMessage());
             output.println("  \u26a0 Run `github-copilot auth login` or `gh auth login` to authenticate.");
-            results.add(CheckResult.fail("CLI authentication", e.getMessage()));
+            results.add(CheckResult.fail("SDK authentication", e.getMessage()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             output.println("  Auth:    INTERRUPTED  \u2717");
-            results.add(CheckResult.fail("CLI authentication", "Interrupted"));
+            results.add(CheckResult.fail("SDK authentication", "Interrupted"));
         }
+    }
+
+    private String describeAuthenticated(GetAuthStatusResponse auth) {
+        StringBuilder sb = new StringBuilder("OK");
+        if (auth.getLogin() != null && !auth.getLogin().isBlank()) {
+            sb.append(" (").append(auth.getLogin());
+            if (auth.getHost() != null && !auth.getHost().isBlank()) {
+                sb.append("@").append(auth.getHost());
+            }
+            sb.append(")");
+        }
+        return sb.toString();
+    }
+
+    private String describeUnauthenticated(GetAuthStatusResponse auth) {
+        if (auth.getStatusMessage() != null && !auth.getStatusMessage().isBlank()) {
+            return auth.getStatusMessage();
+        }
+        return "Authentication required.";
+    }
+
+    private static String nullableString(String value) {
+        return value == null ? "unknown" : value;
     }
 
     private void printConfiguration() {
         output.println("Configuration");
-        output.println("  Start timeout:       " + timeoutResolver.resolveStartTimeoutSeconds() + "s");
-        output.println("  Healthcheck timeout: " + timeoutResolver.resolveCliHealthcheckSeconds() + "s");
-        output.println("  Auth check timeout:  " + timeoutResolver.resolveCliAuthcheckSeconds() + "s");
+        output.println("  Start timeout:           " + timeoutResolver.resolveStartTimeoutSeconds() + "s");
+        output.println("  SDK status timeout:      " + timeoutResolver.resolveSdkStatusTimeoutSeconds() + "s");
+        output.println("  SDK auth-status timeout: " + timeoutResolver.resolveSdkAuthStatusTimeoutSeconds() + "s");
     }
 
     private void printSeparator() {
