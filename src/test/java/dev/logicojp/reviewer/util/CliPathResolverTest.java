@@ -49,13 +49,16 @@ class CliPathResolverTest {
 
     @Test
     @DisplayName("実行直前の再検証で実パス不一致はemptyを返す")
-    void revalidateExecutionPathRejectsRealPathMismatch() throws IOException {
-        String symlinkPath = "/bin/true";
-        Path realPath = Path.of(symlinkPath).toRealPath();
-        if (!realPath.toString().equals(Path.of(symlinkPath).toAbsolutePath().normalize().toString())) {
-            Optional<Path> resolved = CliPathResolver.revalidateExecutionPath(symlinkPath, "true");
-            assertThat(resolved).isEmpty();
-        }
+    void revalidateExecutionPathRejectsRealPathMismatch(@TempDir Path tempDir) throws IOException {
+        Path realExecutable = tempDir.resolve("true");
+        Files.writeString(realExecutable, "#!/bin/sh\nexit 0\n", StandardCharsets.UTF_8);
+        realExecutable.toFile().setExecutable(true);
+
+        Path symlink = tempDir.resolve("true-link");
+        Files.createSymbolicLink(symlink, realExecutable);
+
+        Optional<Path> resolved = CliPathResolver.revalidateExecutionPath(symlink.toString(), "true");
+        assertThat(resolved).isEmpty();
     }
 
     @Test
@@ -63,6 +66,10 @@ class CliPathResolverTest {
     void trustedDirectoryReturnsTrue() {
         assertThat(CliPathResolver.isInTrustedDirectory(Path.of("/usr/bin/gh"))).isTrue();
         assertThat(CliPathResolver.isInTrustedDirectory(Path.of("/usr/local/bin/gh"))).isTrue();
+        assertThat(CliPathResolver.isInTrustedDirectory(Path.of("/usr/local/Cellar/gh/2.0.0/bin/gh"))).isTrue();
+        assertThat(CliPathResolver.isInTrustedDirectory(Path.of("/usr/local/Caskroom/copilot-cli/1.0.0/copilot"))).isTrue();
+        assertThat(CliPathResolver.isInTrustedDirectory(Path.of("/opt/homebrew/Cellar/gh/2.0.0/bin/gh"))).isTrue();
+        assertThat(CliPathResolver.isInTrustedDirectory(Path.of("/opt/homebrew/Caskroom/copilot-cli/1.0.0/copilot"))).isTrue();
     }
 
     @Test

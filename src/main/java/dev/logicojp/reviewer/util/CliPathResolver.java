@@ -15,8 +15,12 @@ public final class CliPathResolver {
     private static final List<Path> TRUSTED_DIRECTORIES = List.of(
         Path.of("/usr/bin"),
         Path.of("/usr/local/bin"),
+        Path.of("/usr/local/Cellar"),
+        Path.of("/usr/local/Caskroom"),
         Path.of("/bin"),
-        Path.of("/opt/homebrew/bin")
+        Path.of("/opt/homebrew/bin"),
+        Path.of("/opt/homebrew/Cellar"),
+        Path.of("/opt/homebrew/Caskroom")
     );
 
     private CliPathResolver() {

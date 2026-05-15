@@ -79,13 +79,13 @@ reviewer:
   rubber-duck:
     enabled: true
     dialogue-rounds: 3
-    peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.4}
+    peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.5}
     synthesis-strategy: last-responder
   models:
-    default-model: claude-sonnet-4.5
-    review-model: claude-opus-4.6-1m
-    report-model: gpt-5.4
-    summary-model: claude-sonnet-4.5
+    default-model: claude-sonnet-4.6
+    review-model: gpt-5.3-codex
+    report-model: claude-opus-4.7-xhigh
+    summary-model: claude-sonnet-4.6
     reasoning-effort: high
   summary:
     max-content-per-agent: 50000

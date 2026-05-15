@@ -102,7 +102,7 @@ final class ReviewExecutionModeRunner {
         ExecutionParams params = executionParams(agents.size(), reviewPasses, orchestratorTimeoutMinutes);
         List<SubtaskWithConfig> tasks = new ArrayList<>(params.agentCount());
         var parentMdcContext = ExecutionCorrelation.captureMdcContext();
-        try (var scope = StructuredTaskScope.<List<ReviewResult>>open()) {
+        try (var scope = StructuredConcurrencyUtils.<List<ReviewResult>>openAwaitAllScope()) {
             for (var config : agents.values()) {
                 tasks.add(new SubtaskWithConfig(scope.fork(() -> executeAgentPasses(
                     config,
@@ -175,7 +175,7 @@ final class ReviewExecutionModeRunner {
         return reviewResultPipeline.finalizeResults(results, reviewPasses);
     }
 
-    private void joinStructuredWithTimeout(StructuredTaskScope<List<ReviewResult>, Void> scope,
+    private void joinStructuredWithTimeout(StructuredTaskScope<List<ReviewResult>, ?, RuntimeException> scope,
                                            List<SubtaskWithConfig> tasks,
                                            long timeoutMinutes) {
         try {

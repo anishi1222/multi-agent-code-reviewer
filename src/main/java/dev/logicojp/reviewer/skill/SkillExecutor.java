@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -157,7 +156,7 @@ public class SkillExecutor implements AutoCloseable {
     private SkillResult executeWithStructuredConcurrency(SkillDefinition skill,
                                                          Map<String, String> parameters,
                                                          String systemPrompt) throws Exception {
-        try (var scope = StructuredTaskScope.<SkillResult>open()) {
+        try (var scope = StructuredConcurrencyUtils.<SkillResult>openAwaitAllScope()) {
             var task = scope.fork(() -> executeSync(skill, parameters, systemPrompt));
             try {
                 StructuredConcurrencyUtils.joinWithTimeout(scope, timeoutMinutes, TimeUnit.MINUTES);

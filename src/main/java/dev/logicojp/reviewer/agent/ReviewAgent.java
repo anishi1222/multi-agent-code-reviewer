@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.agent;
 import dev.logicojp.reviewer.report.sanitize.ContentSanitizer;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
+import dev.logicojp.reviewer.util.StructuredConcurrencyUtils;
 import com.github.copilot.sdk.CopilotSession;
 import com.github.copilot.sdk.json.McpServerConfig;
 import com.github.copilot.sdk.json.SessionConfig;
@@ -202,7 +203,7 @@ public class ReviewAgent {
     }
 
     private List<ReviewResult> executeReviewPassesFallback(ReviewTarget target, int reviewPasses) {
-        try (var scope = StructuredTaskScope.<ReviewResult>open()) {
+        try (var scope = StructuredConcurrencyUtils.<ReviewResult>openAwaitAllScope()) {
             List<StructuredTaskScope.Subtask<ReviewResult>> tasks = new ArrayList<>(reviewPasses);
             for (int pass = 1; pass <= reviewPasses; pass++) {
                 int passNumber = pass;
@@ -346,7 +347,7 @@ public class ReviewAgent {
     private List<ReviewResult> submitAndCollectParallelPasses(
             ReviewTarget target, ResolvedReviewParams params, int reviewPasses)
             throws InterruptedException {
-        try (var scope = StructuredTaskScope.<PassResult>open()) {
+        try (var scope = StructuredConcurrencyUtils.<PassResult>openAwaitAllScope()) {
             List<StructuredTaskScope.Subtask<PassResult>> tasks = new ArrayList<>(reviewPasses - 1);
             for (int pass = 2; pass <= reviewPasses; pass++) {
                 int passNumber = pass;

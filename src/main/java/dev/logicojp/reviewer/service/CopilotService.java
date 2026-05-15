@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -25,9 +26,9 @@ public class CopilotService {
 
     private static final Logger logger = LoggerFactory.getLogger(CopilotService.class);
     private static final long DEFAULT_START_TIMEOUT_SECONDS = 60;
-    private static final String DEFAULT_SDK_LOG_LEVEL = "warn";
+    private static final String DEFAULT_SDK_LOG_LEVEL = "warning";
     private static final Set<String> SUPPORTED_SDK_LOG_LEVELS =
-        Set.of("trace", "debug", "info", "warn", "error", "off");
+        Set.of("none", "error", "warning", "info", "debug", "all", "default");
     private static final String SDK_LOG_LEVEL_ENV = "COPILOT_SDK_LOG_LEVEL";
 
     private final CopilotCliPathResolver cliPathResolver;
@@ -191,13 +192,27 @@ public class CopilotService {
         if (configured == null || configured.isBlank()) {
             return DEFAULT_SDK_LOG_LEVEL;
         }
-        String normalized = configured.trim().toLowerCase(Locale.ROOT);
-        if (!SUPPORTED_SDK_LOG_LEVELS.contains(normalized)) {
+        Optional<String> normalized = normalizeSdkLogLevel(configured);
+        if (normalized.isEmpty()) {
             logger.warn("Unsupported {} value '{}', falling back to '{}'. Supported: {}",
                 SDK_LOG_LEVEL_ENV, configured, DEFAULT_SDK_LOG_LEVEL, SUPPORTED_SDK_LOG_LEVELS);
             return DEFAULT_SDK_LOG_LEVEL;
         }
-        return normalized;
+        return normalized.get();
+    }
+
+    static Optional<String> normalizeSdkLogLevel(String configured) {
+        String normalized = configured.trim().toLowerCase(Locale.ROOT);
+        String canonical = switch (normalized) {
+            case "warn" -> "warning";
+            case "off" -> "none";
+            case "trace" -> "debug";
+            default -> normalized;
+        };
+        if (!SUPPORTED_SDK_LOG_LEVELS.contains(canonical)) {
+            return Optional.empty();
+        }
+        return Optional.of(canonical);
     }
 
     /// Gets the Copilot client. Must call initialize() first.
