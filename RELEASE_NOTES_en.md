@@ -28,6 +28,37 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-05-15 (v2026.05.15-runtime-compat)
+
+### Summary
+- Addressed runtime compatibility issues reported after the SDK refactor, especially on macOS/Homebrew environments.
+- Fixed report parsing behavior that incorrectly counted "no findings" placeholder blocks as uncategorized findings.
+- Synchronized README (root/EN/JA), ADR index notes, and release references for this tag.
+
+### Highlights
+
+#### Changed
+- Structured concurrency utilities were aligned with JDK 27 `StructuredTaskScope<T, R, R_X>` generics while preserving await-all task collection.
+- `CliPathResolver` trusted real-path allowlist now includes Homebrew `Cellar` and `Caskroom` directories to support symlinked `gh`/`copilot` binaries.
+- `CopilotService` now normalizes CLI log-level values (`warn` -> `warning`; `off` -> `none`; `trace` -> `debug`) before passing them to the Copilot SDK.
+- Documentation refreshed:
+  - `README.md`
+  - `README_en.md`
+  - `README_ja.md`
+  - `docs/adr/README.md`
+
+#### Fixed
+- `CliPathResolverTest` no longer depends on `/bin/true`, removing macOS-specific path variance failures.
+- `CopilotPermissionHandlers.DENY_ALL` now returns typed `PermissionRequestResultKind.REJECTED`, preventing `Unknown PermissionCompletedKind value: user-denied`.
+- Findings parsers now exclude "no findings" placeholder blocks, preventing false uncategorized counts in overall summary aggregation.
+- `gh auth token` fallback and `copilot` CLI discovery now work when binaries resolve via Homebrew symlink chains.
+
+### Validation
+- `mvn clean package` — BUILD SUCCESS
+- Test suite — 830 tests passed (0 failures, 0 errors)
+- Git tag pushed: `v2026.05.15-runtime-compat`
+- GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.15-runtime-compat
+
 ## 2026-04-30 (v2026.04.30-copilot-sdk-stable)
 
 ### Summary

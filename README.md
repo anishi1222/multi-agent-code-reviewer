@@ -4,7 +4,7 @@ AI-powered parallel code review tool that orchestrates multiple specialized agen
 
 ## Prerequisites
 
-- Java: GraalVM 26 EA (Java 26, preview features enabled)
+- Java: SDKMAN-managed JDK from `.sdkmanrc` (compile target release 27, preview features enabled)
 - Build: Maven Wrapper (`./mvnw`, pinned to Maven 3.9.14)
 - Auth: GitHub CLI (`gh`) and GitHub Copilot CLI (`github-copilot` or `copilot`)
 
@@ -24,12 +24,13 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Latest Remediation
 
+- 2026-05-15 (`v2026.05.15-runtime-compat`): Runtime compatibility and report-accuracy fixes — aligned structured concurrency helpers with JDK 27 `StructuredTaskScope` generics, removed macOS `/bin/true` test-path dependency, expanded trusted CLI real-path directories for Homebrew `Cellar`/`Caskroom` (fixing `gh auth token` fallback and `copilot` discovery), normalized Copilot SDK log-level mapping (`warn` → `warning`), fixed permission deny result kind serialization (`REJECTED`), and excluded "no findings" placeholder blocks from overall finding counts. Verified by `mvn clean package` (830 tests passed).
 - 2026-04-30 (`v2026.04.30-copilot-sdk-stable`): Upgraded GitHub Copilot SDK for Java from preview `0.3.0-java-preview.1` to stable `0.3.0-java.2`, normalized GitHub Actions `JDK_VERSION` from `26.0.1` to `26` across `ci.yml`/`codeql.yml`/`dependency-audit.yml`/`release.yml`, pinned the CycloneDX Maven plugin to `2.9.1` in the release workflow, and granted `contents: write` to the `publish-release` job so `gh release create` succeeds under the workflow-level least-privilege default (`contents: read`).
 - 2026-04-30 (`v2026.04.30-micronaut5-snapshot`): Tracked Micronaut 5 by upgrading the parent BOM and platform version to `5.0.0-SNAPSHOT`, registered the Sonatype Central Snapshots repository, relaxed the SNAPSHOT enforcer rule (annotated TODO), and disabled `failOnNotPresent` in the new Micronaut 5 configuration validator to ignore the annotation processor `micronaut.processing.*` argument. Verified `mvn clean package` and 829 tests on Java 26 (Oracle 26.0.1).
 - 2026-04-23 (`v2026.04.23-copilot-sdk-compat`): Upgraded GitHub Copilot SDK for Java to `0.3.0-java-preview.1` and aligned the codebase with SDK API changes.
 - Compatibility fixes: switched event imports to `com.github.copilot.sdk.generated.*` and adjusted MCP server handoff for the new `setMcpServers(Map<String, McpServerConfig>)` signature.
 - Release Notes: [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md), [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md)
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.30-copilot-sdk-stable
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.15-runtime-compat
 
 ## Architecture
 
@@ -63,6 +64,11 @@ Useful runtime environment variables:
 
 - `COPILOT_CLI_PATH`: explicit path to Copilot CLI executable
 - `GH_CLI_PATH`: explicit path to GitHub CLI executable
+- `GH_AUTH_FALLBACK_ENABLED`: enable fallback from stdin token to `gh auth token` (`false` by default)
+- `COPILOT_SDK_LOG_LEVEL`: Copilot CLI/SDK log level (`warning` by default; `warn` alias supported)
+
+Auto-detected CLI paths are revalidated against trusted real-path directories:
+`/usr/bin`, `/usr/local/bin`, `/bin`, `/opt/homebrew/bin`, `/usr/local/Cellar`, `/opt/homebrew/Cellar`, `/usr/local/Caskroom`, `/opt/homebrew/Caskroom`.
 
 ### Authentication (OAuth Device Flow)
 

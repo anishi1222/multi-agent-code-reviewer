@@ -8,6 +8,11 @@
 - 新規メンバーのオンボーディングを短縮する
 - 変更時に「なぜそうなっているか」を追跡可能にする
 
+## ドキュメント同期
+
+- 最終同期タグ: `v2026.05.15-runtime-compat`
+- 関連更新: `README.md`, `README_en.md`, `README_ja.md`, `RELEASE_NOTES_en.md`, `RELEASE_NOTES_ja.md`
+
 ## 命名規則
 
 - `NNNN-short-title.md`（例: `0001-custom-cli-parser.md`）

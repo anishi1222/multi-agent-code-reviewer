@@ -28,6 +28,37 @@
 ### 検証
 - Pending
 
+## 2026-05-15 (v2026.05.15-runtime-compat)
+
+### 概要
+- SDK リファクタ後に報告された実行時互換性の問題（特に macOS/Homebrew 環境）を修正しました。
+- 「指摘事項なし」プレースホルダが未分類の指摘として誤集計される問題を修正しました。
+- このタグに合わせて README（ルート/EN/JA）と ADR index の記載、リリース参照を同期しました。
+
+### 主な変更
+
+#### 変更
+- Structured concurrency ユーティリティを JDK 27 の `StructuredTaskScope<T, R, R_X>` ジェネリクスに整合させ、全タスク待機の既存挙動を維持。
+- `CliPathResolver` の trusted 実体パス許可リストに Homebrew の `Cellar` / `Caskroom` を追加し、`gh`/`copilot` のシンボリックリンク解決に対応。
+- `CopilotService` で Copilot SDK へ渡す log-level 値を CLI 互換へ正規化（`warn` -> `warning`、`off` -> `none`、`trace` -> `debug`）。
+- ドキュメント更新:
+  - `README.md`
+  - `README_en.md`
+  - `README_ja.md`
+  - `docs/adr/README.md`
+
+#### 修正
+- `CliPathResolverTest` の `/bin/true` 依存を除去し、macOS のパス差異による失敗を解消。
+- `CopilotPermissionHandlers.DENY_ALL` が型付き `PermissionRequestResultKind.REJECTED` を返すようにし、`Unknown PermissionCompletedKind value: user-denied` を防止。
+- findings パーサーが「指摘事項なし」プレースホルダを集計対象から除外するようになり、総評での未分類誤計上を解消。
+- Homebrew のシンボリックリンク経由でも `gh auth token` フォールバックと `copilot` CLI 自動検出が機能するように修正。
+
+### 検証
+- `mvn clean package` — BUILD SUCCESS
+- テストスイート — 830 件合格（失敗 0 / エラー 0）
+- Git タグ push: `v2026.05.15-runtime-compat`
+- GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.15-runtime-compat
+
 ## 2026-04-30 (v2026.04.30-copilot-sdk-stable)
 
 ### 概要

@@ -25,8 +25,9 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 ## Latest Remediation Status
 
-All review findings from 2026-02-16 through 2026-04-30 review cycles have been fully addressed.
+All review findings from 2026-02-16 through 2026-05-15 review cycles have been fully addressed.
 
+- 2026-05-15 (v2026.05.15-runtime-compat): Runtime compatibility and report-accuracy fixes — aligned structured concurrency utilities with the JDK 27 `StructuredTaskScope<T, R, R_X>` signature while preserving await-all behavior, removed macOS-specific `/bin/true` test dependency, expanded trusted CLI real-path allowlist for Homebrew `Cellar`/`Caskroom` (fixing both `gh auth token` fallback and `copilot` discovery), normalized Copilot SDK log-level mapping (`warn` -> `warning`), fixed deny-all permission serialization by returning typed `REJECTED`, and excluded "no findings" placeholder blocks from findings aggregation. Verified with `mvn clean package` (830 tests passing).
 - 2026-05-15 (v2026.05.15-sdk-refactor): Copilot SDK for Java native-feature alignment refactor (Phases 1–3) — typed MCP server handoff with `McpHttpServerConfig` instead of `Map<String, Object>` casts (Phase 1, commit `96df653`); replaced subprocess-based `CopilotCliHealthChecker` with SDK `client.getStatus()` / `getAuthStatus()` based `CopilotHealthProbe`, set `setAutoRestart(true)` and env-driven `setLogLevel(...)`, rewrote `DoctorCommand` on top of the SDK probe (Phase 2, commit `b657c64` + corrections in `a9310fc`); migrated `ReviewSessionMessageSender`, `ReviewAgent`, and `RubberDuckDialogueExecutor` from custom event subscription + idle-timeout watchdog to SDK `session.sendAndWait(MessageOptions, timeoutMs)` with a defensive `AssistantMessageEvent` accumulator for the empty-final-response edge case (Phase 3b, commit `868aafe`); deleted `IdleTimeoutScheduler`, `EventSubscriptions`, `ReviewSessionEvents`, `ContentCollector`, `SessionEventException` and pruned `sharedScheduler` plumbing from orchestrator/context, reducing `AgentTuningConfig` and `BufferSettings` to a single field (Phase 3c, commit `293f2e5`). Net change across phases: ~ -1,100 production LoC. Verified with `mvn test` (820 passing; one pre-existing `/bin/true` env-dependent error in `CliPathResolverTest`).
 - 2026-04-30 (v2026.04.30-copilot-sdk-stable): Copilot SDK stable migration and CI alignment — upgraded `copilot.sdk.version` from preview `0.3.0-java-preview.1` to stable `0.3.0-java.2`, normalized GitHub Actions `JDK_VERSION` from `26.0.1` to `26` across `ci.yml`/`codeql.yml`/`dependency-audit.yml`/`release.yml`, pinned the CycloneDX Maven plugin to `2.9.1` in the release workflow with the SBOM step refactored for readability, and granted job-level `permissions: contents: write` to the `publish-release` job so `gh release create` succeeds under the workflow-level least-privilege default (`contents: read`). Verified with `mvn clean package` on Java 26
 - 2026-04-30 (v2026.04.30-micronaut5-snapshot): Micronaut 5 SNAPSHOT tracking — upgraded `io.micronaut.platform:micronaut-parent` and `micronaut.version` to `5.0.0-SNAPSHOT`, added Sonatype Central Snapshots repository for both dependencies and plugins, temporarily disabled the SNAPSHOT-blocking enforcer rule with an annotated TODO, and configured `micronaut-maven-plugin` with `<configurationValidation><failOnNotPresent>false</failOnNotPresent></configurationValidation>` so the new Micronaut 5 strict validator does not misclassify `-Amicronaut.processing.*` annotation processor arguments as unknown configuration properties. Verified with `mvn clean package` (BUILD SUCCESS) and 829 passing tests on Java 26 (Oracle 26.0.1)
@@ -56,7 +57,7 @@ All review findings from 2026-02-16 through 2026-04-30 review cycles have been f
 - 2026-02-17 (v1): PRs #22–#27 — Final remediation (PR-1 to PR-5)
 - Operations summary (2026-02-19 v2-v4): Java 25 CI alignment (PR #74) → idle-timeout scheduler resilience fix (PR #76) → operational completion checklist sync (PR #78)
 - Release details: `RELEASE_NOTES_en.md`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.04.30-copilot-sdk-stable
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.15-runtime-compat
 
 ## Operational Completion Check (2026-02-19)
 
@@ -118,7 +119,8 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 
 ## Requirements
 
-- **GraalVM 26 EA** (Java 26)
+- **JDK 27** (preview features enabled for runtime commands)
+- **GraalVM** (optional, only required for `-Pnative` native-image builds)
 - GitHub Copilot CLI 0.0.407 or later
 - GitHub CLI login (`gh auth login`) for repository access
 - GitHub Copilot CLI login (`gh copilot -- login` or `copilot login`) for Copilot SDK access
@@ -140,16 +142,16 @@ Recommended branch protection required checks:
 - `Build and Test`
 - `Dependency Review`
 
-### Installing GraalVM
+### Installing the SDKMAN-managed JDK
 
 Using SDKMAN:
 
 ```bash
-sdk install java 26.ea.13-graal
-sdk use java 26.ea.13-graal
+sdk env install
+sdk env
 
-# Auto-switch in project directory
-cd multi-agent-reviewer  # GraalVM is automatically selected via .sdkmanrc
+# Confirm active Java version
+java -version
 ```
 
 ## Installation
@@ -269,10 +271,15 @@ Displays a list of available agents. Additional directories can be specified wit
 |----------|-------------|--------|
 | `COPILOT_CLI_PATH` | Path to the Copilot CLI binary | Auto-detected from PATH |
 | `GH_CLI_PATH` | Path to the GitHub CLI binary | Auto-detected from PATH |
+| `GH_AUTH_FALLBACK_ENABLED` | Enable fallback from stdin token to `gh auth token` | false |
+| `COPILOT_SDK_LOG_LEVEL` | Copilot SDK/CLI log level (`none,error,warning,info,debug,all,default`; `warn/off/trace` aliases supported) | warning |
 | `COPILOT_START_TIMEOUT_SECONDS` | Copilot client start timeout (seconds) | 60 |
 | `COPILOT_CLI_HEALTHCHECK_SECONDS` | CLI health check timeout (seconds) | 10 |
 | `COPILOT_CLI_AUTHCHECK_SECONDS` | CLI auth check timeout (seconds) | 15 |
 | `RUBBER_DUCK_PEER_MODEL` | Default peer model for rubber-duck mode | *(none)* |
+
+Auto-detected CLI paths are revalidated against trusted real-path directories:
+`/usr/bin`, `/usr/local/bin`, `/bin`, `/opt/homebrew/bin`, `/usr/local/Cellar`, `/opt/homebrew/Cellar`, `/usr/local/Caskroom`, `/opt/homebrew/Caskroom`.
 
 ```bash
 gh auth login
