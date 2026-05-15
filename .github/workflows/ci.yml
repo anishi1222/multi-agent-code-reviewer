@@ -180,4 +180,6 @@ jobs:
           release: ${{ env.JDK_VERSION }}
 
       - name: Run OWASP dependency check
-        run: ./mvnw -B -ntp -Psecurity-audit verify -DskipTests
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./mvnw -B -ntp -Psecurity-audit verify -DskipTests -Dnvd_api_key=${NVD_API_KEY}

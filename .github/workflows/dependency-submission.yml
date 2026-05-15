@@ -1,0 +1,47 @@
+name: Dependency Submission
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with pom.xml <jdk.version>
+  JDK_VERSION: '26'
+
+jobs:
+  maven-dependency-submission:
+    name: Submit Maven Dependency Graph
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK ${{ env.JDK_VERSION }}
+        uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
+        with:
+          website: jdk.java.net
+          release: ${{ env.JDK_VERSION }}
+
+      # Replaces GitHub's repo-managed "Automatic dependency submission" dynamic
+      # workflow, which fails on this project because it cannot be configured to
+      # use JDK 26 — the Micronaut Maven plugin (compiled to class file 69.0)
+      # raises UnsupportedClassVersionError under the dynamic workflow's default
+      # JDK. After this workflow is in place, disable the repository setting
+      # Settings -> Code security -> "Automatic dependency submission" to avoid
+      # double-submission and the recurring failed check on PRs.
+      - name: Submit Maven dependency graph
+        uses: advanced-security/maven-dependency-submission-action@b275d12641ac2d2108b2cbb7598b154ad2f2cee8 # v5.0.0
