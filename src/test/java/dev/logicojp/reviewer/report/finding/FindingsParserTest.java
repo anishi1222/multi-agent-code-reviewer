@@ -62,6 +62,20 @@ class FindingsParserTest {
     }
 
     @Test
+    @DisplayName("見出し付きでも指摘事項なしのみの場合は空を返す")
+    void returnsEmptyWhenHeadingContainsOnlyNoFindings() {
+        String content = """
+            ### 1. レビュー結果
+
+            指摘事項なし
+            """;
+
+        List<FindingsExtractor.Finding> findings = FindingsParser.extractFindings(content, "agent", "category");
+
+        assertThat(findings).isEmpty();
+    }
+
+    @Test
     @DisplayName("総評見出しは指摘見出しとして抽出されない")
     void doesNotTreatOverallHeadingAsFinding() {
         String content = """

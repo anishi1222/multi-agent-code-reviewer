@@ -14,7 +14,7 @@ concurrency:
 
 env:
   # Keep in sync with pom.xml <jdk.version>
-  JDK_VERSION: '26'
+  JDK_VERSION: '27'
 
 jobs:
   owasp-check:

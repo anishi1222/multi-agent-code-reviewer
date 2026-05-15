@@ -75,4 +75,26 @@ class ReviewOverallSummaryAppenderTest {
         assertThat(result.content()).containsOnlyOnce("**総評**");
         assertThat(result.content()).doesNotContain("古い総評");
     }
+
+    @Test
+    @DisplayName("指摘事項なしブロックは件数に含めない")
+    void excludesNoFindingsPlaceholderFromSummaryCount() {
+        AgentConfig agent = new AgentConfig("best-practices", "Best Practices", "model", "sys", "inst", null, List.of(), List.of());
+        ReviewResult merged = ReviewResult.builder()
+            .agentConfig(agent)
+            .repository("owner/repo")
+            .content("""
+                ### 1. レビュー結果
+
+                指摘事項なし
+                """)
+            .success(true)
+            .timestamp(Instant.now())
+            .build();
+
+        ReviewResult result = ReviewOverallSummaryAppender.appendToMergedResults(List.of(merged)).getFirst();
+
+        assertThat(result.content()).contains("重大な指摘事項は確認されませんでした。");
+        assertThat(result.content()).doesNotContain("1件の指摘事項");
+    }
 }

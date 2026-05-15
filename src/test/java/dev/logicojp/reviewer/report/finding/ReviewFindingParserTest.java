@@ -135,6 +135,20 @@ class ReviewFindingParserTest {
     }
 
     @Test
+    @DisplayName("指摘事項なしのみの見出しブロックは抽出しない")
+    void skipsNoFindingsPlaceholderBlock() {
+        String content = """
+            ### 1. レビュー結果
+
+            指摘事項なし
+            """;
+
+        List<ReviewFindingParser.FindingBlock> blocks = ReviewFindingParser.extractFindingBlocks(content);
+
+        assertThat(blocks).isEmpty();
+    }
+
+    @Test
     @DisplayName("findingKeyFromNormalizedのrawフォールバックは固定長ハッシュキーを返す")
     void findingKeyFromNormalizedUsesCompactRawKey() {
         var normalized = new AggregatedFinding.NormalizedFinding(

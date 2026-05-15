@@ -15,6 +15,9 @@ public final class ReviewFindingParser {
     private static final Pattern TRAILING_GLOBAL_SECTION = Pattern.compile(
         "(?im)^##\\s+.+$|^###\\s*(?:総評|総合評価|総括|まとめ|overall\\s+assessment|overall\\s+summary|overall|summary)\\s*$|^\\*\\*(?:総評|総合評価|総括|まとめ|overall\\s+assessment|overall\\s+summary|overall|summary)\\*\\*\\s*$"
     );
+    private static final Pattern NO_FINDINGS_BODY = Pattern.compile(
+        "(?is)^\\s*(?:確認した範囲では\\s*)?指摘事項なし(?:。)?\\s*$"
+    );
     private static final Pattern SEPARATOR_LINE = Pattern.compile("^\\s*---\\s*$");
     private static final Pattern OVERALL_HEADER = Pattern.compile(
         "(?im)^(?:##+\\s*(?:総評|総合評価|総括|まとめ|overall\\s+assessment|overall\\s+summary|overall|summary)\\s*$|\\*\\*(?:総評|総合評価|総括|まとめ|overall\\s+assessment|overall\\s+summary|overall|summary)\\*\\*\\s*$)"
@@ -47,11 +50,15 @@ public final class ReviewFindingParser {
             HeaderMatch current = headers.get(i);
             int bodyEnd = i + 1 < headers.size() ? headers.get(i + 1).startIndex() : content.length();
             String body = normalizeFindingBody(content.substring(current.endIndex(), bodyEnd));
-            if (!body.isEmpty()) {
+            if (!body.isEmpty() && !isNoFindingsBody(body)) {
                 blocks.add(new FindingBlock(current.title(), body));
             }
         }
         return blocks;
+    }
+
+    private static boolean isNoFindingsBody(String body) {
+        return NO_FINDINGS_BODY.matcher(body).matches();
     }
 
     private static String normalizeFindingBody(String rawBody) {

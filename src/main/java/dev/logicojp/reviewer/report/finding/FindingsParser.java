@@ -16,6 +16,9 @@ final class FindingsParser {
         "^###\\s+\\[?\\d+\\]?\\.?\\s+(.+)$",
         Pattern.MULTILINE
     );
+    private static final Pattern NO_FINDINGS_MARKER_PATTERN = Pattern.compile(
+        "(?m)^\\s*(?:確認した範囲では\\s*)?指摘事項なし(?:。)?\\s*$"
+    );
 
     private FindingsParser() {
     }
@@ -28,7 +31,7 @@ final class FindingsParser {
 
         collectTitlesAndPriorities(content, titles, priorities);
 
-        if (titles.isEmpty() && content.contains("指摘事項なし")) {
+        if (priorities.isEmpty() && hasNoFindingsMarker(content)) {
             return List.of();
         }
 
@@ -88,5 +91,9 @@ final class FindingsParser {
             return s;
         }
         return Character.toUpperCase(s.charAt(0)) + s.substring(1).toLowerCase();
+    }
+
+    private static boolean hasNoFindingsMarker(String content) {
+        return NO_FINDINGS_MARKER_PATTERN.matcher(content).find();
     }
 }
