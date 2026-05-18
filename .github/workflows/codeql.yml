@@ -26,10 +26,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Keep in sync with pom.xml <jdk.version>
-  JDK_VERSION: '27'
-
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
@@ -55,7 +51,7 @@ jobs:
       matrix:
         include:
         - language: java-kotlin
-          build-mode: manual
+          build-mode: none
     steps:
     - name: Harden the runner (Audit all outbound calls)
       uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
@@ -64,12 +60,6 @@ jobs:
 
     - name: Checkout repository
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-    - name: Set up JDK ${{ env.JDK_VERSION }}
-      uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
-      with:
-        website: jdk.java.net
-        release: ${{ env.JDK_VERSION }}
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -83,17 +73,6 @@ jobs:
 
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         # queries: security-extended,security-and-quality
-
-    # If the analyze step fails for one of the languages you are analyzing with
-    # "We were unable to automatically build your code", modify the matrix above
-    # to set the build mode to "manual" for that language. Then modify this step
-    # to build your code.
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - name: Build project
-      if: matrix.build-mode == 'manual'
-      shell: bash
-      run: ./mvnw clean package -DskipTests -B
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
