@@ -2,7 +2,6 @@ package dev.logicojp.reviewer.service;
 
 import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.util.CliPathResolver;
-import io.micronaut.context.annotation.Value;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -18,13 +17,12 @@ public class CopilotCliPathResolver {
     private final String configuredPath;
 
     CopilotCliPathResolver() {
-        this((String) null, (String) null);
+        this(null, CliPathResolver.systemPathValue());
     }
 
     @Inject
-    public CopilotCliPathResolver(CopilotConfig copilotConfig,
-                                  @Value("${PATH:}") String configuredPath) {
-        this(copilotConfig.cliPath(), configuredPath);
+    public CopilotCliPathResolver(CopilotConfig copilotConfig) {
+        this(copilotConfig.cliPath(), CliPathResolver.systemPathValue());
     }
 
     CopilotCliPathResolver(String configuredCliPath, String configuredPath) {
