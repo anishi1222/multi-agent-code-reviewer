@@ -17,12 +17,12 @@ public class CopilotCliPathResolver {
     private final String configuredPath;
 
     CopilotCliPathResolver() {
-        this((String) null, System.getenv("PATH"));
+        this(null, systemPath());
     }
 
     @Inject
     public CopilotCliPathResolver(CopilotConfig copilotConfig) {
-        this(copilotConfig.cliPath(), System.getenv("PATH"));
+        this(copilotConfig.cliPath(), systemPath());
     }
 
     CopilotCliPathResolver(String configuredCliPath, String configuredPath) {
@@ -75,5 +75,9 @@ public class CopilotCliPathResolver {
         Path explicitPathValue = Path.of(explicit.trim()).toAbsolutePath().normalize();
         return new CopilotCliException("Copilot CLI not found at " + explicitPathValue
             + ". Verify " + CLI_PATH_ENV + " or install GitHub Copilot CLI.");
+    }
+
+    private static String systemPath() {
+        return System.getenv("PATH");
     }
 }
