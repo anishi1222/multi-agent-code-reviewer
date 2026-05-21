@@ -52,13 +52,15 @@ public final class CliPathResolver {
     }
 
     public static Optional<Path> findExecutableInPath(String... candidateNames) {
-        String pathEnv = System.getenv("PATH");
-        return findExecutableInPathValue(pathEnv, candidateNames);
+        return findExecutableInPathValue(systemPathValue(), candidateNames);
     }
 
     public static Optional<Path> findTrustedExecutableInPath(String... candidateNames) {
-        String pathEnv = System.getenv("PATH");
-        return findTrustedExecutableInPathValue(pathEnv, candidateNames);
+        return findTrustedExecutableInPathValue(systemPathValue(), candidateNames);
+    }
+
+    public static String systemPathValue() {
+        return System.getenv().getOrDefault("PATH", "");
     }
 
     public static Optional<Path> findExecutableInPathValue(String pathEnv, String... candidateNames) {

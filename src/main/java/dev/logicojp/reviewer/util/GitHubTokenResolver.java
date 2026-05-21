@@ -61,7 +61,7 @@ public final class GitHubTokenResolver {
         this(
             executionConfig.ghAuthTimeoutSeconds(),
             copilotConfig.ghCliPath(),
-            systemPath(),
+            CliPathResolver.systemPathValue(),
             executionConfig.isGhAuthFallbackEnabled()
         );
     }
@@ -70,7 +70,7 @@ public final class GitHubTokenResolver {
         this(
             executionConfig.ghAuthTimeoutSeconds(),
             null,
-            systemPath(),
+            CliPathResolver.systemPathValue(),
             executionConfig.isGhAuthFallbackEnabled()
         );
     }
@@ -225,9 +225,5 @@ public final class GitHubTokenResolver {
         for (String envVar : TOKEN_ENV_VARS) {
             builder.environment().remove(envVar);
         }
-    }
-
-    private static String systemPath() {
-        return System.getenv("PATH");
     }
 }
