@@ -44,6 +44,6 @@ class MicronautContextTest {
     @DisplayName("CLIコマンドBeanが登録される")
     void cliCommandsAreRegistered() {
         assertThat(commands).extracting(CliCommand::name)
-            .contains("run", "list", "doctor", "skill");
+            .containsExactlyInAnyOrder("run", "list", "doctor", "skill");
     }
 }
