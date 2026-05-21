@@ -6,6 +6,7 @@ import dev.logicojp.reviewer.cli.CliOutput;
 import dev.logicojp.reviewer.cli.CliUsage;
 import dev.logicojp.reviewer.cli.ExitCodes;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.env.Environment;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -58,7 +59,11 @@ public class ReviewApp {
         ensureSecureLogDirectory();
         warnOnInsecureJvmFlags();
         int exitCode = ExitCodes.SOFTWARE;
-        try (var context = ApplicationContext.run()) {
+        try (var context = ApplicationContext.builder()
+            .mainClass(ReviewApp.class)
+            .defaultEnvironments(Environment.CLI)
+            .args(args)
+            .start()) {
             var app = context.getBean(ReviewApp.class);
             exitCode = app.execute(args);
         }

@@ -2,7 +2,6 @@ package dev.logicojp.reviewer.util;
 
 import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
-import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -58,12 +57,11 @@ public final class GitHubTokenResolver {
 
     @Inject
     public GitHubTokenResolver(ExecutionConfig executionConfig,
-                               CopilotConfig copilotConfig,
-                               @Nullable @Value("${PATH:}") String configuredPath) {
+                               CopilotConfig copilotConfig) {
         this(
             executionConfig.ghAuthTimeoutSeconds(),
             copilotConfig.ghCliPath(),
-            configuredPath,
+            System.getenv("PATH"),
             executionConfig.isGhAuthFallbackEnabled()
         );
     }
@@ -72,7 +70,7 @@ public final class GitHubTokenResolver {
         this(
             executionConfig.ghAuthTimeoutSeconds(),
             null,
-            null,
+            System.getenv("PATH"),
             executionConfig.isGhAuthFallbackEnabled()
         );
     }
