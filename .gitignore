@@ -8,7 +8,9 @@ application.yml
 # IDE
 .idea/
 *.iml
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/mcp.json
 *.swp
 *.swo
 *~
