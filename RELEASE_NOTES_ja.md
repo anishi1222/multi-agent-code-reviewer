@@ -28,6 +28,37 @@
 ### 検証
 - Pending
 
+## 2026-05-28 (v2026.05.28-ci-release-hardening)
+
+### 概要
+- GitHub Actions の `GITHUB_TOKEN` 権限をジョブ単位の最小権限へ再整理し、Code Scanning の Token-Permissions 勧告に対応しました。
+- CI 内で重複していた OWASP Dependency Check を `Dependency Audit` ジョブへ集約し、`Supply Chain Guard` は Maven `validate` によるポリシー検証へ限定して実行時間を短縮しました。
+- CodeQL / Dependency Submission / 依存関係更新を取り込み、CI とリリース運用の安定性を改善しました。
+
+### 主な変更
+
+#### 追加
+- `gpt-4.1-mini-alternatives.md`: Azure OpenAI `gpt-4.1-mini` 退役に備えた代替モデル検討メモを追加。
+
+#### 変更
+- `.github/workflows/release.yml`: workflow 既定権限を `permissions: {}` にし、`build-jvm` は `contents: read`、GitHub Release を作成する `publish-release` のみ `contents: write` を付与。
+- `.github/workflows/release.yml`: `publish-release` から不要な checkout を削除し、`gh release create` 用に `GH_REPO` を明示。
+- `.github/workflows/ci.yml`: `Supply Chain Guard` から `dependency-check:check` と `security-audit` profile の重複実行を削除し、`./mvnw -B -ntp -DskipTests validate` のみに簡素化。
+- `.github/workflows/codeql.yml`: Java/Kotlin 解析を `build-mode: none` に切り替え、CodeQL 解析の安定性を改善。
+- GitHub Actions / Maven プラグイン依存関係を更新（`step-security/harden-runner` 2.19.4、`github/codeql-action` 4.36.0、`maven-enforcer-plugin`、`maven-surefire-plugin`、Micronaut parent）。
+
+#### 修正
+- `.github/workflows/dependency-submission.yml`: Dependency Submission に必要な `contents: write` 権限を明示。
+- `CopilotCliPathResolver` 関連テストをコンストラクタ変更後の API に追従。
+- Micronaut 5 CLI API 利用箇所を整理し、Micronaut context の起動検証を追加。
+
+### 検証
+- `git diff --check`
+- `.github/workflows/ci.yml` / `.github/workflows/release.yml` YAML parse — success
+- `./mvnw -B -ntp -DskipTests validate` — BUILD SUCCESS
+- Git タグ push: `v2026.05.28-ci-release-hardening`
+- GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-ci-release-hardening
+
 ## 2026-05-15 (v2026.05.15-runtime-compat)
 
 ### 概要
