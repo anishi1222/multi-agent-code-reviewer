@@ -12,6 +12,25 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ## Unreleased
 
 ### Summary
+- Placeholder for upcoming release items.
+
+### Highlights
+
+#### Added
+- TBD
+
+#### Changed
+- TBD
+
+#### Fixed
+- TBD
+
+### Validation
+- Pending
+
+## 2026-05-28 (v2026.05.28-azure-skills-mcp)
+
+### Summary
 - Added project-level official Azure skills from the Azure Skills Plugin so Azure work can use Microsoft-maintained skills and MCP-backed workflows.
 - Reworked WAF (Azure Well-Architected Framework) review skills to ground findings in official Microsoft Learn documentation through the Microsoft Learn MCP Server.
 - Documented that the Copilot SDK for Java dependency is MIT licensed, while server-side Copilot service use remains subject to separate GitHub Copilot product terms.
@@ -36,6 +55,8 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - YAML validation for skill and instruction frontmatter
 - JSON validation for `skills-lock.json` and `.vscode/mcp.json`
 - Skill folder/name consistency check
+- Git tag pushed: `v2026.05.28-azure-skills-mcp`
+- GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-azure-skills-mcp
 
 ## 2026-05-28 (v2026.05.28-ci-release-hardening)
 
