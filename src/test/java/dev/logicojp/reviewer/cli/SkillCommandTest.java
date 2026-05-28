@@ -90,7 +90,7 @@ class SkillCommandTest {
         SkillService skillService = new SkillService(
             new SkillRegistry(),
             new CopilotService(
-                new CopilotCliPathResolver(copilotConfig, System.getenv("PATH")),
+                new CopilotCliPathResolver(copilotConfig),
                 new CopilotHealthProbe(new CopilotTimeoutResolver(copilotConfig)),
                 copilotConfig,
                 new CopilotStartupErrorFormatter(),
