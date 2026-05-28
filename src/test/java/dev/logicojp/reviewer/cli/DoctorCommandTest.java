@@ -241,7 +241,7 @@ class DoctorCommandTest {
 
         private CopilotCliPathResolver stubPathResolver() {
             CopilotConfig config = new CopilotConfig(cliPath, null, 60, 10, 15);
-            return new CopilotCliPathResolver(config, System.getenv("PATH")) {
+            return new CopilotCliPathResolver(config) {
                 @Override
                 public String resolveCliPath() {
                     if (cliPath == null) {

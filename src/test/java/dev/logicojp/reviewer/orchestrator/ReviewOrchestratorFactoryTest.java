@@ -39,7 +39,7 @@ class ReviewOrchestratorFactoryTest {
 
         CopilotConfig copilotConfig = new CopilotConfig(null, null, 60, 10, 15);
         CopilotService copilotService = new CopilotService(
-            new CopilotCliPathResolver(copilotConfig, System.getenv("PATH")),
+            new CopilotCliPathResolver(copilotConfig),
             new CopilotHealthProbe(new CopilotTimeoutResolver(copilotConfig)),
             copilotConfig,
             new CopilotStartupErrorFormatter(),
