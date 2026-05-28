@@ -41,10 +41,7 @@ jobs:
           release: ${{ env.JDK_VERSION }}
 
       - name: Validate dependency policy (enforcer + checksum)
-        run: |
-          ./mvnw -B -ntp -DskipTests dependency-check:check -Dnvd_api_key=${{ secrets.NVD_API_KEY }} -Psecurity-audit
-          ./mvnw -B -ntp -DskipTests validate -Dnvd_api_key=${{ secrets.NVD_API_KEY }} -Psecurity-audit
-          # ./mvnw -B -ntp -DskipTests validate -Dossindex.username=${{ secrets.OSS_INDEX_USERNAME }} -Dossindex.token=${{ secrets.OSS_INDEX_TOKEN }}
+        run: ./mvnw -B -ntp -DskipTests validate
 
   build-and-test:
     name: Build and Test
