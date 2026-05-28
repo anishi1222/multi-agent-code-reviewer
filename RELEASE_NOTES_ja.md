@@ -12,21 +12,30 @@
 ## Unreleased
 
 ### 概要
-- 次回リリース向け項目のプレースホルダー。
+- Azure 公式 Skills Plugin 由来の skill をプロジェクトに取り込み、Azure 関連作業を公式 skill / MCP ベースで実行できるようにしました。
+- WAF（Azure Well-Architected Framework）レビュー skill を Microsoft Learn MCP Server で公式ドキュメント根拠を取得する構成へ変更しました。
+- Copilot SDK for Java の MIT ライセンスと、サーバーサイド利用時に別途 GitHub Copilot サービス利用条件を確認すべき点をドキュメント化しました。
 
 ### 主な変更
 
 #### 追加
-- TBD
+- `.agents/skills/`: `microsoft/azure-skills` の Azure 公式 skill 27 件をプロジェクトローカルに追加。
+- `skills-lock.json`: Azure 公式 skill の取得元、参照、ハッシュを記録。
+- `.vscode/mcp.json`: Azure MCP Server（`@azure/mcp`）と Microsoft Learn MCP Server（`https://learn.microsoft.com/api/mcp`）を設定。
+- `.github/instructions/azure-skills.instructions.md`: 未導入ユーザー向けに Copilot CLI の `/plugin marketplace add microsoft/azure-skills`、`/plugin install azure@azure-skills`、`/plugin install microsoftdocs/mcp` 手順を明示。
 
 #### 変更
-- TBD
+- `.github/skills/waf-*`: WAF 5 pillar（Security / Reliability / Cost Optimization / Operational Excellence / Performance Efficiency）を Microsoft Learn MCP Server で検索・取得した公式根拠 URL 付きレビューへ変更。
+- `.gitignore`: `.vscode/mcp.json` と `.vscode/settings.json` を追跡できるように調整。
+- README（root / EN / JA）に Azure Skills Plugin、MCP、WAF レビュー、Copilot SDK ライセンス注意を追記。
 
 #### 修正
-- TBD
+- なし。
 
 ### 検証
-- Pending
+- skill / instruction frontmatter の YAML 検証
+- `skills-lock.json` / `.vscode/mcp.json` の JSON 検証
+- skill 名とフォルダ名の一致確認
 
 ## 2026-05-28 (v2026.05.28-ci-release-hardening)
 

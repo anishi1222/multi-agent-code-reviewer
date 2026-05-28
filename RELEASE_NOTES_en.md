@@ -12,21 +12,30 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ## Unreleased
 
 ### Summary
-- Placeholder for upcoming release items.
+- Added project-level official Azure skills from the Azure Skills Plugin so Azure work can use Microsoft-maintained skills and MCP-backed workflows.
+- Reworked WAF (Azure Well-Architected Framework) review skills to ground findings in official Microsoft Learn documentation through the Microsoft Learn MCP Server.
+- Documented that the Copilot SDK for Java dependency is MIT licensed, while server-side Copilot service use remains subject to separate GitHub Copilot product terms.
 
 ### Highlights
 
 #### Added
-- TBD
+- `.agents/skills/`: 27 official Azure skills from `microsoft/azure-skills`.
+- `skills-lock.json`: records the Azure skills source, refs, and hashes.
+- `.vscode/mcp.json`: configures Azure MCP Server (`@azure/mcp`) and Microsoft Learn MCP Server (`https://learn.microsoft.com/api/mcp`).
+- `.github/instructions/azure-skills.instructions.md`: tells unconfigured Copilot CLI users to run `/plugin marketplace add microsoft/azure-skills`, `/plugin install azure@azure-skills`, and `/plugin install microsoftdocs/mcp`.
 
 #### Changed
-- TBD
+- `.github/skills/waf-*`: WAF five-pillar skills (Security, Reliability, Cost Optimization, Operational Excellence, Performance Efficiency) now require Microsoft Learn MCP searches/fetches and cite official Microsoft Learn URLs in findings.
+- `.gitignore`: allows tracking `.vscode/mcp.json` and `.vscode/settings.json`.
+- README files (root / EN / JA): refreshed Azure Skills Plugin, MCP, WAF review, and Copilot SDK license guidance.
 
 #### Fixed
-- TBD
+- None.
 
 ### Validation
-- Pending
+- YAML validation for skill and instruction frontmatter
+- JSON validation for `skills-lock.json` and `.vscode/mcp.json`
+- Skill folder/name consistency check
 
 ## 2026-05-28 (v2026.05.28-ci-release-hardening)
 
