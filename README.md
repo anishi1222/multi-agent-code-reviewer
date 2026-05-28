@@ -198,6 +198,7 @@ Architecture decisions are documented in `docs/adr/`.
   - `0002-micronaut-di.md`
   - `0003-virtual-thread-orchestration.md`
   - `0004-release-channels.md`
+  - `0005-azure-skills-and-microsoft-learn-mcp.md`
 
 ## Operational Runbook
 

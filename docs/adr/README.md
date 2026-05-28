@@ -10,7 +10,7 @@
 
 ## ドキュメント同期
 
-- 最終同期タグ: `v2026.05.15-runtime-compat`
+- 最終同期タグ: `v2026.05.28-azure-skills-mcp`
 - 関連更新: `README.md`, `README_en.md`, `README_ja.md`, `RELEASE_NOTES_en.md`, `RELEASE_NOTES_ja.md`
 
 ## 命名規則
@@ -37,3 +37,4 @@
 | 0002 | [Micronaut DI](0002-micronaut-di.md) | Accepted |
 | 0003 | [Virtual Thread Orchestration](0003-virtual-thread-orchestration.md) | Accepted |
 | 0004 | [Release Channel Strategy](0004-release-channels.md) | Accepted |
+| 0005 | [Official Azure Skills and Microsoft Learn MCP for WAF Reviews](0005-azure-skills-and-microsoft-learn-mcp.md) | Accepted |
