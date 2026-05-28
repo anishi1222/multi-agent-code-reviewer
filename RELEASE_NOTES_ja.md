@@ -12,6 +12,25 @@
 ## Unreleased
 
 ### 概要
+- 次回リリース向け項目のプレースホルダー。
+
+### 主な変更
+
+#### 追加
+- TBD
+
+#### 変更
+- TBD
+
+#### 修正
+- TBD
+
+### 検証
+- Pending
+
+## 2026-05-28 (v2026.05.28-azure-skills-mcp)
+
+### 概要
 - Azure 公式 Skills Plugin 由来の skill をプロジェクトに取り込み、Azure 関連作業を公式 skill / MCP ベースで実行できるようにしました。
 - WAF（Azure Well-Architected Framework）レビュー skill を Microsoft Learn MCP Server で公式ドキュメント根拠を取得する構成へ変更しました。
 - Copilot SDK for Java の MIT ライセンスと、サーバーサイド利用時に別途 GitHub Copilot サービス利用条件を確認すべき点をドキュメント化しました。
@@ -36,6 +55,8 @@
 - skill / instruction frontmatter の YAML 検証
 - `skills-lock.json` / `.vscode/mcp.json` の JSON 検証
 - skill 名とフォルダ名の一致確認
+- Git タグ push: `v2026.05.28-azure-skills-mcp`
+- GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-azure-skills-mcp
 
 ## 2026-05-28 (v2026.05.28-ci-release-hardening)
 

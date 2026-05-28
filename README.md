@@ -24,7 +24,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Latest Remediation
 
-- Unreleased: Azure Skills and MCP configuration — added official `microsoft/azure-skills` project skills under `.agents/skills/`, tracked them in `skills-lock.json`, configured Azure MCP and Microsoft Learn MCP in `.vscode/mcp.json`, rewrote WAF skills to require Microsoft Learn MCP grounding, and documented Copilot CLI plugin install commands for users who have not installed Azure Skills yet.
+- 2026-05-28 (`v2026.05.28-azure-skills-mcp`): Azure Skills and MCP configuration — added official `microsoft/azure-skills` project skills under `.agents/skills/`, tracked them in `skills-lock.json`, configured Azure MCP and Microsoft Learn MCP in `.vscode/mcp.json`, rewrote WAF skills to require Microsoft Learn MCP grounding, and documented Copilot CLI plugin install commands for users who have not installed Azure Skills yet.
 - 2026-05-28 (`v2026.05.28-ci-release-hardening`): CI and release hardening — changed workflow defaults to `permissions: {}`, granted `contents: read` only to build jobs and `contents: write` only to the release-publishing job, aligned the release workflow JDK with compiler release 27, removed unnecessary release checkout by setting `GH_REPO`, eliminated duplicate OWASP Dependency Check execution from `Supply Chain Guard` so deep auditing runs in `Dependency Audit`, switched CodeQL Java/Kotlin analysis to `build-mode: none`, and refreshed GitHub Actions/Maven plugin dependencies.
 - 2026-05-15 (`v2026.05.15-runtime-compat`): Runtime compatibility and report-accuracy fixes — aligned structured concurrency helpers with JDK 27 `StructuredTaskScope` generics, removed macOS `/bin/true` test-path dependency, expanded trusted CLI real-path directories for Homebrew `Cellar`/`Caskroom` (fixing `gh auth token` fallback and `copilot` discovery), normalized Copilot SDK log-level mapping (`warn` → `warning`), fixed permission deny result kind serialization (`REJECTED`), and excluded "no findings" placeholder blocks from overall finding counts. Verified by `mvn clean package` (830 tests passed).
 - 2026-04-30 (`v2026.04.30-copilot-sdk-stable`): Upgraded GitHub Copilot SDK for Java from preview `0.3.0-java-preview.1` to stable `0.3.0-java.2`, normalized GitHub Actions `JDK_VERSION` from `26.0.1` to `26` across `ci.yml`/`codeql.yml`/`dependency-audit.yml`/`release.yml`, pinned the CycloneDX Maven plugin to `2.9.1` in the release workflow, and granted `contents: write` to the `publish-release` job so `gh release create` succeeds under the workflow-level least-privilege default (`contents: read`).
@@ -32,7 +32,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 - 2026-04-23 (`v2026.04.23-copilot-sdk-compat`): Upgraded GitHub Copilot SDK for Java to `0.3.0-java-preview.1` and aligned the codebase with SDK API changes.
 - Compatibility fixes: switched event imports to `com.github.copilot.sdk.generated.*` and adjusted MCP server handoff for the new `setMcpServers(Map<String, McpServerConfig>)` signature.
 - Release Notes: [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md), [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md)
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-ci-release-hardening
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-azure-skills-mcp
 
 ## Architecture
 
