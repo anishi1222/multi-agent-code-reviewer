@@ -42,6 +42,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 
 #### Changed
 - `.github/workflows/release.yml`: changed the workflow default to `permissions: {}`, granted `contents: read` to `build-jvm`, and kept `contents: write` only on the `publish-release` job that creates GitHub Releases.
+- `.github/workflows/release.yml`: updated the release-build JDK to 27 to match the Maven compiler `release.version`.
 - `.github/workflows/release.yml`: removed unnecessary checkout from `publish-release` and set `GH_REPO` explicitly for `gh release create`.
 - `.github/workflows/ci.yml`: removed duplicate `dependency-check:check` / `security-audit` profile execution from `Supply Chain Guard`, leaving only `./mvnw -B -ntp -DskipTests validate`.
 - `.github/workflows/codeql.yml`: switched Java/Kotlin analysis to `build-mode: none` for more stable CodeQL analysis.
@@ -55,7 +56,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - `git diff --check`
 - `.github/workflows/ci.yml` / `.github/workflows/release.yml` YAML parse — success
-- `./mvnw -B -ntp -DskipTests validate` — BUILD SUCCESS
+- `./mvnw -B -ntp -DskipTests compile` — BUILD SUCCESS
 - Git tag pushed: `v2026.05.28-ci-release-hardening`
 - GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-ci-release-hardening
 

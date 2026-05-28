@@ -42,6 +42,7 @@
 
 #### 変更
 - `.github/workflows/release.yml`: workflow 既定権限を `permissions: {}` にし、`build-jvm` は `contents: read`、GitHub Release を作成する `publish-release` のみ `contents: write` を付与。
+- `.github/workflows/release.yml`: Maven compiler の `release.version` に合わせてリリースビルド用 JDK を 27 に更新。
 - `.github/workflows/release.yml`: `publish-release` から不要な checkout を削除し、`gh release create` 用に `GH_REPO` を明示。
 - `.github/workflows/ci.yml`: `Supply Chain Guard` から `dependency-check:check` と `security-audit` profile の重複実行を削除し、`./mvnw -B -ntp -DskipTests validate` のみに簡素化。
 - `.github/workflows/codeql.yml`: Java/Kotlin 解析を `build-mode: none` に切り替え、CodeQL 解析の安定性を改善。
@@ -55,7 +56,7 @@
 ### 検証
 - `git diff --check`
 - `.github/workflows/ci.yml` / `.github/workflows/release.yml` YAML parse — success
-- `./mvnw -B -ntp -DskipTests validate` — BUILD SUCCESS
+- `./mvnw -B -ntp -DskipTests compile` — BUILD SUCCESS
 - Git タグ push: `v2026.05.28-ci-release-hardening`
 - GitHub Release 公開: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-ci-release-hardening
 
