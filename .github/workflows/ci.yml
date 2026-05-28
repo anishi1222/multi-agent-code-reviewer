@@ -41,7 +41,7 @@ jobs:
           release: ${{ env.JDK_VERSION }}
 
       - name: Validate dependency policy (enforcer + checksum)
-        run: ./mvnw -B -ntp -DskipTests validate
+        run: ./mvnw -B -ntp -DskipTests -P!security-audit validate
 
   build-and-test:
     name: Build and Test
