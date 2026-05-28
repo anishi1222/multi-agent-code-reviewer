@@ -28,6 +28,37 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-05-28 (v2026.05.28-ci-release-hardening)
+
+### Summary
+- Reworked GitHub Actions `GITHUB_TOKEN` permissions to job-level least privilege and addressed the Code Scanning Token-Permissions recommendation.
+- Removed duplicated OWASP Dependency Check execution from CI by keeping deep dependency auditing in the `Dependency Audit` job while limiting `Supply Chain Guard` to Maven `validate` policy checks for shorter CI runtime.
+- Pulled in CodeQL, Dependency Submission, and dependency-update hardening to improve CI and release reliability.
+
+### Highlights
+
+#### Added
+- `gpt-4.1-mini-alternatives.md`: research notes for Azure OpenAI `gpt-4.1-mini` retirement alternatives.
+
+#### Changed
+- `.github/workflows/release.yml`: changed the workflow default to `permissions: {}`, granted `contents: read` to `build-jvm`, and kept `contents: write` only on the `publish-release` job that creates GitHub Releases.
+- `.github/workflows/release.yml`: removed unnecessary checkout from `publish-release` and set `GH_REPO` explicitly for `gh release create`.
+- `.github/workflows/ci.yml`: removed duplicate `dependency-check:check` / `security-audit` profile execution from `Supply Chain Guard`, leaving only `./mvnw -B -ntp -DskipTests validate`.
+- `.github/workflows/codeql.yml`: switched Java/Kotlin analysis to `build-mode: none` for more stable CodeQL analysis.
+- Updated GitHub Actions and Maven plugin dependencies (`step-security/harden-runner` 2.19.4, `github/codeql-action` 4.36.0, `maven-enforcer-plugin`, `maven-surefire-plugin`, Micronaut parent).
+
+#### Fixed
+- `.github/workflows/dependency-submission.yml`: explicitly grants the `contents: write` permission required for dependency submission.
+- Updated `CopilotCliPathResolver` tests for the revised constructor API.
+- Cleaned up Micronaut 5 CLI API usage and added Micronaut context startup coverage.
+
+### Validation
+- `git diff --check`
+- `.github/workflows/ci.yml` / `.github/workflows/release.yml` YAML parse — success
+- `./mvnw -B -ntp -DskipTests validate` — BUILD SUCCESS
+- Git tag pushed: `v2026.05.28-ci-release-hardening`
+- GitHub Release published: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-ci-release-hardening
+
 ## 2026-05-15 (v2026.05.15-runtime-compat)
 
 ### Summary
