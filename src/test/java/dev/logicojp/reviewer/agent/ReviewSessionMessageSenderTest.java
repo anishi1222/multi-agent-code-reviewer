@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.agent;
 
-import com.github.copilot.sdk.generated.AssistantMessageEvent;
-import com.github.copilot.sdk.generated.AssistantMessageEvent.AssistantMessageEventData;
+import com.github.copilot.generated.AssistantMessageEvent;
+import com.github.copilot.generated.AssistantMessageEvent.AssistantMessageEventData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

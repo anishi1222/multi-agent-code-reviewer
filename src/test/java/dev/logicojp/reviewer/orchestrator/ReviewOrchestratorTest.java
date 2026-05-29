@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.orchestrator;
 
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.CopilotClientOptions;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.CopilotClientOptions;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;

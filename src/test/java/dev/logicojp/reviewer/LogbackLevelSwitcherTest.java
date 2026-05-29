@@ -16,13 +16,13 @@ class LogbackLevelSwitcherTest {
     private final LoggerContext ctx = (LoggerContext) LoggerFactory.getILoggerFactory();
     private final Level originalRoot = ctx.getLogger(Logger.ROOT_LOGGER_NAME).getLevel();
     private final Level originalApp = ctx.getLogger("dev.logicojp").getLevel();
-    private final Level originalCopilotSdk = ctx.getLogger("com.github.copilot.sdk").getLevel();
+    private final Level originalCopilotSdk = ctx.getLogger("com.github.copilot").getLevel();
 
     @AfterEach
     void restoreLogLevels() {
         ctx.getLogger(Logger.ROOT_LOGGER_NAME).setLevel(originalRoot);
         ctx.getLogger("dev.logicojp").setLevel(originalApp);
-        ctx.getLogger("com.github.copilot.sdk").setLevel(originalCopilotSdk);
+        ctx.getLogger("com.github.copilot").setLevel(originalCopilotSdk);
     }
 
     @Test
@@ -47,6 +47,6 @@ class LogbackLevelSwitcherTest {
     void setDebugKeepsCopilotSdkLoggerAtWarn() {
         LogbackLevelSwitcher.setDebug();
 
-        assertThat(ctx.getLogger("com.github.copilot.sdk").getLevel()).isEqualTo(Level.WARN);
+        assertThat(ctx.getLogger("com.github.copilot").getLevel()).isEqualTo(Level.WARN);
     }
 }

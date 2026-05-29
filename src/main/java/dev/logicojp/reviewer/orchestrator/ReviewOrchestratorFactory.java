@@ -7,7 +7,7 @@ import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.service.CopilotService;
 import dev.logicojp.reviewer.service.TemplateService;
-import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.CopilotClient;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

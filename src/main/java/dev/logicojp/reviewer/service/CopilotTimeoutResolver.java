@@ -34,7 +34,7 @@ public class CopilotTimeoutResolver {
         return value;
     }
 
-    /// Timeout for {@link com.github.copilot.sdk.CopilotClient#getStatus()} requests.
+    /// Timeout for {@link com.github.copilot.CopilotClient#getStatus()} requests.
     /// Bound to the legacy `cli-healthcheck-seconds` configuration key.
     public long resolveSdkStatusTimeoutSeconds() {
         long value = copilotConfig.cliHealthcheckSeconds();
@@ -42,7 +42,7 @@ public class CopilotTimeoutResolver {
         return value;
     }
 
-    /// Timeout for {@link com.github.copilot.sdk.CopilotClient#getAuthStatus()} requests.
+    /// Timeout for {@link com.github.copilot.CopilotClient#getAuthStatus()} requests.
     /// Bound to the legacy `cli-authcheck-seconds` configuration key.
     public long resolveSdkAuthStatusTimeoutSeconds() {
         long value = copilotConfig.cliAuthcheckSeconds();

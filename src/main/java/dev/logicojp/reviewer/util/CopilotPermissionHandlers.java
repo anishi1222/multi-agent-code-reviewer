@@ -1,8 +1,8 @@
 package dev.logicojp.reviewer.util;
 
-import com.github.copilot.sdk.json.PermissionHandler;
-import com.github.copilot.sdk.json.PermissionRequestResult;
-import com.github.copilot.sdk.json.PermissionRequestResultKind;
+import com.github.copilot.rpc.PermissionHandler;
+import com.github.copilot.rpc.PermissionRequestResult;
+import com.github.copilot.rpc.PermissionRequestResultKind;
 
 import java.util.concurrent.CompletableFuture;
 

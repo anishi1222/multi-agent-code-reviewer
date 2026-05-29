@@ -1,10 +1,10 @@
 package dev.logicojp.reviewer.agent;
 
-import com.github.copilot.sdk.CopilotSession;
-import com.github.copilot.sdk.SystemMessageMode;
-import com.github.copilot.sdk.json.McpServerConfig;
-import com.github.copilot.sdk.json.SessionConfig;
-import com.github.copilot.sdk.json.SystemMessageConfig;
+import com.github.copilot.CopilotSession;
+import com.github.copilot.SystemMessageMode;
+import com.github.copilot.rpc.McpServerConfig;
+import com.github.copilot.rpc.SessionConfig;
+import com.github.copilot.rpc.SystemMessageConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
 import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;

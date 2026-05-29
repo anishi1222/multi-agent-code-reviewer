@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.config;
 
-import com.github.copilot.sdk.json.McpHttpServerConfig;
-import com.github.copilot.sdk.json.McpServerConfig;
+import com.github.copilot.rpc.McpHttpServerConfig;
+import com.github.copilot.rpc.McpServerConfig;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.core.annotation.Nullable;
 

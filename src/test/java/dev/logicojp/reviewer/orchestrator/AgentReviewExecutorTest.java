@@ -33,7 +33,7 @@ class AgentReviewExecutorTest {
 
     private ReviewContext context() {
         return ReviewContext.builder()
-            .client(new com.github.copilot.sdk.CopilotClient(new com.github.copilot.sdk.json.CopilotClientOptions()))
+            .client(new com.github.copilot.CopilotClient(new com.github.copilot.rpc.CopilotClientOptions()))
             .timeoutMinutes(1)
             .idleTimeoutMinutes(1)
             .maxRetries(0)
