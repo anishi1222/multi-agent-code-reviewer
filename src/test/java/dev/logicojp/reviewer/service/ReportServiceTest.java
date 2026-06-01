@@ -7,7 +7,7 @@ import dev.logicojp.reviewer.report.finding.FindingsExtractor;
 import dev.logicojp.reviewer.report.sanitize.ContentSanitizer;
 import dev.logicojp.reviewer.report.summary.SummaryGenerator;
 
-import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.CopilotClient;
 import dev.logicojp.reviewer.config.CopilotConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.SummaryConfig;

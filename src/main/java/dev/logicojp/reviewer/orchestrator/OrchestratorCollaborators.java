@@ -1,6 +1,6 @@
 package dev.logicojp.reviewer.orchestrator;
 
-import com.github.copilot.sdk.json.McpServerConfig;
+import com.github.copilot.rpc.McpServerConfig;
 
 import java.util.Map;
 import java.util.Objects;

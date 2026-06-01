@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.agent;
 
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.CopilotClientOptions;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.CopilotClientOptions;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

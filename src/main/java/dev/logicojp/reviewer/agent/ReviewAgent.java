@@ -4,9 +4,9 @@ import dev.logicojp.reviewer.report.sanitize.ContentSanitizer;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import dev.logicojp.reviewer.util.StructuredConcurrencyUtils;
-import com.github.copilot.sdk.CopilotSession;
-import com.github.copilot.sdk.json.McpServerConfig;
-import com.github.copilot.sdk.json.SessionConfig;
+import com.github.copilot.CopilotSession;
+import com.github.copilot.rpc.McpServerConfig;
+import com.github.copilot.rpc.SessionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -524,7 +524,7 @@ public class ReviewAgent {
         return ContentSanitizer.sanitize(content);
     }
 
-    /// Sends a prompt via the SDK's {@link CopilotSession#sendAndWait(com.github.copilot.sdk.json.MessageOptions, long)}
+    /// Sends a prompt via the SDK's {@link CopilotSession#sendAndWait(com.github.copilot.rpc.MessageOptions, long)}
     /// and waits for the assistant response, capped by {@code maxTimeoutMs}.
     private String sendViaSdk(CopilotSession session, String prompt, long maxTimeoutMs) throws Exception {
         logger.debug("Agent {}: sending prompt via SDK sendAndWait (max: {} min)",

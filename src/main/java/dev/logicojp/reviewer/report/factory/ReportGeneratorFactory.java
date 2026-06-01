@@ -7,7 +7,7 @@ import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.SummaryConfig;
 import dev.logicojp.reviewer.service.TemplateService;
-import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.CopilotClient;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 

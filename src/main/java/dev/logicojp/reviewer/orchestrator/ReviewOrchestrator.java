@@ -12,8 +12,8 @@ import dev.logicojp.reviewer.service.TemplateService;
 import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import dev.logicojp.reviewer.util.ExecutorUtils;
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.McpServerConfig;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.McpServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

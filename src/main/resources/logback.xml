@@ -31,7 +31,7 @@
         log levels at runtime via the Logback API directly
         (see ReviewApp.enableVerboseLogging).
     -->
-    <logger name="com.github.copilot.sdk" level="WARN"/>
+    <logger name="com.github.copilot" level="WARN"/>
     <logger name="org.yaml.snakeyaml" level="WARN"/>
     <logger name="SECURITY_AUDIT" level="INFO" additivity="false">
         <appender-ref ref="AUDIT"/>

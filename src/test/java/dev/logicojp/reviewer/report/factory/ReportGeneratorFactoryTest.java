@@ -4,7 +4,7 @@ import dev.logicojp.reviewer.report.core.ReportGenerator;
 import dev.logicojp.reviewer.report.summary.SummaryGenerator;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 
-import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.CopilotClient;
 import dev.logicojp.reviewer.config.SummaryConfig;
 import dev.logicojp.reviewer.config.TemplateConfig;
 import dev.logicojp.reviewer.service.TemplateService;
