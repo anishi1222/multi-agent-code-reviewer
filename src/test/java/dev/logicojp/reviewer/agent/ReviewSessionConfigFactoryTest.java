@@ -1,11 +1,11 @@
 package dev.logicojp.reviewer.agent;
 
-import com.github.copilot.sdk.SystemMessageMode;
-import com.github.copilot.sdk.json.CopilotClientOptions;
-import com.github.copilot.sdk.json.McpHttpServerConfig;
-import com.github.copilot.sdk.json.McpServerConfig;
-import com.github.copilot.sdk.json.SessionConfig;
-import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.SystemMessageMode;
+import com.github.copilot.rpc.CopilotClientOptions;
+import com.github.copilot.rpc.McpHttpServerConfig;
+import com.github.copilot.rpc.McpServerConfig;
+import com.github.copilot.rpc.SessionConfig;
+import com.github.copilot.CopilotClient;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

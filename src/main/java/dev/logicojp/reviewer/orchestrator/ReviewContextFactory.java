@@ -4,8 +4,8 @@ import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.McpServerConfig;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.McpServerConfig;
 
 import java.util.Map;
 import java.util.Optional;

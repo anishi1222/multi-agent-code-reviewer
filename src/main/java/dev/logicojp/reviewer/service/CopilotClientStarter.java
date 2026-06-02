@@ -11,7 +11,7 @@ import java.util.concurrent.TimeoutException;
 /// Starts the Copilot SDK client with retry and exponential backoff.
 ///
 /// Phase 3a verification (see session artifact `phase3a-sdk-behavior-verification.md`)
-/// confirmed that {@link com.github.copilot.sdk.json.CopilotClientOptions#setAutoRestart(boolean)
+/// confirmed that {@link com.github.copilot.rpc.CopilotClientOptions#setAutoRestart(boolean)
 /// setAutoRestart(true)} is currently a **no-op** in SDK `0.3.0-java.2`: the field is set but
 /// never consumed by `CliServerManager` / `CopilotClient`. We therefore retain three start
 /// attempts to absorb transient initial-connect failures, and rely on

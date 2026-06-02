@@ -1,8 +1,8 @@
 package dev.logicojp.reviewer.service;
 
-import com.github.copilot.sdk.ConnectionState;
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.CopilotClientOptions;
+import com.github.copilot.ConnectionState;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.CopilotClientOptions;
 import dev.logicojp.reviewer.config.CopilotConfig;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;

@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.config;
 
-import com.github.copilot.sdk.json.McpHttpServerConfig;
-import com.github.copilot.sdk.json.McpServerConfig;
+import com.github.copilot.rpc.McpHttpServerConfig;
+import com.github.copilot.rpc.McpServerConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

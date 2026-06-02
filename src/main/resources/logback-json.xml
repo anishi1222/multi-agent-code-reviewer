@@ -32,7 +32,7 @@
     </appender>
 
     <logger name="dev.logicojp.reviewer" level="INFO"/>
-    <logger name="com.github.copilot.sdk" level="WARN"/>
+    <logger name="com.github.copilot" level="WARN"/>
     <logger name="org.yaml.snakeyaml" level="WARN"/>
     <logger name="SECURITY_AUDIT" level="INFO" additivity="false">
         <appender-ref ref="JSON_AUDIT"/>
