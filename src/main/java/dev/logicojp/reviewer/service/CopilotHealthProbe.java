@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.service;
 
-import com.github.copilot.sdk.ConnectionState;
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.GetAuthStatusResponse;
-import com.github.copilot.sdk.json.GetStatusResponse;
+import com.github.copilot.ConnectionState;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.GetAuthStatusResponse;
+import com.github.copilot.rpc.GetStatusResponse;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;

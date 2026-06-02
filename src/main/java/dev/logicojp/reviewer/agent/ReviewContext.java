@@ -2,8 +2,8 @@ package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.McpServerConfig;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.McpServerConfig;
 import io.micronaut.core.annotation.Nullable;
 
 import java.util.Map;

@@ -208,7 +208,7 @@ class ReviewAgentTest {
 
     private static ReviewTargetInstructionResolver stubResolver(String instruction,
                                                                  String localSource,
-                                                                 Map<String, com.github.copilot.sdk.json.McpServerConfig> mcpServers) {
+                                                                 Map<String, com.github.copilot.rpc.McpServerConfig> mcpServers) {
         return new ReviewTargetInstructionResolver(
             agentConfig(),
             new LocalFileConfig(),

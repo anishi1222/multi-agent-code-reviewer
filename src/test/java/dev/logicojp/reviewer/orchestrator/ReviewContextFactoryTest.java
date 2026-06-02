@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.orchestrator;
 
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.CopilotClientOptions;
-import com.github.copilot.sdk.json.McpHttpServerConfig;
-import com.github.copilot.sdk.json.McpServerConfig;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.CopilotClientOptions;
+import com.github.copilot.rpc.McpHttpServerConfig;
+import com.github.copilot.rpc.McpServerConfig;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import org.junit.jupiter.api.DisplayName;

@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.agent;
 
-import com.github.copilot.sdk.generated.AssistantMessageEvent;
-import com.github.copilot.sdk.generated.AssistantMessageEvent.AssistantMessageEventData;
+import com.github.copilot.generated.AssistantMessageEvent;
+import com.github.copilot.generated.AssistantMessageEvent.AssistantMessageEventData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -253,7 +253,7 @@ class ReviewSessionMessageSenderTest {
     private static AssistantMessageEvent assistantEvent(String content) {
         var event = new AssistantMessageEvent();
         event.setData(new AssistantMessageEventData(
-            "msg-id", content, null, null, null, null, null, null, null, null, null));
+            "msg-id", null, content, null, null, null, null, null, null, null, null, null, null, null, null, null));
         return event;
     }
 

@@ -1,6 +1,6 @@
 package dev.logicojp.reviewer.orchestrator;
 
-import com.github.copilot.sdk.CopilotClient;
+import com.github.copilot.CopilotClient;
 import dev.logicojp.reviewer.agent.AgentPromptBuilder;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;

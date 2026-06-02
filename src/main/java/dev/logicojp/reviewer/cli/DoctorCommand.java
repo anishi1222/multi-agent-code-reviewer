@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.cli;
 
-import com.github.copilot.sdk.ConnectionState;
-import com.github.copilot.sdk.CopilotClient;
-import com.github.copilot.sdk.json.GetAuthStatusResponse;
-import com.github.copilot.sdk.json.GetStatusResponse;
+import com.github.copilot.ConnectionState;
+import com.github.copilot.CopilotClient;
+import com.github.copilot.rpc.GetAuthStatusResponse;
+import com.github.copilot.rpc.GetStatusResponse;
 import dev.logicojp.reviewer.service.CopilotCliException;
 import dev.logicojp.reviewer.service.CopilotCliPathResolver;
 import dev.logicojp.reviewer.service.CopilotHealthProbe;
