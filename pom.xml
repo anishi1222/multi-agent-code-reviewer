@@ -19,7 +19,7 @@
     <description>Multiple AI agents review code and generate executive summary</description>
 
     <properties>
-        <jdk.version>26</jdk.version>
+        <jdk.version>27</jdk.version>
         <release.version>27</release.version>
         <micronaut.version>5.0.0</micronaut.version>
         <micronaut.runtime>none</micronaut.runtime>
@@ -27,7 +27,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Application dependencies -->
-         <assertj.version>3.27.7</assertj.version>
+        <assertj.version>3.27.7</assertj.version>
         <copilot.sdk.version>1.0.0-beta-10-java.0</copilot.sdk.version>
         <dependency.check.version>12.2.2</dependency.check.version>
     </properties>
@@ -44,43 +44,7 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
-        <!-- Required for Micronaut 5 SNAPSHOT artifacts -->
-        <repository>
-            <id>central-snapshots</id>
-            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-        </repository>
     </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>central-snapshots</id>
-            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
-
-    <!-- Override jackson-core to fix GHSA-72hv-8253-57qq (DoS via async parser) -->
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>2.21.3</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <!-- Micronaut Core -->
@@ -154,32 +118,32 @@
 
     <build>
         <plugins>
-                 <plugin>
-      <groupId>org.cyclonedx</groupId>
-      <artifactId>cyclonedx-maven-plugin</artifactId>
-      <version>2.9.1</version>
-      <executions>
-        <execution>
-          <id>make-bom</id>
-          <phase>package</phase>
-          <goals>
-            <goal>makeAggregateBom</goal>
-          </goals>
-        </execution>
-      </executions>
-      <configuration>
-        <outputName>sbom</outputName>
-        <outputFormat>json</outputFormat>
-        <projectType>application</projectType>
-        <schemaVersion>1.5</schemaVersion>
-        <includeBomSerialNumber>true</includeBomSerialNumber>
-        <includeCompileScope>true</includeCompileScope>
-        <includeRuntimeScope>true</includeRuntimeScope>
-        <includeProvidedScope>false</includeProvidedScope>
-        <includeTestScope>false</includeTestScope>
-        <includeSystemScope>false</includeSystemScope>
-      </configuration>
-    </plugin>
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>2.9.1</version>
+                <executions>
+                    <execution>
+                        <id>make-bom</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>makeAggregateBom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <outputName>sbom</outputName>
+                    <outputFormat>json</outputFormat>
+                    <projectType>application</projectType>
+                    <schemaVersion>1.5</schemaVersion>
+                    <includeBomSerialNumber>true</includeBomSerialNumber>
+                    <includeCompileScope>true</includeCompileScope>
+                    <includeRuntimeScope>true</includeRuntimeScope>
+                    <includeProvidedScope>false</includeProvidedScope>
+                    <includeTestScope>false</includeTestScope>
+                    <includeSystemScope>false</includeSystemScope>
+                </configuration>
+            </plugin>
             <!-- Supply-chain guard: reject SNAPSHOT dependencies/plugins -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
