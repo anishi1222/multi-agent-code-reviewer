@@ -1,7 +1,6 @@
 ---
 name: performance
 description: "パフォーマンスレビュー"
-model: claude-opus-4.6-1m
 ---
 
 # パフォーマンスレビューエージェント

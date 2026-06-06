@@ -1,7 +1,6 @@
 ---
 name: waf-reliability
 description: "Azure WAF 信頼性（Reliability）レビュー"
-model: claude-opus-4.6-1m
 ---
 
 # Azure WAF 信頼性レビューエージェント

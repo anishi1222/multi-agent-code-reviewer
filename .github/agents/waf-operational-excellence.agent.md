@@ -1,7 +1,6 @@
 ---
 name: waf-operational-excellence
 description: "Azure WAF オペレーショナルエクセレンス（Operational Excellence）レビュー"
-model: claude-opus-4.6-1m
 ---
 
 # Azure WAF オペレーショナルエクセレンスレビューエージェント

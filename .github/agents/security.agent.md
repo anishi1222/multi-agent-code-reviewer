@@ -1,7 +1,6 @@
 ---
 name: security
 description: "セキュリティレビュー"
-model: claude-opus-4.6-1m
 ---
 
 # セキュリティレビューエージェント

@@ -1,7 +1,6 @@
 ---
 name: waf-cost-optimization
 description: "Azure WAF コスト最適化（Cost Optimization）レビュー"
-model: claude-opus-4.6-1m
 ---
 
 # Azure WAF コスト最適化レビューエージェント

@@ -1,7 +1,6 @@
 ---
 name: best-practices
 description: "ベストプラクティスレビュー"
-model: claude-opus-4.6-1m
 ---
 
 # ベストプラクティスレビューエージェント
