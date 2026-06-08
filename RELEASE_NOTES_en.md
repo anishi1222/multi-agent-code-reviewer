@@ -28,6 +28,32 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-06-08 (v2026.06.08-agent-model-defaults)
+
+### Summary
+- Synchronized release documentation for the current agent model-default behavior.
+- Removed model pins from GitHub Copilot custom-agent documentation examples so `.github/agents` definitions do not force a specific model.
+- Refreshed README model examples and Copilot SDK dependency references to match the current repository state.
+
+### Highlights
+
+#### Added
+- Release references for `v2026.06.08-agent-model-defaults` in the root, English, and Japanese README files.
+
+#### Changed
+- `README.md`, `README_en.md`, `README_ja.md`: documented that `.github/agents` custom-agent definitions should avoid hard-coded model pins when the caller should choose the model, and that `--review-model` is the explicit per-run override for this tool.
+- `README_en.md`, `README_ja.md`: updated configuration examples to `default-model: claude-sonnet-4.6`, `review-model: gpt-5.3-codex`, `report-model: claude-opus-4.7-xhigh`, `summary-model: claude-sonnet-4.6`, and `RUBBER_DUCK_PEER_MODEL:gpt-5.5`.
+- `README.md`, `README_en.md`, `README_ja.md`: updated the documented Copilot SDK for Java dependency to `1.0.0-beta-10-java.5`.
+
+#### Fixed
+- Removed stale `.agent.md` examples that implied `model` is required in agent frontmatter.
+
+### Validation
+- Documentation-only diff review
+- `git diff --check`
+- Git tag: `v2026.06.08-agent-model-defaults`
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.08-agent-model-defaults
+
 ## 2026-05-28 (v2026.05.28-azure-skills-mcp)
 
 ### Summary
