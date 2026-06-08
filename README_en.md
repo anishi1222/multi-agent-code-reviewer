@@ -26,8 +26,9 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 ## Latest Remediation Status
 
-All review findings from 2026-02-16 through 2026-05-28 review cycles have been fully addressed.
+All review findings from 2026-02-16 through 2026-06-08 review cycles have been fully addressed.
 
+- 2026-06-08 (v2026.06.08-agent-model-defaults): Agent model defaults documentation sync — removed model pins from GitHub Copilot custom-agent configuration references, clarified that review model overrides should be supplied via CLI/configuration rather than `.github/agents` frontmatter, refreshed README model examples to the current runtime defaults (`claude-sonnet-4.6`, `gpt-5.3-codex`, `claude-opus-4.7-xhigh`), and updated the documented Copilot SDK dependency to `1.0.0-beta-10-java.5`.
 - 2026-05-28 (v2026.05.28-azure-skills-mcp): Azure Skills and MCP configuration — added official `microsoft/azure-skills` project skills under `.agents/skills/`, tracked them in `skills-lock.json`, configured Azure MCP and Microsoft Learn MCP in `.vscode/mcp.json`, rewrote WAF skills to require Microsoft Learn MCP grounding, added setup instructions for unconfigured Copilot CLI users, and documented Copilot SDK MIT licensing plus Copilot service-term boundaries for server-side use.
 - 2026-05-28 (v2026.05.28-ci-release-hardening): CI and release hardening — changed GitHub Actions workflow defaults to `permissions: {}`, granted `contents: read` only to build jobs and `contents: write` only to the release-publishing job, aligned the release workflow JDK with compiler release 27, removed unnecessary release checkout by setting `GH_REPO`, eliminated duplicate OWASP Dependency Check execution from `Supply Chain Guard` so deep auditing is owned by `Dependency Audit`, switched CodeQL Java/Kotlin analysis to `build-mode: none`, fixed dependency submission permissions, refreshed Actions/Maven plugin dependencies, and updated `CopilotCliPathResolver` tests for the latest constructor API.
 - 2026-05-15 (v2026.05.15-runtime-compat): Runtime compatibility and report-accuracy fixes — aligned structured concurrency utilities with the JDK 27 `StructuredTaskScope<T, R, R_X>` signature while preserving await-all behavior, removed macOS-specific `/bin/true` test dependency, expanded trusted CLI real-path allowlist for Homebrew `Cellar`/`Caskroom` (fixing both `gh auth token` fallback and `copilot` discovery), normalized Copilot SDK log-level mapping (`warn` -> `warning`), fixed deny-all permission serialization by returning typed `REJECTED`, and excluded "no findings" placeholder blocks from findings aggregation. Verified with `mvn clean package` (830 tests passing).
@@ -60,7 +61,7 @@ All review findings from 2026-02-16 through 2026-05-28 review cycles have been f
 - 2026-02-17 (v1): PRs #22–#27 — Final remediation (PR-1 to PR-5)
 - Operations summary (2026-02-19 v2-v4): Java 25 CI alignment (PR #74) → idle-timeout scheduler resilience fix (PR #76) → operational completion checklist sync (PR #78)
 - Release details: `RELEASE_NOTES_en.md`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.05.28-azure-skills-mcp
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.08-agent-model-defaults
 
 ## Operational Completion Check (2026-02-19)
 
@@ -161,7 +162,7 @@ The project MCP configuration is tracked in `.vscode/mcp.json` and includes Azur
 
 ## Copilot SDK License and Server-Side Use
 
-This project depends on `com.github:copilot-sdk-java:0.3.0-java.2`. The SDK artifact and upstream repository declare the MIT License, which is generally permissive for server-side integration, modification, and redistribution.
+This project depends on `com.github:copilot-sdk-java:1.0.0-beta-10-java.5`. The SDK artifact and upstream repository declare the MIT License, which is generally permissive for server-side integration, modification, and redistribution.
 
 The MIT license covers the SDK code only. Calls to GitHub Copilot are still governed by the applicable GitHub Copilot product terms and the authenticated user's or organization's Copilot entitlement. Avoid designs that share one Copilot login across unrelated end users or repackage Copilot as a transparent SaaS backend without legal/product-term review.
 
@@ -445,19 +446,19 @@ reviewer:
       auth-header-name: Authorization
       auth-header-template: "Bearer {token}"
   models:
-    default-model: claude-sonnet-4.5  # Default for all models (changeable without rebuild)
-    review-model: GPT-5.3-Codex      # Model for review
-    report-model: claude-opus-4.6-fast  # Model for report generation
-    summary-model: claude-sonnet-4.5 # Model for summary generation
+    default-model: claude-sonnet-4.6  # Default for all models (changeable without rebuild)
+    review-model: gpt-5.3-codex      # Model for review
+    report-model: claude-opus-4.7-xhigh  # Model for report generation
+    summary-model: claude-sonnet-4.6 # Model for summary generation
     reasoning-effort: high           # Reasoning effort level (low/medium/high)
   summary:
     max-content-per-agent: 50000     # Max characters per agent content for summary prompt
     max-total-prompt-content: 200000 # Max total prompt characters for summary generation
     fallback-excerpt-length: 180     # Excerpt length used by fallback summary formatter
   rubber-duck:
-    enabled: false                   # Enable rubber-duck peer-discussion mode globally
-    dialogue-rounds: 2               # Number of dialogue rounds (1–10)
-    peer-model: ${RUBBER_DUCK_PEER_MODEL:}  # Peer model (env var or explicit)
+    enabled: true                    # Enable rubber-duck peer-discussion mode globally
+    dialogue-rounds: 3               # Number of dialogue rounds (1–10)
+    peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.5}  # Peer model (env var or explicit)
     synthesis-strategy: last-responder  # last-responder | dedicated-session
 ```
 
@@ -510,9 +511,11 @@ Configuration is resolved in the following priority order (highest first):
 
 Models are resolved in the following priority order:
 
-1. **Individual model settings** (`review-model`, `report-model`, `summary-model`) take highest priority
-2. **Default model** (`default-model`) — fallback when no individual setting is specified
-3. **Hardcoded constant** (`ModelConfig.DEFAULT_MODEL`) — final fallback when nothing is configured in YAML
+1. **CLI review override** (`--review-model`) updates every loaded agent model for the run
+2. **Agent frontmatter model** (`model`) is used when present in an agent definition
+3. **Parser fallback** (`ModelConfig.DEFAULT_MODEL`) is used for agent definitions that omit `model`
+4. **Stage model settings** (`review-model`, `report-model`, `summary-model`) control non-agent stages and CLI/config overrides
+5. **Default model** (`default-model`) — fallback when no stage-specific setting is specified
 
 ### Multi-Pass Review
 
@@ -574,7 +577,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 - `last-responder` (default): The synthesis prompt is sent to the last active session (Session B).
 - `dedicated-session`: A new third session is created specifically for synthesis.
 
-**Per-agent configuration:** Rubber-duck settings can also be specified per-agent in `.agent.md` frontmatter (see Agent Definition File section).
+**Per-agent configuration:** Rubber-duck settings can also be specified per-agent in `.agent.md` frontmatter (see Agent Definition File section). Keep `.github/agents` definitions free of hard-coded model pins when you want GitHub Copilot custom agents to use the caller-selected model; pass `--review-model` for this tool when a specific review model is required.
 
 ### Agent Directories
 
@@ -598,7 +601,7 @@ Following the GitHub Copilot Custom Agent format, all section names are in Engli
 
 In `Instruction`, you can use placeholders: `${repository}`, `${displayName}`, `${focusAreas}`.
 
-Additional frontmatter fields for rubber-duck mode:
+The `model` frontmatter key is optional. Omit it in `.github/agents` custom-agent definitions to avoid hard-coding a model for GitHub Copilot users; use `--review-model` to override review sessions in this tool. Additional frontmatter fields for rubber-duck mode:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -611,7 +614,6 @@ Additional frontmatter fields for rubber-duck mode:
 ---
 name: security
 description: "Security Review"
-model: claude-sonnet-4
 ---
 
 # Security Review Agent
