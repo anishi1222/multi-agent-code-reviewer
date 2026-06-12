@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Maven toolchains configuration for GraalVM 26 EA
-  Copy this file to ~/.m2/toolchains.xml and update the jdkHome path.
+    Maven toolchains configuration for dual JDK targets.
+    - Java 27: regular build (pom.xml)
+    - Java 25: native build (pom-native.xml)
+
+    Copy this file to ~/.m2/toolchains.xml and update each jdkHome path.
 -->
 <toolchains xmlns="http://maven.apache.org/TOOLCHAINS/1.1.0"
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -9,12 +12,24 @@
     <toolchain>
         <type>jdk</type>
         <provides>
-            <version>26</version>
+            <version>27</version>
             <vendor>graalvm</vendor>
         </provides>
         <configuration>
-            <!-- Update this path to your GraalVM installation -->
-            <jdkHome>/path/to/graalvm-jdk-26.ea.13</jdkHome>
+            <!-- Update this path to your GraalVM Java 27 installation -->
+            <jdkHome>/path/to/graalvm-jdk-27</jdkHome>
+        </configuration>
+    </toolchain>
+
+    <toolchain>
+        <type>jdk</type>
+        <provides>
+            <version>25</version>
+            <vendor>graalvm</vendor>
+        </provides>
+        <configuration>
+            <!-- Update this path to your GraalVM Java 25 installation -->
+            <jdkHome>/path/to/graalvm-jdk-25</jdkHome>
         </configuration>
     </toolchain>
 </toolchains>

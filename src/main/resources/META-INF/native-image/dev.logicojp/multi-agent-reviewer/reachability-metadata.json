@@ -20,7 +20,15 @@
     {
       "type": "ch.qos.logback.core.ConsoleAppender",
       "allDeclaredConstructors": true,
-      "allPublicConstructors": true
+      "allPublicConstructors": true,
+      "methods": [
+        {
+          "name": "setTarget",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
     },
     {
       "type": "ch.qos.logback.core.FileAppender"
@@ -1004,6 +1012,17 @@
             "java.lang.String",
             "java.lang.String",
             "java.util.List"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.List",
+            "java.lang.String",
+            "java.lang.String"
           ]
         }
       ]

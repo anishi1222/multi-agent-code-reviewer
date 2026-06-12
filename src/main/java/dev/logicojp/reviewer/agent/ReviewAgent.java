@@ -210,7 +210,7 @@ public class ReviewAgent {
                 tasks.add(scope.fork(() -> reviewForPass(target, passNumber, reviewPasses)));
             }
 
-            scope.join();
+            StructuredConcurrencyUtils.join(scope);
             return collectFallbackResults(tasks, target);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -354,7 +354,7 @@ public class ReviewAgent {
                 tasks.add(scope.fork(() -> executeParallelPass(target, params, passNumber, reviewPasses)));
             }
 
-            scope.join();
+            StructuredConcurrencyUtils.join(scope);
             return collectParallelPassResults(tasks);
         }
     }

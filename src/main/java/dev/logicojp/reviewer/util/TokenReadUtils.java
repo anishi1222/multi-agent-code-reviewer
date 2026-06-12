@@ -1,6 +1,8 @@
 package dev.logicojp.reviewer.util;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -21,24 +23,71 @@ public final class TokenReadUtils {
         // Utility class
     }
 
-    /// Reads a token and clears temporary char[]/byte[] buffers after conversion.
-    public static String readTrimmedToken(PasswordReader passwordReader,
-                                          StdinReader stdinReader,
-                                          int maxBytes) throws IOException {
-        char[] chars = passwordReader.readPassword();
-        if (chars != null) {
+    /// Reads a token into a trimmed char[] and clears temporary char[]/byte[] buffers.
+    ///
+    /// The returned array must be cleared by the caller after use.
+    public static char[] readTrimmedTokenChars(PasswordReader passwordReader,
+                                               StdinReader stdinReader,
+                                               int maxBytes) throws IOException {
+        char[] passwordChars = passwordReader.readPassword();
+        if (passwordChars != null) {
             try {
-                return String.valueOf(chars).trim();
+                return trimToNewArray(passwordChars);
             } finally {
-                Arrays.fill(chars, '\0');
+                Arrays.fill(passwordChars, '\0');
             }
         }
 
         byte[] raw = stdinReader.readStdin(maxBytes);
         try {
-            return new String(raw, StandardCharsets.UTF_8).trim();
+            char[] decoded = decodeUtf8(raw);
+            try {
+                return trimToNewArray(decoded);
+            } finally {
+                Arrays.fill(decoded, '\0');
+            }
         } finally {
             Arrays.fill(raw, (byte) 0);
         }
+    }
+
+    /// Compatibility helper for call sites that still require a String.
+    /// Prefer {@link #readTrimmedTokenChars(PasswordReader, StdinReader, int)}.
+    public static String readTrimmedToken(PasswordReader passwordReader,
+                                          StdinReader stdinReader,
+                                          int maxBytes) throws IOException {
+        char[] tokenChars = readTrimmedTokenChars(passwordReader, stdinReader, maxBytes);
+        try {
+            return new String(tokenChars);
+        } finally {
+            Arrays.fill(tokenChars, '\0');
+        }
+    }
+
+    private static char[] decodeUtf8(byte[] raw) {
+        CharBuffer decoded = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(raw));
+        char[] chars = new char[decoded.remaining()];
+        decoded.get(chars);
+        return chars;
+    }
+
+    private static char[] trimToNewArray(char[] input) {
+        int start = 0;
+        int end = input.length;
+
+        while (start < end && Character.isWhitespace(input[start])) {
+            start++;
+        }
+        while (end > start && Character.isWhitespace(input[end - 1])) {
+            end--;
+        }
+
+        int length = end - start;
+        if (length == 0) {
+            return new char[0];
+        }
+        char[] trimmed = new char[length];
+        System.arraycopy(input, start, trimmed, 0, length);
+        return trimmed;
     }
 }

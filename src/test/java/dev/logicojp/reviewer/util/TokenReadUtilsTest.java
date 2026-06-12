@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,14 +16,18 @@ class TokenReadUtilsTest {
     void trimsAndClearsPasswordBuffer() throws Exception {
         char[] password = "  secret-token  ".toCharArray();
 
-        String token = TokenReadUtils.readTrimmedToken(
+        char[] token = TokenReadUtils.readTrimmedTokenChars(
             () -> password,
             _ -> new byte[0],
             256
         );
 
-        assertThat(token).isEqualTo("secret-token");
-        assertThat(password).containsOnly('\0');
+        try {
+            assertThat(new String(token)).isEqualTo("secret-token");
+            assertThat(password).containsOnly('\0');
+        } finally {
+            Arrays.fill(token, '\0');
+        }
     }
 
     @Test
@@ -30,15 +35,19 @@ class TokenReadUtilsTest {
     void trimsAndClearsStdinBuffer() throws Exception {
         byte[] input = "  stdin-token\n".getBytes(StandardCharsets.UTF_8);
 
-        String token = TokenReadUtils.readTrimmedToken(
+        char[] token = TokenReadUtils.readTrimmedTokenChars(
             () -> null,
             _ -> input,
             256
         );
 
-        assertThat(token).isEqualTo("stdin-token");
-        for (byte b : input) {
-            assertThat(b).isZero();
+        try {
+            assertThat(new String(token)).isEqualTo("stdin-token");
+            for (byte b : input) {
+                assertThat(b).isZero();
+            }
+        } finally {
+            Arrays.fill(token, '\0');
         }
     }
 }

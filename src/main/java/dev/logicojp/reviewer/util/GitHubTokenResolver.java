@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -100,7 +101,7 @@ public final class GitHubTokenResolver {
 
     private @Nullable String readTokenFromStdin() {
         try {
-            String token = TokenReadUtils.readTrimmedToken(
+            char[] tokenChars = TokenReadUtils.readTrimmedTokenChars(
                 () -> {
                     if (System.console() == null) {
                         return null;
@@ -110,10 +111,14 @@ public final class GitHubTokenResolver {
                 System.in::readNBytes,
                 MAX_STDIN_TOKEN_BYTES
             );
-            // NOTE: The token String remains on the JVM heap until GC.
-            // For production use, consider running with -XX:+DisableAttachMechanism
-            // and -XX:-HeapDumpOnOutOfMemoryError to reduce heap dump exposure risk.
-            return token;
+            try {
+                if (tokenChars.length == 0) {
+                    return null;
+                }
+                return new String(tokenChars);
+            } finally {
+                Arrays.fill(tokenChars, '\0');
+            }
         } catch (IOException e) {
             logger.warn("Failed to read token from stdin", e);
             return null;

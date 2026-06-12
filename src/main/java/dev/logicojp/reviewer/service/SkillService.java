@@ -1,8 +1,5 @@
 package dev.logicojp.reviewer.service;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
@@ -13,7 +10,6 @@ import dev.logicojp.reviewer.skill.SkillDefinition;
 import dev.logicojp.reviewer.skill.SkillExecutor;
 import dev.logicojp.reviewer.skill.SkillRegistry;
 import dev.logicojp.reviewer.skill.SkillResult;
-import dev.logicojp.reviewer.util.TokenHashUtils;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -36,7 +32,6 @@ public class SkillService {
     private final ExecutionConfig executionConfig;
     private final SkillConfig skillConfig;
     private final SharedCircuitBreaker circuitBreaker;
-    private final Cache<ExecutorCacheKey, SkillExecutor> executorCache;
 
     @Inject
     public SkillService(SkillRegistry skillRegistry,
@@ -61,15 +56,6 @@ public class SkillService {
         this.executionConfig = executionConfig;
         this.skillConfig = skillConfig;
         this.circuitBreaker = circuitBreaker;
-        this.executorCache = Caffeine.newBuilder()
-            .initialCapacity(skillConfig.executorCacheInitialCapacity())
-            .maximumSize(skillConfig.maxExecutorCacheSize())
-            .removalListener((ExecutorCacheKey key, SkillExecutor executor, RemovalCause cause) -> {
-                if (executor != null && cause.wasEvicted()) {
-                    executor.close();
-                }
-            })
-            .build();
     }
 
     /// Registers all skills from an agent configuration.
@@ -107,7 +93,7 @@ public class SkillService {
                                     String model) {
         return executeResolvedSkill(
             skillId,
-            skill -> createExecutor(githubToken, model).execute(skill, parameters)
+            skill -> executeWithExecutor(githubToken, model, executor -> executor.execute(skill, parameters))
         );
     }
 
@@ -119,8 +105,21 @@ public class SkillService {
                                     String systemPrompt) {
         return executeResolvedSkill(
             skillId,
-            skill -> createExecutor(githubToken, model).execute(skill, parameters, systemPrompt)
+            skill -> executeWithExecutor(
+                githubToken,
+                model,
+                executor -> executor.execute(skill, parameters, systemPrompt)
+            )
         );
+    }
+
+    private SkillResult executeWithExecutor(String githubToken,
+                                            String model,
+                                            Function<SkillExecutor, SkillResult> runner) {
+        // Keep executor/token lifetime bounded to a single skill invocation.
+        try (SkillExecutor executor = createExecutor(githubToken, model)) {
+            return runner.apply(executor);
+        }
     }
 
     private SkillResult executeResolvedSkill(
@@ -135,11 +134,7 @@ public class SkillService {
     }
 
     private SkillExecutor createExecutor(String githubToken, String model) {
-        var key = new ExecutorCacheKey(
-            TokenHashUtils.sha256HexOrEmpty(githubToken),
-            model
-        );
-        return executorCache.get(key, _ -> new SkillExecutor(
+        return new SkillExecutor(
             copilotService.getClient(),
             githubToken,
             githubMcpConfig,
@@ -150,21 +145,11 @@ public class SkillService {
                 skillConfig.executorShutdownTimeoutSeconds()
             ),
             circuitBreaker
-        ));
-    }
-
-    private record ExecutorCacheKey(String tokenDigest, String model) {
-        @Override
-        public String toString() {
-            return "ExecutorCacheKey{tokenDigest=***, model='%s'}".formatted(model);
-        }
+        );
     }
 
     @PreDestroy
     public void shutdown() {
-        for (SkillExecutor executor : executorCache.asMap().values()) {
-            executor.close();
-        }
-        executorCache.invalidateAll();
+        logger.debug("SkillService shutdown complete");
     }
 }

@@ -82,9 +82,9 @@ reviewer:
     peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.5}
     synthesis-strategy: last-responder
   models:
-    default-model: claude-sonnet-4.6
+    default-model: claude-opus-4.8-xhigh
     review-model: gpt-5.3-codex
-    report-model: claude-opus-4.7-xhigh
+    report-model: claude-sonnet-4.6
     summary-model: claude-sonnet-4.6
     reasoning-effort: high
   summary:

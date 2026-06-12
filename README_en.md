@@ -162,7 +162,7 @@ The project MCP configuration is tracked in `.vscode/mcp.json` and includes Azur
 
 ## Copilot SDK License and Server-Side Use
 
-This project depends on `com.github:copilot-sdk-java:1.0.0-beta-10-java.5`. The SDK artifact and upstream repository declare the MIT License, which is generally permissive for server-side integration, modification, and redistribution.
+This project depends on `com.github:copilot-sdk-java`. The SDK artifact and upstream repository declare the MIT License, which is generally permissive for server-side integration, modification, and redistribution.
 
 The MIT license covers the SDK code only. Calls to GitHub Copilot are still governed by the applicable GitHub Copilot product terms and the authenticated user's or organization's Copilot entitlement. Avoid designs that share one Copilot login across unrelated end users or repackage Copilot as a transparent SaaS backend without legal/product-term review.
 

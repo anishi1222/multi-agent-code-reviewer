@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -174,8 +175,8 @@ class CliParsingTest {
     }
 
     @Nested
-    @DisplayName("readToken")
-    class ReadToken {
+    @DisplayName("readTokenChars")
+    class ReadTokenChars {
 
         @Test
         @DisplayName("標準入力センチネルでパスワード入力を読み取る")
@@ -192,7 +193,12 @@ class CliParsingTest {
                 }
             };
 
-            assertThat(CliParsing.readToken("-", tokenInput)).isEqualTo("ghp_from_password");
+            char[] token = CliParsing.readTokenChars("-", tokenInput);
+            try {
+                assertThat(new String(token)).isEqualTo("ghp_from_password");
+            } finally {
+                Arrays.fill(token, '\0');
+            }
         }
 
         @Test
@@ -210,7 +216,12 @@ class CliParsingTest {
                 }
             };
 
-            assertThat(CliParsing.readToken("-", tokenInput)).isEqualTo("ghp_from_stdin");
+            char[] token = CliParsing.readTokenChars("-", tokenInput);
+            try {
+                assertThat(new String(token)).isEqualTo("ghp_from_stdin");
+            } finally {
+                Arrays.fill(token, '\0');
+            }
         }
     }
 }

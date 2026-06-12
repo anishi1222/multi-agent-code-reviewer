@@ -1,6 +1,5 @@
 package dev.logicojp.reviewer.util;
 
-import java.util.List;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -8,10 +7,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /// Utility for working with {@link StructuredTaskScope} in preview JDK releases.
 ///
-/// JDK 27's {@code StructuredTaskScope} requires {@code join()} to be called
-/// from the owner thread and does not provide a built-in timeout variant.
-/// This utility implements timeout by scheduling an interrupt on the owner
-/// thread after the deadline expires.
+/// The generic arity of this preview API differs across JDK releases
+/// (for example, Java 25 vs Java 27). To support both native(Java 25)
+/// and regular(Java 27) builds from the same source tree, this utility
+/// keeps {@code StructuredTaskScope} at a raw-type boundary.
 public final class StructuredConcurrencyUtils {
 
     private StructuredConcurrencyUtils() {
@@ -21,7 +20,10 @@ public final class StructuredConcurrencyUtils {
     ///
     /// Using {@code allUntil(subtask -> false)} preserves the previous behavior
     /// where callers inspect each subtask state after join completes.
-    public static <T> StructuredTaskScope<T, List<StructuredTaskScope.Subtask<T>>, RuntimeException> openAwaitAllScope() {
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static <T> StructuredTaskScope openAwaitAllScope() {
+        // Java 25: Joiner result is Stream<Subtask<T>>
+        // Java 27: Joiner result type changed, but raw boundary keeps source compatibility.
         return StructuredTaskScope.open(StructuredTaskScope.Joiner.allUntil(subtask -> false));
     }
 
@@ -37,10 +39,11 @@ public final class StructuredConcurrencyUtils {
     /// @param unit the time unit for the timeout
     /// @throws InterruptedException if the current thread is interrupted (non-timeout)
     /// @throws TimeoutException if the join does not complete within the timeout
-    public static <T, R, R_X extends Throwable> void joinWithTimeout(StructuredTaskScope<T, R, R_X> scope,
-                                                                      long timeout,
-                                                                      TimeUnit unit)
-            throws InterruptedException, TimeoutException, R_X {
+    @SuppressWarnings("rawtypes")
+    public static void joinWithTimeout(StructuredTaskScope scope,
+                                       long timeout,
+                                       TimeUnit unit)
+            throws InterruptedException, TimeoutException {
         Thread ownerThread = Thread.currentThread();
         var timedOut = new AtomicBoolean(false);
 
@@ -56,8 +59,26 @@ public final class StructuredConcurrencyUtils {
                 throw timeoutException(timeout, unit);
             }
             throw e;
+        } catch (RuntimeException | Error e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new IllegalStateException("Structured task scope join failed", t);
         } finally {
             timeoutThread.interrupt();
+        }
+    }
+
+    /// Joins the given scope without timeout while preserving interruption semantics.
+    @SuppressWarnings("rawtypes")
+    public static void join(StructuredTaskScope scope) throws InterruptedException {
+        try {
+            scope.join();
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (RuntimeException | Error e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new IllegalStateException("Structured task scope join failed", t);
         }
     }
 

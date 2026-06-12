@@ -147,21 +147,17 @@ public final class CliParsing {
 
     /// Reads a token value, supporting stdin input via "-" to avoid
     /// exposing the token in process listings or shell history.
-    /// The returned `char[]` from `readPassword` is zero-filled after conversion
-    /// to minimize the window where the token exists in plain text.
     ///
-    /// **Security note**: The returned `String` is immutable and cannot be zeroed.
-    /// It will remain in the JVM heap until garbage collected. Callers should
-    /// minimize the scope of token references and prefer short-lived tokens
-    /// (e.g., fine-grained personal access tokens) to reduce exposure window.
-     static String readToken(String value) {
-        return readToken(value, SYSTEM_TOKEN_INPUT);
+    /// The returned char[] must be zero-filled by the caller after use.
+    @SuppressWarnings("unused")
+     static char[] readTokenChars(String value) {
+        return readTokenChars(value, SYSTEM_TOKEN_INPUT);
     }
 
-    static String readToken(String value, TokenInput tokenInput) {
+    static char[] readTokenChars(String value, TokenInput tokenInput) {
         if (STDIN_TOKEN_SENTINEL.equals(value)) {
             try {
-                return TokenReadUtils.readTrimmedToken(
+                return TokenReadUtils.readTrimmedTokenChars(
                     tokenInput::readPassword,
                     tokenInput::readStdin,
                     MAX_STDIN_TOKEN_BYTES
@@ -170,7 +166,7 @@ public final class CliParsing {
                 throw tokenReadFailure(e);
             }
         }
-        return value;
+        return value != null ? value.toCharArray() : new char[0];
     }
 
     private static boolean isMissingOptionValue(String[] args, int index) {
