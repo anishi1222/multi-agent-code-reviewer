@@ -102,59 +102,59 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  # build-native-image:
-  #   name: Build Native Image
-  #   runs-on: ubuntu-latest
-  #   needs: supply-chain-guard
+  build-native-image:
+    name: Build Native Image
+    runs-on: ubuntu-latest
+    needs: supply-chain-guard
 
-  #   steps:
-  #     - name: Harden the runner (Audit all outbound calls)
-  #       uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-  #       with:
-  #         egress-policy: audit
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
 
-  #     - name: Checkout repository
-  #       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-  #     - name: Set up GraalVM
-  #       uses: graalvm/setup-graalvm@60c26726de13f8b90771df4bc1641a52a3159994 # v1.5.2
-  #       with:
-  #         java-version: ${{ env.GRAALVM_JAVA_VERSION }}
-  #         distribution: ${{ env.GRAALVM_DISTRIBUTION }}
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@60c26726de13f8b90771df4bc1641a52a3159994 # v1.5.2
+        with:
+          java-version: ${{ env.GRAALVM_JAVA_VERSION }}
+          distribution: ${{ env.GRAALVM_DISTRIBUTION }}
 
-  #     - name: Build Native Image
-  #       continue-on-error: true
-  #       run: ./mvnw -B -ntp -Pnative -DskipTests package
+      - name: Build Native Image
+        continue-on-error: true
+        run: ./mvnw -B -ntp -Pnative -DskipTests package -f pom-native.xml
 
-  #     - name: Upload native image artifact
-  #       if: always()
-  #       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
-  #       with:
-  #         name: native-image
-  #         path: |
-  #           target/review
-  #           target/review.exe
-  #         if-no-files-found: warn
-  #         retention-days: 7
+      - name: Upload native image artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
+        with:
+          name: native-image
+          path: |
+            target/review
+            target/review.exe
+          if-no-files-found: warn
+          retention-days: 7
 
-  #     - name: Archive generated reports if present
-  #       if: always()
-  #       run: |
-  #         latest="$(find reports -mindepth 1 -maxdepth 3 -type d | sort | tail -n 1 || true)"
-  #         if [ -n "${latest}" ] && [ -d "${latest}" ]; then
-  #           scripts/archive-reports.sh "${latest}" "reports-latest.tar.gz"
-  #         else
-  #           echo "No generated report directory found; skipping archive."
-  #         fi
+      - name: Archive generated reports if present
+        if: always()
+        run: |
+          latest="$(find reports -mindepth 1 -maxdepth 3 -type d | sort | tail -n 1 || true)"
+          if [ -n "${latest}" ] && [ -d "${latest}" ]; then
+            scripts/archive-reports.sh "${latest}" "reports-latest.tar.gz"
+          else
+            echo "No generated report directory found; skipping archive."
+          fi
 
-  #     - name: Upload report archive if present
-  #       if: always()
-  #       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
-  #       with:
-  #         name: reports-archive
-  #         path: reports-latest.tar.gz
-  #         if-no-files-found: warn
-  #         retention-days: 7
+      - name: Upload report archive if present
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
+        with:
+          name: reports-archive
+          path: reports-latest.tar.gz
+          if-no-files-found: warn
+          retention-days: 7
 
   dependency-audit:
     name: Dependency Audit
