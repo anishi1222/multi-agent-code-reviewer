@@ -180,7 +180,24 @@ jobs:
           website: jdk.java.net
           release: ${{ env.JDK_VERSION }}
 
-      - name: Run OWASP dependency check
+      - name: Run OWASP dependency check (retry on NVD outage)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./mvnw -B -ntp -Psecurity-audit org.owasp:dependency-check-maven:check -Dnvd_api_key=${NVD_API_KEY}
+        shell: bash
+        run: |
+          set -euo pipefail
+          attempts=4
+          delay=30
+          for i in $(seq 1 $attempts); do
+            echo "Dependency-Check attempt $i/$attempts"
+            if ./mvnw -B -ntp -Psecurity-audit org.owasp:dependency-check-maven:check -Dnvd_api_key="${NVD_API_KEY}"; then
+              exit 0
+            fi
+            if [ "$i" -lt "$attempts" ]; then
+              echo "Dependency-Check failed (likely transient NVD/API issue). Retrying in ${delay}s..."
+              sleep "$delay"
+              delay=$((delay * 2))
+            fi
+          done
+          echo "Dependency-Check failed after ${attempts} attempts."
+          exit 1        
