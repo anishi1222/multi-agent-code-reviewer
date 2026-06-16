@@ -180,6 +180,14 @@ jobs:
           website: jdk.java.net
           release: ${{ env.JDK_VERSION }}
 
+      - name: Restore OWASP Dependency-Check cache
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: /tmp/owasp
+          key: dependency-check-${{ runner.os }}-${{ hashFiles('pom.xml', 'pom-native.xml') }}
+          restore-keys: |
+            dependency-check-${{ runner.os }}-
+
       - name: Run OWASP dependency check (retry on NVD outage)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
@@ -188,10 +196,25 @@ jobs:
           set -euo pipefail
           attempts=4
           delay=30
-          for i in $(seq 1 $attempts); do
+          transient_pattern='(NvdApiException|NVD Returned Status Code: (429|5[0-9]{2})|Error updating the NVD Data|NoDataException|Unable to update .*DataSource|NVD API request failures)'
+          mkdir -p target
+          for i in $(seq 1 "$attempts"); do
+            attempt_log="target/dependency-check-attempt-${i}.log"
             echo "Dependency-Check attempt $i/$attempts"
-            if ./mvnw -B -ntp -Psecurity-audit org.owasp:dependency-check-maven:check -Dnvd_api_key="${NVD_API_KEY}"; then
+            if ./mvnw -B -ntp \
+              -Psecurity-audit \
+              org.owasp:dependency-check-maven:check \
+              -Dnvd_api_key="${NVD_API_KEY}" \
+              -DdataDirectory=/tmp/owasp \
+              -DnvdMaxRetryCount=8 \
+              -DnvdApiDelay=6000 \
+              -DnvdValidForHours=24 \
+              2>&1 | tee "${attempt_log}"; then
               exit 0
+            fi
+            if ! grep -Eq "${transient_pattern}" "${attempt_log}"; then
+              echo "Dependency-Check failed with a non-transient error; not retrying."
+              exit 1
             fi
             if [ "$i" -lt "$attempts" ]; then
               echo "Dependency-Check failed (likely transient NVD/API issue). Retrying in ${delay}s..."
@@ -200,4 +223,15 @@ jobs:
             fi
           done
           echo "Dependency-Check failed after ${attempts} attempts."
-          exit 1        
+          exit 1
+
+      - name: Upload dependency-check reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.3.6
+        with:
+          name: dependency-check-reports
+          path: |
+            target/dependency-check-report.*
+            target/dependency-check-attempt-*.log
+          if-no-files-found: warn
+          retention-days: 7
