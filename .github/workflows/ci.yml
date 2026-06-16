@@ -43,10 +43,12 @@ jobs:
       - name: Validate dependency policy (enforcer + checksum)
         run: ./mvnw -B -ntp -DskipTests -P!security-audit validate
 
-  build-and-test:
+  build-JAR:
     name: Build and Test
     runs-on: ubuntu-latest
-    needs: supply-chain-guard
+    needs: 
+      - supply-chain-guard
+      - dependency-audit
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -105,7 +107,9 @@ jobs:
   build-native-image:
     name: Build Native Image
     runs-on: ubuntu-latest
-    needs: supply-chain-guard
+    needs:
+      - supply-chain-guard
+      - dependency-audit
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
