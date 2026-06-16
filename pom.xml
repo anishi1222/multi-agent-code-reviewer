@@ -19,8 +19,7 @@
     <description>Multiple AI agents review code and generate executive summary</description>
 
     <properties>
-        <jdk.version>27</jdk.version>
-        <release.version>27</release.version>
+        <java.version>27</java.version>
         <micronaut.version>5.0.3</micronaut.version>
         <micronaut.runtime>none</micronaut.runtime>
         <exec.mainClass>dev.logicojp.reviewer.ReviewApp</exec.mainClass>
@@ -30,6 +29,9 @@
         <assertj.version>3.27.7</assertj.version>
         <copilot.sdk.version>1.0.1</copilot.sdk.version>
         <dependency.check.version>12.2.2</dependency.check.version>
+        <cyclonedx.plugin.version>2.9.1</cyclonedx.plugin.version>
+        <maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
+        <maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
     </properties>
 
     <repositories>
@@ -121,7 +123,7 @@
             <plugin>
                 <groupId>org.cyclonedx</groupId>
                 <artifactId>cyclonedx-maven-plugin</artifactId>
-                <version>2.9.1</version>
+                <version>${cyclonedx.plugin.version}</version>
                 <executions>
                     <execution>
                         <id>make-bom</id>
@@ -148,7 +150,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.6.3</version>
+                <version>${maven.enforcer.plugin.version}</version>
                 <executions>
                     <execution>
                         <id>enforce-no-snapshots</id>
@@ -193,6 +195,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <enablePreview>true</enablePreview>
+                    <release>${java.version}</release>
                     <annotationProcessorPaths combine.children="append">
                         <path>
                             <groupId>io.micronaut</groupId>
@@ -212,7 +215,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.6</version>
+                <version>${maven.surefire.plugin.version}</version>
                 <configuration>
                     <argLine>--enable-preview</argLine>
                 </configuration>
