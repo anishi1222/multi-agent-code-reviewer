@@ -20,7 +20,7 @@
 
     <properties>
         <java.version>27</java.version>
-        <micronaut.version>5.0.2</micronaut.version>
+        <micronaut.version>5.1.0</micronaut.version>
         <micronaut.runtime>none</micronaut.runtime>
         <exec.mainClass>dev.logicojp.reviewer.ReviewApp</exec.mainClass>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
