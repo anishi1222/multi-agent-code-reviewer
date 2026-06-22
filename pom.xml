@@ -196,13 +196,7 @@
                 <configuration>
                     <enablePreview>true</enablePreview>
                     <release>${java.version}</release>
-                    <annotationProcessorPaths combine.children="append">
-                        <path>
-                            <groupId>io.micronaut</groupId>
-                            <artifactId>micronaut-inject-java</artifactId>
-                            <version>${micronaut.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
+                    <fork>true</fork>
                     <compilerArgs>
                         <!-- <arg>-Xlint:preview</arg> -->
                         <arg>-Amicronaut.processing.group=dev.logicojp</arg>
