@@ -28,6 +28,42 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-06-24 (v2026.06.24-dependency-ci-hardening)
+
+### Summary
+- Hardened dependency management and CI after the June dependency-update cycle.
+- Stabilized Dependabot, OWASP Dependency Audit, Dependency Submission, JVM build/test, and native-image validation on the current JDK/GraalVM split.
+- Synchronized README, release notes, and ADR index documentation with the current module layout, workflows, skill directories, MCP configuration, and native-image resources.
+
+### Highlights
+
+#### Added
+- `.github/workflows/dependency-submission.yml`: self-managed Maven dependency graph submission running on JDK 27, replacing GitHub's repository-managed dynamic `submit-maven` workflow that could not be configured for this project's Java/Micronaut toolchain.
+- `.github/workflows/ci.yml`: `Build Native Image` job for `pom-native.xml` using GraalVM 25.0.3, plus native/report artifact upload paths.
+- `src/main/resources/META-INF/native-image/reachability-metadata.json`: Native Image reachability metadata for Logback/Copilot SDK execution paths.
+- `pom.xml` and `pom-native.xml`: Jackson 2.x dependency-management override using `com.fasterxml.jackson:jackson-bom:2.22.0`, with `jackson.annotations.version=2.22`, while keeping the existing Jackson 3 `tools.jackson` override at `3.1.4`.
+
+#### Changed
+- Upgraded the runtime dependency stack to `copilot-sdk-java` 1.0.1 and Micronaut 5.1.2, with JDK 27 used for JVM builds/tests and GraalVM 25.0.3 used for native-image builds.
+- Updated pinned GitHub Actions dependencies, including `actions/checkout` v7, `actions/cache` v6, `step-security/harden-runner` v2.19.4, and `graalvm/setup-graalvm` v1.5.6.
+- Reworked `Dependency Audit` to run `org.owasp:dependency-check-maven:check` directly with `NVD_API_KEY`, `/tmp/owasp` cache restore, retry/backoff for transient NVD/API failures, and explicit `nvdApiDelay` / retry tuning.
+- Adjusted CI job dependencies so build/test and native-image jobs wait for both `Supply Chain Guard` and `Dependency Audit`.
+- Updated README EN/JA project-structure trees to include `pom-native.xml`, `.agents/skills`, `.github/agents`, `.vscode/mcp.json`, `dependency-submission.yml`, `release.yml`, `docs/adr`, scripts, native-image metadata, and the current Java package/module layout.
+
+#### Fixed
+- Resolved all open Dependabot alerts for transitive `com.fasterxml.jackson.core:jackson-databind` by overriding the Micronaut-managed Jackson 2.x transitive set from vulnerable `2.21.2` to `2.22.0`.
+- Fixed `Dependency Audit` workflow command drift by passing the NVD API key to the direct OWASP Maven plugin invocation in both PR CI and scheduled audit paths.
+- Removed the recurring `submit-maven` failure mode by moving dependency submission to the self-managed JDK 27 workflow.
+- Fixed test compilation compatibility against `copilot-sdk-java` 1.0.1 by aligning `AssistantMessageEventData` constructor usage with the current SDK record shape.
+
+### Validation
+- PR #189: `dependency-review`, `Dependency Audit`, `Build and Test`, `Build Native Image`, `CodeQL`, `Analyze`, and `Supply Chain Guard` all passed.
+- `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.25-open ./mvnw -B -ntp -q clean test` — 824 tests, 0 failures, 0 errors.
+- `./mvnw dependency:tree` verified `com.fasterxml.jackson.core:jackson-databind:2.22.0`, `jackson-core:2.22.0`, `jackson-annotations:2.22`, and `jackson-datatype-jsr310:2.22.0` in both `pom.xml` and `pom-native.xml`.
+- Dependabot open alerts after PR #189 merge: `0`.
+- Git tag: `v2026.06.24-dependency-ci-hardening`
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-dependency-ci-hardening
+
 ## 2026-06-08 (v2026.06.08-agent-model-defaults)
 
 ### Summary

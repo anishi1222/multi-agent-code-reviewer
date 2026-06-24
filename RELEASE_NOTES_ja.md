@@ -28,6 +28,42 @@
 ### 検証
 - Pending
 
+## 2026-06-24 (v2026.06.24-dependency-ci-hardening)
+
+### 概要
+- 6月の依存関係更新サイクル後の dependency management と CI を強化しました。
+- Dependabot、OWASP Dependency Audit、Dependency Submission、JVM build/test、Native Image 検証を、現在の JDK / GraalVM 分離構成で安定化しました。
+- README、リリースノート、ADR index を、現行のモジュール構成、workflow、skill ディレクトリ、MCP 設定、Native Image リソースに同期しました。
+
+### 主な変更
+
+#### 追加
+- `.github/workflows/dependency-submission.yml`: GitHub 管理の動的 `submit-maven` workflow を置き換える、自前の Maven dependency graph submission。JDK 27 上で実行するため、このプロジェクトの Java / Micronaut toolchain と整合します。
+- `.github/workflows/ci.yml`: GraalVM 25.0.3 と `pom-native.xml` を使う `Build Native Image` ジョブ、および Native Image / レポート artifact upload 経路。
+- `src/main/resources/META-INF/native-image/reachability-metadata.json`: Logback / Copilot SDK 実行経路向け Native Image reachability metadata。
+- `pom.xml` / `pom-native.xml`: Jackson 2.x 用 dependency management override。`com.fasterxml.jackson:jackson-bom:2.22.0` と `jackson.annotations.version=2.22` を追加し、既存の Jackson 3 `tools.jackson` override (`3.1.4`) は維持。
+
+#### 変更
+- 実行時依存関係を `copilot-sdk-java` 1.0.1、Micronaut 5.1.2 へ更新し、JVM build/test は JDK 27、Native Image build は GraalVM 25.0.3 を使う構成へ整理。
+- GitHub Actions の pin を更新（`actions/checkout` v7、`actions/cache` v6、`step-security/harden-runner` v2.19.4、`graalvm/setup-graalvm` v1.5.6 など）。
+- `Dependency Audit` を `org.owasp:dependency-check-maven:check` 直接実行に変更し、`NVD_API_KEY`、`/tmp/owasp` cache restore、transient NVD/API failure 向け retry/backoff、`nvdApiDelay` / retry tuning を追加。
+- Build/Test と Native Image ジョブが `Supply Chain Guard` と `Dependency Audit` の両方を待つように CI job dependency を調整。
+- README EN/JA のプロジェクト構成ツリーに、`pom-native.xml`、`.agents/skills`、`.github/agents`、`.vscode/mcp.json`、`dependency-submission.yml`、`release.yml`、`docs/adr`、scripts、Native Image metadata、現行 Java package / module 構成を反映。
+
+#### 修正
+- 推移依存の `com.fasterxml.jackson.core:jackson-databind` が Micronaut 管理で脆弱な `2.21.2` に固定されていた問題を、Jackson 2.x set を `2.22.0` へ上書きすることで解消し、開いていた Dependabot alert を全件解決。
+- PR CI と週次監査の両方で、直接 OWASP Maven plugin 実行時に NVD API key を渡すようにし、`Dependency Audit` workflow command drift を修正。
+- Dependency Submission を自前 JDK 27 workflow に移行し、`submit-maven` の継続失敗要因を除去。
+- `copilot-sdk-java` 1.0.1 の `AssistantMessageEventData` record 形状に合わせ、テストコンストラクタ呼び出しを修正。
+
+### 検証
+- PR #189: `dependency-review`, `Dependency Audit`, `Build and Test`, `Build Native Image`, `CodeQL`, `Analyze`, `Supply Chain Guard` がすべて成功。
+- `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.25-open ./mvnw -B -ntp -q clean test` — 824 tests, 0 failures, 0 errors。
+- `./mvnw dependency:tree` で `pom.xml` / `pom-native.xml` ともに `com.fasterxml.jackson.core:jackson-databind:2.22.0`, `jackson-core:2.22.0`, `jackson-annotations:2.22`, `jackson-datatype-jsr310:2.22.0` を確認。
+- PR #189 マージ後の Dependabot open alerts: `0`。
+- Git タグ: `v2026.06.24-dependency-ci-hardening`
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-dependency-ci-hardening
+
 ## 2026-06-08 (v2026.06.08-agent-model-defaults)
 
 ### 概要

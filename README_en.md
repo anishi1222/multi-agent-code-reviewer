@@ -26,8 +26,9 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 ## Latest Remediation Status
 
-All review findings from 2026-02-16 through 2026-06-08 review cycles have been fully addressed.
+All review findings from 2026-02-16 through 2026-06-24 review cycles have been fully addressed.
 
+- 2026-06-24 (v2026.06.24-dependency-ci-hardening): Dependency, CI, and module-structure hardening — upgraded the runtime stack to `copilot-sdk-java` 1.0.1, Micronaut 5.1.2, JDK 27 JVM builds, and GraalVM 25.0.3 native-image builds; added native-image reachability metadata for Logback/Copilot SDK execution; added a self-managed JDK 27 `Dependency Submission` workflow to replace the GitHub-managed `submit-maven` workflow; hardened OWASP Dependency Audit with NVD API key propagation, cache restore, retry/backoff, and direct `dependency-check:check` execution; constrained transitive Jackson 2.x dependencies with `com.fasterxml.jackson:jackson-bom:2.22.0` while retaining the Jackson 3 `tools.jackson` override; resolved all open Dependabot `jackson-databind` alerts; and synchronized README / release notes / ADR module trees with the current workflow, skill, MCP, native-image, and Java package layout.
 - 2026-06-08 (v2026.06.08-agent-model-defaults): Agent model defaults documentation sync — removed model pins from GitHub Copilot custom-agent configuration references, clarified that review model overrides should be supplied via CLI/configuration rather than `.github/agents` frontmatter, refreshed README model examples to the current runtime defaults (`claude-sonnet-4.6`, `gpt-5.3-codex`, `claude-opus-4.7-xhigh`), and updated the documented Copilot SDK dependency to `1.0.0-beta-10-java.5`.
 - 2026-05-28 (v2026.05.28-azure-skills-mcp): Azure Skills and MCP configuration — added official `microsoft/azure-skills` project skills under `.agents/skills/`, tracked them in `skills-lock.json`, configured Azure MCP and Microsoft Learn MCP in `.vscode/mcp.json`, rewrote WAF skills to require Microsoft Learn MCP grounding, added setup instructions for unconfigured Copilot CLI users, and documented Copilot SDK MIT licensing plus Copilot service-term boundaries for server-side use.
 - 2026-05-28 (v2026.05.28-ci-release-hardening): CI and release hardening — changed GitHub Actions workflow defaults to `permissions: {}`, granted `contents: read` only to build jobs and `contents: write` only to the release-publishing job, aligned the release workflow JDK with compiler release 27, removed unnecessary release checkout by setting `GH_REPO`, eliminated duplicate OWASP Dependency Check execution from `Supply Chain Guard` so deep auditing is owned by `Dependency Audit`, switched CodeQL Java/Kotlin analysis to `build-mode: none`, fixed dependency submission permissions, refreshed Actions/Maven plugin dependencies, and updated `CopilotCliPathResolver` tests for the latest constructor API.
@@ -61,7 +62,7 @@ All review findings from 2026-02-16 through 2026-06-08 review cycles have been f
 - 2026-02-17 (v1): PRs #22–#27 — Final remediation (PR-1 to PR-5)
 - Operations summary (2026-02-19 v2-v4): Java 25 CI alignment (PR #74) → idle-timeout scheduler resilience fix (PR #76) → operational completion checklist sync (PR #78)
 - Release details: `RELEASE_NOTES_en.md`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.08-agent-model-defaults
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-dependency-ci-hardening
 
 ## Operational Completion Check (2026-02-19)
 
@@ -116,7 +117,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - [ ] Add the same release date section to `RELEASE_NOTES_en.md` and `RELEASE_NOTES_ja.md`.
 - [ ] Update release references in `README_en.md` and `README_ja.md`.
 - [ ] Commit on a feature/docs branch and open a PR (do not push directly to `main`).
-- [ ] Confirm required checks are green (Supply Chain Guard, Build and Test, Build Native Image, dependency-review, submit-maven).
+- [ ] Confirm required checks are green (Supply Chain Guard, Dependency Audit, Build and Test, Build Native Image, dependency-review, CodeQL).
 - [ ] Merge the PR and fast-forward local `main`.
 - [ ] Create and push an annotated tag: `git tag -a vYYYY.MM.DD-notes -m "Release notes update for YYYY-MM-DD"` then `git push origin vYYYY.MM.DD-notes`.
 - [ ] Create GitHub Release from the tag with EN/JA summary notes.
@@ -124,7 +125,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ## Requirements
 
 - **JDK 27** (preview features enabled for runtime commands)
-- **GraalVM** (optional, only required for `-Pnative` native-image builds)
+- **GraalVM 25.0.3** (optional, only required for `-Pnative` native-image builds via `pom-native.xml`)
 - GitHub Copilot CLI 0.0.407 or later
 - GitHub CLI login (`gh auth login`) for repository access
 - GitHub Copilot CLI login (`gh copilot -- login` or `copilot login`) for Copilot SDK access
@@ -162,7 +163,7 @@ The project MCP configuration is tracked in `.vscode/mcp.json` and includes Azur
 
 ## Copilot SDK License and Server-Side Use
 
-This project depends on `com.github:copilot-sdk-java`. The SDK artifact and upstream repository declare the MIT License, which is generally permissive for server-side integration, modification, and redistribution.
+This project depends on `com.github:copilot-sdk-java` (currently `1.0.1`). The SDK artifact and upstream repository declare the MIT License, which is generally permissive for server-side integration, modification, and redistribution.
 
 The MIT license covers the SDK code only. Calls to GitHub Copilot are still governed by the applicable GitHub Copilot product terms and the authenticated user's or organization's Copilot entitlement. Avoid designs that share one Copilot login across unrelated end users or repackage Copilot as a transparent SaaS backend without legal/product-term review.
 
@@ -175,12 +176,16 @@ This repository enforces dependency and build hygiene in both Maven and GitHub A
 - PR dependency review fails on vulnerability severity `moderate` or higher.
 - PR dependency review denies these licenses: `GPL-2.0`, `GPL-3.0`, `AGPL-3.0`, `LGPL-2.1`, `LGPL-3.0`.
 - `Supply Chain Guard` runs Maven `validate` policy checks without duplicating OWASP vulnerability scanning.
-- `Dependency Audit` owns OWASP `dependency-check-maven` execution via `mvn -Psecurity-audit verify`.
+- `Dependency Audit` owns OWASP `dependency-check-maven` execution via direct `org.owasp:dependency-check-maven:check` with NVD API key propagation, cache restore, and retry/backoff for transient NVD failures.
+- The self-managed `Dependency Submission` workflow runs on JDK 27 so dependency graph submission remains compatible with the Micronaut Maven plugin.
+- Jackson is constrained in two independent families: Jackson 3 (`tools.jackson.*`) through `jackson.version`, and transitive Jackson 2 (`com.fasterxml.jackson.*`) through `jackson2.version` / `jackson-bom`.
 
 Recommended branch protection required checks:
 
 - `Supply Chain Guard`
+- `Dependency Audit`
 - `Build and Test`
+- `Build Native Image`
 - `Dependency Review`
 
 ### Installing the SDKMAN-managed JDK
@@ -777,6 +782,8 @@ To build as a native binary:
 
 The Copilot SDK internally uses Jackson Databind for JSON-RPC communication. Because GraalVM Native Image restricts reflection, reflection configuration must be registered in advance for the SDK's internal DTO classes.
 
+The repository now tracks baseline reachability metadata in `src/main/resources/META-INF/native-image/reachability-metadata.json` for Logback and Copilot SDK execution paths. Regenerate and review this file whenever the Copilot SDK, Jackson, Logback, or GraalVM Native Image tooling is upgraded.
+
 If the configuration is missing, the Native Image binary will time out when communicating with the Copilot CLI (this does not occur with the FAT JAR). This happens because Jackson performs JSON serialization/deserialization via reflection, and in a Native Image environment, metadata for unregistered classes is inaccessible. Exceptions are silently caught inside the SDK, leaving `CompletableFuture` instances permanently incomplete.
 
 Use the GraalVM **tracing agent** to automatically collect the required reflection information from an actual execution.
@@ -801,7 +808,7 @@ ls src/main/resources/META-INF/native-image/
 
 > **Note**: Use `config-merge-dir` instead of `config-output-dir` to merge with existing configurations (e.g., Logback) rather than overwriting them. Also, run all agents (security, performance, etc.) to exercise all code paths and generate complete configuration.
 
-> **Tip**: Re-run the tracing agent whenever you update dependencies such as the Copilot SDK or Jackson.
+> **Tip**: Re-run the tracing agent whenever you update dependencies such as the Copilot SDK, Jackson, Logback, or GraalVM Native Image tooling.
 
 ## Architecture
 
@@ -977,196 +984,75 @@ Templates support `{{placeholder}}` format placeholders. See each template file 
 
 ## Project Structure
 
-The following tree is synchronized with the current source layout as of 2026-03-05.
+The following tree is synchronized with the current source layout as of 2026-06-24.
 
 ```
 multi-agent-reviewer/
-├── pom.xml                              # Maven configuration
-├── .sdkmanrc                            # SDKMAN GraalVM configuration
+├── pom.xml                              # JVM/fat JAR build, dependency management, security-audit profile
+├── pom-native.xml                       # GraalVM Native Image build using the same app dependencies
+├── toolchains-template.xml              # Optional Maven toolchain template
+├── .sdkmanrc                            # SDKMAN Java configuration
+├── skills-lock.json                     # Locked source/hash metadata for imported Azure skills
+├── .vscode/
+│   ├── mcp.json                         # Azure MCP + Microsoft Learn MCP workspace config
+│   └── settings.json                    # Workspace Java settings
+├── .agents/skills/                      # Project fallback copy of official microsoft/azure-skills
+│   ├── azure-ai/
+│   ├── azure-deploy/
+│   ├── azure-diagnostics/
+│   ├── microsoft-foundry/
+│   └── ...
 ├── .github/
-│   ├── workflows/                       # CI/CD workflows
-│   │   ├── ci.yml                       # Build and test
-│   │   ├── codeql.yml                   # CodeQL analysis
-│   │   ├── dependency-audit.yml         # Weekly OWASP dependency audit
-│   │   ├── dependency-review.yml        # PR dependency review
-│   │   └── scorecard.yml               # OpenSSF Scorecard
-│   └── skills/                          # Skill definitions (SKILL.md format)
-│       ├── sql-injection-check/
-│       ├── secret-scan/
-│       └── ...
-├── agents/                              # Agent definitions (.agent.md format)
+│   ├── agents/                          # GitHub Copilot custom-agent profiles
+│   ├── instructions/                     # Repository instruction files
+│   ├── skills/                          # Project-specific review skills (SKILL.md format)
+│   │   ├── dependency-audit/
+│   │   ├── java-best-practices/
+│   │   ├── waf-security/
+│   │   └── ...
+│   └── workflows/                       # CI/CD and security workflows
+│       ├── ci.yml                       # Supply-chain guard, audit, JVM build/test, native image
+│       ├── codeql.yml                   # CodeQL analysis
+│       ├── dependency-audit.yml         # Scheduled OWASP dependency audit
+│       ├── dependency-review.yml        # PR dependency review
+│       ├── dependency-submission.yml    # Self-managed Maven dependency graph submission
+│       ├── release.yml                  # Tagged release build and publish workflow
+│       └── scorecard.yml                # OpenSSF Scorecard
+├── agents/                              # Runtime agent definitions loaded by the CLI app
 │   ├── security.agent.md
 │   ├── code-quality.agent.md
 │   ├── performance.agent.md
 │   ├── best-practices.agent.md
-│   ├── waf-reliability.agent.md
-│   ├── waf-security.agent.md
-│   ├── waf-cost-optimization.agent.md
-│   ├── waf-operational-excellence.agent.md
-│   └── waf-performance-efficiency.agent.md
-├── templates/                           # Template files
+│   └── waf-*.agent.md
+├── docs/
+│   └── adr/                             # Architecture Decision Records
+├── scripts/
+│   └── archive-reports.sh               # Report archive helper used by CI
+├── templates/                           # Prompt/report/summary/rubber-duck templates
 │   ├── summary-system.md
 │   ├── summary-prompt.md
 │   ├── report.md
+│   ├── review-quality-constraints.md
 │   └── ...
-└── src/main/java/dev/logicojp/reviewer/
-    ├── LogbackLevelSwitcher.java        # Runtime log level switching
-    ├── ReviewApp.java                   # CLI entry point
-    ├── agent/
-    │   ├── AgentConfig.java             # Config model
-    │   ├── AgentConfigLoader.java       # Config loader
-    │   ├── AgentConfigValidator.java    # Config validation
-    │   ├── AgentMarkdownParser.java     # .agent.md parser
-    │   ├── AgentPromptBuilder.java      # Agent prompt builder
-    │   ├── CircuitBreakerFactory.java   # Circuit breaker factory
-    │   ├── ReviewAgent.java             # Review agent
-    │   ├── ReviewContext.java           # Shared review context
-    │   ├── ReviewMessageFlow.java       # Review message flow
-    │   ├── ReviewResultFactory.java     # Review result factory
-    │   ├── ReviewRetryExecutor.java     # Review retry executor
-    │   ├── ReviewSessionConfigFactory.java # Session config factory
-    │   ├── ReviewSessionMessageSender.java # SDK sendAndWait wrapper
-    │   ├── ReviewSystemPromptFormatter.java # System prompt formatter
-    │   ├── ReviewTargetInstructionResolver.java # Target instruction resolver
-    │   ├── SharedCircuitBreaker.java    # Shared circuit breaker
-    │   ├── DialogueRound.java           # Rubber-duck dialogue round record
-    │   ├── RubberDuckDialogueExecutor.java # Rubber-duck two-model dialogue executor
-    │   └── SynthesisStrategy.java       # Rubber-duck synthesis strategy (sealed interface)
-    ├── cli/
-    │   ├── CliOutput.java               # CLI output utilities
-    │   ├── CliParsing.java              # CLI option parsing
-    │   ├── CliUsage.java                # Help / usage display
-    │   ├── CliValidationException.java  # CLI input validation exception
-    │   ├── CommandExecutor.java         # Command execution framework
-    │   ├── ExitCodes.java               # Exit code constants
-    │   ├── LifecycleRunner.java         # Shared lifecycle executor helper
-    │   ├── ListAgentsCommand.java       # list subcommand
-    │   ├── ReviewAgentConfigResolver.java # Agent config resolver
-    │   ├── ReviewCommand.java           # review subcommand
-    │   ├── ReviewExecutionCoordinator.java # Review execution coordinator
-    │   ├── ReviewModelConfigResolver.java # Model config resolver
-    │   ├── ReviewOptionsParser.java     # Review options parser
-    │   ├── ReviewOutputFormatter.java   # Review output formatter
-    │   ├── ReviewPreparationService.java # Review preparation service
-    │   ├── ReviewRunExecutor.java       # Review run executor
-    │   ├── ReviewRunRequestFactory.java # Review run request factory
-    │   ├── ReviewTargetResolver.java    # Review target resolver
-    │   ├── SkillCommand.java            # skill subcommand
-    │   ├── SkillExecutionCoordinator.java # Skill execution coordinator
-    │   ├── SkillExecutionPreparation.java # Skill execution preparation
-    │   ├── SkillOptionsParser.java      # Skill options parser
-    │   └── SkillOutputFormatter.java    # Skill output formatter
-    ├── config/
-    │   ├── AgentPathConfig.java         # Agent path config
-    │   ├── CircuitBreakerConfig.java    # Circuit breaker config
-    │   ├── ConfigDefaults.java          # Shared default normalization helpers
-    │   ├── ExecutionConfig.java         # Execution config
-    │   ├── GithubMcpConfig.java         # GitHub MCP config
-    │   ├── LocalFileConfig.java         # Local file config
-    │   ├── ModelConfig.java             # LLM model config
-    │   ├── RubberDuckConfig.java        # Rubber-duck peer discussion config
-    │   ├── SensitiveHeaderMasking.java  # Sensitive header masking
-    │   ├── SkillConfig.java             # Skill config
-    │   ├── SummaryConfig.java           # Summary generation limits config
-    │   └── TemplateConfig.java          # Template config
-    ├── instruction/
-    │   ├── CustomInstructionSafetyValidator.java # Instruction safety validator
-    │   └── InstructionFrontmatter.java  # Instruction frontmatter
-    ├── orchestrator/
-    │   ├── AgentReviewExecutor.java     # Agent review executor
-    │   ├── AgentReviewer.java           # Agent reviewer interface
-    │   ├── AgentReviewerFactory.java    # Agent reviewer factory
-    │   ├── ExecutorResources.java       # Executor resource bundle
-    │   ├── LocalSourceCollector.java    # Local source collector interface
-    │   ├── LocalSourceCollectorFactory.java # Local source collector factory
-    │   ├── LocalSourcePrecomputer.java  # Local source precomputer
-    │   ├── OrchestratorCollaborators.java # Orchestrator collaborator interfaces
-    │   ├── OrchestratorConfig.java      # Orchestrator configuration record
-    │   ├── PromptTexts.java             # Prompt text record
-    │   ├── ReviewContextFactory.java    # Review context factory
-    │   ├── ReviewExecutionModeRunner.java # Execution mode runner
-    │   ├── ReviewOrchestrator.java      # Parallel execution control
-    │   ├── ReviewOrchestratorFactory.java # Orchestrator factory
-    │   └── ReviewResultPipeline.java    # Result pipeline
-    ├── report/
-    │   ├── core/
-    │   │   ├── ReportGenerator.java      # Individual report generation
-    │   │   └── ReviewResult.java         # Result model
-    │   ├── factory/
-    │   │   └── ReportGeneratorFactory.java # Report/summary generator factory
-    │   ├── finding/
-    │   │   ├── AggregatedFinding.java    # Aggregated finding
-    │   │   ├── FindingsExtractor.java    # Findings extraction
-    │   │   ├── FindingsParser.java       # Findings parser
-    │   │   ├── ReviewFindingParser.java  # Review finding parser
-    │   │   └── ReviewFindingSimilarity.java # Duplicate finding similarity
-    │   ├── formatter/
-    │   │   ├── FindingsSummaryFormatter.java # Findings summary formatter
-    │   │   ├── ReportContentFormatter.java # Report content formatter
-    │   │   ├── ReviewMergedContentFormatter.java # Merged content formatter
-    │   │   └── SummaryFinalReportFormatter.java # Summary final formatter
-    │   ├── merger/
-    │   │   ├── ReviewOverallSummaryAppender.java # Post-merge overall summary
-    │   │   └── ReviewResultMerger.java   # Multi-pass result merger
-    │   ├── sanitize/
-    │   │   ├── ContentSanitizationPipeline.java # Sanitization pipeline
-    │   │   ├── ContentSanitizationRule.java # Sanitization rule
-    │   │   └── ContentSanitizer.java     # LLM preamble / CoT removal
-    │   ├── summary/
-    │   │   ├── FallbackSummaryBuilder.java # Fallback summary builder
-    │   │   ├── SummaryGenerator.java     # Summary generation
-    │   │   └── SummaryPromptBuilder.java # Summary prompt builder
-    │   └── util/
-    │       ├── ReportFileUtils.java      # Report file utilities
-    │       └── ReportFilenameUtils.java  # Safe report filename helper
-    ├── service/
-    │   ├── AgentService.java            # Agent management
-    │   ├── CopilotClientStarter.java    # Copilot client starter
-    │   ├── CopilotCliException.java     # Copilot CLI exception
-    │   ├── CopilotCliPathResolver.java  # Copilot CLI path resolver
-    │   ├── CopilotHealthProbe.java      # SDK getStatus / getAuthStatus probe
-    │   ├── CopilotService.java          # Copilot SDK integration
-    │   ├── CopilotStartupErrorFormatter.java # Startup error formatter
-    │   ├── CopilotTimeoutResolver.java  # Timeout resolver
-    │   ├── ReportService.java           # Report generation
-    │   ├── ReviewService.java           # Review execution
-    │   ├── SkillService.java            # Skill management
-    │   └── TemplateService.java         # Template loading
-    ├── skill/
-    │   ├── SkillDefinition.java         # Skill definition model
-    │   ├── SkillExecutor.java           # Skill executor
-    │   ├── SkillMarkdownParser.java     # Skill markdown parser
-    │   ├── SkillParameter.java          # Skill parameter model
-    │   ├── SkillRegistry.java           # Skill registry
-    │   └── SkillResult.java             # Skill result model
-    ├── target/
-    │   ├── LocalFileCandidate.java      # Local file candidate
-    │   ├── LocalFileCandidateCollector.java # File candidate collector
-    │   ├── LocalFileCandidateProcessor.java # File candidate processor
-    │   ├── LocalFileContentFormatter.java # File content formatter
-    │   ├── LocalFileProvider.java       # Local file collector
-    │   ├── LocalFileSelectionConfig.java # File selection config
-    │   └── ReviewTarget.java            # Review target (sealed interface)
-    └── util/
-        ├── CliPathResolver.java         # CLI path resolver
-        ├── CopilotPermissionHandlers.java # Session permission control handler
-        ├── ExecutorUtils.java           # Executor utilities
-        ├── FrontmatterParser.java       # YAML frontmatter parser
-        ├── GitHubTokenResolver.java     # GitHub token resolution
-        ├── PlaceholderUtils.java        # Template placeholder utilities
-        ├── RetryExecutor.java           # Generic retry executor
-        ├── RetryPolicyUtils.java        # Retry policy decision utilities
-        ├── SecurityAuditLogger.java     # Structured security audit logging
-        ├── StructuredConcurrencyUtils.java # Structured Concurrency utilities
-        ├── TokenHashUtils.java          # SHA-256 token hash utility
-        └── TokenReadUtils.java          # Token read utility
-
+├── src/main/java/dev/logicojp/reviewer/
+│   ├── ReviewApp.java                   # CLI entry point and command routing
+│   ├── LogbackLevelSwitcher.java        # Runtime log level switching
+│   ├── agent/                           # Agent config parsing, validation, prompts, SDK send flow, retry, rubber-duck dialogue
+│   ├── cli/                             # Hand-rolled CLI parser, commands, coordinators, output formatters
+│   ├── config/                          # Micronaut @ConfigurationProperties records and secure MCP/Jackson-related settings
+│   ├── instruction/                     # Instruction frontmatter and safety validation helpers
+│   ├── orchestrator/                    # Virtual-thread parallel review orchestration, local source precompute, result pipeline
+│   ├── report/                          # Report generation, finding extraction/merge, sanitization, summary generation, file utilities
+│   ├── service/                         # Copilot SDK lifecycle/health probe, template, agent, review, report, and skill services
+│   ├── skill/                           # SKILL.md parsing, registry, parameter model, execution, and results
+│   ├── target/                          # GitHub/local review target model and local file collection pipeline
+│   └── util/                            # Retry, structured concurrency, token handling, permissions, frontmatter, audit logging
 └── src/main/resources/
-    ├── defaults/
-    │   ├── ignored-directories.txt      # Default ignored directories for local collection
-    │   ├── source-extensions.txt        # Default source extensions
-    │   ├── sensitive-file-patterns.txt  # Default sensitive filename patterns
-    │   └── sensitive-extensions.txt     # Default sensitive extensions
+    ├── application.yml                  # Default Micronaut reviewer configuration
+    ├── logback.xml / logback-json.xml   # Logging configuration
+    ├── META-INF/native-image/
+    │   └── reachability-metadata.json   # Native Image metadata for Logback/Copilot SDK execution
+    ├── defaults/                        # Local source defaults and sensitive-file filters
     └── safety/
         └── suspicious-patterns.txt      # Prompt-injection suspicious pattern definitions
 ```

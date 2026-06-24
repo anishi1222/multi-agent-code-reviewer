@@ -10,8 +10,9 @@
 
 ## ドキュメント同期
 
-- 最終同期タグ: `v2026.05.28-azure-skills-mcp`
+- 最終同期タグ: `v2026.06.24-dependency-ci-hardening`
 - 関連更新: `README.md`, `README_en.md`, `README_ja.md`, `RELEASE_NOTES_en.md`, `RELEASE_NOTES_ja.md`
+- 同期内容: 依存関係/CI ハードニング、Jackson 2.x/3.x dependency management、Dependency Submission、Native Image、MCP/skills、現行 Java module tree
 
 ## 命名規則
 
