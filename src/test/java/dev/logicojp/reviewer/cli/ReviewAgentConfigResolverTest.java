@@ -108,17 +108,17 @@ class ReviewAgentConfigResolverTest {
         assertThat(config.dialogueRounds()).isEqualTo(3);
     }
 
-    private static ReviewCommand.ParsedOptions parsedOptions(String reviewModel) {
+    private static ReviewOptions parsedOptions(String reviewModel) {
         return parsedOptions(reviewModel, false, 0, null);
     }
 
-    private static ReviewCommand.ParsedOptions parsedOptions(String reviewModel,
+    private static ReviewOptions parsedOptions(String reviewModel,
                                                              boolean rubberDuck,
                                                              int dialogueRounds,
                                                              String peerModel) {
-        return ReviewCommand.ParsedOptions.builder()
-            .target(new ReviewCommand.TargetSelection.Repository("owner/repo"))
-            .agents(new ReviewCommand.AgentSelection.All())
+        return ReviewOptions.builder()
+            .target(new ReviewTargetSelection.Repository("owner/repo"))
+            .agents(new ReviewAgentSelection.All())
             .outputDirectory(Path.of("./reports"))
             .additionalAgentDirs(List.of())
             .parallelism(4)

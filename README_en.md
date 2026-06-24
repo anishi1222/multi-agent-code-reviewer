@@ -28,6 +28,7 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 All review findings from 2026-02-16 through 2026-06-24 review cycles have been fully addressed.
 
+- 2026-06-24 (v2026.06.24-refactor-seams-tests): Refactoring seam extraction and direct test coverage — split rubber-duck dialogue orchestration (`RubberDuckPromptBuilder`, `RubberDuckDialogueRunner`, `SdkRubberDuckSessionFactory`), review pass/session execution (`ReviewPassRunner`, `ReviewSessionExecutor`), summary AI transport/output writing (`AiSummaryClient`, `SummaryReportWriter`), review CLI option model (`ReviewOptions`, `ReviewTargetSelection`, `ReviewAgentSelection`), agent definition parsing (`AgentFrontmatterMapper`, `AgentSectionParser`), template repository loading (`TemplateRepository`), and GitHub token resolution (`TokenInputReader`, `GhCliLocator`, `GhAuthTokenProvider`) into focused collaborators. Added direct unit tests for the extracted seams, fixed hybrid local-review source propagation, and hardened `gh auth token` stdout/stderr handling with bounded stream collection. Verified with JDK 27 EA full clean test suite (871 tests, 0 failures).
 - 2026-06-24 (v2026.06.24-dependency-ci-hardening): Dependency, CI, and module-structure hardening — upgraded the runtime stack to `copilot-sdk-java` 1.0.1, Micronaut 5.1.2, JDK 27 JVM builds, and GraalVM 25.0.3 native-image builds; added native-image reachability metadata for Logback/Copilot SDK execution; added a self-managed JDK 27 `Dependency Submission` workflow to replace the GitHub-managed `submit-maven` workflow; hardened OWASP Dependency Audit with NVD API key propagation, cache restore, retry/backoff, and direct `dependency-check:check` execution; constrained transitive Jackson 2.x dependencies with `com.fasterxml.jackson:jackson-bom:2.22.0` while retaining the Jackson 3 `tools.jackson` override; resolved all open Dependabot `jackson-databind` alerts; and synchronized README / release notes / ADR module trees with the current workflow, skill, MCP, native-image, and Java package layout.
 - 2026-06-08 (v2026.06.08-agent-model-defaults): Agent model defaults documentation sync — removed model pins from GitHub Copilot custom-agent configuration references, clarified that review model overrides should be supplied via CLI/configuration rather than `.github/agents` frontmatter, refreshed README model examples to the current runtime defaults (`claude-sonnet-4.6`, `gpt-5.3-codex`, `claude-opus-4.7-xhigh`), and updated the documented Copilot SDK dependency to `1.0.0-beta-10-java.5`.
 - 2026-05-28 (v2026.05.28-azure-skills-mcp): Azure Skills and MCP configuration — added official `microsoft/azure-skills` project skills under `.agents/skills/`, tracked them in `skills-lock.json`, configured Azure MCP and Microsoft Learn MCP in `.vscode/mcp.json`, rewrote WAF skills to require Microsoft Learn MCP grounding, added setup instructions for unconfigured Copilot CLI users, and documented Copilot SDK MIT licensing plus Copilot service-term boundaries for server-side use.
@@ -62,7 +63,7 @@ All review findings from 2026-02-16 through 2026-06-24 review cycles have been f
 - 2026-02-17 (v1): PRs #22–#27 — Final remediation (PR-1 to PR-5)
 - Operations summary (2026-02-19 v2-v4): Java 25 CI alignment (PR #74) → idle-timeout scheduler resilience fix (PR #76) → operational completion checklist sync (PR #78)
 - Release details: `RELEASE_NOTES_en.md`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-dependency-ci-hardening
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-refactor-seams-tests
 
 ## Operational Completion Check (2026-02-19)
 
@@ -1037,16 +1038,16 @@ multi-agent-reviewer/
 ├── src/main/java/dev/logicojp/reviewer/
 │   ├── ReviewApp.java                   # CLI entry point and command routing
 │   ├── LogbackLevelSwitcher.java        # Runtime log level switching
-│   ├── agent/                           # Agent config parsing, validation, prompts, SDK send flow, retry, rubber-duck dialogue
-│   ├── cli/                             # Hand-rolled CLI parser, commands, coordinators, output formatters
+│   ├── agent/                           # Agent parsing, review pass/session execution, SDK send flow, rubber-duck dialogue seams
+│   ├── cli/                             # Hand-rolled CLI parser, commands, review option model, coordinators, output formatters
 │   ├── config/                          # Micronaut @ConfigurationProperties records and secure MCP/Jackson-related settings
 │   ├── instruction/                     # Instruction frontmatter and safety validation helpers
 │   ├── orchestrator/                    # Virtual-thread parallel review orchestration, local source precompute, result pipeline
-│   ├── report/                          # Report generation, finding extraction/merge, sanitization, summary generation, file utilities
-│   ├── service/                         # Copilot SDK lifecycle/health probe, template, agent, review, report, and skill services
+│   ├── report/                          # Report generation, finding extraction/merge, sanitization, summary AI/output seams, file utilities
+│   ├── service/                         # Copilot SDK lifecycle/health probe, template catalog/repository, agent, review, report, and skill services
 │   ├── skill/                           # SKILL.md parsing, registry, parameter model, execution, and results
 │   ├── target/                          # GitHub/local review target model and local file collection pipeline
-│   └── util/                            # Retry, structured concurrency, token handling, permissions, frontmatter, audit logging
+│   └── util/                            # Retry, structured concurrency, token input/gh auth, permissions, frontmatter, audit logging
 └── src/main/resources/
     ├── application.yml                  # Default Micronaut reviewer configuration
     ├── logback.xml / logback-json.xml   # Logging configuration

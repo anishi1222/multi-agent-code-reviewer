@@ -1,27 +1,14 @@
 package dev.logicojp.reviewer.report.summary;
 
+import com.github.copilot.CopilotClient;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
-import dev.logicojp.reviewer.report.util.ReportFileUtils;
-
+import dev.logicojp.reviewer.config.SummaryConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.report.formatter.SummaryFinalReportFormatter;
-
-import com.github.copilot.CopilotClient;
-import com.github.copilot.CopilotSession;
-import com.github.copilot.SystemMessageMode;
-import com.github.copilot.rpc.MessageOptions;
-import com.github.copilot.rpc.SessionConfig;
-import com.github.copilot.rpc.SystemMessageConfig;
-import dev.logicojp.reviewer.config.ModelConfig;
-import dev.logicojp.reviewer.config.SummaryConfig;
 import dev.logicojp.reviewer.service.TemplateService;
-import dev.logicojp.reviewer.util.CopilotPermissionHandlers;
-import dev.logicojp.reviewer.util.RetryExecutor;
-import dev.logicojp.reviewer.util.RetryPolicyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import dev.logicojp.reviewer.service.CopilotCliException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -29,10 +16,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.function.BiFunction;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.regex.Pattern;
 
 /// Generates executive summary by aggregating all agent review results.
 /// All prompt/template content is loaded from external templates via {@link TemplateService}.
@@ -48,12 +31,13 @@ public class SummaryGenerator {
     record SummaryCollaborators(
         SummaryPromptBuilder summaryPromptBuilder,
         FallbackSummaryBuilder fallbackSummaryBuilder,
-        SummaryFinalReportFormatter summaryFinalReportFormatter,
+        SummaryReportWriter summaryReportWriter,
         AiSummaryBuilder aiSummaryBuilder
     ) {
         static SummaryCollaborators defaults(TemplateService templateService,
-                                              SummaryConfig summaryConfig,
-                                              SummaryGenerator generator) {
+                                             SummaryConfig summaryConfig,
+                                             SummaryGeneratorConfig config,
+                                             String invocationTimestamp) {
             SummaryConfig effective = summaryConfig != null ? summaryConfig : new SummaryConfig(0, 0, 0, 0, 0, 0);
             return new SummaryCollaborators(
                 new SummaryPromptBuilder(templateService,
@@ -61,8 +45,12 @@ public class SummaryGenerator {
                     effective.averageResultContentEstimate(), effective.initialBufferMargin()),
                 new FallbackSummaryBuilder(templateService, effective.fallbackExcerptLength(),
                     effective.excerptNormalizationMultiplier()),
-                new SummaryFinalReportFormatter(templateService),
-                generator::buildSummaryWithAI
+                new SummaryReportWriter(
+                    config.outputDirectory(),
+                    invocationTimestamp,
+                    new SummaryFinalReportFormatter(templateService)
+                ),
+                null
             );
         }
 
@@ -71,20 +59,15 @@ public class SummaryGenerator {
             return new SummaryCollaborators(
                 summaryPromptBuilder != null ? summaryPromptBuilder : defaults.summaryPromptBuilder(),
                 fallbackSummaryBuilder != null ? fallbackSummaryBuilder : defaults.fallbackSummaryBuilder(),
-                summaryFinalReportFormatter != null ? summaryFinalReportFormatter : defaults.summaryFinalReportFormatter(),
-                aiSummaryBuilder != null ? aiSummaryBuilder : defaults.aiSummaryBuilder()
+                summaryReportWriter != null ? summaryReportWriter : defaults.summaryReportWriter(),
+                aiSummaryBuilder
             );
         }
     }
-    
+
     private static final Logger logger = LoggerFactory.getLogger(SummaryGenerator.class);
     private static final DateTimeFormatter TIMESTAMP_FORMATTER =
         DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss");
-    private static final Pattern INVOCATION_TIMESTAMP_PATTERN =
-        Pattern.compile("\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}");
-    private static final int AI_SUMMARY_MAX_RETRIES = 1;
-    private static final long RETRY_BACKOFF_BASE_MS = 1_000L;
-    private static final long RETRY_BACKOFF_MAX_MS = 15_000L;
 
     /// Groups the core configuration values for SummaryGenerator.
     record SummaryGeneratorConfig(
@@ -93,17 +76,14 @@ public class SummaryGenerator {
         String reasoningEffort,
         long timeoutMinutes
     ) {}
-    
-    private final SummaryGeneratorConfig config;
-    private final CopilotClient client;
-    private final TemplateService templateService;
+
     private final String invocationTimestamp;
     private final SummaryPromptBuilder summaryPromptBuilder;
     private final FallbackSummaryBuilder fallbackSummaryBuilder;
-    private final SummaryFinalReportFormatter summaryFinalReportFormatter;
+    private final SummaryReportWriter summaryReportWriter;
+    private final AiSummaryClient aiSummaryClient;
     private final AiSummaryBuilder aiSummaryBuilder;
-    private final SharedCircuitBreaker circuitBreaker;
-    
+
     public static Builder builder(Path outputDirectory,
                                   CopilotClient client,
                                   String summaryModel,
@@ -185,7 +165,7 @@ public class SummaryGenerator {
                     : new SummaryCollaborators(
                         effectiveCollaborators.summaryPromptBuilder(),
                         effectiveCollaborators.fallbackSummaryBuilder(),
-                        effectiveCollaborators.summaryFinalReportFormatter(),
+                        effectiveCollaborators.summaryReportWriter(),
                         overrideCollaborators.aiSummaryBuilder()
                     );
             }
@@ -210,192 +190,61 @@ public class SummaryGenerator {
             SummaryCollaborators collaborators,
             Clock clock,
             SharedCircuitBreaker circuitBreaker) {
-        this.config = config;
-        this.client = client;
-        this.templateService = templateService;
-        this.circuitBreaker = circuitBreaker;
         this.invocationTimestamp = LocalDateTime.now(clock).format(TIMESTAMP_FORMATTER);
-        SummaryCollaborators defaults = SummaryCollaborators.defaults(templateService, summaryConfig, this);
+        SummaryCollaborators defaults = SummaryCollaborators.defaults(
+            templateService,
+            summaryConfig,
+            config,
+            invocationTimestamp
+        );
         var effective = (collaborators != null ? collaborators : defaults).withDefaults(defaults);
         this.summaryPromptBuilder = effective.summaryPromptBuilder();
         this.fallbackSummaryBuilder = effective.fallbackSummaryBuilder();
-        this.summaryFinalReportFormatter = effective.summaryFinalReportFormatter();
-        this.aiSummaryBuilder = effective.aiSummaryBuilder();
+        this.summaryReportWriter = effective.summaryReportWriter();
+        this.aiSummaryClient = new AiSummaryClient(
+            client,
+            templateService,
+            config.summaryModel(),
+            config.reasoningEffort(),
+            config.timeoutMinutes(),
+            circuitBreaker
+        );
+        this.aiSummaryBuilder = effective.aiSummaryBuilder() != null
+            ? effective.aiSummaryBuilder()
+            : this::buildSummaryWithAI;
     }
-    
+
     /// Generates an executive summary from all review results.
     /// @param results List of review results from all agents
     /// @param repository The repository that was reviewed
     /// @return Path to the generated summary file
     public Path generateSummary(List<ReviewResult> results, String repository) throws IOException {
-        Path summaryOutputDirectory = resolveSummaryOutputDirectory();
-        ensureOutputDirectory(summaryOutputDirectory);
-
-        String timestamp = invocationTimestamp;
-        String filename = "executive_summary_%s.md".formatted(timestamp);
-        Path summaryPath = summaryOutputDirectory.resolve(filename);
-        
         logger.info("Generating executive summary from {} review results", results.size());
-        
-        // Build the summary using AI
         String summaryContent = aiSummaryBuilder.build(results, repository);
-        
-        // Build the final report
-        String finalReport = summaryFinalReportFormatter.format(summaryContent, repository, results, timestamp);
-        ReportFileUtils.writeSecureString(summaryPath, finalReport);
-        
+        Path summaryPath = summaryReportWriter.write(summaryContent, repository, results);
         logger.info("Generated executive summary: {}", summaryPath);
         return summaryPath;
     }
-    
+
     private String buildSummaryWithAI(List<ReviewResult> results, String repository) {
-        logger.info("Using model for summary: {}", config.summaryModel());
         String prompt = summaryPromptBuilder.buildSummaryPrompt(results, repository);
-        RetryExecutor<String> retryExecutor = new RetryExecutor<>(
-            AI_SUMMARY_MAX_RETRIES,
-            RETRY_BACKOFF_BASE_MS,
-            RETRY_BACKOFF_MAX_MS,
-            Thread::sleep,
-            circuitBreaker
-        );
-
-        String summary = retryExecutor.execute(
-            () -> runSummaryAttempt(prompt),
-            e -> fallbackSummary(results, "Failed to create or execute summary session: " + e.getMessage()),
-            this::isNonBlank,
-            _ -> false,
-            this::isTransientFailure,
-            summaryRetryObserver()
-        );
-
+        String summary = aiSummaryClient.generate(prompt);
         if (!isNonBlank(summary)) {
-            return fallbackSummary(results, "AI summary response was empty");
+            logger.warn("AI summary response was empty, using fallback summary");
+            return fallbackSummaryBuilder.buildFallbackSummary(results);
         }
         return summary;
     }
 
-    private String runSummaryAttempt(String prompt)
-            throws ExecutionException, TimeoutException {
-        var sessionConfig = createSummarySessionConfig();
-        long sessionCreateTimeoutMinutes = sessionCreateTimeoutMinutes(config.timeoutMinutes());
-
-        try (CopilotSession session = client.createSession(sessionConfig)
-            .get(sessionCreateTimeoutMinutes, TimeUnit.MINUTES)) {
-            return sendUntilNonBlank(session, prompt);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new CopilotCliException("Summary generation interrupted", ex);
-        }
-    }
-
-    /// Sends the prompt up to {@code contentAttempts} times within the same session,
-    /// returning the first non-blank response or {@code null}.
-    private String sendUntilNonBlank(CopilotSession session, String prompt)
-            throws ExecutionException, InterruptedException, TimeoutException {
-        long timeoutMs = messageTimeoutMs(config.timeoutMinutes());
-        int contentAttempts = AI_SUMMARY_MAX_RETRIES + 1;
-
-        for (int attempt = 1; attempt <= contentAttempts; attempt++) {
-            if (!circuitBreaker.allowRequest()) {
-                logger.warn("Summary generation short-circuited by open circuit breaker on content attempt {}/{}",
-                    attempt, contentAttempts);
-                return null;
-            }
-            var response = session
-                .sendAndWait(new MessageOptions().setPrompt(prompt), timeoutMs)
-                .get(config.timeoutMinutes(), TimeUnit.MINUTES);
-            String content = response.getData().content();
-            if (isNonBlank(content)) {
-                return content;
-            }
-            if (attempt < contentAttempts) {
-                RetryPolicyUtils.sleepWithBackoff(RETRY_BACKOFF_BASE_MS, RETRY_BACKOFF_MAX_MS, attempt);
-                logger.warn(
-                    "Summary generation returned empty content on attempt {}/{} in same session. Retrying...",
-                    attempt, contentAttempts);
-            }
-        }
-        return null;
-    }
-
     static long sessionCreateTimeoutMinutes(long totalTimeoutMinutes) {
-        return Math.max(1L, totalTimeoutMinutes / 4L);
+        return AiSummaryClient.sessionCreateTimeoutMinutes(totalTimeoutMinutes);
     }
 
     static long messageTimeoutMs(long totalTimeoutMinutes) {
-        return TimeUnit.MINUTES.toMillis(totalTimeoutMinutes);
+        return AiSummaryClient.messageTimeoutMs(totalTimeoutMinutes);
     }
 
-    private boolean isNonBlank(String value) {
+    private static boolean isNonBlank(String value) {
         return value != null && !value.isBlank();
-    }
-
-    private boolean isTransientFailure(Exception exception) {
-        return RetryPolicyUtils.isTransientException(exception);
-    }
-
-    private static RetryExecutor.RetryObserver<String> summaryRetryObserver() {
-        return new RetryExecutor.RetryObserver<>() {
-            @Override
-            public void onCircuitOpen() {
-                logger.warn("Summary generation skipped by open circuit breaker");
-            }
-
-            @Override
-            public void onRetryableException(int attempt, int totalAttempts, Exception exception) {
-                logger.warn("Summary generation failed on attempt {}/{}: {}. Retrying...",
-                    attempt, totalAttempts, exception.getMessage(), exception);
-            }
-
-            @Override
-            public void onFinalException(int attempt, int totalAttempts,
-                                         Exception exception, boolean transientFailure) {
-                if (!transientFailure) {
-                    logger.warn("Summary generation failed without retry: {}", exception.getMessage(), exception);
-                }
-            }
-        };
-    }
-
-    private SessionConfig createSummarySessionConfig() {
-        String systemPrompt = templateService.getSummarySystemPrompt();
-        var sessionConfig = new SessionConfig()
-            .setModel(config.summaryModel())
-            .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL)
-            .setSystemMessage(new SystemMessageConfig()
-                .setMode(SystemMessageMode.REPLACE)
-                .setContent(systemPrompt));
-
-        applyReasoningEffort(sessionConfig);
-        return sessionConfig;
-    }
-
-    private void applyReasoningEffort(SessionConfig sessionConfig) {
-        String effort = ModelConfig.resolveReasoningEffort(config.summaryModel(), config.reasoningEffort());
-        if (effort != null) {
-            logger.info("Setting reasoning effort '{}' for model: {}", effort, config.summaryModel());
-            sessionConfig.setReasoningEffort(effort);
-        }
-    }
-
-    private String fallbackSummary(List<ReviewResult> results, String reason) {
-        logger.warn("{}, using fallback summary", reason);
-        return fallbackSummaryBuilder.buildFallbackSummary(results);
-    }
-
-    private Path resolveSummaryOutputDirectory() {
-        Path invocationDirectory = config.outputDirectory().getFileName();
-        if (invocationDirectory == null) {
-            return config.outputDirectory();
-        }
-        if (!INVOCATION_TIMESTAMP_PATTERN.matcher(invocationDirectory.toString()).matches()) {
-            return config.outputDirectory();
-        }
-        Path parent = config.outputDirectory().getParent();
-        return parent != null ? parent : config.outputDirectory();
-    }
-
-    private void ensureOutputDirectory(Path directory) throws IOException {
-        ReportFileUtils.ensureOutputDirectory(directory);
     }
 }

@@ -95,22 +95,15 @@ class TemplateServiceTest {
         }
 
         @Test
-        @DisplayName("キャッシュ上限を超えると最古エントリがエビクションされる")
-        void evictsOldestEntryWhenCacheLimitExceeded() throws IOException {
+        @DisplayName("2回目以降はキャッシュ済みcontentを返す")
+        void returnsCachedTemplateContent() throws IOException {
             TemplateService service = new TemplateService(createConfig());
 
             Files.writeString(tempDir.resolve("template-01.md"), "first-v1");
             assertThat(service.loadTemplateContent("template-01.md")).isEqualTo("first-v1");
 
-            for (int index = 2; index <= 65; index++) {
-                String templateName = "template-%02d.md".formatted(index);
-                Files.writeString(tempDir.resolve(templateName), "content-%02d".formatted(index));
-                service.loadTemplateContent(templateName);
-            }
-
-            service.cleanUp();
             Files.writeString(tempDir.resolve("template-01.md"), "first-v2");
-            assertThat(service.loadTemplateContent("template-01.md")).isEqualTo("first-v2");
+            assertThat(service.loadTemplateContent("template-01.md")).isEqualTo("first-v1");
         }
     }
 

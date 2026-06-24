@@ -25,7 +25,7 @@ class ReviewRunRequestFactory {
     }
 
     public ReviewRunExecutor.ReviewRunRequest create(
-        ReviewCommand.ParsedOptions options,
+        ReviewOptions options,
         ReviewTarget target,
         ModelConfig modelConfig,
         Map<String, AgentConfig> agentConfigs,
@@ -53,7 +53,7 @@ class ReviewRunRequestFactory {
         );
     }
 
-    private RubberDuckConfig resolveRubberDuckConfig(ReviewCommand.ParsedOptions options) {
+    private RubberDuckConfig resolveRubberDuckConfig(ReviewOptions options) {
         boolean enabled = options.rubberDuck() || defaultRubberDuckConfig.enabled();
         int rounds = options.dialogueRounds() > 0
             ? options.dialogueRounds()
@@ -73,15 +73,15 @@ class ReviewRunRequestFactory {
         return modelConfig.reasoningEffort();
     }
 
-    private int resolveParallelism(ReviewCommand.ParsedOptions options) {
+    private int resolveParallelism(ReviewOptions options) {
         return options.parallelism();
     }
 
-    private boolean isSummaryDisabled(ReviewCommand.ParsedOptions options) {
+    private boolean isSummaryDisabled(ReviewOptions options) {
         return options.noSummary();
     }
 
-    private boolean isSharedSessionDisabled(ReviewCommand.ParsedOptions options) {
+    private boolean isSharedSessionDisabled(ReviewOptions options) {
         return options.noSharedSession();
     }
 }

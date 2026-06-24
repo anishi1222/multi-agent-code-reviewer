@@ -24,7 +24,7 @@ class ReviewAgentConfigResolver {
 
     @FunctionalInterface
     interface AgentConfigLoader {
-        Map<String, AgentConfig> load(ReviewCommand.AgentSelection selection, List<Path> agentDirs) throws IOException;
+        Map<String, AgentConfig> load(ReviewAgentSelection selection, List<Path> agentDirs) throws IOException;
     }
 
     private final AgentDirectoryBuilder directoryBuilder;
@@ -35,8 +35,8 @@ class ReviewAgentConfigResolver {
         this(
             agentService::buildAgentDirectories,
             (selection, agentDirs) -> switch (selection) {
-                case ReviewCommand.AgentSelection.All() -> agentService.loadAllAgents(agentDirs);
-                case ReviewCommand.AgentSelection.Named(List<String> names) -> agentService.loadAgents(agentDirs, names);
+                case ReviewAgentSelection.All() -> agentService.loadAllAgents(agentDirs);
+                case ReviewAgentSelection.Named(List<String> names) -> agentService.loadAgents(agentDirs, names);
             }
         );
     }
@@ -46,7 +46,7 @@ class ReviewAgentConfigResolver {
         this.configLoader = configLoader;
     }
 
-    public AgentResolution resolve(ReviewCommand.ParsedOptions options) {
+    public AgentResolution resolve(ReviewOptions options) {
         List<Path> agentDirs = resolveAgentDirectories(options);
         Map<String, AgentConfig> loadedConfigs = loadAgentConfigs(options.agents(), agentDirs);
         Map<String, AgentConfig> adjustedConfigs = applyReviewModelOverride(loadedConfigs, options.reviewModel());
@@ -54,11 +54,11 @@ class ReviewAgentConfigResolver {
         return new AgentResolution(List.copyOf(agentDirs), adjustedConfigs);
     }
 
-    private List<Path> resolveAgentDirectories(ReviewCommand.ParsedOptions options) {
+    private List<Path> resolveAgentDirectories(ReviewOptions options) {
         return directoryBuilder.build(options.additionalAgentDirs());
     }
 
-    private Map<String, AgentConfig> loadAgentConfigs(ReviewCommand.AgentSelection selection, List<Path> agentDirs) {
+    private Map<String, AgentConfig> loadAgentConfigs(ReviewAgentSelection selection, List<Path> agentDirs) {
         try {
             return configLoader.load(selection, agentDirs);
         } catch (IOException e) {
@@ -83,7 +83,7 @@ class ReviewAgentConfigResolver {
     }
 
     private Map<String, AgentConfig> applyRubberDuckOverrides(
-            Map<String, AgentConfig> agentConfigs, ReviewCommand.ParsedOptions options) {
+            Map<String, AgentConfig> agentConfigs, ReviewOptions options) {
         boolean rubberDuck = options.rubberDuck();
         String peerModel = options.peerModel();
         int dialogueRounds = options.dialogueRounds();

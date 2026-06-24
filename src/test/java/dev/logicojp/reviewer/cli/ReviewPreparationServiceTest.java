@@ -34,9 +34,9 @@ class ReviewPreparationServiceTest {
             Clock.fixed(Instant.parse("2026-02-19T09:10:11Z"), ZoneId.of("UTC"))
         );
 
-        ReviewCommand.ParsedOptions options = ReviewCommand.ParsedOptions.builder()
-            .target(new ReviewCommand.TargetSelection.Repository("owner/repo"))
-            .agents(new ReviewCommand.AgentSelection.All())
+        ReviewOptions options = ReviewOptions.builder()
+            .target(new ReviewTargetSelection.Repository("owner/repo"))
+            .agents(new ReviewAgentSelection.All())
             .outputDirectory(Path.of("./reports"))
             .additionalAgentDirs(List.of())
             .parallelism(4)
@@ -77,9 +77,9 @@ class ReviewPreparationServiceTest {
             Clock.fixed(Instant.parse("2026-02-19T09:10:11Z"), ZoneId.of("UTC"))
         );
 
-        ReviewCommand.ParsedOptions options = ReviewCommand.ParsedOptions.builder()
-            .target(new ReviewCommand.TargetSelection.LocalDirectory(Path.of("/")))
-            .agents(new ReviewCommand.AgentSelection.All())
+        ReviewOptions options = ReviewOptions.builder()
+            .target(new ReviewTargetSelection.LocalDirectory(Path.of("/")))
+            .agents(new ReviewAgentSelection.All())
             .outputDirectory(Path.of("./reports"))
             .additionalAgentDirs(List.of())
             .parallelism(4)

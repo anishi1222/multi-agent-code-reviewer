@@ -46,7 +46,7 @@ class ReviewPreparationService {
         this.clock = clock;
     }
 
-    public PreparedData prepare(ReviewCommand.ParsedOptions options,
+    public PreparedData prepare(ReviewOptions options,
                                 ReviewTarget target,
                                 ModelConfig modelConfig,
                                 Map<String, AgentConfig> agentConfigs,
@@ -59,7 +59,7 @@ class ReviewPreparationService {
         return new PreparedData(outputDirectory, invocationTimestamp);
     }
 
-    private Path resolveOutputDirectory(ReviewCommand.ParsedOptions options,
+    private Path resolveOutputDirectory(ReviewOptions options,
                                         ReviewTarget target,
                                         String invocationTimestamp) {
         Path configuredOutputDirectory = options.outputDirectory();

@@ -353,5 +353,20 @@ class ExecutionConfigTest {
             assertThat(config.isSharedSessionEnabled()).isFalse();
             assertThat(config.isGhAuthFallbackEnabled()).isTrue();
         }
+
+        @Test
+        @DisplayName("builderはデフォルト値を起点に一部だけ上書きできる")
+        void builderStartsFromDefaults() {
+            ExecutionConfig config = ExecutionConfig.builder()
+                .parallelism(6)
+                .sharedSessionEnabled(false)
+                .build();
+
+            assertThat(config.parallelism()).isEqualTo(6);
+            assertThat(config.reviewPasses()).isEqualTo(ExecutionConfig.DEFAULT_REVIEW_PASSES);
+            assertThat(config.orchestratorTimeoutMinutes()).isEqualTo(10);
+            assertThat(config.isSharedSessionEnabled()).isFalse();
+            assertThat(config.isGhAuthFallbackEnabled()).isFalse();
+        }
     }
 }

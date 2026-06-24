@@ -87,6 +87,32 @@ public record ExecutionConfig(
     private static final long DEFAULT_GH_AUTH_TIMEOUT_SECONDS = 10;
     public static final int DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY = 32;
 
+    private static final ExecutionDefaults DEFAULTS = new ExecutionDefaults(
+        new ConcurrencySettings(DEFAULT_PARALLELISM, DEFAULT_REVIEW_PASSES),
+        new TimeoutSettings(
+            DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES,
+            DEFAULT_AGENT_TIMEOUT_MINUTES,
+            DEFAULT_IDLE_TIMEOUT_MINUTES,
+            DEFAULT_SKILL_TIMEOUT_MINUTES,
+            DEFAULT_SUMMARY_TIMEOUT_MINUTES,
+            DEFAULT_GH_AUTH_TIMEOUT_SECONDS
+        ),
+        new RetrySettings(DEFAULT_MAX_RETRIES),
+        new BufferSettings(DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY),
+        DEFAULT_SHARED_SESSION_ENABLED,
+        DEFAULT_GH_AUTH_FALLBACK_ENABLED
+    );
+
+    private record ExecutionDefaults(
+        ConcurrencySettings concurrency,
+        TimeoutSettings timeouts,
+        RetrySettings retry,
+        BufferSettings buffers,
+        boolean sharedSessionEnabled,
+        boolean ghAuthFallbackEnabled
+    ) {
+    }
+
     public ExecutionConfig {
         concurrency = Objects.requireNonNullElseGet(concurrency, ExecutionConfig::defaultConcurrency);
         timeouts = Objects.requireNonNullElseGet(timeouts, ExecutionConfig::defaultTimeouts);
@@ -102,28 +128,19 @@ public record ExecutionConfig(
     }
 
     private static ConcurrencySettings defaultConcurrency() {
-        return new ConcurrencySettings(DEFAULT_PARALLELISM, DEFAULT_REVIEW_PASSES);
+        return DEFAULTS.concurrency();
     }
 
     private static TimeoutSettings defaultTimeouts() {
-        return new TimeoutSettings(
-            DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES,
-            DEFAULT_AGENT_TIMEOUT_MINUTES,
-            DEFAULT_IDLE_TIMEOUT_MINUTES,
-            DEFAULT_SKILL_TIMEOUT_MINUTES,
-            DEFAULT_SUMMARY_TIMEOUT_MINUTES,
-            DEFAULT_GH_AUTH_TIMEOUT_SECONDS
-        );
+        return DEFAULTS.timeouts();
     }
 
     private static RetrySettings defaultRetry() {
-        return new RetrySettings(DEFAULT_MAX_RETRIES);
+        return DEFAULTS.retry();
     }
 
     private static BufferSettings defaultBuffers() {
-        return new BufferSettings(
-            DEFAULT_INSTRUCTION_BUFFER_EXTRA_CAPACITY
-        );
+        return DEFAULTS.buffers();
     }
 
     public static ExecutionConfig of(ConcurrencySettings concurrency,
@@ -135,8 +152,8 @@ public record ExecutionConfig(
             timeouts,
             retry,
             buffers,
-            DEFAULT_SHARED_SESSION_ENABLED,
-            DEFAULT_GH_AUTH_FALLBACK_ENABLED
+            DEFAULTS.sharedSessionEnabled(),
+            DEFAULTS.ghAuthFallbackEnabled()
         );
     }
 
@@ -151,7 +168,7 @@ public record ExecutionConfig(
             retry,
             buffers,
             sharedSessionEnabled,
-            DEFAULT_GH_AUTH_FALLBACK_ENABLED
+            DEFAULTS.ghAuthFallbackEnabled()
         );
     }
 
@@ -236,14 +253,18 @@ public record ExecutionConfig(
     /// Returns a new ExecutionConfig with all default values.
     /// Useful in tests and as a starting point for the Builder.
     public static ExecutionConfig defaults() {
-        return ExecutionConfig.of(
-            defaultConcurrency(),
-            defaultTimeouts(),
-                defaultRetry(),
-                defaultBuffers(),
-                DEFAULT_SHARED_SESSION_ENABLED,
-                DEFAULT_GH_AUTH_FALLBACK_ENABLED
+        return new ExecutionConfig(
+            DEFAULTS.concurrency(),
+            DEFAULTS.timeouts(),
+            DEFAULTS.retry(),
+            DEFAULTS.buffers(),
+            DEFAULTS.sharedSessionEnabled(),
+            DEFAULTS.ghAuthFallbackEnabled()
         );
+    }
+
+    public static Builder builder() {
+        return Builder.from(defaults());
     }
 
     public static final class Builder {

@@ -28,6 +28,51 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-06-24 (v2026.06.24-refactor-seams-tests)
+
+### Summary
+- Extracted focused seams from the largest review, rubber-duck, summary, CLI option, agent parsing, template loading, and token-resolution components.
+- Added direct unit tests for the extracted collaborators and increased the full clean test suite to 871 tests.
+- Fixed two behavior issues found during the added test/review pass: hybrid local-review source propagation and `gh auth token` process output handling.
+
+### Highlights
+
+#### Added
+- `agent` package seams:
+  - `ReviewPassRunner`, `ReviewSessionExecutor`
+  - `RubberDuckPromptBuilder`, `RubberDuckDialogueRunner`, `RubberDuckSession`, `RubberDuckSessionFactory`, `SdkRubberDuckSessionFactory`
+  - `AgentFrontmatterMapper`, `AgentSectionParser`, `ParsedAgentMetadata`
+- `cli` package option model:
+  - `ReviewOptions`, `ReviewTargetSelection`, `ReviewAgentSelection`
+- `report.summary` package seams:
+  - `AiSummaryClient`, `SummaryReportWriter`
+- `service.TemplateRepository` for template cache/path validation/filesystem/classpath loading.
+- `util` package token seams:
+  - `TokenInputReader`, `GhCliLocator`, `GhAuthTokenProvider`
+- Direct tests for each new seam, including token/process boundary tests and cache behavior tests that avoid relying on Caffeine eviction order.
+
+#### Changed
+- `ReviewAgent` is now a thin facade over `ReviewPassRunner` and `ReviewSessionExecutor`.
+- `RubberDuckDialogueExecutor` now coordinates extracted prompt/session/dialogue collaborators.
+- `SummaryGenerator` now coordinates prompt/fallback/report collaborators and delegates SDK transport to `AiSummaryClient`.
+- `TemplateService` is now a typed template catalog/facade over `TemplateRepository`.
+- `GitHubTokenResolver` now coordinates token normalization and optional `gh auth` fallback instead of directly owning stdin, path lookup, and process execution.
+- `ExecutionConfig` defaults now flow through a canonical defaults holder and builder path.
+
+#### Fixed
+- Hybrid local review now sends source content to isolated parallel pass sessions, instead of treating pass 2+ as remote-only instructions.
+- `GhAuthTokenProvider` now keeps stdout/stderr separate, drains both streams while the process runs, bounds stream collection after exit, and only returns stdout as the token.
+- Token stdin tests no longer depend on a real console; `TokenInputReader` accepts injectable password/stdin readers.
+- Template cache tests no longer assume deterministic Caffeine eviction order.
+
+### Validation
+- `git diff --check`
+- Targeted tests for all extracted seams and affected components
+- `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.25-open ./mvnw -B -ntp -q clean test` — 871 tests, 0 failures, 0 errors
+- Code-review agents reviewed the refactor/test changes; material findings were fixed before final validation.
+- Git tag: `v2026.06.24-refactor-seams-tests`
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-refactor-seams-tests
+
 ## 2026-06-24 (v2026.06.24-dependency-ci-hardening)
 
 ### Summary

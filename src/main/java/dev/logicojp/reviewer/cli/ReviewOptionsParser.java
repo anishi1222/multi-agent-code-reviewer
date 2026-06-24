@@ -21,7 +21,12 @@ class ReviewOptionsParser {
         this.executionConfig = executionConfig;
     }
 
-    public Optional<ReviewCommand.ParsedOptions> parse(String[] args) {
+    @FunctionalInterface
+    private interface OptionHandler {
+        OptionalInt apply(ParseState state, String arg, String[] args, int index);
+    }
+
+    public Optional<ReviewOptions> parse(String[] args) {
         args = Objects.requireNonNullElse(args, new String[0]);
 
         var state = new ParseState(executionConfig.parallelism());
@@ -37,10 +42,10 @@ class ReviewOptionsParser {
         return Optional.of(toParsedOptions(state));
     }
 
-    private ReviewCommand.ParsedOptions toParsedOptions(ParseState state) {
-        ReviewCommand.TargetSelection target = validateTargetSelection(state.repository, state.localDirectory);
-        ReviewCommand.AgentSelection agents = validateAgentSelection(state.allAgents, state.agentNames);
-        return ReviewCommand.ParsedOptions.builder()
+    private ReviewOptions toParsedOptions(ParseState state) {
+        ReviewTargetSelection target = validateTargetSelection(state.repository, state.localDirectory);
+        ReviewAgentSelection agents = validateAgentSelection(state.allAgents, state.agentNames);
+        return ReviewOptions.builder()
             .target(target)
             .agents(agents)
             .outputDirectory(state.outputDirectory)
@@ -92,28 +97,28 @@ class ReviewOptionsParser {
             return i;
         }
 
-        OptionalInt parsedIndex = applyTargetOption(state, arg, args, i);
-        if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
-
-        parsedIndex = applyAgentOption(state, arg, args, i);
-        if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
-
-        parsedIndex = applyExecutionOption(state, arg, args, i);
-        if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
-
-        parsedIndex = applyModelOption(state, arg, args, i);
-        if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
-
-        parsedIndex = applyTrustOption(state, arg, i);
-        if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
-
-        parsedIndex = applyRubberDuckOption(state, arg, args, i);
-        if (parsedIndex.isPresent()) return parsedIndex.getAsInt();
+        for (OptionHandler handler : optionHandlers()) {
+            OptionalInt parsedIndex = handler.apply(state, arg, args, i);
+            if (parsedIndex.isPresent()) {
+                return parsedIndex.getAsInt();
+            }
+        }
 
         if (arg.startsWith("-")) {
             throw new CliValidationException("Unknown option: " + arg, true);
         }
         throw new CliValidationException("Unexpected argument: " + arg, true);
+    }
+
+    private List<OptionHandler> optionHandlers() {
+        return List.of(
+            this::applyTargetOption,
+            this::applyAgentOption,
+            this::applyExecutionOption,
+            this::applyModelOption,
+            this::applyTrustOption,
+            this::applyRubberDuckOption
+        );
     }
 
     private OptionalInt applyTargetOption(ParseState state, String arg, String[] args, int i) {
@@ -173,7 +178,7 @@ class ReviewOptionsParser {
         };
     }
 
-    private OptionalInt applyTrustOption(ParseState state, String arg, int i) {
+    private OptionalInt applyTrustOption(ParseState state, String arg, String[] ignoredArgs, int i) {
         return switch (arg) {
             case "--trust" -> {
                 state.trustTarget = true;
@@ -197,7 +202,7 @@ class ReviewOptionsParser {
         };
     }
 
-    private static ReviewCommand.TargetSelection validateTargetSelection(String repository, Path localDirectory) {
+    private static ReviewTargetSelection validateTargetSelection(String repository, Path localDirectory) {
         boolean hasRepo = repository != null && !repository.isBlank();
         boolean hasLocal = localDirectory != null;
         if (!hasRepo && !hasLocal) {
@@ -207,11 +212,11 @@ class ReviewOptionsParser {
             throw new CliValidationException("Specify either --repo or --local (not both).", true);
         }
         return hasRepo
-            ? new ReviewCommand.TargetSelection.Repository(repository)
-            : new ReviewCommand.TargetSelection.LocalDirectory(localDirectory);
+            ? new ReviewTargetSelection.Repository(repository)
+            : new ReviewTargetSelection.LocalDirectory(localDirectory);
     }
 
-    private static ReviewCommand.AgentSelection validateAgentSelection(boolean allAgents, List<String> agentNames) {
+    private static ReviewAgentSelection validateAgentSelection(boolean allAgents, List<String> agentNames) {
         boolean hasAgents = !agentNames.isEmpty();
         if (!allAgents && !hasAgents) {
             throw new CliValidationException("Either --all or --agents must be specified.", true);
@@ -220,8 +225,8 @@ class ReviewOptionsParser {
             throw new CliValidationException("Specify either --all or --agents (not both).", true);
         }
         return allAgents
-            ? new ReviewCommand.AgentSelection.All()
-            : new ReviewCommand.AgentSelection.Named(List.copyOf(agentNames));
+            ? new ReviewAgentSelection.All()
+            : new ReviewAgentSelection.Named(List.copyOf(agentNames));
     }
 
     private int parseInt(String value, String optionName) {

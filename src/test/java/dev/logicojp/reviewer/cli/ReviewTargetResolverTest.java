@@ -23,7 +23,7 @@ class ReviewTargetResolverTest {
         var resolver = new ReviewTargetResolver(new GitHubTokenResolver(dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
 
         ReviewTargetResolver.TargetAndToken result = resolver.resolve(
-            new ReviewCommand.TargetSelection.Repository("owner/repo"),
+            new ReviewTargetSelection.Repository("owner/repo"),
             "  ghp_token  "
         );
 
@@ -37,7 +37,7 @@ class ReviewTargetResolverTest {
         var resolver = new ReviewTargetResolver(new GitHubTokenResolver(dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
 
         ReviewTargetResolver.TargetAndToken result = resolver.resolve(
-            new ReviewCommand.TargetSelection.LocalDirectory(tempDir),
+            new ReviewTargetSelection.LocalDirectory(tempDir),
             null
         );
 
@@ -53,7 +53,7 @@ class ReviewTargetResolverTest {
         Path missing = tempDir.resolve("missing");
 
         assertThatThrownBy(() -> resolver.resolve(
-            new ReviewCommand.TargetSelection.LocalDirectory(missing),
+            new ReviewTargetSelection.LocalDirectory(missing),
             null
         ))
             .isInstanceOf(CliValidationException.class)
@@ -68,7 +68,7 @@ class ReviewTargetResolverTest {
         Files.writeString(file, "x");
 
         assertThatThrownBy(() -> resolver.resolve(
-            new ReviewCommand.TargetSelection.LocalDirectory(file),
+            new ReviewTargetSelection.LocalDirectory(file),
             null
         ))
             .isInstanceOf(CliValidationException.class)
@@ -81,7 +81,7 @@ class ReviewTargetResolverTest {
         var resolver = new ReviewTargetResolver(new GitHubTokenResolver(dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0)));
 
         ReviewTargetResolver.TargetAndToken result = resolver.resolve(
-            new ReviewCommand.TargetSelection.LocalDirectory(tempDir),
+            new ReviewTargetSelection.LocalDirectory(tempDir),
             "ghp_token"
         );
 
