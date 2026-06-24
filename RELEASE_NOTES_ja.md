@@ -28,6 +28,51 @@
 ### 検証
 - Pending
 
+## 2026-06-24 (v2026.06.24-refactor-seams-tests)
+
+### 概要
+- review、rubber-duck、summary、CLI option、agent parsing、template loading、token resolution の大きなコンポーネントから focused seam を抽出しました。
+- 抽出した collaborator に対する直接 unit test を追加し、full clean test suite は 871 tests になりました。
+- テスト追加とレビューの過程で見つかった、hybrid local-review の source 伝播と `gh auth token` process output handling の挙動問題も修正しました。
+
+### 主な変更
+
+#### 追加
+- `agent` package の seam:
+  - `ReviewPassRunner`, `ReviewSessionExecutor`
+  - `RubberDuckPromptBuilder`, `RubberDuckDialogueRunner`, `RubberDuckSession`, `RubberDuckSessionFactory`, `SdkRubberDuckSessionFactory`
+  - `AgentFrontmatterMapper`, `AgentSectionParser`, `ParsedAgentMetadata`
+- `cli` package の option model:
+  - `ReviewOptions`, `ReviewTargetSelection`, `ReviewAgentSelection`
+- `report.summary` package の seam:
+  - `AiSummaryClient`, `SummaryReportWriter`
+- template cache / path validation / filesystem / classpath loading を担う `service.TemplateRepository`。
+- `util` package の token seam:
+  - `TokenInputReader`, `GhCliLocator`, `GhAuthTokenProvider`
+- 新規 seam それぞれに直接 unit test を追加。token/process boundary と、Caffeine eviction 順序に依存しない cache behavior test も追加。
+
+#### 変更
+- `ReviewAgent` は `ReviewPassRunner` と `ReviewSessionExecutor` へ委譲する薄い facade に整理。
+- `RubberDuckDialogueExecutor` は prompt/session/dialogue collaborator を束ねる coordinator に整理。
+- `SummaryGenerator` は prompt/fallback/report collaborator を束ね、SDK transport は `AiSummaryClient` へ委譲。
+- `TemplateService` は `TemplateRepository` 上の typed template catalog / facade に整理。
+- `GitHubTokenResolver` は stdin、path lookup、process execution を直接持たず、token normalization と任意の `gh auth` fallback を調整する coordinator に整理。
+- `ExecutionConfig` の default は canonical defaults holder / builder path へ集約。
+
+#### 修正
+- Hybrid local review の isolated parallel pass session に source content を渡すようにし、pass 2+ が remote-only instruction 扱いになる問題を修正。
+- `GhAuthTokenProvider` は stdout/stderr を分離し、process 実行中に両方を drain、終了後の stream collection にも上限を設け、token として stdout のみを返すよう修正。
+- `TokenInputReader` に password/stdin reader を注入可能にし、stdin token test が実コンソールに依存しないよう修正。
+- Template cache test が Caffeine eviction 順序に依存しないよう修正。
+
+### 検証
+- `git diff --check`
+- 抽出 seam と影響コンポーネントの targeted tests
+- `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.25-open ./mvnw -B -ntp -q clean test` — 871 tests, 0 failures, 0 errors
+- Code-review agents で refactor/test 変更をレビューし、重要指摘は最終検証前に修正済み。
+- Git タグ: `v2026.06.24-refactor-seams-tests`
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-refactor-seams-tests
+
 ## 2026-06-24 (v2026.06.24-dependency-ci-hardening)
 
 ### 概要

@@ -26,11 +26,11 @@ class ReviewTargetResolver {
         this.tokenResolver = tokenResolver;
     }
 
-    public TargetAndToken resolve(ReviewCommand.TargetSelection targetSelection, @Nullable String githubToken) {
+    public TargetAndToken resolve(ReviewTargetSelection targetSelection, @Nullable String githubToken) {
         return switch (targetSelection) {
-            case ReviewCommand.TargetSelection.Repository(String repository) ->
+            case ReviewTargetSelection.Repository(String repository) ->
                 resolveRepositoryTarget(repository, githubToken);
-            case ReviewCommand.TargetSelection.LocalDirectory(Path localDir) ->
+            case ReviewTargetSelection.LocalDirectory(Path localDir) ->
                 resolveLocalTarget(localDir);
         };
     }

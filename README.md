@@ -24,6 +24,8 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Latest Remediation
 
+- 2026-06-24 (`v2026.06.24-refactor-seams-tests`): Refactoring seam extraction and direct test coverage — split rubber-duck dialogue, review pass/session execution, summary AI transport/output writing, review CLI option model, agent definition parsing, template repository loading, and GitHub token resolution into focused collaborators; added direct unit tests for the extracted seams; fixed hybrid local-review source propagation and hardened `gh auth token` stdout/stderr draining with bounded stream collection. Verified with JDK 27 EA full clean test suite (871 tests, 0 failures).
+- 2026-06-24 (`v2026.06.24-dependency-ci-hardening`): Dependency, CI, and module-structure hardening — upgraded `copilot-sdk-java` to 1.0.1 and Micronaut to 5.1.2, standardized JVM builds on JDK 27 and Native Image builds on GraalVM 25.0.3, added JDK 27 Dependency Submission, hardened OWASP Dependency Audit, constrained Jackson 2.x/3.x dependency management, and resolved all open `jackson-databind` Dependabot alerts.
 - 2026-06-08 (`v2026.06.08-agent-model-defaults`): Agent model defaults documentation sync — removed model pins from GitHub Copilot custom-agent configuration references, clarified that review model overrides should be supplied via CLI/configuration instead of `.github/agents` frontmatter, refreshed model examples to the current runtime defaults, and updated the documented Copilot SDK dependency to `1.0.0-beta-10-java.5`.
 - 2026-05-28 (`v2026.05.28-azure-skills-mcp`): Azure Skills and MCP configuration — added official `microsoft/azure-skills` project skills under `.agents/skills/`, tracked them in `skills-lock.json`, configured Azure MCP and Microsoft Learn MCP in `.vscode/mcp.json`, rewrote WAF skills to require Microsoft Learn MCP grounding, and documented Copilot CLI plugin install commands for users who have not installed Azure Skills yet.
 - 2026-05-28 (`v2026.05.28-ci-release-hardening`): CI and release hardening — changed workflow defaults to `permissions: {}`, granted `contents: read` only to build jobs and `contents: write` only to the release-publishing job, aligned the release workflow JDK with compiler release 27, removed unnecessary release checkout by setting `GH_REPO`, eliminated duplicate OWASP Dependency Check execution from `Supply Chain Guard` so deep auditing runs in `Dependency Audit`, switched CodeQL Java/Kotlin analysis to `build-mode: none`, and refreshed GitHub Actions/Maven plugin dependencies.
@@ -33,7 +35,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 - 2026-04-23 (`v2026.04.23-copilot-sdk-compat`): Upgraded GitHub Copilot SDK for Java to `0.3.0-java-preview.1` and aligned the codebase with SDK API changes.
 - Compatibility fixes: switched event imports to `com.github.copilot.sdk.generated.*` and adjusted MCP server handoff for the new `setMcpServers(Map<String, McpServerConfig>)` signature.
 - Release Notes: [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md), [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md)
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.08-agent-model-defaults
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-refactor-seams-tests
 
 ## Architecture
 
@@ -42,14 +44,17 @@ Execution flow:
 1. `ReviewApp` parses CLI arguments and dispatches commands.
 2. `ReviewCommand` resolves target/agents/models/options.
 3. `ReviewOrchestrator` runs each agent in parallel (virtual threads + structured concurrency).
-4. `ReviewAgent` invokes Copilot SDK and generates per-agent review results.
-5. `ReportGenerator` and `SummaryGenerator` build markdown outputs.
+4. `ReviewAgent` delegates pass/session execution to focused collaborators and invokes the Copilot SDK.
+5. `ReportGenerator` and `SummaryGenerator` build markdown outputs through separated formatting, AI-summary, and secure-write collaborators.
 
 Main directories:
 
-- `src/main/java/dev/logicojp/reviewer/cli`: command parsing and command handlers
+- `src/main/java/dev/logicojp/reviewer/cli`: command parsing, command handlers, and review option model
 - `src/main/java/dev/logicojp/reviewer/orchestrator`: parallel execution pipeline
-- `src/main/java/dev/logicojp/reviewer/agent`: agent loading and prompt construction
+- `src/main/java/dev/logicojp/reviewer/agent`: agent loading, prompt construction, review pass/session execution, rubber-duck dialogue
+- `src/main/java/dev/logicojp/reviewer/report/summary`: summary prompt, AI transport, fallback, and secure summary writing
+- `src/main/java/dev/logicojp/reviewer/service`: template catalog and repository loading
+- `src/main/java/dev/logicojp/reviewer/util`: token input, gh CLI lookup/auth, retry, permissions, and security helpers
 - `templates/`: markdown templates used for report and summary generation
 - `agents/`: built-in `.agent.md` definitions
 

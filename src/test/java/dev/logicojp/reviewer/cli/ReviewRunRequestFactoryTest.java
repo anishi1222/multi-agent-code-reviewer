@@ -19,9 +19,9 @@ class ReviewRunRequestFactoryTest {
     @DisplayName("実行リクエストへ必要項目を正しく転送する")
     void createsRunRequestWithExpectedFields() {
         var factory = new ReviewRunRequestFactory();
-        var options = ReviewCommand.ParsedOptions.builder()
-            .target(new ReviewCommand.TargetSelection.Repository("owner/repo"))
-            .agents(new ReviewCommand.AgentSelection.All())
+        var options = ReviewOptions.builder()
+            .target(new ReviewTargetSelection.Repository("owner/repo"))
+            .agents(new ReviewAgentSelection.All())
             .outputDirectory(Path.of("./reports"))
             .additionalAgentDirs(List.of())
             .githubToken("ghp_token")

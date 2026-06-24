@@ -21,7 +21,7 @@ class ReviewOptionsParserTest {
     void returnsEmptyWhenHelpRequested() {
         var parser = newParser();
 
-        Optional<ReviewCommand.ParsedOptions> parsed = parser.parse(new String[]{"--help"});
+        Optional<ReviewOptions> parsed = parser.parse(new String[]{"--help"});
 
         assertThat(parsed).isEmpty();
     }
@@ -31,16 +31,16 @@ class ReviewOptionsParserTest {
     void parsesRepositoryAndAllAgents() {
         var parser = newParser();
 
-        Optional<ReviewCommand.ParsedOptions> parsed = parser.parse(
+        Optional<ReviewOptions> parsed = parser.parse(
             new String[]{"--repo", "owner/repo", "--all"}
         );
 
         assertThat(parsed).isPresent();
-        ReviewCommand.ParsedOptions options = parsed.orElseThrow();
-        assertThat(options.target()).isInstanceOf(ReviewCommand.TargetSelection.Repository.class);
-        assertThat(((ReviewCommand.TargetSelection.Repository) options.target()).repository())
+        ReviewOptions options = parsed.orElseThrow();
+        assertThat(options.target()).isInstanceOf(ReviewTargetSelection.Repository.class);
+        assertThat(((ReviewTargetSelection.Repository) options.target()).repository())
             .isEqualTo("owner/repo");
-        assertThat(options.agents()).isInstanceOf(ReviewCommand.AgentSelection.All.class);
+        assertThat(options.agents()).isInstanceOf(ReviewAgentSelection.All.class);
         assertThat(options.parallelism()).isEqualTo(7);
         assertThat(options.noSharedSession()).isFalse();
     }
@@ -50,12 +50,12 @@ class ReviewOptionsParserTest {
     void parsesNoSharedSessionFlag() {
         var parser = newParser();
 
-        Optional<ReviewCommand.ParsedOptions> parsed = parser.parse(
+        Optional<ReviewOptions> parsed = parser.parse(
             new String[]{"--repo", "owner/repo", "--all", "--no-shared-session"}
         );
 
         assertThat(parsed).isPresent();
-        ReviewCommand.ParsedOptions options = parsed.orElseThrow();
+        ReviewOptions options = parsed.orElseThrow();
         assertThat(options.noSharedSession()).isTrue();
     }
 
