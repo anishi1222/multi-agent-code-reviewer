@@ -192,7 +192,7 @@
             <plugin>
                 <groupId>io.micronaut.maven</groupId>
                 <artifactId>micronaut-maven-plugin</artifactId>
-                <extensions>true</extensions>
+                <extensions>false</extensions>
                 <configuration>
                     <configFile>aot-${packaging}.properties</configFile>
                     <!--
