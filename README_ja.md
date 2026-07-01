@@ -297,7 +297,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `--parallelism` | - | 並列実行数 | 4 |
 | `--no-summary` | - | サマリー生成をスキップ | false |
 | `--no-shared-session` | - | 各レビューパスを独立セッションで実行（共有セッションを無効化） | false |
-| `--rubber-duck` | - | Rubber-duck peer discussion レビューモードを有効化 | false |
+| `--rubber-duck` | - | 設定で無効化されている場合に Rubber-duck peer discussion レビューモードを強制有効化 | true |
 | `--dialogue-rounds` | - | Rubber-duck の対話ラウンド数を上書き（1〜10） | 2 |
 | `--peer-model` | - | Rubber-duck のピアモデルを上書き（レビューモデルと異なる必要あり） | - |
 | `--model` | - | 全ステージのデフォルトモデル | - |
@@ -323,7 +323,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `COPILOT_START_TIMEOUT_SECONDS` | Copilot クライアント起動タイムアウト（秒） | 60 |
 | `COPILOT_CLI_HEALTHCHECK_SECONDS` | CLI ヘルスチェック タイムアウト（秒） | 10 |
 | `COPILOT_CLI_AUTHCHECK_SECONDS` | CLI 認証チェック タイムアウト（秒） | 15 |
-| `RUBBER_DUCK_PEER_MODEL` | Rubber-duck モードのデフォルトピアモデル | *（なし）* |
+| `RUBBER_DUCK_PEER_MODEL` | Rubber-duck モードのデフォルトピアモデル | gpt-5.5 |
 
 CLI 自動検出パスは、次の trusted 実体パス配下で再検証されます:
 `/usr/bin`, `/usr/local/bin`, `/bin`, `/opt/homebrew/bin`, `/usr/local/Cellar`, `/opt/homebrew/Cellar`, `/usr/local/Caskroom`, `/opt/homebrew/Caskroom`。
@@ -546,15 +546,14 @@ java -jar multi-agent-code-reviewer.jar
 
 ### Rubber-Duck Peer Discussion モード
 
-各エージェントはオプションで **rubber-duck モード** を使用できます。2つの異なるLLMモデルが複数ラウンドの対話でレビュー指摘を議論し、最終的に統合されたレビューを出力します。
+各エージェントはデフォルトで **rubber-duck モード** を使用します。2つの異なるLLMモデルが複数ラウンドの対話でレビュー指摘を議論し、最終的に統合されたレビューを出力します。無効化する場合は設定で `reviewer.rubber-duck.enabled: false` を指定してください。
 
 ```bash
-# 全エージェントで rubber-duck モードを有効化
+# rubber-duck モードはデフォルト有効。この例ではピアモデルを明示的に上書き
 java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
   run \
   --repo owner/repository \
   --all \
-  --rubber-duck \
   --peer-model gpt-4.1
 
 # 対話ラウンド数を指定
@@ -576,6 +575,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 **主な制約:**
 - **ピアモデルはレビューモデルと異なる必要があります** — 同一モデルの組み合わせは拒否されます。
 - rubber-duck モード有効時、**マルチパスレビューは1パスに固定**されます。対話自体がマルチパスの代替となります。
+- rubber-duck はグローバルにデフォルト有効で、fallback ピアモデルは `gpt-5.5` です。
 - 対話ラウンド数に応じてタイムアウトが自動的に拡張されます。
 - CLI で `--peer-model` や `--dialogue-rounds` を指定すると、rubber-duck モードが **自動的に有効化**されます（`--rubber-duck` を別途指定する必要はありません）。
 

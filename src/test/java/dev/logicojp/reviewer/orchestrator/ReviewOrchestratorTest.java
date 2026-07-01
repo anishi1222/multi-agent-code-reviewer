@@ -6,6 +6,7 @@ import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
+import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +38,7 @@ class ReviewOrchestratorTest {
                 "local source header",
                 "local result request"
             ),
-            null
+            new RubberDuckConfig(false, 2, "gpt-5.5", RubberDuckConfig.DEFAULT_SYNTHESIS_STRATEGY)
         );
 
         AgentConfig agentConfig = new AgentConfig(

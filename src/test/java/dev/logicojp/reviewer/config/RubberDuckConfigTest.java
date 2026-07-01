@@ -9,6 +9,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RubberDuckConfigTest {
 
     @Test
+    @DisplayName("デフォルトではrubber-duckが有効で実行可能なpeer modelを持つ")
+    void defaultsEnableRubberDuckWithPeerModel() {
+        RubberDuckConfig config = new RubberDuckConfig();
+
+        assertThat(config.enabled()).isTrue();
+        assertThat(config.peerModel()).isEqualTo(RubberDuckConfig.DEFAULT_PEER_MODEL);
+        assertThat(config.dialogueRounds()).isEqualTo(RubberDuckConfig.DEFAULT_DIALOGUE_ROUNDS);
+    }
+
+    @Test
     @DisplayName("dialogueRoundsは範囲内に正規化される")
     void normalizesDialogueRounds() {
         assertThat(new RubberDuckConfig(true, 0, null, null).dialogueRounds())
@@ -22,7 +32,7 @@ class RubberDuckConfigTest {
     void normalizesBlankPeerModelAndStrategy() {
         RubberDuckConfig config = new RubberDuckConfig(true, 2, "  ", "  ");
 
-        assertThat(config.peerModel()).isNull();
+        assertThat(config.peerModel()).isEqualTo(RubberDuckConfig.DEFAULT_PEER_MODEL);
         assertThat(config.synthesisStrategy()).isEqualTo(RubberDuckConfig.DEFAULT_SYNTHESIS_STRATEGY);
         assertThat(config.isDedicatedSessionSynthesis()).isFalse();
     }

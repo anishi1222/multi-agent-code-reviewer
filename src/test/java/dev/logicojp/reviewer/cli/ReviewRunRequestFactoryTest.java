@@ -56,5 +56,7 @@ class ReviewRunRequestFactoryTest {
         assertThat(request.noSummary()).isTrue();
         assertThat(request.noSharedSession()).isFalse();
         assertThat(request.outputDirectory()).isEqualTo(outputDirectory);
+        assertThat(request.rubberDuckConfig().enabled()).isTrue();
+        assertThat(request.rubberDuckConfig().peerModel()).isEqualTo("gpt-5.5");
     }
 }
