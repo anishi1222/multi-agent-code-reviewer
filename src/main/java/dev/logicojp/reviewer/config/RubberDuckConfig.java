@@ -9,13 +9,15 @@ import io.micronaut.core.bind.annotation.Bindable;
 /// between two different models before producing a final review.
 @ConfigurationProperties("reviewer.rubber-duck")
 public record RubberDuckConfig(
-    @Bindable(defaultValue = "false") boolean enabled,
+    @Bindable(defaultValue = "true") boolean enabled,
     @Bindable(defaultValue = "2") int dialogueRounds,
     @Nullable String peerModel,
     @Bindable(defaultValue = "last-responder") String synthesisStrategy
 ) {
 
+    public static final boolean DEFAULT_ENABLED = true;
     public static final int DEFAULT_DIALOGUE_ROUNDS = 2;
+    public static final String DEFAULT_PEER_MODEL = "gpt-5.5";
     public static final int MIN_DIALOGUE_ROUNDS = 1;
     public static final int MAX_DIALOGUE_ROUNDS = 10;
     public static final String DEFAULT_SYNTHESIS_STRATEGY = "last-responder";
@@ -30,11 +32,11 @@ public record RubberDuckConfig(
             dialogueRounds = MAX_DIALOGUE_ROUNDS;
         }
         synthesisStrategy = ConfigDefaults.defaultIfBlank(synthesisStrategy, DEFAULT_SYNTHESIS_STRATEGY);
-        peerModel = (peerModel != null && peerModel.isBlank()) ? null : peerModel;
+        peerModel = ConfigDefaults.defaultIfBlank(peerModel, DEFAULT_PEER_MODEL);
     }
 
     public RubberDuckConfig() {
-        this(false, DEFAULT_DIALOGUE_ROUNDS, null, DEFAULT_SYNTHESIS_STRATEGY);
+        this(DEFAULT_ENABLED, DEFAULT_DIALOGUE_ROUNDS, DEFAULT_PEER_MODEL, DEFAULT_SYNTHESIS_STRATEGY);
     }
 
     public boolean isDedicatedSessionSynthesis() {

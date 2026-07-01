@@ -297,7 +297,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `--parallelism` | - | Number of parallel executions | 4 |
 | `--no-summary` | - | Skip summary generation | false |
 | `--no-shared-session` | - | Force isolated session per review pass (disable shared session reuse) | false |
-| `--rubber-duck` | - | Enable rubber-duck peer-discussion review mode | false |
+| `--rubber-duck` | - | Force-enable rubber-duck peer-discussion review mode when disabled in config | true |
 | `--dialogue-rounds` | - | Override rubber-duck dialogue rounds (1–10) | 2 |
 | `--peer-model` | - | Override peer model for rubber-duck mode (must differ from review model) | - |
 | `--model` | - | Default model for all stages | - |
@@ -323,7 +323,7 @@ Displays a list of available agents. Additional directories can be specified wit
 | `COPILOT_START_TIMEOUT_SECONDS` | Copilot client start timeout (seconds) | 60 |
 | `COPILOT_CLI_HEALTHCHECK_SECONDS` | CLI health check timeout (seconds) | 10 |
 | `COPILOT_CLI_AUTHCHECK_SECONDS` | CLI auth check timeout (seconds) | 15 |
-| `RUBBER_DUCK_PEER_MODEL` | Default peer model for rubber-duck mode | *(none)* |
+| `RUBBER_DUCK_PEER_MODEL` | Default peer model for rubber-duck mode | gpt-5.5 |
 
 Auto-detected CLI paths are revalidated against trusted real-path directories:
 `/usr/bin`, `/usr/local/bin`, `/bin`, `/opt/homebrew/bin`, `/usr/local/Cellar`, `/opt/homebrew/Cellar`, `/usr/local/Caskroom`, `/opt/homebrew/Caskroom`.
@@ -546,15 +546,14 @@ When an agent review fails due to timeout or empty response, it is automatically
 
 ### Rubber-Duck Peer Discussion Mode
 
-Each agent can optionally run in **rubber-duck mode**, where two different LLM models debate review findings in a multi-round dialogue before producing a synthesized final review.
+Each agent runs in **rubber-duck mode by default**, where two different LLM models debate review findings in a multi-round dialogue before producing a synthesized final review. Set `reviewer.rubber-duck.enabled: false` in configuration to opt out.
 
 ```bash
-# Enable rubber-duck mode for all agents
+# Rubber-duck mode is enabled by default; this example overrides the peer model
 java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
   run \
   --repo owner/repository \
   --all \
-  --rubber-duck \
   --peer-model gpt-4.1
 
 # With custom dialogue rounds
@@ -576,6 +575,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 **Key constraints:**
 - The **peer model must differ** from the agent's review model — same-model pairing is rejected.
 - When rubber-duck mode is enabled, **multi-pass review is forced to 1 pass** per agent. The dialogue itself replaces multi-pass coverage.
+- Rubber-duck is globally enabled by default with `gpt-5.5` as the fallback peer model.
 - Timeout is automatically scaled based on the number of dialogue rounds.
 - Specifying `--peer-model` or `--dialogue-rounds` on the CLI **auto-enables** rubber-duck mode (no need to also pass `--rubber-duck`).
 
