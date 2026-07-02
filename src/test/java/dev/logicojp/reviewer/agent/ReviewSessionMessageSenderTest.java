@@ -254,7 +254,7 @@ class ReviewSessionMessageSenderTest {
         var event = new AssistantMessageEvent();
         event.setData(new AssistantMessageEventData(
             /* messageId */ "msg-id", /* model */ null, /* content */ content,
-            /* toolRequests */ null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+            /* toolRequests */ null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
         return event;
     }
 
