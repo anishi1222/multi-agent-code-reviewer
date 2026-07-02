@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +20,9 @@ jobs:
   maven-dependency-submission:
     name: Submit Maven Dependency Graph
     runs-on: ubuntu-latest
+    permissions:
+      # Required by the dependency submission API.
+      contents: write
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
