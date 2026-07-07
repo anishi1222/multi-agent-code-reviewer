@@ -17,7 +17,7 @@ concurrency:
 env:
   # Keep in sync with pom.xml <jdk.version> and .sdkmanrc
   JDK_VERSION: '27'
-  GRAALVM_JAVA_VERSION: '25.1.3'
+  GRAALVM_JAVA_VERSION: '25.1'
   GRAALVM_DISTRIBUTION: 'graalvm'
 
 jobs:
@@ -123,7 +123,7 @@ jobs:
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@8c5543b71f44568342e106336639979e94a8f6de # v1.6.1
         with:
-          java-version: ${{ env.GRAALVM_JAVA_VERSION }}
+          version: ${{ env.GRAALVM_JAVA_VERSION }}
           distribution: ${{ env.GRAALVM_DISTRIBUTION }}
 
       - name: Build Native Image
