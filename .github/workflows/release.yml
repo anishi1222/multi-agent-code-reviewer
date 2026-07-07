@@ -21,7 +21,7 @@ concurrency:
 env:
   # Keep in sync with pom.xml <release.version>
   JDK_VERSION: '27'
-  GRAALVM_JAVA_VERSION: '25.0.3'
+  GRAALVM_JAVA_VERSION: '25.1.3'
   GRAALVM_DISTRIBUTION: 'graalvm'
 
 jobs:
