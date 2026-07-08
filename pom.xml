@@ -27,7 +27,7 @@
 
         <!-- Application dependencies -->
         <assertj.version>3.27.7</assertj.version>
-        <copilot.sdk.version>1.0.5-01</copilot.sdk.version>
+        <copilot.sdk.version>1.0.6</copilot.sdk.version>
         <dependency.check.version>12.2.2</dependency.check.version>
         <cyclonedx.plugin.version>2.9.2</cyclonedx.plugin.version>
         <maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
