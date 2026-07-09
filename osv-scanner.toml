@@ -1,3 +1,1 @@
-[[IgnoredVulns]]
-id = "GHSA-5jmj-h7xm-6q6v"
-reason = "No fixed com.fasterxml.jackson.core:jackson-databind 2.x artifact is available on Maven Central yet. The application code does not use @JsonIgnoreProperties with ACCEPT_CASE_INSENSITIVE_PROPERTIES, which is the affected deserialization pattern; keep jackson2.version pinned and remove this ignore when 2.22.1, 2.21.5, or 2.18.9 is published."
+# No active vulnerability ignores.
