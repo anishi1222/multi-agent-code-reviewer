@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.micronaut.platform</groupId>
         <artifactId>micronaut-parent</artifactId>
-        <version>5.0.2</version>
+        <version>5.0.4</version>
     </parent>
 
     <groupId>dev.logicojp</groupId>
@@ -21,7 +21,7 @@
     <properties>
         <jdk.version>25</jdk.version>
         <release.version>25</release.version>
-        <micronaut.version>5.1.2</micronaut.version>
+        <micronaut.version>5.0.4</micronaut.version>
         <micronaut.runtime>none</micronaut.runtime>
         <exec.mainClass>dev.logicojp.reviewer.ReviewApp</exec.mainClass>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -29,6 +29,7 @@
         <maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
         <maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
         <native.maven.plugin.version>1.1.2</native.maven.plugin.version>
+        <logback.version>1.5.38</logback.version>
 
         <!-- Application dependencies -->
         <assertj.version>3.27.7</assertj.version>
@@ -93,12 +94,12 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.37</version>
+            <version>${logback.version}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
-            <version>1.5.37</version>
+            <version>${logback.version}</version>
         </dependency>
 
         <!-- Caching -->

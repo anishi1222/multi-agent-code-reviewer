@@ -1,1 +1,3 @@
-# No active vulnerability ignores.
+[[IgnoredVulns]]
+id = "GHSA-5jmj-h7xm-6q6v"
+reason = "The project BOM resolves com.fasterxml.jackson.core:jackson-databind to fixed version 2.22.1. com.github:copilot-sdk-java:1.0.6 still declares 2.22.0 in its published POM, which Scorecard reports without applying Maven dependency management. Remove this exception when the upstream SDK POM declares a fixed Jackson version."
