@@ -86,7 +86,7 @@ reviewer:
   rubber-duck:
     enabled: true
     dialogue-rounds: 3
-    peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.6}
+    peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.6-sol}
     synthesis-strategy: last-responder
   models:
     default-model: claude-sonnet-5
