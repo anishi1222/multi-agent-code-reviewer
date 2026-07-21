@@ -12,6 +12,25 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ## Unreleased
 
 ### Summary
+- Placeholder for upcoming release items.
+
+### Highlights
+
+#### Added
+- TBD
+
+#### Changed
+- TBD
+
+#### Fixed
+- TBD
+
+### Validation
+- Pending
+
+## 2026-07-21 (v2026.07.21-review-contract)
+
+### Summary
 - Simplified review execution to one review per agent, using rubber-duck dialogue rounds for additional perspectives.
 - Added compact prompt budgets and reduced repeated LLM context while preserving review evidence.
 - Enforced agent-bound SKILL criteria in standard and rubber-duck reviews.
