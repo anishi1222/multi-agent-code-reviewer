@@ -28,6 +28,49 @@
 ### 検証
 - Pending
 
+## 2026-07-21 (v2026.07.21-sdk-upgrade)
+
+### 概要
+- `copilot-sdk-java` を 1.0.1 から 1.0.7 へ、Micronaut を 5.0.3 から 5.0.5 へアップグレードしました。
+- agent、CLI、summary、service、util 各レイヤーから focused review seam を抽出し、新たな seam ごとに直接 unit test を追加しました（合計 871 tests）。
+- rubber-duck レビューをデフォルトで有効化しました。
+- GraalVM 25.1.3、logback 1.5.38、Jackson セキュリティ更新を適用し、CI ワークフローを安定化しました。
+
+### 主な変更
+
+#### 追加
+- `agent` パッケージ seam: `ReviewPassRunner`、`ReviewSessionExecutor`、`RubberDuckPromptBuilder`、`RubberDuckDialogueRunner`、`RubberDuckSession`、`RubberDuckSessionFactory`、`SdkRubberDuckSessionFactory`、`AgentFrontmatterMapper`、`AgentSectionParser`、`ParsedAgentMetadata`。
+- `cli` パッケージオプションモデル: `ReviewOptions`、`ReviewTargetSelection`、`ReviewAgentSelection`。
+- `report.summary` パッケージ seam: `AiSummaryClient`、`SummaryReportWriter`。
+- `service.TemplateRepository`（テンプレートキャッシュ / パス検証 / ファイルシステム / クラスパス読み込み）。
+- `util` パッケージトークン seam: `TokenInputReader`、`GhCliLocator`、`GhAuthTokenProvider`。
+- 各 seam に対するトークン/プロセス境界テストおよびキャッシュ動作テストを含む直接 unit test。
+
+#### 変更
+- `copilot-sdk-java` を 1.0.1 → 1.0.5-01 → 1.0.6 → 1.0.7 へ段階的にアップグレード。
+- Micronaut platform を 5.0.3 → 5.0.4 → 5.0.5 へアップグレード。
+- CI ワークフローの GraalVM Java バージョンを 25.1.3 へ更新。
+- `logback.version` を 1.5.38 へ更新; Jackson 2.x セキュリティ修正を適用。
+- `ReviewAgent` を `ReviewPassRunner` と `ReviewSessionExecutor` の薄いファサードに整理。
+- `RubberDuckDialogueExecutor` が抽出されたプロンプト / セッション / ダイアログ collaborator を統括するよう変更。
+- `SummaryGenerator` がプロンプト / フォールバック / レポート collaborator を統括し、SDK トランスポートを `AiSummaryClient` に委譲するよう変更。
+- `TemplateService` を型付きテンプレートカタログ / `TemplateRepository` ファサードに変更。
+- `GitHubTokenResolver` がトークン正規化とオプションの `gh auth` フォールバックを統括するよう変更。
+- `ExecutionConfig` のデフォルト値を canonical defaults ホルダーとビルダー経由で流すよう変更。
+- `actions/upload-artifact` v7、`graalvm/setup-graalvm` 1.6.3、CodeQL actions 4.37.1 へ更新。
+
+#### 修正
+- rubber-duck レビューがデフォルトで有効にならない不具合を修正。
+- Jackson 2 BOM を固定し、`validate` フェーズでの Micronaut コア拡張ロードを無効化して Maven dependency graph submission を修正。
+- dependency submission 時に OWASP `security-audit` プロファイルが起動しないよう Supply Chain Guard を修正。
+- hybrid local review が分離された並行パスセッションにソースコンテンツを送信するよう修正。
+- `GhAuthTokenProvider` が stdout/stderr を独立して排出し、プロセス終了後にストリーム収集を制限し、stdout のみをトークンとして返すよう修正。
+
+### 検証
+- `JAVA_HOME=... mvn -q clean test` — 871 tests, 0 failures, 0 errors.
+- Git タグ: `v2026.07.21-sdk-upgrade`
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-sdk-upgrade
+
 ## 2026-06-24 (v2026.06.24-refactor-seams-tests)
 
 ### 概要
