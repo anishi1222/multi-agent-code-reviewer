@@ -105,6 +105,26 @@ class AgentConfigLoaderTest {
         }
 
         @Test
+        @DisplayName("組み込みエージェントはすべてGood Points出力契約を持つ")
+        void bundledAgentsRequireGoodPoints() throws IOException {
+            String defaultOutputFormat = Files.readString(
+                Path.of("templates", "default-output-format.md")
+            );
+            Map<String, AgentConfig> agents = AgentConfigLoader.builder(List.of(
+                    Path.of("agents"),
+                    Path.of(".github", "agents")
+                ))
+                .skillConfig(SkillConfig.defaults())
+                .defaultOutputFormat(defaultOutputFormat)
+                .build()
+                .loadAllAgents();
+
+            assertThat(agents).hasSizeGreaterThanOrEqualTo(9);
+            assertThat(agents.values()).allSatisfy(agent ->
+                assertThat(agent.outputFormat()).contains("### Good Points"));
+        }
+
+        @Test
         @DisplayName("疑わしいプロンプトを含むSKILLはエージェントへ割り当てない")
         void rejectsUnsafeAssignedSkill(@TempDir Path tempDir) throws IOException {
             Path agentsDir = tempDir.resolve("agents");

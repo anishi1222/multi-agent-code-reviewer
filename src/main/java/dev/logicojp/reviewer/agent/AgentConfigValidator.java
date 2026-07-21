@@ -17,6 +17,7 @@ final class AgentConfigValidator {
 
     // Required sections in outputFormat
     private static final List<String> REQUIRED_OUTPUT_SECTIONS = List.of(
+        "Good Points",
         "Priority",
         "指摘の概要",
         "推奨対応",

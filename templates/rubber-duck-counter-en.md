@@ -7,3 +7,4 @@ Reconsider your views in light of this feedback:
 2. Revise any of your previous positions that should be updated
 3. Provide additional evidence where discussion should be deepened
 4. Clarify which points have reached consensus and which remain in disagreement
+5. Reassess Good Points, including their evidence, overlooked strengths, and duplicates

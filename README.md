@@ -24,6 +24,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Latest Remediation
 
+- 2026-07-21 (Unreleased): Simplified each agent to one standard review, retained default-enabled rubber-duck dialogue for additional perspectives, removed multi-pass/shared-session/checkpoint/merge code, added compact prompt budgets, injected safe agent-bound SKILL criteria, deduplicated Executive Summary findings across agents, and required evidence-based Good Points from every runtime and GitHub custom-agent definition.
 - 2026-06-24 (`v2026.06.24-refactor-seams-tests`): Refactoring seam extraction and direct test coverage — split rubber-duck dialogue, review pass/session execution, summary AI transport/output writing, review CLI option model, agent definition parsing, template repository loading, and GitHub token resolution into focused collaborators; added direct unit tests for the extracted seams; fixed hybrid local-review source propagation and hardened `gh auth token` stdout/stderr draining with bounded stream collection. Verified with JDK 27 EA full clean test suite (871 tests, 0 failures).
 - 2026-06-24 (`v2026.06.24-dependency-ci-hardening`): Dependency, CI, and module-structure hardening — upgraded `copilot-sdk-java` to 1.0.1 and Micronaut to 5.1.2, standardized JVM builds on JDK 27 and Native Image builds on GraalVM 25.0.3, added JDK 27 Dependency Submission, hardened OWASP Dependency Audit, constrained Jackson 2.x/3.x dependency management, and resolved all open `jackson-databind` Dependabot alerts.
 - 2026-06-08 (`v2026.06.08-agent-model-defaults`): Agent model defaults documentation sync — removed model pins from GitHub Copilot custom-agent configuration references, clarified that review model overrides should be supplied via CLI/configuration instead of `.github/agents` frontmatter, refreshed model examples to the current runtime defaults, and updated the documented Copilot SDK dependency to `1.0.0-beta-10-java.5`.
@@ -44,14 +45,15 @@ Execution flow:
 1. `ReviewApp` parses CLI arguments and dispatches commands.
 2. `ReviewCommand` resolves target/agents/models/options.
 3. `ReviewOrchestrator` runs each agent in parallel (virtual threads + structured concurrency).
-4. `ReviewAgent` delegates pass/session execution to focused collaborators and invokes the Copilot SDK.
-5. `ReportGenerator` and `SummaryGenerator` build markdown outputs through separated formatting, AI-summary, and secure-write collaborators.
+4. `ReviewAgent` performs one standard review or a per-agent rubber-duck dialogue, applying explicitly assigned SKILL criteria.
+5. Each agent emits evidence-based Good Points and improvement findings in one synthesized `ReviewResult`.
+6. `SummaryGenerator` receives all agent results plus a deterministic cross-agent deduplicated finding list and creates the Executive Summary.
 
 Main directories:
 
 - `src/main/java/dev/logicojp/reviewer/cli`: command parsing, command handlers, and review option model
 - `src/main/java/dev/logicojp/reviewer/orchestrator`: parallel execution pipeline
-- `src/main/java/dev/logicojp/reviewer/agent`: agent loading, prompt construction, review pass/session execution, rubber-duck dialogue
+- `src/main/java/dev/logicojp/reviewer/agent`: agent loading, SKILL-scoped prompt construction, single-review/session execution, rubber-duck dialogue
 - `src/main/java/dev/logicojp/reviewer/report/summary`: summary prompt, AI transport, fallback, and secure summary writing
 - `src/main/java/dev/logicojp/reviewer/service`: template catalog and repository loading
 - `src/main/java/dev/logicojp/reviewer/util`: token input, gh CLI lookup/auth, retry, permissions, and security helpers
@@ -63,10 +65,20 @@ Main directories:
 Core configuration lives in `src/main/resources/application.yml`.
 
 - `reviewer.execution.*`: parallelism, timeout, retry, buffer settings
+- `reviewer.rubber-duck.*`: default-enabled peer model, dialogue rounds, and synthesis strategy
+- `reviewer.prompt-budget.*`: optional compact prompt budgets for peer, synthesis, local-source, and summary content
 - `reviewer.models.*`: review/report/summary model selection
 - `reviewer.templates.*`: template directory and template filenames
 - `reviewer.summary.*`: prompt sizing and fallback behavior
 - `reviewer.skills.*`: global skill discovery and executor cache settings
+
+Behavioral guarantees:
+
+- SKILL definitions with matching `metadata.agent` are safety/size checked and added to that agent's standard and rubber-duck review instructions.
+- Every bundled `agents/` and `.github/agents/` definition outputs evidence-based `Good Points` before improvement findings.
+- Executive Summary findings are deduplicated across agents using normalized title, summary, and location; all source agents/categories are retained and the highest reported severity is used.
+- `--compact-prompts` reduces repeated context while preserving Good Points and structured findings.
+- `--no-rubber-duck` disables rubber-duck for a run; otherwise rubber-duck is enabled by default.
 
 Useful runtime environment variables:
 

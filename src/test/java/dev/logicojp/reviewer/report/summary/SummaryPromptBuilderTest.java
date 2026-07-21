@@ -95,6 +95,38 @@ class SummaryPromptBuilderTest {
     }
 
     @Test
+    @DisplayName("compact promptでもGood Pointsを保持する")
+    void compactPromptPreservesGoodPoints() throws IOException {
+        TemplateService templateService = createTemplateService();
+        var budget = new PromptBudgetConfig(true, 100, 100, 100, 100, 600, 1200, 150);
+        var builder = new SummaryPromptBuilder(templateService, 1000, 2000, 8192, 4096, budget);
+        String content = """
+            ### Good Points
+
+            - **Parameterized queries**: `src/A.java` L10 で安全なプレースホルダーを使用。
+
+            ### 改善点
+
+            ### [1]. Validation issue
+
+            | 項目 | 内容 |
+            |------|------|
+            | **Priority** | High |
+            | **指摘の概要** | Missing validation |
+            | **該当箇所** | src/B.java L20 |
+            """;
+
+        String prompt = builder.buildSummaryPrompt(
+            List.of(successResult("Security", content)),
+            "owner/repo"
+        );
+
+        assertThat(prompt).contains("### Good Points");
+        assertThat(prompt).contains("Parameterized queries");
+        assertThat(prompt).contains("Validation issue");
+    }
+
+    @Test
     @DisplayName("構造化フィールドのないfinding blockは本文の抜粋を保持する")
     void preservesFallbackBodyForUnstructuredFindingBlock() throws IOException {
         TemplateService templateService = createTemplateService();

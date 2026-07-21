@@ -65,6 +65,31 @@ class ReviewFindingParserTest {
     }
 
     @Test
+    @DisplayName("Good Pointsの箇条書きを改善指摘として抽出しない")
+    void excludesGoodPointsFromFindingBlocks() {
+        String content = """
+            ### Good Points
+
+            - **Parameterized queries**: `src/A.java` L10
+
+            ### 改善点
+
+            ### [1]. Validation issue
+
+            | 項目 | 内容 |
+            |------|------|
+            | **Priority** | High |
+            """;
+
+        List<ReviewFindingParser.FindingBlock> blocks =
+            ReviewFindingParser.extractFindingBlocks(content);
+
+        assertThat(blocks).singleElement()
+            .extracting(ReviewFindingParser.FindingBlock::title)
+            .isEqualTo("Validation issue");
+    }
+
+    @Test
     @DisplayName("extractTableValueは存在しない行で空文字を返す")
     void extractTableValueReturnsEmptyWhenMissing() {
         String value = ReviewFindingParser.extractTableValue("| **Priority** | High |", "該当箇所");

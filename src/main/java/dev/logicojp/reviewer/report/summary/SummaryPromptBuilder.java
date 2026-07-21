@@ -10,8 +10,15 @@ import dev.logicojp.reviewer.util.PromptContentCompactor;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 final class SummaryPromptBuilder {
+
+    private static final Pattern GOOD_POINTS_SECTION = Pattern.compile(
+        "(?ms)^#{2,3}\\s+Good Points\\s*$\\R(.*?)"
+            + "(?=^#{2,3}\\s+(?:改善点|Improvements?)\\s*$|^###\\s+\\[?\\d+|\\z)"
+    );
 
     private final TemplateService templateService;
     private final int maxContentPerAgent;
@@ -126,10 +133,30 @@ final class SummaryPromptBuilder {
 
         var sb = new StringBuilder();
         sb.append("## ").append(displayName).append("\n\n");
+        appendCompactGoodPoints(sb, result.content());
         for (ReviewFindingParser.FindingBlock block : blocks) {
             appendCompactFindingOrFallback(sb, block);
         }
         return PromptContentCompactor.compact(sb.toString(), promptBudgetConfig.summaryContentPerAgentMaxChars());
+    }
+
+    private void appendCompactGoodPoints(StringBuilder entry, String content) {
+        Matcher matcher = GOOD_POINTS_SECTION.matcher(content != null ? content : "");
+        if (!matcher.find()) {
+            return;
+        }
+        String goodPoints = matcher.group(1).trim();
+        if (goodPoints.isBlank()) {
+            return;
+        }
+
+        int goodPointsBudget = Math.min(
+            promptBudgetConfig.summaryFallbackMaxChars(),
+            Math.max(1, promptBudgetConfig.summaryContentPerAgentMaxChars() / 3)
+        );
+        entry.append("### Good Points\n\n")
+            .append(PromptContentCompactor.compact(goodPoints, goodPointsBudget))
+            .append("\n\n");
     }
 
     private String compactFallbackEntry(String displayName, String content) {

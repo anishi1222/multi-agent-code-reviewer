@@ -12,21 +12,44 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ## Unreleased
 
 ### Summary
-- Placeholder for upcoming release items.
+- Simplified review execution to one review per agent, using rubber-duck dialogue rounds for additional perspectives.
+- Added compact prompt budgets and reduced repeated LLM context while preserving review evidence.
+- Enforced agent-bound SKILL criteria in standard and rubber-duck reviews.
+- Added deterministic cross-agent finding deduplication for Executive Summary generation.
+- Required every agent to report evidence-based Good Points as well as improvement findings.
 
 ### Highlights
 
 #### Added
-- TBD
+- `PromptBudgetConfig` and `reviewer.prompt-budget.*` settings for peer responses, synthesis history, local source, and summary input.
+- `--compact-prompts` and `--no-rubber-duck` per-run CLI controls.
+- `ReviewRunner` as the single-review execution seam.
+- Evidence-based `Good Points` sections in the shared format, all runtime agents, all GitHub custom-agent copies, and rubber-duck templates.
+- Assigned-SKILL prompt safety, file-size, aggregate-size, and expanded-size guards.
 
 #### Changed
-- TBD
+- Rubber-duck review remains enabled by default and now retries retryable dialogue failures.
+- Skills explicitly bound with `metadata.agent` are injected as mandatory criteria for that agent's standard and rubber-duck reviews.
+- Executive Summary prompts receive an authoritative deduplicated finding list; duplicates retain all source agents/categories and use the highest reported severity.
+- Compact summary prompts retain both Good Points and structured improvement findings.
+- Local-source Markdown uses content-aware fence lengths and safe truncation boundaries.
+- Review session IDs now use `{agent}_{invocationTimestamp}`.
 
 #### Fixed
-- TBD
+- Preserved the final rubber-duck dialogue round under compact synthesis budgets.
+- Made `--no-rubber-duck` override agent-level enablement.
+- Prevented local-source truncation from leaving code fences open.
+- Preserved unstructured/no-findings content in compact summary inputs.
+- Synchronized `agents/` and `.github/agents/` output contracts.
+- Allowed clean reviews to report no improvements without fabricating findings.
+
+#### Removed
+- Multi-pass review configuration and execution (`review-passes`, shared-session behavior, and `--no-shared-session`).
+- Pass checkpoint reports and cleanup under `.checkpoints/passes`.
+- Pass-result merge/similarity/deduplication models and merged-output formatting.
 
 ### Validation
-- Pending
+- `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.31-open mvn -q clean package`
 
 ## 2026-07-21 (v2026.07.21-sdk-upgrade)
 

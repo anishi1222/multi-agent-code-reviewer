@@ -9,5 +9,6 @@ Your tasks:
 2. Identify perspectives or issues the preceding reviewer may have overlooked
 3. Propose alternative approaches or solutions where applicable
 4. If you disagree on priority assessments, explain your reasoning
+5. Verify that the preceding reviewer's Good Points are evidence-based and add overlooked strengths
 
 Maintain constructive discussion and provide evidence-based opinions.

@@ -17,6 +17,12 @@ class ReviewOverallSummaryAppenderTest {
     @DisplayName("レビュー本文から総評を算出して追記する")
     void appendsSummaryFromReviewContent() {
         ReviewResult review = reviewResult("""
+            ### Good Points
+
+            - **Prepared statements**: SQL execution uses placeholders.
+
+            ### 改善点
+
             ### 1. SQL Injection
 
             | 項目 | 内容 |
@@ -39,6 +45,8 @@ class ReviewOverallSummaryAppenderTest {
         assertThat(finalized.getFirst().content()).contains("2件の指摘事項");
         assertThat(finalized.getFirst().content()).contains("High 1件");
         assertThat(finalized.getFirst().content()).contains("Medium 1件");
+        assertThat(finalized.getFirst().content()).contains("### Good Points");
+        assertThat(finalized.getFirst().content()).contains("Prepared statements");
     }
 
     @Test
