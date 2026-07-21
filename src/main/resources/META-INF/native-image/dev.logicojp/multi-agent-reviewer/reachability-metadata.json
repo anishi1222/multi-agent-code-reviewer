@@ -8,10 +8,15 @@
           "parameterTypes": []
         }
       ]
-    },    {
+    },
+    {
       "type": "ch.qos.logback.classic.encoder.PatternLayoutEncoder",
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
     },
     {
       "type": "ch.qos.logback.classic.spi.LogbackServiceProvider"
@@ -27,9 +32,11 @@
     },
     {
       "type": "ch.qos.logback.core.ConsoleAppender",
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
       "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
         {
           "name": "setTarget",
           "parameterTypes": [
@@ -241,10 +248,33 @@
       ]
     },
     {
+      "type": "com.github.benmanes.caffeine.cache.PSW",
+      "fields": [
+        {
+          "name": "writeTime"
+        }
+      ]
+    },
+    {
+      "type": "com.github.benmanes.caffeine.cache.PSWMS",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "com.github.benmanes.caffeine.cache.SSLMS",
       "fields": [
         {
           "name": "FACTORY"
+        },
+        {
+          "name": "maximum"
+        },
+        {
+          "name": "weightedSize"
         }
       ]
     },
@@ -252,7 +282,21 @@
       "type": "com.github.benmanes.caffeine.cache.SSMS",
       "fields": [
         {
+          "name": "maximum"
+        },
+        {
+          "name": "weightedSize"
+        }
+      ]
+    },
+    {
+      "type": "com.github.benmanes.caffeine.cache.SSMSW",
+      "fields": [
+        {
           "name": "FACTORY"
+        },
+        {
+          "name": "expiresAfterWriteNanos"
         }
       ]
     },
@@ -265,7 +309,7 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.SystemMessageMode",
+      "type": "com.github.copilot.SystemMessageMode",
       "methods": [
         {
           "name": "getValue",
@@ -274,7 +318,802 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.AbstractSessionEvent",
+      "type": "com.github.copilot.generated.AssistantIdleEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantIdleEvent$AssistantIdleEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantIdleEvent$AssistantIdleEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantIntentEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantIntentEvent$AssistantIntentEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantIntentEvent$AssistantIntentEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageDeltaEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantMessageDeltaEvent$AssistantMessageDeltaEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageDeltaEvent$AssistantMessageDeltaEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantMessageEvent$AssistantMessageEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageEvent$AssistantMessageEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.List",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Long",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.List",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.List",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Long",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.AssistantMessageServerTools",
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.Citations"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageServerTools"
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageStartEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantMessageStartEvent$AssistantMessageStartEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageStartEvent$AssistantMessageStartEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageToolRequest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Object",
+            "com.github.copilot.generated.AssistantMessageToolRequestType",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantMessageToolRequestType",
+      "methods": [
+        {
+          "name": "fromValue",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantReasoningDeltaEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantReasoningDeltaEvent$AssistantReasoningDeltaEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantReasoningDeltaEvent$AssistantReasoningDeltaEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantReasoningEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantReasoningEvent$AssistantReasoningEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantReasoningEvent$AssistantReasoningEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantStreamingDeltaEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantStreamingDeltaEvent$AssistantStreamingDeltaEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantStreamingDeltaEvent$AssistantStreamingDeltaEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantToolCallDeltaEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantToolCallDeltaEvent$AssistantToolCallDeltaEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantToolCallDeltaEvent$AssistantToolCallDeltaEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.AssistantMessageToolRequestType",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantTurnEndEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantTurnEndEvent$AssistantTurnEndEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantTurnEndEvent$AssistantTurnEndEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantTurnStartEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantTurnStartEvent$AssistantTurnStartEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantTurnStartEvent$AssistantTurnStartEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantUsageApiEndpoint",
+      "methods": [
+        {
+          "name": "fromValue",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantUsageCopilotUsage",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.util.List",
+            "java.lang.Double"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantUsageCopilotUsageTokenDetail",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantUsageEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.AssistantUsageEvent$AssistantUsageEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantUsageEvent$AssistantUsageEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Double",
+            "java.lang.Long",
+            "java.lang.Double",
+            "java.lang.Double",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.AssistantUsageApiEndpoint",
+            "java.lang.String",
+            "java.util.Map",
+            "com.github.copilot.generated.AssistantUsageCopilotUsage",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Boolean"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Double",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Double",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.AssistantUsageApiEndpoint",
+            "java.lang.String",
+            "java.util.Map",
+            "com.github.copilot.generated.AssistantUsageCopilotUsage",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.AssistantUsageQuotaSnapshot",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Boolean",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Boolean",
+            "java.lang.Double",
+            "java.lang.Boolean",
+            "java.lang.Double",
+            "java.time.OffsetDateTime"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Boolean",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Boolean",
+            "java.lang.Double",
+            "java.lang.Boolean",
+            "java.lang.Double",
+            "java.time.OffsetDateTime",
+            "java.lang.Boolean",
+            "java.lang.Boolean",
+            "java.lang.Double"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.CitableSource"
+    },
+    {
+      "type": "com.github.copilot.generated.CitationProvider",
+      "methods": [
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.CitationReference"
+    },
+    {
+      "type": "com.github.copilot.generated.CitationSource"
+    },
+    {
+      "type": "com.github.copilot.generated.CitationSpan"
+    },
+    {
+      "type": "com.github.copilot.generated.Citations"
+    },
+    {
+      "type": "com.github.copilot.generated.ContextTier",
+      "methods": [
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.HookEndError"
+    },
+    {
+      "type": "com.github.copilot.generated.HookEndEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.HookEndEvent$HookEndEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.HookEndEvent$HookEndEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Object",
+            "java.lang.Boolean",
+            "com.github.copilot.generated.HookEndError"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.HookStartEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.HookStartEvent$HookStartEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.HookStartEvent$HookStartEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.McpServerSource",
+      "methods": [
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.McpServerStatus",
+      "methods": [
+        {
+          "name": "fromValue",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.McpServerTransport",
+      "methods": [
+        {
+          "name": "fromValue",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.McpServersLoadedServer",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "com.github.copilot.generated.McpServerStatus",
+            "com.github.copilot.generated.McpServerSource",
+            "java.lang.String",
+            "com.github.copilot.generated.McpServerTransport",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.PendingMessagesModifiedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.PendingMessagesModifiedEvent$PendingMessagesModifiedEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.PendingMessagesModifiedEvent$PendingMessagesModifiedEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.PermissionCompletedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.PermissionCompletedEvent$PermissionCompletedEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.PermissionCompletedEvent$PermissionCompletedEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.PermissionRequestedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.PermissionRequestedEvent$PermissionRequestedEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.PermissionRequestedEvent$PermissionRequestedEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Object",
+            "java.lang.Object",
+            "java.lang.Boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.ReasoningSummary",
+      "methods": [
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionBackgroundTasksChangedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SessionBackgroundTasksChangedEvent$SessionBackgroundTasksChangedEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionBackgroundTasksChangedEvent$SessionBackgroundTasksChangedEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionEvent",
       "methods": [
         {
           "name": "setEphemeral",
@@ -303,7 +1142,7 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.AssistantMessageEvent",
+      "type": "com.github.copilot.generated.SessionIdleEvent",
       "methods": [
         {
           "name": "<init>",
@@ -312,81 +1151,73 @@
         {
           "name": "setData",
           "parameterTypes": [
-            "com.github.copilot.sdk.events.AssistantMessageEvent$AssistantMessageData"
+            "com.github.copilot.generated.SessionIdleEvent$SessionIdleEventData"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.AssistantMessageEvent$AssistantMessageData",
+      "type": "com.github.copilot.generated.SessionIdleEvent$SessionIdleEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionLimitsConfig"
+    },
+    {
+      "type": "com.github.copilot.generated.SessionMcpServerStatusChangedEvent",
       "methods": [
         {
           "name": "<init>",
           "parameterTypes": []
         },
         {
-          "name": "<init>",
+          "name": "setData",
           "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String",
-            "java.util.List",
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String"
+            "com.github.copilot.generated.SessionMcpServerStatusChangedEvent$SessionMcpServerStatusChangedEventData"
           ]
-        },
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionMcpServerStatusChangedEvent$SessionMcpServerStatusChangedEventData",
+      "methods": [
         {
           "name": "<init>",
           "parameterTypes": [
             "java.lang.String",
-            "java.lang.String",
-            "java.util.List",
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String",
+            "com.github.copilot.generated.McpServerStatus",
             "java.lang.String"
           ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionMcpServersLoadedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
         },
         {
-          "name": "setContent",
+          "name": "setData",
           "parameterTypes": [
-            "java.lang.String"
+            "com.github.copilot.generated.SessionMcpServersLoadedEvent$SessionMcpServersLoadedEventData"
           ]
-        },
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionMcpServersLoadedEvent$SessionMcpServersLoadedEventData",
+      "methods": [
         {
-          "name": "setEncryptedContent",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setMessageId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setParentToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setReasoningOpaque",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setReasoningText",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setToolRequests",
+          "name": "<init>",
           "parameterTypes": [
             "java.util.List"
           ]
@@ -394,42 +1225,7 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.AssistantMessageEvent$AssistantMessageData$ToolRequest",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.Object"
-          ]
-        },
-        {
-          "name": "setArguments",
-          "parameterTypes": [
-            "java.lang.Object"
-          ]
-        },
-        {
-          "name": "setName",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantReasoningEvent",
+      "type": "com.github.copilot.generated.SessionSkillsLoadedEvent",
       "methods": [
         {
           "name": "<init>",
@@ -438,605 +1234,511 @@
         {
           "name": "setData",
           "parameterTypes": [
-            "com.github.copilot.sdk.events.AssistantReasoningEvent$AssistantReasoningData"
+            "com.github.copilot.generated.SessionSkillsLoadedEvent$SessionSkillsLoadedEventData"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.AssistantReasoningEvent$AssistantReasoningData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setContent",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setReasoningId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantTurnEndEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.AssistantTurnEndEvent$AssistantTurnEndData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantTurnEndEvent$AssistantTurnEndData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setTurnId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantTurnStartEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.AssistantTurnStartEvent$AssistantTurnStartData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantTurnStartEvent$AssistantTurnStartData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setTurnId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantUsageEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.AssistantUsageEvent$AssistantUsageData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantUsageEvent$AssistantUsageData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String",
-            "java.util.Map"
-          ]
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String",
-            "java.util.Map",
-            "com.github.copilot.sdk.events.AssistantUsageEvent$CopilotUsage"
-          ]
-        },
-        {
-          "name": "setApiCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setCacheReadTokens",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setCacheWriteTokens",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setCost",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setDuration",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setInitiator",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setInputTokens",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setModel",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setOutputTokens",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setParentToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setProviderCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setQuotaSnapshots",
-          "parameterTypes": [
-            "java.util.Map"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantUsageEvent$CopilotUsage",
+      "type": "com.github.copilot.generated.SessionSkillsLoadedEvent$SessionSkillsLoadedEventData",
       "methods": [
         {
           "name": "<init>",
           "parameterTypes": [
-            "java.util.List",
-            "double"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.AssistantUsageEvent$TokenDetails",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "double",
-            "double",
-            "double",
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.PendingMessagesModifiedEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.PendingMessagesModifiedEvent$PendingMessagesModifiedData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.PendingMessagesModifiedEvent$PendingMessagesModifiedData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionCompactionCompleteEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.SessionCompactionCompleteEvent$SessionCompactionCompleteData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionCompactionCompleteEvent$CompactionTokensUsed",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "double",
-            "double",
-            "double"
-          ]
-        },
-        {
-          "name": "setCachedInput",
-          "parameterTypes": [
-            "double"
-          ]
-        },
-        {
-          "name": "setInput",
-          "parameterTypes": [
-            "double"
-          ]
-        },
-        {
-          "name": "setOutput",
-          "parameterTypes": [
-            "double"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionCompactionCompleteEvent$SessionCompactionCompleteData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "boolean",
-            "java.lang.String",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.Double",
-            "java.lang.String",
-            "java.lang.Double",
-            "java.lang.String",
-            "com.github.copilot.sdk.events.SessionCompactionCompleteEvent$CompactionTokensUsed",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setCheckpointNumber",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setCheckpointPath",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setCompactionTokensUsed",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.SessionCompactionCompleteEvent$CompactionTokensUsed"
-          ]
-        },
-        {
-          "name": "setPreCompactionMessagesLength",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setPreCompactionTokens",
-          "parameterTypes": [
-            "java.lang.Double"
-          ]
-        },
-        {
-          "name": "setRequestId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setSuccess",
-          "parameterTypes": [
-            "boolean"
-          ]
-        },
-        {
-          "name": "setSummaryContent",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionCompactionStartEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.SessionCompactionStartEvent$SessionCompactionStartData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionCompactionStartEvent$SessionCompactionStartData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionErrorEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.SessionErrorEvent$SessionErrorData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionErrorEvent$SessionErrorData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setErrorType",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setMessage",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setStack",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionIdleEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.SessionIdleEvent$SessionIdleData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionIdleEvent$SessionIdleData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionUsageInfoEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.SessionUsageInfoEvent$SessionUsageInfoData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SessionUsageInfoEvent$SessionUsageInfoData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "double",
-            "double",
-            "double"
-          ]
-        },
-        {
-          "name": "setCurrentTokens",
-          "parameterTypes": [
-            "double"
-          ]
-        },
-        {
-          "name": "setMessagesLength",
-          "parameterTypes": [
-            "double"
-          ]
-        },
-        {
-          "name": "setTokenLimit",
-          "parameterTypes": [
-            "double"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SkillInvokedEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.SkillInvokedEvent$SkillInvokedData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SkillInvokedEvent$SkillInvokedData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String",
-            "java.lang.String",
             "java.util.List"
           ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionStartEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SessionStartEvent$SessionStartEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionStartEvent$SessionStartEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Long",
+            "java.lang.String",
+            "java.lang.String",
+            "java.time.OffsetDateTime",
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.ReasoningSummary",
+            "com.github.copilot.generated.ContextTier",
+            "com.github.copilot.generated.WorkingDirectoryContext",
+            "java.lang.Boolean",
+            "java.lang.Boolean",
+            "java.lang.String"
+          ]
         },
         {
           "name": "<init>",
           "parameterTypes": [
             "java.lang.String",
+            "java.lang.Long",
+            "java.lang.String",
+            "java.lang.String",
+            "java.time.OffsetDateTime",
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.ReasoningSummary",
+            "com.github.copilot.generated.Verbosity",
+            "com.github.copilot.generated.ContextTier",
+            "com.github.copilot.generated.SessionLimitsConfig",
+            "com.github.copilot.generated.WorkingDirectoryContext",
+            "java.lang.Boolean",
+            "java.lang.Boolean",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionTitleChangedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SessionTitleChangedEvent$SessionTitleChangedEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionTitleChangedEvent$SessionTitleChangedEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionToolsUpdatedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SessionToolsUpdatedEvent$SessionToolsUpdatedEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionToolsUpdatedEvent$SessionToolsUpdatedEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionUsageCheckpointEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SessionUsageCheckpointEvent$SessionUsageCheckpointEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionUsageCheckpointEvent$SessionUsageCheckpointEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Double",
+            "java.lang.Double"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionUsageInfoEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SessionUsageInfoEvent$SessionUsageInfoEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SessionUsageInfoEvent$SessionUsageInfoEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SkillSource",
+      "methods": [
+        {
+          "name": "fromValue",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SkillsLoadedSkill",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.SkillSource",
+            "java.lang.Boolean",
+            "java.lang.Boolean",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.SkillSource",
+            "java.lang.Boolean",
+            "java.lang.Boolean",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SubagentCompletedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SubagentCompletedEvent$SubagentCompletedEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SubagentCompletedEvent$SubagentCompletedEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Long",
+            "java.lang.Long",
+            "java.lang.Long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SubagentStartedEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SubagentStartedEvent$SubagentStartedEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SubagentStartedEvent$SubagentStartedEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SystemMessageEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SystemMessageEvent$SystemMessageEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SystemMessageEvent$SystemMessageEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "com.github.copilot.generated.SystemMessageRole",
+            "java.lang.String",
+            "com.github.copilot.generated.SystemMessageMetadata"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SystemMessageMetadata"
+    },
+    {
+      "type": "com.github.copilot.generated.SystemMessageRole",
+      "methods": [
+        {
+          "name": "fromValue",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SystemNotificationEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.SystemNotificationEvent$SystemNotificationEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.SystemNotificationEvent$SystemNotificationEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteError",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteEvent",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setData",
+          "parameterTypes": [
+            "com.github.copilot.generated.ToolExecutionCompleteEvent$ToolExecutionCompleteEventData"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteEvent$ToolExecutionCompleteEventData",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Boolean",
+            "java.lang.String",
+            "java.lang.Object",
+            "java.lang.String",
+            "java.lang.Boolean",
+            "com.github.copilot.generated.ToolExecutionCompleteResult",
+            "com.github.copilot.generated.ToolExecutionCompleteError",
+            "java.util.Map",
+            "java.lang.String",
+            "com.github.copilot.generated.ToolExecutionCompleteToolDescription",
+            "java.lang.Boolean",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Boolean",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Boolean",
+            "com.github.copilot.generated.ToolExecutionCompleteResult",
+            "com.github.copilot.generated.ToolExecutionCompleteError",
+            "java.util.Map",
+            "java.lang.String",
+            "com.github.copilot.generated.ToolExecutionCompleteToolDescription",
+            "java.lang.Boolean",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteResult",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
             "java.lang.String",
             "java.lang.String",
             "java.util.List",
+            "com.github.copilot.generated.ToolExecutionCompleteUIResource"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
             "java.lang.String",
-            "java.lang.String"
+            "java.lang.String",
+            "java.util.List",
+            "java.util.List",
+            "com.github.copilot.generated.ToolExecutionCompleteUIResource",
+            "java.lang.Object",
+            "java.util.List",
+            "java.lang.Object"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.SubagentCompletedEvent",
+      "type": "com.github.copilot.generated.ToolExecutionCompleteToolDescription"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteToolDescriptionMeta"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteToolDescriptionMetaUI"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteToolDescriptionMetaUIVisibility",
+      "methods": [
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResource"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResourceMeta"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResourceMetaUI"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResourceMetaUICsp"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResourceMetaUIPermissions"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResourceMetaUIPermissionsCamera"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResourceMetaUIPermissionsClipboardWrite"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResourceMetaUIPermissionsGeolocation"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionCompleteUIResourceMetaUIPermissionsMicrophone"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionStartEvent",
       "methods": [
         {
           "name": "<init>",
@@ -1045,302 +1747,29 @@
         {
           "name": "setData",
           "parameterTypes": [
-            "com.github.copilot.sdk.events.SubagentCompletedEvent$SubagentCompletedData"
+            "com.github.copilot.generated.ToolExecutionStartEvent$ToolExecutionStartEventData"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.SubagentCompletedEvent$SubagentCompletedData",
+      "type": "com.github.copilot.generated.ToolExecutionStartEvent$ToolExecutionStartEventData",
       "methods": [
         {
           "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setAgentName",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SubagentStartedEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.SubagentStartedEvent$SubagentStartedData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.SubagentStartedEvent$SubagentStartedData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
           "parameterTypes": [
             "java.lang.String",
             "java.lang.String",
+            "java.lang.Object",
+            "com.github.copilot.generated.ToolExecutionStartShellToolInfo",
             "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setAgentDescription",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setAgentDisplayName",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setAgentName",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.ToolExecutionCompleteEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
             "java.lang.String",
-            "boolean",
-            "java.lang.Boolean",
-            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Result",
-            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Error",
-            "java.util.Map",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "boolean",
             "java.lang.String",
             "java.lang.String",
             "java.lang.Boolean",
-            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Result",
-            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Error",
-            "java.util.Map",
+            "com.github.copilot.generated.ToolExecutionStartToolDescription",
             "java.lang.String"
           ]
-        },
-        {
-          "name": "setError",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Error"
-          ]
-        },
-        {
-          "name": "setParentToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setResult",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Result"
-          ]
-        },
-        {
-          "name": "setSuccess",
-          "parameterTypes": [
-            "boolean"
-          ]
-        },
-        {
-          "name": "setToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setToolTelemetry",
-          "parameterTypes": [
-            "java.util.Map"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Error",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setCode",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setMessage",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.ToolExecutionCompleteEvent$ToolExecutionCompleteData$Result",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setContent",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setDetailedContent",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.ToolExecutionPartialResultEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.ToolExecutionPartialResultEvent$ToolExecutionPartialResultData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.ToolExecutionPartialResultEvent$ToolExecutionPartialResultData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setPartialOutput",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.ToolExecutionStartEvent",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "setData",
-          "parameterTypes": [
-            "com.github.copilot.sdk.events.ToolExecutionStartEvent$ToolExecutionStartData"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.events.ToolExecutionStartEvent$ToolExecutionStartData",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
         },
         {
           "name": "<init>",
@@ -1350,49 +1779,84 @@
             "java.lang.Object",
             "java.lang.String",
             "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setArguments",
-          "parameterTypes": [
-            "java.lang.Object"
-          ]
-        },
-        {
-          "name": "setMcpServerName",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setMcpToolName",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setParentToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setToolCallId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setToolName",
-          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.Boolean",
             "java.lang.String"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.UserMessageEvent",
+      "type": "com.github.copilot.generated.ToolExecutionStartShellToolInfo",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.util.List",
+            "java.lang.Boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionStartToolDescription"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionStartToolDescriptionMeta"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionStartToolDescriptionMetaUI"
+    },
+    {
+      "type": "com.github.copilot.generated.ToolExecutionStartToolDescriptionMetaUIVisibility",
+      "methods": [
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.UnknownSessionEvent",
+      "fields": [
+        {
+          "name": "type"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.UserMessageAgentMode",
+      "methods": [
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.UserMessageDelivery",
+      "methods": [
+        {
+          "name": "fromValue",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.UserMessageEvent",
       "methods": [
         {
           "name": "<init>",
@@ -1401,17 +1865,28 @@
         {
           "name": "setData",
           "parameterTypes": [
-            "com.github.copilot.sdk.events.UserMessageEvent$UserMessageData"
+            "com.github.copilot.generated.UserMessageEvent$UserMessageEventData"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.UserMessageEvent$UserMessageData",
+      "type": "com.github.copilot.generated.UserMessageEvent$UserMessageEventData",
       "methods": [
         {
           "name": "<init>",
-          "parameterTypes": []
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.util.List",
+            "java.util.List",
+            "java.util.List",
+            "java.lang.String",
+            "com.github.copilot.generated.UserMessageAgentMode",
+            "java.lang.Boolean",
+            "java.lang.String",
+            "java.lang.String"
+          ]
         },
         {
           "name": "<init>",
@@ -1419,43 +1894,141 @@
             "java.lang.String",
             "java.lang.String",
             "java.util.List",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setAttachments",
-          "parameterTypes": [
-            "java.util.List"
-          ]
-        },
-        {
-          "name": "setContent",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setTransformedContent",
-          "parameterTypes": [
+            "java.util.List",
+            "java.util.List",
+            "java.lang.String",
+            "com.github.copilot.generated.UserMessageDelivery",
+            "com.github.copilot.generated.UserMessageAgentMode",
+            "java.lang.Boolean",
+            "java.lang.String",
             "java.lang.String"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.events.UserMessageEvent$UserMessageData$Attachment"
-    },
-    {
-      "type": "com.github.copilot.sdk.events.UserMessageEvent$UserMessageData$Attachment$Selection"
-    },
-    {
-      "type": "com.github.copilot.sdk.events.UserMessageEvent$UserMessageData$Attachment$Selection$Position"
-    },
-    {
-      "type": "com.github.copilot.sdk.json.CreateSessionRequest",
+      "type": "com.github.copilot.generated.Verbosity",
       "methods": [
         {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.WorkingDirectoryContext",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "com.github.copilot.generated.WorkingDirectoryContextHostType",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.WorkingDirectoryContextHostType",
+      "methods": [
+        {
+          "name": "fromValue",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.rpc.CanvasInstanceAvailability",
+      "methods": [
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.rpc.ConnectParams",
+      "methods": [
+        {
+          "name": "token",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.rpc.ConnectResult",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Boolean",
+            "java.lang.Long",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.rpc.OpenCanvasInstance"
+    },
+    {
+      "type": "com.github.copilot.generated.rpc.SessionLimitsConfig"
+    },
+    {
+      "type": "com.github.copilot.generated.rpc.SessionPermissionsHandlePendingPermissionRequestParams",
+      "methods": [
+        {
+          "name": "requestId",
+          "parameterTypes": []
+        },
+        {
+          "name": "result",
+          "parameterTypes": []
+        },
+        {
+          "name": "sessionId",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.generated.rpc.SessionPermissionsHandlePendingPermissionRequestResult",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.rpc.AgentMode"
+    },
+    {
+      "type": "com.github.copilot.rpc.CreateSessionRequest",
+      "methods": [
+        {
+          "name": "getAgent",
+          "parameterTypes": []
+        },
+        {
           "name": "getAvailableTools",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCapi",
           "parameterTypes": []
         },
         {
@@ -1463,7 +2036,19 @@
           "parameterTypes": []
         },
         {
-          "name": "getConfigDir",
+          "name": "getCloud",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCommands",
+          "parameterTypes": []
+        },
+        {
+          "name": "getConfigDirectory",
+          "parameterTypes": []
+        },
+        {
+          "name": "getContextTier",
           "parameterTypes": []
         },
         {
@@ -1471,7 +2056,55 @@
           "parameterTypes": []
         },
         {
+          "name": "getDefaultAgent",
+          "parameterTypes": []
+        },
+        {
           "name": "getDisabledSkills",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEmbeddingCacheStorage",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableCitations",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableConfigDiscovery",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableFileHooks",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableGitHubTelemetryForwarding",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableHostGitOperations",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableManagedSettings",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableOnDemandInstructionDiscovery",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableSessionStore",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableSessionTelemetry",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEnableSkills",
           "parameterTypes": []
         },
         {
@@ -1479,7 +2112,19 @@
           "parameterTypes": []
         },
         {
+          "name": "getExcludedBuiltInAgents",
+          "parameterTypes": []
+        },
+        {
           "name": "getExcludedTools",
+          "parameterTypes": []
+        },
+        {
+          "name": "getExpAssignments",
+          "parameterTypes": []
+        },
+        {
+          "name": "getGitHubToken",
           "parameterTypes": []
         },
         {
@@ -1487,7 +2132,23 @@
           "parameterTypes": []
         },
         {
+          "name": "getIncludeSubAgentStreamingEvents",
+          "parameterTypes": []
+        },
+        {
           "name": "getInfiniteSessions",
+          "parameterTypes": []
+        },
+        {
+          "name": "getInstructionDirectories",
+          "parameterTypes": []
+        },
+        {
+          "name": "getLargeOutput",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMcpOAuthTokenStorage",
           "parameterTypes": []
         },
         {
@@ -1495,7 +2156,27 @@
           "parameterTypes": []
         },
         {
+          "name": "getMemory",
+          "parameterTypes": []
+        },
+        {
           "name": "getModel",
+          "parameterTypes": []
+        },
+        {
+          "name": "getModelCapabilities",
+          "parameterTypes": []
+        },
+        {
+          "name": "getModels",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOrganizationCustomInstructions",
+          "parameterTypes": []
+        },
+        {
+          "name": "getPluginDirectories",
           "parameterTypes": []
         },
         {
@@ -1503,7 +2184,35 @@
           "parameterTypes": []
         },
         {
+          "name": "getProviders",
+          "parameterTypes": []
+        },
+        {
           "name": "getReasoningEffort",
+          "parameterTypes": []
+        },
+        {
+          "name": "getReasoningSummary",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRemoteSession",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRequestAutoModeSwitch",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRequestElicitation",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRequestExitPlanMode",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRequestMcpApps",
           "parameterTypes": []
         },
         {
@@ -1519,7 +2228,15 @@
           "parameterTypes": []
         },
         {
+          "name": "getSessionLimits",
+          "parameterTypes": []
+        },
+        {
           "name": "getSkillDirectories",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSkipEmbeddingRetrieval",
           "parameterTypes": []
         },
         {
@@ -1528,6 +2245,14 @@
         },
         {
           "name": "getSystemMessage",
+          "parameterTypes": []
+        },
+        {
+          "name": "getToolFilterPrecedence",
+          "parameterTypes": []
+        },
+        {
+          "name": "getToolSearch",
           "parameterTypes": []
         },
         {
@@ -1541,38 +2266,21 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.CreateSessionResponse",
+      "type": "com.github.copilot.rpc.CreateSessionResponse",
       "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        },
         {
           "name": "<init>",
           "parameterTypes": [
             "java.lang.String",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setSessionId",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setWorkspacePath",
-          "parameterTypes": [
-            "java.lang.String"
+            "java.lang.String",
+            "com.github.copilot.rpc.SessionCapabilities",
+            "java.util.List"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.JsonRpcError"
-    },
-    {
-      "type": "com.github.copilot.sdk.json.JsonRpcRequest",
+      "type": "com.github.copilot.rpc.JsonRpcRequest",
       "methods": [
         {
           "name": "getId",
@@ -1593,28 +2301,37 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.JsonRpcResponse",
+      "type": "com.github.copilot.rpc.McpHttpServerConfig",
       "methods": [
         {
-          "name": "getError",
+          "name": "getHeaders",
           "parameterTypes": []
         },
         {
-          "name": "getId",
+          "name": "getType",
           "parameterTypes": []
         },
         {
-          "name": "getJsonrpc",
-          "parameterTypes": []
-        },
-        {
-          "name": "getResult",
+          "name": "getUrl",
           "parameterTypes": []
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.PermissionRequest",
+      "type": "com.github.copilot.rpc.McpServerConfig",
+      "methods": [
+        {
+          "name": "getTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTools",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.rpc.PermissionRequest",
       "methods": [
         {
           "name": "<init>",
@@ -1635,8 +2352,12 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.PermissionRequestResult",
+      "type": "com.github.copilot.rpc.PermissionRequestResult",
       "methods": [
+        {
+          "name": "getFeedback",
+          "parameterTypes": []
+        },
         {
           "name": "getKind",
           "parameterTypes": []
@@ -1648,45 +2369,18 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.PingResponse",
+      "type": "com.github.copilot.rpc.SendMessageRequest",
       "methods": [
         {
-          "name": "<init>",
+          "name": "getAgentMode",
           "parameterTypes": []
         },
         {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String",
-            "long",
-            "java.lang.Integer"
-          ]
-        },
-        {
-          "name": "setMessage",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setProtocolVersion",
-          "parameterTypes": [
-            "java.lang.Integer"
-          ]
-        },
-        {
-          "name": "setTimestamp",
-          "parameterTypes": [
-            "long"
-          ]
-        }
-      ]
-    },
-    {
-      "type": "com.github.copilot.sdk.json.SendMessageRequest",
-      "methods": [
-        {
           "name": "getAttachments",
+          "parameterTypes": []
+        },
+        {
+          "name": "getDisplayPrompt",
           "parameterTypes": []
         },
         {
@@ -1698,26 +2392,20 @@
           "parameterTypes": []
         },
         {
+          "name": "getRequestHeaders",
+          "parameterTypes": []
+        },
+        {
           "name": "getSessionId",
           "parameterTypes": []
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.SendMessageResponse",
+      "type": "com.github.copilot.rpc.SendMessageResponse",
       "methods": [
         {
           "name": "<init>",
-          "parameterTypes": []
-        },
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setMessageId",
           "parameterTypes": [
             "java.lang.String"
           ]
@@ -1725,36 +2413,56 @@
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.SessionLifecycleEventMetadata",
+      "type": "com.github.copilot.rpc.SessionCapabilities",
       "methods": [
         {
           "name": "<init>",
           "parameterTypes": []
         },
         {
+          "name": "setUi",
+          "parameterTypes": [
+            "com.github.copilot.rpc.SessionUiCapabilities"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.rpc.SessionLifecycleEventMetadata",
+      "methods": [
+        {
           "name": "<init>",
           "parameterTypes": [
             "java.lang.String",
             "java.lang.String",
             "java.lang.String"
           ]
+        }
+      ]
+    },
+    {
+      "type": "com.github.copilot.rpc.SessionUiCapabilities",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
         },
         {
-          "name": "setModifiedTime",
+          "name": "setElicitation",
           "parameterTypes": [
-            "java.lang.String"
+            "boolean"
           ]
         },
         {
-          "name": "setStartTime",
+          "name": "setMcpApps",
           "parameterTypes": [
-            "java.lang.String"
+            "boolean"
           ]
         }
       ]
     },
     {
-      "type": "com.github.copilot.sdk.json.SystemMessageConfig",
+      "type": "com.github.copilot.rpc.SystemMessageConfig",
       "methods": [
         {
           "name": "getContent",
@@ -1762,6 +2470,10 @@
         },
         {
           "name": "getMode",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSections",
           "parameterTypes": []
         }
       ]
@@ -1776,34 +2488,7 @@
       ]
     },
     {
-      "type": "dev.logicojp.reviewer.$ListAgentsCommand$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
       "type": "dev.logicojp.reviewer.$ReviewApp$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "dev.logicojp.reviewer.$ReviewCommand$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "dev.logicojp.reviewer.$SkillCommand$Definition",
       "methods": [
         {
           "name": "<init>",
@@ -1830,25 +2515,7 @@
       ]
     },
     {
-      "type": "dev.logicojp.reviewer.cli.$CliOutputFactory$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "dev.logicojp.reviewer.cli.$CliOutputFactory$Stderr1$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "dev.logicojp.reviewer.cli.$CliOutputFactory$Stdout0$Definition",
+      "type": "dev.logicojp.reviewer.cli.$DoctorCommand$Definition",
       "methods": [
         {
           "name": "<init>",
@@ -2019,6 +2686,15 @@
       ]
     },
     {
+      "type": "dev.logicojp.reviewer.config.$CopilotConfig$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "dev.logicojp.reviewer.config.$ExecutionConfig$BufferSettings$Definition",
       "methods": [
         {
@@ -2091,7 +2767,16 @@
       ]
     },
     {
-      "type": "dev.logicojp.reviewer.config.$OrchestratorConfig$Definition",
+      "type": "dev.logicojp.reviewer.config.$PromptBudgetConfig$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "dev.logicojp.reviewer.config.$RubberDuckConfig$Definition",
       "methods": [
         {
           "name": "<init>",
@@ -2145,25 +2830,7 @@
       ]
     },
     {
-      "type": "dev.logicojp.reviewer.config.GithubMcpConfig$MaskedToStringMap"
-    },
-    {
-      "type": "dev.logicojp.reviewer.config.SensitiveHeaderMasking$MaskedHeadersMap"
-    },
-    {
-      "type": "dev.logicojp.reviewer.config.SensitiveHeaderMasking$MaskedToStringMap"
-    },
-    {
       "type": "dev.logicojp.reviewer.orchestrator.$ReviewOrchestratorFactory$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "dev.logicojp.reviewer.report.$ReportGeneratorFactory$Definition",
       "methods": [
         {
           "name": "<init>",
@@ -2190,15 +2857,6 @@
       ]
     },
     {
-      "type": "dev.logicojp.reviewer.service.$CopilotCliHealthChecker$Definition",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
       "type": "dev.logicojp.reviewer.service.$CopilotCliPathResolver$Definition",
       "methods": [
         {
@@ -2209,6 +2867,15 @@
     },
     {
       "type": "dev.logicojp.reviewer.service.$CopilotClientStarter$Definition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "dev.logicojp.reviewer.service.$CopilotHealthProbe$Definition",
       "methods": [
         {
           "name": "<init>",
@@ -2307,10 +2974,10 @@
       ]
     },
     {
-      "type": "io.micronaut.context.DefaultBeanContext$BeanDefinitionProducer"
+      "type": "io.micronaut.context.beans.DefaultBeanDefinitionService$BeanDefinitionProducer"
     },
     {
-      "type": "io.micronaut.context.env.PropertiesPropertySourceLoader",
+      "type": "io.micronaut.context.env.ClasspathPropertySourceImporter",
       "methods": [
         {
           "name": "<init>",
@@ -2319,7 +2986,7 @@
       ]
     },
     {
-      "type": "io.micronaut.context.env.exp.RandomPropertyExpressionResolver",
+      "type": "io.micronaut.context.env.ClasspathWildcardPropertySourceImporter",
       "methods": [
         {
           "name": "<init>",
@@ -2328,7 +2995,25 @@
       ]
     },
     {
-      "type": "io.micronaut.context.env.yaml.YamlPropertySourceLoader",
+      "type": "io.micronaut.context.env.ConfigTreePropertySourceImporter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.micronaut.context.env.EnvPropertySourceImporter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.micronaut.context.env.FilePropertySourceImporter",
       "methods": [
         {
           "name": "<init>",
@@ -2414,14 +3099,24 @@
         {
           "name": "getRecordComponents",
           "parameterTypes": []
+        },
+        {
+          "name": "isRecord",
+          "parameterTypes": []
         }
       ]
     },
     {
-      "type": "java.lang.Cloneable"
+      "type": "java.lang.Comparable"
+    },
+    {
+      "type": "java.lang.Double"
     },
     {
       "type": "java.lang.Iterable"
+    },
+    {
+      "type": "java.lang.Number"
     },
     {
       "type": "java.lang.Object[]"
@@ -2437,6 +3132,12 @@
           "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "java.lang.constant.Constable"
+    },
+    {
+      "type": "java.lang.constant.ConstantDesc"
     },
     {
       "type": "java.lang.reflect.RecordComponent",
@@ -2458,37 +3159,25 @@
       "type": "java.sql.Timestamp"
     },
     {
-      "type": "java.util.AbstractCollection"
-    },
-    {
       "type": "java.util.AbstractMap"
     },
     {
       "type": "java.util.Collection"
     },
     {
+      "type": "java.util.Collections$UnmodifiableCollection"
+    },
+    {
+      "type": "java.util.Collections$UnmodifiableList"
+    },
+    {
       "type": "java.util.Collections$UnmodifiableMap"
     },
     {
-      "type": "java.util.HashMap"
-    },
-    {
-      "type": "java.util.HashMap$Node[]"
-    },
-    {
-      "type": "java.util.ImmutableCollections$AbstractImmutableCollection"
-    },
-    {
-      "type": "java.util.ImmutableCollections$AbstractImmutableList"
+      "type": "java.util.Collections$UnmodifiableRandomAccessList"
     },
     {
       "type": "java.util.ImmutableCollections$AbstractImmutableMap"
-    },
-    {
-      "type": "java.util.ImmutableCollections$List12"
-    },
-    {
-      "type": "java.util.ImmutableCollections$ListN"
     },
     {
       "type": "java.util.ImmutableCollections$Map1"
@@ -2559,15 +3248,6 @@
       ]
     },
     {
-      "type": "sun.security.provider.SHA2$SHA256",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
       "type": "sun.text.resources.cldr.FormatData"
     },
     {
@@ -2578,6 +3258,93 @@
     },
     {
       "type": "sun.util.resources.cldr.CalendarData"
+    }
+  ],
+  "resources": [
+    {
+      "glob": "META-INF/micronaut"
+    },
+    {
+      "glob": "META-INF/services/ch.qos.logback.classic.spi.Configurator"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.context.ApplicationContextConfigurer"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.context.env.PropertyExpressionResolver"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.context.env.PropertySourceImporter"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.context.env.PropertySourceLoader"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.core.convert.TypeConverterRegistrar"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.core.optim.StaticOptimizations$Loader"
+    },
+    {
+      "glob": "META-INF/services/java.nio.file.spi.FileSystemProvider"
+    },
+    {
+      "glob": "META-INF/services/java.time.zone.ZoneRulesProvider"
+    },
+    {
+      "glob": "META-INF/services/javax.xml.parsers.SAXParserFactory"
+    },
+    {
+      "glob": "META-INF/services/org.slf4j.spi.SLF4JServiceProvider"
+    },
+    {
+      "glob": "application-cli.properties"
+    },
+    {
+      "glob": "application-cli.yaml"
+    },
+    {
+      "glob": "application-cli.yml"
+    },
+    {
+      "glob": "application.properties"
+    },
+    {
+      "glob": "application.yaml"
+    },
+    {
+      "glob": "application.yml"
+    },
+    {
+      "glob": "ch/qos/logback/classic/logback-classic-version.properties"
+    },
+    {
+      "glob": "ch/qos/logback/core/logback-core-version.properties"
+    },
+    {
+      "glob": "defaults/ignored-directories.txt"
+    },
+    {
+      "glob": "defaults/sensitive-extensions.txt"
+    },
+    {
+      "glob": "defaults/sensitive-file-patterns.txt"
+    },
+    {
+      "glob": "defaults/source-extensions.txt"
+    },
+    {
+      "glob": "logback-test.xml"
+    },
+    {
+      "glob": "logback.xml"
+    },
+    {
+      "glob": "safety/suspicious-patterns.txt"
+    },
+    {
+      "module": "java.base",
+      "glob": "jdk/internal/icu/impl/data/icudt76b/nfkc.nrm"
     }
   ]
 }
