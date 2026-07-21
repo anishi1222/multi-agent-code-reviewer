@@ -1,6 +1,14 @@
 {
   "reflection": [
     {
+      "type": "sun.net.www.protocol.http.Handler",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },    {
       "type": "ch.qos.logback.classic.encoder.PatternLayoutEncoder",
       "allDeclaredConstructors": true,
       "allPublicConstructors": true
