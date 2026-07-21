@@ -46,5 +46,12 @@ jobs:
       # JDK. After this workflow is in place, disable the repository setting
       # Settings -> Code security -> "Automatic dependency submission" to avoid
       # double-submission and the recurring failed check on PRs.
+      #
+      # continue-on-error: the action itself does not retry on transient GitHub
+      # API errors (e.g. HTTP 502). Dependency submission is informational
+      # (it populates the dependency graph / Dependabot security alerts); a
+      # transient failure must not block CI. Re-running the workflow manually
+      # is sufficient when a submission is lost.
       - name: Submit Maven dependency graph
         uses: advanced-security/maven-dependency-submission-action@b275d12641ac2d2108b2cbb7598b154ad2f2cee8 # v5.0.0
+        continue-on-error: true
