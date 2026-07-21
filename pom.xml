@@ -19,7 +19,7 @@
     <description>Multiple AI agents review code and generate executive summary</description>
 
     <properties>
-        <java.version>27</java.version>
+        <java.version>28</java.version>
         <micronaut.version>5.1.2</micronaut.version>
         <micronaut.runtime>none</micronaut.runtime>
         <exec.mainClass>dev.logicojp.reviewer.ReviewApp</exec.mainClass>
