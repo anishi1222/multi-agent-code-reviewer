@@ -1,7 +1,6 @@
 package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
-import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
@@ -25,7 +24,7 @@ class ReviewOutputFormatterTest {
         var outBuffer = new ByteArrayOutputStream();
         var errBuffer = new ByteArrayOutputStream();
         CliOutput output = new CliOutput(new PrintStream(outBuffer), new PrintStream(errBuffer));
-        var formatter = new ReviewOutputFormatter(output, dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 10, 5, 5, 5, 5, 10, 1, 0, 0, 0));
+        var formatter = new ReviewOutputFormatter(output);
 
         AgentConfig config = new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
         formatter.printBanner(
@@ -49,7 +48,7 @@ class ReviewOutputFormatterTest {
         var outBuffer = new ByteArrayOutputStream();
         var errBuffer = new ByteArrayOutputStream();
         CliOutput output = new CliOutput(new PrintStream(outBuffer), new PrintStream(errBuffer));
-        var formatter = new ReviewOutputFormatter(output, dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 10, 5, 5, 5, 5, 10, 1, 0, 0, 0));
+        var formatter = new ReviewOutputFormatter(output);
 
         AgentConfig config = new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
         List<ReviewResult> results = List.of(

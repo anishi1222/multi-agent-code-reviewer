@@ -2,8 +2,10 @@ package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.rpc.McpServerConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.target.LocalFileProvider;
 import dev.logicojp.reviewer.target.ReviewTarget;
+import dev.logicojp.reviewer.util.PromptContentCompactor;
 import io.micronaut.core.annotation.Nullable;
 
 import java.nio.file.Path;
@@ -23,6 +25,7 @@ final class ReviewTargetInstructionResolver {
 
     private final AgentConfig config;
     private final LocalFileConfig localFileConfig;
+    private final PromptBudgetConfig promptBudgetConfig;
     private final LocalSourceComputedListener localSourceComputedListener;
 
     ReviewTargetInstructionResolver(AgentConfig config,
@@ -30,6 +33,17 @@ final class ReviewTargetInstructionResolver {
                                     LocalSourceComputedListener localSourceComputedListener) {
         this.config = config;
         this.localFileConfig = localFileConfig;
+        this.promptBudgetConfig = new PromptBudgetConfig();
+        this.localSourceComputedListener = localSourceComputedListener;
+    }
+
+    ReviewTargetInstructionResolver(AgentConfig config,
+                                    LocalFileConfig localFileConfig,
+                                    PromptBudgetConfig promptBudgetConfig,
+                                    LocalSourceComputedListener localSourceComputedListener) {
+        this.config = config;
+        this.localFileConfig = localFileConfig;
+        this.promptBudgetConfig = promptBudgetConfig != null ? promptBudgetConfig : new PromptBudgetConfig();
         this.localSourceComputedListener = localSourceComputedListener;
     }
 
@@ -59,7 +73,17 @@ final class ReviewTargetInstructionResolver {
         LocalFileProvider fileProvider = new LocalFileProvider(directory, localFileConfig);
         var collectionResult = fileProvider.collectAndGenerate();
         localSourceComputedListener.onComputed();
-        return collectionResult.reviewContent();
+        return compactSourceContent(collectionResult.reviewContent());
+    }
+
+    private String compactSourceContent(String sourceContent) {
+        if (!promptBudgetConfig.compactPrompts()) {
+            return sourceContent;
+        }
+        return PromptContentCompactor.compactSourceBlocks(
+            sourceContent,
+            promptBudgetConfig.localSourceMaxChars()
+        );
     }
 
     private ResolvedInstruction resolveGitHubInstruction(String repository,

@@ -33,8 +33,8 @@ class FindingsSummaryFormatterTest {
     }
 
     @Test
-    @DisplayName("同一タイトルでもカテゴリが異なる場合は集約しない")
-    void doesNotMergeDifferentCategories() {
+    @DisplayName("同一タイトルの指摘をエージェント横断で集約する")
+    void mergesDuplicateFindingsAcrossAgents() {
         var findings = List.of(
             new FindingsExtractor.Finding("Same", "High", "security", "security"),
             new FindingsExtractor.Finding("Same", "High", "performance", "performance")
@@ -42,8 +42,45 @@ class FindingsSummaryFormatterTest {
 
         String summary = FindingsSummaryFormatter.formatSummary(findings);
 
-        assertThat(summary).contains("#### High (2)");
+        assertThat(summary).contains("#### High (1)");
+        assertThat(summary).contains("カテゴリー: security, performance");
         assertThat(summary).contains("指摘元: security");
-        assertThat(summary).contains("指摘元: performance");
+        assertThat(summary).contains("security, performance");
+    }
+
+    @Test
+    @DisplayName("重大度が異なる重複指摘は高い優先度へ統合する")
+    void usesHighestPriorityForDuplicateFinding() {
+        var findings = List.of(
+            new FindingsExtractor.Finding(
+                "Shared issue", "High", "security", "security", "same summary", "src/A.java"
+            ),
+            new FindingsExtractor.Finding(
+                "Shared issue", "Critical", "quality", "quality", "same summary", "src/A.java"
+            )
+        );
+
+        String summary = FindingsSummaryFormatter.formatSummary(findings);
+
+        assertThat(summary).contains("#### Critical (1)");
+        assertThat(summary).doesNotContain("#### High");
+        assertThat(summary).contains("指摘元: security, quality");
+    }
+
+    @Test
+    @DisplayName("同一タイトルでも該当箇所が異なる指摘は統合しない")
+    void keepsSameTitleAtDifferentLocationsSeparate() {
+        var findings = List.of(
+            new FindingsExtractor.Finding(
+                "Validation issue", "High", "security", "security", "same summary", "src/A.java"
+            ),
+            new FindingsExtractor.Finding(
+                "Validation issue", "High", "quality", "quality", "same summary", "src/B.java"
+            )
+        );
+
+        String summary = FindingsSummaryFormatter.formatSummary(findings);
+
+        assertThat(summary).contains("#### High (2)");
     }
 }

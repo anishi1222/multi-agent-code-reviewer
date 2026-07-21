@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.config.LocalFileConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.config.TemplateConfig;
 import dev.logicojp.reviewer.service.TemplateService;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +44,22 @@ class RubberDuckPromptBuilderTest {
     }
 
     @Test
+    @DisplayName("compact prompt有効時はpeer contentを切り詰める")
+    void compactsPeerContentWhenEnabled() throws IOException {
+        writeTemplate("rubber-duck-peer-review-ja.md", "PEER:${peerReviewContent}");
+        RubberDuckPromptBuilder builder = new RubberDuckPromptBuilder(
+            agent("ja"),
+            context(new PromptBudgetConfig(true, 12, 10, 50, 50, 50, 50, 10)),
+            templateService()
+        );
+
+        String result = builder.buildPeerReviewPrompt("abcdefghijklmnopqrstuvwxyz");
+
+        assertThat(result).startsWith("PEER:");
+        assertThat(result.length()).isLessThan("PEER:abcdefghijklmnopqrstuvwxyz".length());
+    }
+
+    @Test
     @DisplayName("language-specific template が無い場合は ja へfallbackする")
     void fallsBackToJapaneseTemplate() throws IOException {
         writeTemplate("rubber-duck-peer-review-ja.md", "JA:${peerReviewContent}");
@@ -71,6 +88,10 @@ class RubberDuckPromptBuilderTest {
     }
 
     private ReviewContext context() {
+        return context(new PromptBudgetConfig());
+    }
+
+    private ReviewContext context(PromptBudgetConfig promptBudgetConfig) {
         return ReviewContext.builder()
             .client(new com.github.copilot.CopilotClient(new com.github.copilot.rpc.CopilotClientOptions()))
             .timeoutMinutes(1)
@@ -79,6 +100,7 @@ class RubberDuckPromptBuilderTest {
             .maxRetries(0)
             .outputConstraints("OUTPUT_CONSTRAINTS")
             .localFileConfig(new LocalFileConfig())
+            .promptBudgetConfig(promptBudgetConfig)
             .build();
     }
 

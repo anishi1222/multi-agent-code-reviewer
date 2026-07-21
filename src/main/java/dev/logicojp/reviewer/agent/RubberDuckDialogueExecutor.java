@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.agent;
 
 import com.github.copilot.rpc.McpServerConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.report.sanitize.ContentSanitizer;
@@ -30,6 +31,7 @@ final class RubberDuckDialogueExecutor {
     private final RubberDuckDialogueRunner dialogueRunner;
     private final ReviewResultFactory reviewResultFactory;
     private final SynthesisStrategy synthesisStrategy;
+    private final PromptBudgetConfig promptBudgetConfig;
 
     RubberDuckDialogueExecutor(AgentConfig config,
                                ReviewContext ctx,
@@ -38,7 +40,8 @@ final class RubberDuckDialogueExecutor {
         this(config, rubberDuckConfig,
             new RubberDuckPromptBuilder(config, ctx, templateService),
             new SdkRubberDuckSessionFactory(config, ctx),
-            new ReviewResultFactory());
+            new ReviewResultFactory(),
+            ctx.promptBudgetConfig());
     }
 
     RubberDuckDialogueExecutor(AgentConfig config,
@@ -46,12 +49,29 @@ final class RubberDuckDialogueExecutor {
                                RubberDuckPromptBuilder promptBuilder,
                                RubberDuckSessionFactory sessionFactory,
                                ReviewResultFactory reviewResultFactory) {
+        this(
+            config,
+            rubberDuckConfig,
+            promptBuilder,
+            sessionFactory,
+            reviewResultFactory,
+            new PromptBudgetConfig()
+        );
+    }
+
+    RubberDuckDialogueExecutor(AgentConfig config,
+                               RubberDuckConfig rubberDuckConfig,
+                               RubberDuckPromptBuilder promptBuilder,
+                               RubberDuckSessionFactory sessionFactory,
+                               ReviewResultFactory reviewResultFactory,
+                               PromptBudgetConfig promptBudgetConfig) {
         this.config = Objects.requireNonNull(config);
         this.rubberDuckConfig = Objects.requireNonNull(rubberDuckConfig);
         this.promptBuilder = Objects.requireNonNull(promptBuilder);
         this.sessionFactory = Objects.requireNonNull(sessionFactory);
         this.dialogueRunner = new RubberDuckDialogueRunner(config, promptBuilder);
-        this.reviewResultFactory = reviewResultFactory;
+        this.reviewResultFactory = Objects.requireNonNull(reviewResultFactory);
+        this.promptBudgetConfig = Objects.requireNonNull(promptBudgetConfig);
         this.synthesisStrategy = resolveSynthesisStrategy();
     }
 
@@ -92,7 +112,7 @@ final class RubberDuckDialogueExecutor {
 
     private String synthesize(RubberDuckSession sessionB,
                                List<DialogueRound> rounds) throws Exception {
-        String synthesisPrompt = synthesisStrategy.buildSynthesisPrompt(rounds, config);
+        String synthesisPrompt = synthesisStrategy.buildSynthesisPrompt(rounds, config, promptBudgetConfig);
         logger.debug("Agent {}: synthesizing dialogue results", config.name());
 
         return switch (synthesisStrategy) {

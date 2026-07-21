@@ -21,12 +21,10 @@ final class ReviewSessionConfigFactory {
     SessionConfig create(AgentConfig config,
                          ReviewContext ctx,
                          String systemPrompt,
-                         Map<String, McpServerConfig> mcpServers,
-                         int currentPass,
-                         int totalPasses) {
+                         Map<String, McpServerConfig> mcpServers) {
         var sessionConfig = new SessionConfig()
             .setModel(config.model())
-            .setSessionId(buildSessionId(config.name(), ctx.invocationTimestamp(), currentPass, totalPasses))
+            .setSessionId(buildSessionId(config.name(), ctx.invocationTimestamp()))
             .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL)
             .setSystemMessage(new SystemMessageConfig()
                 .setMode(SystemMessageMode.APPEND)
@@ -54,20 +52,10 @@ final class ReviewSessionConfigFactory {
     }
 
     private String buildSessionId(String agentName,
-                                  String invocationTimestamp,
-                                  int currentPass,
-                                  int totalPasses) {
-        int normalizedTotalPasses = Math.max(1, totalPasses);
-        int normalizedCurrentPass = Math.min(Math.max(1, currentPass), normalizedTotalPasses);
-
+                                  String invocationTimestamp) {
         String safeAgentName = sanitizeSessionToken(agentName);
         String safeTimestamp = sanitizeSessionToken(invocationTimestamp);
-        return "%s_%dof%d_%s".formatted(
-            safeAgentName,
-            normalizedCurrentPass,
-            normalizedTotalPasses,
-            safeTimestamp
-        );
+        return "%s_%s".formatted(safeAgentName, safeTimestamp);
     }
 
     private String sanitizeSessionToken(String value) {

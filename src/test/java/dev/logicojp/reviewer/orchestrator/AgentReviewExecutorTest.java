@@ -11,16 +11,14 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.Executors;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,7 +26,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentReviewExecutorTest {
 
     private AgentConfig agentConfig() {
-        return new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
+        return new AgentConfig(
+            "security",
+            "Security",
+            "model",
+            "system",
+            "instruction",
+            null,
+            List.of(),
+            List.of()
+        );
     }
 
     private ReviewContext context() {
@@ -42,60 +49,36 @@ class AgentReviewExecutorTest {
     }
 
     @Test
-    @DisplayName("正常系ではレビュー結果を返す")
+    @DisplayName("正常系では単一レビュー結果を返す")
     void returnsSuccessResult() {
         var executorService = Executors.newVirtualThreadPerTaskExecutor();
-        var ctx = context();
+        var context = context();
         var metrics = new OrchestratorMetrics();
         try {
             var executor = new AgentReviewExecutor(
                 new Semaphore(1),
                 executorService,
-                (config, context) -> new AgentReviewer() {
-                    @Override
-                    public ReviewResult review(ReviewTarget target) {
-                        return ReviewResult.builder()
-                            .agentConfig(config)
-                            .repository(target.displayName())
-                            .content("ok")
-                            .success(true)
-                            .timestamp(Instant.now())
-                            .build();
-                    }
-
-                    @Override
-                    public List<ReviewResult> reviewPasses(ReviewTarget target, int reviewPasses) {
-                        var results = new ArrayList<ReviewResult>(reviewPasses);
-                        for (int pass = 0; pass < reviewPasses; pass++) {
-                            results.add(review(target));
-                        }
-                        return results;
-                    }
-                },
+                (config, _) -> target -> success(config, target, "ok"),
                 metrics
             );
 
-            var results = executor.executeAgentPassesSafely(
+            ReviewResult result = executor.executeAgentSafely(
                 agentConfig(),
                 ReviewTarget.gitHub("owner/repo"),
-                ctx,
-                2,
+                context,
                 1
             );
 
-            assertThat(results).hasSize(2);
-            assertThat(results).allSatisfy(result -> {
-                assertThat(result.success()).isTrue();
-                assertThat(result.content()).isEqualTo("ok");
-            });
-
-            assertThat(metrics.records()).hasSize(1);
-            assertThat(metrics.records().getFirst().outcome())
-                .isEqualTo(OrchestratorMetrics.OutcomeType.SUCCESS);
-            assertThat(metrics.records().getFirst().agentName()).isEqualTo("security");
+            assertThat(result.success()).isTrue();
+            assertThat(result.content()).isEqualTo("ok");
+            assertThat(metrics.records()).singleElement()
+                .satisfies(record -> {
+                    assertThat(record.outcome()).isEqualTo(OrchestratorMetrics.OutcomeType.SUCCESS);
+                    assertThat(record.agentName()).isEqualTo("security");
+                });
         } finally {
             executorService.close();
-            ctx.client().close();
+            context.client().close();
         }
     }
 
@@ -103,97 +86,33 @@ class AgentReviewExecutorTest {
     @DisplayName("実行例外は失敗結果に変換される")
     void mapsExecutionExceptionToFailureResult() {
         var executorService = Executors.newVirtualThreadPerTaskExecutor();
-        var ctx = context();
+        var context = context();
         var metrics = new OrchestratorMetrics();
         try {
             var executor = new AgentReviewExecutor(
                 new Semaphore(1),
                 executorService,
-                (config, context) -> new AgentReviewer() {
-                    @Override
-                    public ReviewResult review(ReviewTarget target) {
-                        throw new IllegalStateException("boom");
-                    }
+                (_, _) -> _ -> {
+                    throw new IllegalStateException("boom");
                 },
                 metrics
             );
 
-            var results = executor.executeAgentPassesSafely(
+            ReviewResult result = executor.executeAgentSafely(
                 agentConfig(),
                 ReviewTarget.gitHub("owner/repo"),
-                ctx,
-                2,
+                context,
                 1
             );
 
-            assertThat(results).hasSize(2);
-            assertThat(results).allSatisfy(result -> {
-                assertThat(result.success()).isFalse();
-                assertThat(result.errorMessage()).contains("Review failed:");
-            });
-
-            assertThat(metrics.records()).hasSize(1);
-            assertThat(metrics.records().getFirst().outcome())
+            assertThat(result.success()).isFalse();
+            assertThat(result.errorMessage()).contains("Review failed:");
+            assertThat(metrics.records()).singleElement()
+                .extracting(OrchestratorMetrics.AgentExecutionRecord::outcome)
                 .isEqualTo(OrchestratorMetrics.OutcomeType.FAILURE);
         } finally {
             executorService.close();
-            ctx.client().close();
-        }
-    }
-
-    @Test
-    @DisplayName("multi-pass実行では同一reviewerインスタンスが再利用される")
-    void reusesSingleReviewerInstanceForAllPasses() {
-        var executorService = Executors.newVirtualThreadPerTaskExecutor();
-        var ctx = context();
-        var createdReviewers = new AtomicInteger();
-        var reviewPassesCalls = new AtomicInteger();
-        try {
-            var executor = new AgentReviewExecutor(
-                new Semaphore(1),
-                executorService,
-                (config, context) -> {
-                    createdReviewers.incrementAndGet();
-                    return new AgentReviewer() {
-                        @Override
-                        public ReviewResult review(ReviewTarget target) {
-                            return ReviewResult.builder()
-                                .agentConfig(config)
-                                .repository(target.displayName())
-                                .content("ok")
-                                .success(true)
-                                .timestamp(Instant.now())
-                                .build();
-                        }
-
-                        @Override
-                        public List<ReviewResult> reviewPasses(ReviewTarget target, int reviewPasses) {
-                            reviewPassesCalls.incrementAndGet();
-                            var results = new ArrayList<ReviewResult>(reviewPasses);
-                            for (int pass = 0; pass < reviewPasses; pass++) {
-                                results.add(review(target));
-                            }
-                            return results;
-                        }
-                    };
-                },
-                new OrchestratorMetrics()
-            );
-
-            var results = executor.executeAgentPassesSafely(
-                agentConfig(),
-                ReviewTarget.gitHub("owner/repo"),
-                ctx,
-                3,
-                1
-            );
-
-            assertThat(results).hasSize(3);
-            assertThat(createdReviewers.get()).isEqualTo(1);
-            assertThat(reviewPassesCalls.get()).isEqualTo(1);
-        } finally {
-            executorService.close();
-            ctx.client().close();
+            context.client().close();
         }
     }
 
@@ -201,81 +120,74 @@ class AgentReviewExecutorTest {
     @DisplayName("agent実行スレッドへexecution IDのMDCが伝播される")
     void propagatesExecutionIdToAgentExecutionThread() {
         var executorService = Executors.newVirtualThreadPerTaskExecutor();
-        var ctx = context();
+        var context = context();
         AtomicReference<String> capturedExecutionId = new AtomicReference<>();
         try {
             var executor = new AgentReviewExecutor(
                 new Semaphore(1),
                 executorService,
-                (config, context) -> target -> {
+                (config, _) -> target -> {
                     capturedExecutionId.set(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY));
-                    return ReviewResult.builder()
-                        .agentConfig(config)
-                        .repository(target.displayName())
-                        .content("ok")
-                        .success(true)
-                        .timestamp(Instant.now())
-                        .build();
+                    return success(config, target, "ok");
                 },
                 new OrchestratorMetrics()
             );
 
             ExecutionCorrelation.putExecutionId("exec-agent");
-            var results = executor.executeAgentPassesSafely(
+            ReviewResult result = executor.executeAgentSafely(
                 agentConfig(),
                 ReviewTarget.gitHub("owner/repo"),
-                ctx,
-                1,
+                context,
                 1
             );
 
-            assertThat(results).hasSize(1);
-            assertThat(results.getFirst().success()).isTrue();
+            assertThat(result.success()).isTrue();
             assertThat(capturedExecutionId.get()).isEqualTo("exec-agent");
         } finally {
             ExecutionCorrelation.clearExecutionId();
             executorService.close();
-            ctx.client().close();
+            context.client().close();
         }
     }
 
     @Test
-    @DisplayName("待機中に割り込まれた場合は実行Futureをキャンセルして失敗結果を返す")
+    @DisplayName("待機中に割り込まれた場合はFutureをキャンセルして失敗結果を返す")
     void cancelsFutureWhenInterruptedDuringWait() {
         var interruptedExecutor = new InterruptedOnGetExecutorService();
-        var ctx = context();
-        var metrics = new OrchestratorMetrics();
+        var context = context();
         try {
             var executor = new AgentReviewExecutor(
                 new Semaphore(1),
                 interruptedExecutor,
-                (config, context) -> target -> ReviewResult.builder()
-                    .agentConfig(config)
-                    .repository(target.displayName())
-                    .content("ignored")
-                    .success(true)
-                    .timestamp(Instant.now())
-                    .build(),
-                metrics
+                (config, _) -> target -> success(config, target, "ignored"),
+                new OrchestratorMetrics()
             );
 
-            var results = executor.executeAgentPassesSafely(
+            ReviewResult result = executor.executeAgentSafely(
                 agentConfig(),
                 ReviewTarget.gitHub("owner/repo"),
-                ctx,
-                1,
+                context,
                 1
             );
 
-            assertThat(results).hasSize(1);
-            assertThat(results.getFirst().success()).isFalse();
-            assertThat(results.getFirst().errorMessage()).contains("interrupted");
+            assertThat(result.success()).isFalse();
+            assertThat(result.errorMessage()).contains("interrupted");
             assertThat(interruptedExecutor.future.cancelCalled).isTrue();
         } finally {
             interruptedExecutor.shutdownNow();
-            ctx.client().close();
+            context.client().close();
             Thread.interrupted();
         }
+    }
+
+    private static ReviewResult success(AgentConfig config, ReviewTarget target, String content) {
+        return ReviewResult.builder()
+            .agentConfig(config)
+            .repository(target.displayName())
+            .content(content)
+            .success(true)
+            .timestamp(Instant.now())
+            .build();
     }
 
     private static final class InterruptedOnGetExecutorService extends AbstractExecutorService {
@@ -321,7 +233,7 @@ class AgentReviewExecutorTest {
         }
     }
 
-    private static final class CancelTrackingFuture implements Future<List<ReviewResult>> {
+    private static final class CancelTrackingFuture implements Future<ReviewResult> {
         private boolean cancelCalled;
 
         @Override
@@ -341,12 +253,12 @@ class AgentReviewExecutorTest {
         }
 
         @Override
-        public List<ReviewResult> get() throws InterruptedException {
+        public ReviewResult get() throws InterruptedException {
             throw new InterruptedException("forced interruption");
         }
 
         @Override
-        public List<ReviewResult> get(long timeout, TimeUnit unit) throws InterruptedException {
+        public ReviewResult get(long timeout, TimeUnit unit) throws InterruptedException {
             throw new InterruptedException("forced interruption");
         }
     }

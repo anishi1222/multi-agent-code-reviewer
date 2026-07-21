@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.report.summary;
 
 import com.github.copilot.CopilotClient;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.config.SummaryConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.report.formatter.SummaryFinalReportFormatter;
@@ -37,12 +38,14 @@ public class SummaryGenerator {
         static SummaryCollaborators defaults(TemplateService templateService,
                                              SummaryConfig summaryConfig,
                                              SummaryGeneratorConfig config,
+                                             PromptBudgetConfig promptBudgetConfig,
                                              String invocationTimestamp) {
             SummaryConfig effective = summaryConfig != null ? summaryConfig : new SummaryConfig(0, 0, 0, 0, 0, 0);
             return new SummaryCollaborators(
                 new SummaryPromptBuilder(templateService,
                     effective.maxContentPerAgent(), effective.maxTotalPromptContent(),
-                    effective.averageResultContentEstimate(), effective.initialBufferMargin()),
+                    effective.averageResultContentEstimate(), effective.initialBufferMargin(),
+                    promptBudgetConfig),
                 new FallbackSummaryBuilder(templateService, effective.fallbackExcerptLength(),
                     effective.excerptNormalizationMultiplier()),
                 new SummaryReportWriter(
@@ -99,6 +102,7 @@ public class SummaryGenerator {
         private String reasoningEffort;
         private long timeoutMinutes = 5;
         private SummaryConfig summaryConfig = new SummaryConfig(0, 0, 0, 0, 0, 0);
+        private PromptBudgetConfig promptBudgetConfig = new PromptBudgetConfig();
         private SummaryCollaborators collaborators;
         private BiFunction<List<ReviewResult>, String, String> aiSummaryBuilderOverride;
         private Clock clock = Clock.systemDefaultZone();
@@ -126,6 +130,11 @@ public class SummaryGenerator {
 
         public Builder summaryConfig(SummaryConfig summaryConfig) {
             this.summaryConfig = summaryConfig;
+            return this;
+        }
+
+        public Builder promptBudgetConfig(PromptBudgetConfig promptBudgetConfig) {
+            this.promptBudgetConfig = promptBudgetConfig;
             return this;
         }
 
@@ -174,6 +183,7 @@ public class SummaryGenerator {
                 client,
                 templateService,
                 summaryConfig,
+                promptBudgetConfig,
                 effectiveCollaborators,
                 clock,
                 circuitBreaker
@@ -187,6 +197,7 @@ public class SummaryGenerator {
             CopilotClient client,
             TemplateService templateService,
             SummaryConfig summaryConfig,
+            PromptBudgetConfig promptBudgetConfig,
             SummaryCollaborators collaborators,
             Clock clock,
             SharedCircuitBreaker circuitBreaker) {
@@ -195,6 +206,7 @@ public class SummaryGenerator {
             templateService,
             summaryConfig,
             config,
+            promptBudgetConfig,
             invocationTimestamp
         );
         var effective = (collaborators != null ? collaborators : defaults).withDefaults(defaults);

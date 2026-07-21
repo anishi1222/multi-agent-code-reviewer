@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.service;
 
 import dev.logicojp.reviewer.config.ExecutionConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.report.core.ReportGenerator;
 import dev.logicojp.reviewer.report.factory.ReportGeneratorFactory;
 import dev.logicojp.reviewer.report.core.ReviewResult;
@@ -59,10 +60,20 @@ public class ReportService {
             Path outputDirectory,
             String summaryModel,
             String reasoningEffort) throws IOException {
+        return generateSummary(results, repository, outputDirectory, summaryModel, reasoningEffort, null);
+    }
+
+    public Path generateSummary(
+            List<ReviewResult> results,
+            String repository,
+            Path outputDirectory,
+            String summaryModel,
+            String reasoningEffort,
+            PromptBudgetConfig promptBudgetConfig) throws IOException {
 
         logger.info("Generating executive summary using model: {}", summaryModel);
 
-        var generator = createSummaryGenerator(outputDirectory, summaryModel, reasoningEffort);
+        var generator = createSummaryGenerator(outputDirectory, summaryModel, reasoningEffort, promptBudgetConfig);
         
         return generator.generateSummary(results, repository);
     }
@@ -72,13 +83,23 @@ public class ReportService {
     }
 
     private SummaryGenerator createSummaryGenerator(Path outputDirectory,
-                                                                                  String summaryModel,
-                                                                                  String reasoningEffort) {
+                                                    String summaryModel,
+                                                    String reasoningEffort,
+                                                    PromptBudgetConfig promptBudgetConfig) {
+        if (promptBudgetConfig == null) {
+            return reportGeneratorFactory.createSummaryGenerator(
+                outputDirectory,
+                copilotService.getClient(),
+                summaryModel,
+                reasoningEffort,
+                executionConfig.summaryTimeoutMinutes());
+        }
         return reportGeneratorFactory.createSummaryGenerator(
             outputDirectory,
             copilotService.getClient(),
             summaryModel,
             reasoningEffort,
-            executionConfig.summaryTimeoutMinutes());
+            executionConfig.summaryTimeoutMinutes(),
+            promptBudgetConfig);
     }
 }

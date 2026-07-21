@@ -37,6 +37,7 @@ public class AgentConfigLoader {
     private final AgentMarkdownParser markdownParser;
     private final SkillMarkdownParser skillParser;
     private final String skillsDirectory;
+    private final int maxSkillPromptLength;
 
     public static Builder builder(List<Path> agentDirectories) {
         return new Builder(agentDirectories);
@@ -79,6 +80,7 @@ public class AgentConfigLoader {
         this.markdownParser = new AgentMarkdownParser(defaultOutputFormat);
         this.skillParser = new SkillMarkdownParser(skillConfig.filename());
         this.skillsDirectory = skillConfig.directory();
+        this.maxSkillPromptLength = skillConfig.maxParameterValueLength();
     }
     
     /// Loads all agent configurations from all configured directories.
@@ -186,12 +188,39 @@ public class AgentConfigLoader {
     }
 
     private AgentConfig applySkills(AgentConfig config, List<SkillDefinition> globalSkills) {
-        List<SkillDefinition> agentSkills = collectSkillsForAgent(config.name(), globalSkills);
+        List<SkillDefinition> agentSkills = enforceAssignedSkillBudget(
+            config.name(),
+            collectSkillsForAgent(config.name(), globalSkills)
+        );
         if (agentSkills.isEmpty()) {
             return config;
         }
         logger.info("Loaded {} skills for agent: {}", agentSkills.size(), config.name());
         return config.withSkills(agentSkills);
+    }
+
+    private List<SkillDefinition> enforceAssignedSkillBudget(String agentName,
+                                                             List<SkillDefinition> skills) {
+        List<SkillDefinition> accepted = new ArrayList<>(skills.size());
+        int assignedPromptLength = 0;
+        for (SkillDefinition skill : skills) {
+            if (!agentName.equals(skill.metadata().get("agent"))) {
+                accepted.add(skill);
+                continue;
+            }
+
+            int skillLength = skill.name().length()
+                + skill.description().length()
+                + skill.prompt().length();
+            if (assignedPromptLength + skillLength > maxSkillPromptLength) {
+                logger.warn("Assigned review skill budget exceeded for agent '{}', skipping skill '{}'",
+                    agentName, skill.id());
+                continue;
+            }
+            assignedPromptLength += skillLength;
+            accepted.add(skill);
+        }
+        return List.copyOf(accepted);
     }
 
     /// Collects skills for a specific agent from .github/skills/.
@@ -228,7 +257,15 @@ public class AgentConfigLoader {
         List<SkillDefinition> skills = new ArrayList<>();
         for (Path skillFile : skillFiles) {
             try {
+                if (Files.size(skillFile) > maxSkillPromptLength) {
+                    logger.warn("Skill file exceeds maximum size ({} bytes), skipping: {}",
+                        maxSkillPromptLength, skillFile);
+                    continue;
+                }
                 SkillDefinition skill = skillParser.parse(skillFile);
+                if (!isSafeSkill(skill, skillFile)) {
+                    continue;
+                }
                 skills.add(skill);
                 logger.info("Loaded global skill: {} from {}", skill.id(),
                     skillFile.getParent().getFileName());
@@ -239,6 +276,20 @@ public class AgentConfigLoader {
 
         logger.info("Loaded {} global skills from {}", skills.size(), skillsRoot);
         return List.copyOf(skills);
+    }
+
+    private boolean isSafeSkill(SkillDefinition skill, Path skillFile) {
+        String injectedContent = String.join("\n", skill.name(), skill.description(), skill.prompt());
+        if (injectedContent.length() > maxSkillPromptLength) {
+            logger.warn("Skill content exceeds maximum length ({} > {}), skipping: {}",
+                injectedContent.length(), maxSkillPromptLength, skillFile);
+            return false;
+        }
+        if (CustomInstructionSafetyValidator.containsSuspiciousPattern(injectedContent)) {
+            logger.warn("Skill contains suspicious prompt patterns, skipping: {}", skillFile);
+            return false;
+        }
+        return true;
     }
 
     private boolean isAgentFile(Path path) {

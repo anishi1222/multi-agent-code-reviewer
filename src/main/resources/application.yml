@@ -14,13 +14,11 @@ reviewer:
       - ./agents
       - ./.github/agents
   execution:
-    shared-session-enabled: true
     gh-auth-fallback-enabled: ${GH_AUTH_FALLBACK_ENABLED:false}
     concurrency:
       # Local review prompts can be large. Increase carefully with heap size.
       # Guideline: 512MB heap -> around 4, 1GB heap -> around 8.
       parallelism: 4
-      review-passes: 1
     timeouts:
       orchestrator-timeout-minutes: 45
       agent-timeout-minutes: 20
@@ -40,6 +38,15 @@ reviewer:
   local-files:
     max-file-size: 262144
     max-total-size: 2097152
+  prompt-budget:
+    compact-prompts: false
+    peer-content-max-chars: 12000
+    synthesis-turn-max-chars: 6000
+    synthesis-history-max-chars: 50000
+    local-source-max-chars: 1048576
+    summary-content-per-agent-max-chars: 12000
+    summary-total-max-chars: 60000
+    summary-fallback-max-chars: 2000
   templates:
     directory: templates
     default-output-format: default-output-format.md

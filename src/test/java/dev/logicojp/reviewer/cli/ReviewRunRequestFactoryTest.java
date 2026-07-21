@@ -54,9 +54,35 @@ class ReviewRunRequestFactoryTest {
         assertThat(request.agentConfigs()).isEqualTo(agentConfigs);
         assertThat(request.parallelism()).isEqualTo(3);
         assertThat(request.noSummary()).isTrue();
-        assertThat(request.noSharedSession()).isFalse();
         assertThat(request.outputDirectory()).isEqualTo(outputDirectory);
         assertThat(request.rubberDuckConfig().enabled()).isTrue();
         assertThat(request.rubberDuckConfig().peerModel()).isEqualTo("gpt-5.5");
+        assertThat(request.promptBudgetConfig().compactPrompts()).isFalse();
+    }
+
+    @Test
+    @DisplayName("--no-rubber-duckと--compact-promptsを実行リクエストへ反映する")
+    void createsRunRequestWithPromptSavingOptions() {
+        var factory = new ReviewRunRequestFactory();
+        var options = ReviewOptions.builder()
+            .target(new ReviewTargetSelection.Repository("owner/repo"))
+            .agents(new ReviewAgentSelection.All())
+            .noRubberDuck(true)
+            .compactPrompts(true)
+            .build();
+        var target = ReviewTarget.gitHub("owner/repo");
+        var modelConfig = new ModelConfig("review-model", "report-model", "summary-model", "high", "default-model");
+
+        ReviewRunExecutor.ReviewRunRequest request = factory.create(
+            options,
+            target,
+            modelConfig,
+            Map.of(),
+            Path.of("./reports/owner/repo"),
+            "2026-03-05-12-34-56"
+        );
+
+        assertThat(request.rubberDuckConfig().enabled()).isFalse();
+        assertThat(request.promptBudgetConfig().compactPrompts()).isTrue();
     }
 }

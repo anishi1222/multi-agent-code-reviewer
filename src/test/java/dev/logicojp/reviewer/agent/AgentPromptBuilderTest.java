@@ -1,10 +1,12 @@
 package dev.logicojp.reviewer.agent;
 
+import dev.logicojp.reviewer.skill.SkillDefinition;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -107,6 +109,70 @@ class AgentPromptBuilderTest {
             assertThatThrownBy(() -> AgentPromptBuilder.buildInstruction(config, "repo"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("test");
+        }
+
+        @Test
+        @DisplayName("エージェントに明示割当されたSKILLをレビュー指示へ追加する")
+        void appendsExplicitlyAssignedSkills() {
+            SkillDefinition assigned = new SkillDefinition(
+                "sql-injection-check",
+                "SQL Injection Check",
+                "SQL injection risks",
+                "Inspect ${repository} for unsafe SQL.",
+                List.of(),
+                Map.of("agent", "security")
+            );
+            SkillDefinition global = new SkillDefinition(
+                "global-skill",
+                "Global Skill",
+                "Not automatically injected",
+                "GLOBAL PROMPT",
+                List.of(),
+                Map.of()
+            );
+            AgentConfig config = AgentConfig.builder()
+                .name("security")
+                .displayName("Security")
+                .model("model")
+                .systemPrompt(SYSTEM_PROMPT)
+                .instruction(INSTRUCTION)
+                .outputFormat(OUTPUT_FORMAT)
+                .focusAreas(List.of("SQL Injection"))
+                .skills(List.of(assigned, global))
+                .build();
+
+            String result = AgentPromptBuilder.buildInstruction(config, "owner/repo");
+
+            assertThat(result).contains("## Assigned Review Skills");
+            assertThat(result).contains("SQL Injection Check");
+            assertThat(result).contains("Inspect owner/repo for unsafe SQL.");
+            assertThat(result).doesNotContain("GLOBAL PROMPT");
+        }
+
+        @Test
+        @DisplayName("展開後の担当SKILLセクションが上限を超える場合は拒否する")
+        void rejectsOversizedExpandedSkillGuidance() {
+            SkillDefinition assigned = new SkillDefinition(
+                "review-skill",
+                "Review Skill",
+                "",
+                "Inspect ${repository}.",
+                List.of(),
+                Map.of("agent", "security")
+            );
+            AgentConfig config = AgentConfig.builder()
+                .name("security")
+                .displayName("Security")
+                .model("model")
+                .instruction("Review ${repository}")
+                .focusAreas(List.of("security"))
+                .skills(List.of(assigned))
+                .build();
+
+            assertThatThrownBy(() ->
+                AgentPromptBuilder.buildInstruction(config, "x".repeat(11_000)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Assigned review skill guidance");
         }
     }
 

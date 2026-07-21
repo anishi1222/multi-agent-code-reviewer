@@ -3,83 +3,145 @@ package dev.logicojp.reviewer.report.formatter;
 import dev.logicojp.reviewer.report.finding.FindingsExtractor;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public final class FindingsSummaryFormatter {
+
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private FindingsSummaryFormatter() {
     }
 
     public static String formatSummary(List<FindingsExtractor.Finding> findings) {
-        var sb = new StringBuilder();
-        Map<String, List<MergedFinding>> grouped = groupByPriorityWithDedup(findings);
+        var summary = new StringBuilder();
+        Map<String, List<ConsolidatedFinding>> grouped = groupByCanonicalPriority(consolidate(findings));
 
         for (String priority : List.of("Critical", "High", "Medium", "Low", "Unknown")) {
-            List<MergedFinding> group = grouped.getOrDefault(priority, List.of());
-            if (group.isEmpty()) {
-                continue;
+            List<ConsolidatedFinding> group = grouped.getOrDefault(priority, List.of());
+            if (!group.isEmpty()) {
+                appendPriorityBlock(summary, priority, group);
             }
-            appendPriorityBlock(sb, priority, group);
         }
 
-        return sb.toString().stripTrailing();
+        return summary.toString().stripTrailing();
     }
 
-    private static Map<String, List<MergedFinding>> groupByPriorityWithDedup(List<FindingsExtractor.Finding> findings) {
-        Map<String, Map<String, MergedFinding>> groupedByPriority = new LinkedHashMap<>();
+    private static List<ConsolidatedFinding> consolidate(List<FindingsExtractor.Finding> findings) {
+        Map<String, List<ConsolidatedFinding>> findingsByTitle = new LinkedHashMap<>();
         for (FindingsExtractor.Finding finding : findings) {
-            String priority = finding.priority();
-            String dedupKey = strictMergeKey(finding);
-            Map<String, MergedFinding> byKey = groupedByPriority.computeIfAbsent(priority, _ -> new LinkedHashMap<>());
-            byKey.computeIfAbsent(dedupKey, _ -> new MergedFinding(finding.title()))
-                .merge(finding);
+            String normalizedTitle = normalize(finding.title());
+            List<ConsolidatedFinding> sameTitle =
+                findingsByTitle.computeIfAbsent(normalizedTitle, _ -> new ArrayList<>());
+            ConsolidatedFinding match = sameTitle.stream()
+                .filter(existing -> existing.matches(finding))
+                .findFirst()
+                .orElseGet(() -> {
+                    var created = new ConsolidatedFinding(finding);
+                    sameTitle.add(created);
+                    return created;
+                });
+            match.addSource(finding);
         }
 
-        Map<String, List<MergedFinding>> grouped = new LinkedHashMap<>();
-        for (Map.Entry<String, Map<String, MergedFinding>> entry : groupedByPriority.entrySet()) {
-            grouped.put(entry.getKey(), new ArrayList<>(entry.getValue().values()));
+        return findingsByTitle.values().stream()
+            .flatMap(List::stream)
+            .toList();
+    }
+
+    private static Map<String, List<ConsolidatedFinding>> groupByCanonicalPriority(
+            List<ConsolidatedFinding> findings) {
+        Map<String, List<ConsolidatedFinding>> grouped = new LinkedHashMap<>();
+        for (ConsolidatedFinding finding : findings) {
+            grouped.computeIfAbsent(finding.priority, _ -> new ArrayList<>()).add(finding);
         }
         return grouped;
     }
 
-    private static String strictMergeKey(FindingsExtractor.Finding finding) {
-        String safeTitle = finding.title() == null ? "" : finding.title().trim();
-        String safePriority = finding.priority() == null ? "" : finding.priority().trim();
-        String safeCategory = finding.category() == null ? "" : finding.category().trim();
-        String safeAgent = finding.agent() == null ? "" : finding.agent().trim();
-        return String.join("\u0000", safeTitle, safePriority, safeCategory, safeAgent);
-    }
-
-    private static void appendPriorityBlock(StringBuilder sb,
+    private static void appendPriorityBlock(StringBuilder summary,
                                             String priority,
-                                            List<MergedFinding> group) {
-        sb.append("#### ").append(priority).append(" (").append(group.size()).append(")\n\n");
-        for (MergedFinding finding : group) {
-            sb.append("- **").append(finding.title).append("**")
+                                            List<ConsolidatedFinding> group) {
+        summary.append("#### ").append(priority).append(" (").append(group.size()).append(")\n\n");
+        for (ConsolidatedFinding finding : group) {
+            summary.append("- **").append(finding.title).append("**")
                 .append(" — カテゴリー: ").append(String.join(", ", finding.categories))
                 .append(" / 指摘元: ").append(String.join(", ", finding.agents))
                 .append("\n");
         }
-        sb.append("\n");
+        summary.append("\n");
     }
 
-    private static final class MergedFinding {
+    private static String normalize(String value) {
+        String safeValue = value != null ? value : "";
+        return WHITESPACE.matcher(
+            safeValue.replace("*", "").strip().toLowerCase(Locale.ROOT)
+        ).replaceAll(" ");
+    }
+
+    private static int priorityRank(String priority) {
+        return switch (priority != null ? priority.toLowerCase(Locale.ROOT) : "") {
+            case "critical" -> 4;
+            case "high" -> 3;
+            case "medium" -> 2;
+            case "low" -> 1;
+            default -> 0;
+        };
+    }
+
+    private static String canonicalPriority(String priority) {
+        return switch (priority != null ? priority.toLowerCase(Locale.ROOT) : "") {
+            case "critical" -> "Critical";
+            case "high" -> "High";
+            case "medium" -> "Medium";
+            case "low" -> "Low";
+            default -> "Unknown";
+        };
+    }
+
+    private static final class ConsolidatedFinding {
         private final String title;
+        private String priority;
+        private String normalizedSummary;
+        private String normalizedLocation;
         private final Set<String> agents = new LinkedHashSet<>();
         private final Set<String> categories = new LinkedHashSet<>();
 
-        private MergedFinding(String title) {
-            this.title = title;
+        private ConsolidatedFinding(FindingsExtractor.Finding finding) {
+            this.title = finding.title();
+            this.priority = canonicalPriority(finding.priority());
+            this.normalizedSummary = normalize(finding.summary());
+            this.normalizedLocation = normalize(finding.location());
         }
 
-        private MergedFinding merge(FindingsExtractor.Finding finding) {
+        private boolean matches(FindingsExtractor.Finding finding) {
+            return compatible(normalizedSummary, normalize(finding.summary()))
+                && compatible(normalizedLocation, normalize(finding.location()));
+        }
+
+        private ConsolidatedFinding addSource(FindingsExtractor.Finding finding) {
+            String incomingSummary = normalize(finding.summary());
+            String incomingLocation = normalize(finding.location());
+            if (normalizedSummary.isEmpty()) {
+                normalizedSummary = incomingSummary;
+            }
+            if (normalizedLocation.isEmpty()) {
+                normalizedLocation = incomingLocation;
+            }
+            if (priorityRank(finding.priority()) > priorityRank(priority)) {
+                priority = canonicalPriority(finding.priority());
+            }
             agents.add(finding.agent());
             categories.add(finding.category());
             return this;
+        }
+
+        private static boolean compatible(String existing, String incoming) {
+            return existing.isEmpty() || incoming.isEmpty() || existing.equals(incoming);
         }
     }
 }

@@ -18,8 +18,7 @@ record ReviewOptions(
         Path outputDirectory,
         List<Path> additionalAgentDirs,
         int parallelism,
-        boolean noSummary,
-        boolean noSharedSession
+        boolean noSummary
     ) {
         OutputOptions {
             outputDirectory = outputDirectory != null ? outputDirectory : Path.of("./reports");
@@ -38,15 +37,19 @@ record ReviewOptions(
 
     record RubberDuckOptions(
         boolean enabled,
+        boolean disabled,
+        boolean compactPrompts,
         int dialogueRounds,
         String peerModel
     ) {
     }
 
     ReviewOptions {
-        output = output != null ? output : new OutputOptions(Path.of("./reports"), List.of(), 1, false, false);
+        output = output != null ? output : new OutputOptions(Path.of("./reports"), List.of(), 1, false);
         models = models != null ? models : new ModelOptions(null, null, null, null);
-        rubberDuckOptions = rubberDuckOptions != null ? rubberDuckOptions : new RubberDuckOptions(false, 0, null);
+        rubberDuckOptions = rubberDuckOptions != null
+            ? rubberDuckOptions
+            : new RubberDuckOptions(false, false, false, 0, null);
         Objects.requireNonNull(target, "target must not be null");
         Objects.requireNonNull(agents, "agents must not be null");
     }
@@ -65,10 +68,6 @@ record ReviewOptions(
 
     public boolean noSummary() {
         return output.noSummary();
-    }
-
-    public boolean noSharedSession() {
-        return output.noSharedSession();
     }
 
     public String reviewModel() {
@@ -91,6 +90,14 @@ record ReviewOptions(
         return rubberDuckOptions.enabled();
     }
 
+    public boolean noRubberDuck() {
+        return rubberDuckOptions.disabled();
+    }
+
+    public boolean compactPrompts() {
+        return rubberDuckOptions.compactPrompts();
+    }
+
     public int dialogueRounds() {
         return rubberDuckOptions.dialogueRounds();
     }
@@ -110,7 +117,6 @@ record ReviewOptions(
         private List<Path> additionalAgentDirs = List.of();
         private int parallelism = 1;
         private boolean noSummary;
-        private boolean noSharedSession;
         private String reviewModel;
         private String reportModel;
         private String summaryModel;
@@ -118,6 +124,8 @@ record ReviewOptions(
         private String githubToken;
         private boolean trustTarget;
         private boolean rubberDuck;
+        private boolean noRubberDuck;
+        private boolean compactPrompts;
         private int dialogueRounds;
         private String peerModel;
 
@@ -156,11 +164,6 @@ record ReviewOptions(
             return this;
         }
 
-        Builder noSharedSession(boolean noSharedSession) {
-            this.noSharedSession = noSharedSession;
-            return this;
-        }
-
         Builder reviewModel(String reviewModel) {
             this.reviewModel = reviewModel;
             return this;
@@ -191,6 +194,16 @@ record ReviewOptions(
             return this;
         }
 
+        Builder noRubberDuck(boolean noRubberDuck) {
+            this.noRubberDuck = noRubberDuck;
+            return this;
+        }
+
+        Builder compactPrompts(boolean compactPrompts) {
+            this.compactPrompts = compactPrompts;
+            return this;
+        }
+
         Builder dialogueRounds(int dialogueRounds) {
             this.dialogueRounds = dialogueRounds;
             return this;
@@ -205,11 +218,11 @@ record ReviewOptions(
             return new ReviewOptions(
                 target,
                 agents,
-                new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary, noSharedSession),
+                new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary),
                 new ModelOptions(reviewModel, reportModel, summaryModel, defaultModel),
                 githubToken,
                 trustTarget,
-                new RubberDuckOptions(rubberDuck, dialogueRounds, peerModel)
+                new RubberDuckOptions(rubberDuck, noRubberDuck, compactPrompts, dialogueRounds, peerModel)
             );
         }
     }

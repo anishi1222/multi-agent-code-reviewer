@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,98 +24,50 @@ class ReviewExecutionModeRunnerTest {
     }
 
     @Test
-    @DisplayName("reviewPasses > 1 のstructuredモードでパス結果を収集する")
-    void executesStructuredAndCollectsRawPassResults() {
-        ExecutionConfig config = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
-        var pipeline = new ReviewResultPipeline();
-        var metrics = new OrchestratorMetrics();
-        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
-        var results = runner.executeStructured(
-            Map.of("security", agent("security")),
+    @DisplayName("エージェントごとに単一結果を収集する")
+    void executesStructuredReviews() {
+        ExecutionConfig config =
+            dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+        var runner = new ReviewExecutionModeRunner(
+            config,
+            new ReviewResultPipeline(),
+            new OrchestratorMetrics()
+        );
+
+        List<ReviewResult> results = runner.executeStructured(
+            Map.of("security", agent("security"), "quality", agent("quality")),
             ReviewTarget.gitHub("owner/repo"),
             null,
-            (agentConfig, target, context, reviewPasses, perAgentTimeoutMinutes) -> {
-                var passResults = new ArrayList<ReviewResult>(reviewPasses);
-                for (int pass = 0; pass < reviewPasses; pass++) {
-                    passResults.add(ReviewResult.builder()
-                        .agentConfig(agentConfig)
-                        .repository(target.displayName())
-                        .content("""
-                            ### 1. SQLインジェクション
-
-                            | 項目 | 内容 |
-                            |------|------|
-                            | **Priority** | High |
-                            | **指摘の概要** | プレースホルダ未使用 |
-                            | **該当箇所** | src/A.java L10 |
-                            """)
-                        .success(true)
-                        .timestamp(Instant.now())
-                        .build());
-                }
-                return passResults;
-            }
+            (agentConfig, target, _, _) -> success(agentConfig, target)
         );
 
         assertThat(results).hasSize(2);
         assertThat(results).allMatch(ReviewResult::success);
-    }
-
-    @Test
-    @DisplayName("structuredモードで結果を収集できる")
-    void executesStructured() {
-        ExecutionConfig config = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
-        var pipeline = new ReviewResultPipeline();
-        var metrics = new OrchestratorMetrics();
-        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
-
-        var results = runner.executeStructured(
-            Map.of("security", agent("security")),
-            ReviewTarget.gitHub("owner/repo"),
-            null,
-            (agentConfig, target, context, reviewPasses, perAgentTimeoutMinutes) -> {
-                var passResults = new ArrayList<ReviewResult>(reviewPasses);
-                for (int pass = 0; pass < reviewPasses; pass++) {
-                    passResults.add(ReviewResult.builder()
-                        .agentConfig(agentConfig)
-                        .repository(target.displayName())
-                        .content("ok")
-                        .success(true)
-                        .timestamp(Instant.now())
-                        .build());
-                }
-                return passResults;
-            }
-        );
-
-        assertThat(results).hasSize(1);
-        assertThat(results).allMatch(ReviewResult::success);
+        assertThat(results).extracting(result -> result.agentConfig().name())
+            .containsExactlyInAnyOrder("security", "quality");
     }
 
     @Test
     @DisplayName("structuredタスクへexecution IDのMDCが伝播される")
     void propagatesExecutionIdToStructuredTasks() {
-        ExecutionConfig config = dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
-        var pipeline = new ReviewResultPipeline();
-        var metrics = new OrchestratorMetrics();
-        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
+        ExecutionConfig config =
+            dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0);
+        var runner = new ReviewExecutionModeRunner(
+            config,
+            new ReviewResultPipeline(),
+            new OrchestratorMetrics()
+        );
         AtomicReference<String> capturedExecutionId = new AtomicReference<>();
 
         try {
             ExecutionCorrelation.putExecutionId("exec-structured");
-            var results = runner.executeStructured(
+            List<ReviewResult> results = runner.executeStructured(
                 Map.of("security", agent("security")),
                 ReviewTarget.gitHub("owner/repo"),
                 null,
-                (agentConfig, target, context, reviewPasses, perAgentTimeoutMinutes) -> {
+                (agentConfig, target, _, _) -> {
                     capturedExecutionId.set(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY));
-                    return List.of(ReviewResult.builder()
-                        .agentConfig(agentConfig)
-                        .repository(target.displayName())
-                        .content("ok")
-                        .success(true)
-                        .timestamp(Instant.now())
-                        .build());
+                    return success(agentConfig, target);
                 }
             );
 
@@ -126,5 +77,15 @@ class ReviewExecutionModeRunnerTest {
         } finally {
             ExecutionCorrelation.clearExecutionId();
         }
+    }
+
+    private ReviewResult success(AgentConfig config, ReviewTarget target) {
+        return ReviewResult.builder()
+            .agentConfig(config)
+            .repository(target.displayName())
+            .content("ok")
+            .success(true)
+            .timestamp(Instant.now())
+            .build();
     }
 }

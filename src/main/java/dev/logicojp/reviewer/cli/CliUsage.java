@@ -46,8 +46,9 @@ public final class CliUsage {
                     --token -                   Read GitHub token from stdin (gh auth fallback: disabled by default)
                     --parallelism <n>           Number of agents to run in parallel
                     --no-summary                Skip executive summary generation
-                    --no-shared-session         Use isolated sessions for all review passes
                     --rubber-duck               Enable peer-discussion review mode
+                    --no-rubber-duck            Disable peer-discussion review mode for this run
+                    --compact-prompts           Enable compact prompt budgets for this run
                     --dialogue-rounds <n>       Override rubber-duck dialogue rounds
                     --peer-model <model>        Override peer model for rubber-duck mode
                     --review-model <model>      Model for review stage

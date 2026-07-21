@@ -51,13 +51,28 @@ final class LocalFileContentFormatter {
 
     void appendFileBlock(StringBuilder sb, String relativePath, String content) {
         String lang = detectLanguage(relativePath);
+        String fence = codeFenceFor(content);
         sb.append("### ").append(relativePath).append("\n\n");
-        sb.append("```").append(lang).append("\n");
+        sb.append(fence).append(lang).append("\n");
         sb.append(content);
         if (!content.endsWith("\n")) {
             sb.append("\n");
         }
-        sb.append("```\n\n");
+        sb.append(fence).append("\n\n");
+    }
+
+    private String codeFenceFor(String content) {
+        int longestRun = 0;
+        int currentRun = 0;
+        for (int index = 0; index < content.length(); index++) {
+            if (content.charAt(index) == '`') {
+                currentRun++;
+                longestRun = Math.max(longestRun, currentRun);
+            } else {
+                currentRun = 0;
+            }
+        }
+        return "`".repeat(Math.max(3, longestRun + 1));
     }
 
     String generateReviewContent(List<LocalFileProvider.LocalFile> files) {

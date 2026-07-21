@@ -88,9 +88,6 @@ public class ReviewOrchestrator implements AutoCloseable {
         this.localSourcePrecomputer = collaborators.localSourcePrecomputer();
         
         logger.info("Parallelism set to {}", executionConfig.parallelism());
-        if (executionConfig.reviewPasses() > 1) {
-            logger.info("Multi-pass review enabled: {} passes per agent", executionConfig.reviewPasses());
-        }
     }
 
     static OrchestratorCollaborators defaultCollaborators(CopilotClient client,
@@ -148,7 +145,9 @@ public class ReviewOrchestrator implements AutoCloseable {
             client, orchestratorConfig, cachedMcpServers, reviewCircuitBreaker);
 
         LocalSourcePrecomputer localSourcePrecomputer = new LocalSourcePrecomputer(
-            localSourceCollectorFactory, orchestratorConfig.localFileConfig());
+            localSourceCollectorFactory,
+            orchestratorConfig.localFileConfig(),
+            orchestratorConfig.promptBudgetConfig());
 
         return new OrchestratorCollaborators(
             reviewerFactory, localSourceCollectorFactory, resources, cachedMcpServers,
@@ -187,6 +186,7 @@ public class ReviewOrchestrator implements AutoCloseable {
             orchestratorConfig.invocationTimestamp(),
             cachedMcpServers,
             orchestratorConfig.localFileConfig(),
+            orchestratorConfig.promptBudgetConfig(),
             reviewCircuitBreaker);
     }
 
@@ -208,11 +208,6 @@ public class ReviewOrchestrator implements AutoCloseable {
                 }
 
                 @Override
-                public List<ReviewResult> reviewPasses(ReviewTarget target, int reviewPasses) {
-                    return agent.reviewPasses(target, reviewPasses);
-                }
-
-                @Override
                 public ReviewResult reviewRubberDuck(ReviewTarget target,
                                                      RubberDuckConfig rubberDuckConfig,
                                                      TemplateService templateService) {
@@ -230,11 +225,9 @@ public class ReviewOrchestrator implements AutoCloseable {
     }
     
     /// Executes reviews for all provided agents in parallel.
-    /// When `reviewPasses > 1`, each agent is reviewed multiple times in parallel
-    /// and the results are merged per agent before returning.
     /// @param agents Map of agent name to AgentConfig
     /// @param target The target to review (GitHub repository or local directory)
-    /// @return List of ReviewResults from all agents (one per agent, merged if multi-pass)
+    /// @return List of ReviewResults from all agents
     public List<ReviewResult> executeReviews(Map<String, AgentConfig> agents, ReviewTarget target) {
         if (isRubberDuckRequested(agents)) {
             return executeRubberDuckReviews(agents, target);
@@ -248,9 +241,7 @@ public class ReviewOrchestrator implements AutoCloseable {
     }
 
     private List<ReviewResult> executeStandardReviews(Map<String, AgentConfig> agents, ReviewTarget target) {
-        int reviewPasses = executionConfig.reviewPasses();
-        int totalTasks = agents.size() * reviewPasses;
-        logReviewStart(agents.size(), reviewPasses, totalTasks, target);
+        logReviewStart(agents.size(), target);
 
         var cachedSourceContent = localSourcePrecomputer.preComputeSourceContent(target);
 
@@ -259,12 +250,12 @@ public class ReviewOrchestrator implements AutoCloseable {
             agents,
             target,
             sharedContext,
-            agentReviewExecutor::executeAgentPassesSafely
+            agentReviewExecutor::executeAgentSafely
         );
     }
 
     private List<ReviewResult> executeRubberDuckReviews(Map<String, AgentConfig> agents, ReviewTarget target) {
-        logger.info("Rubber-duck mode enabled: {} agents, base rounds={}, multi-pass disabled",
+        logger.info("Rubber-duck mode enabled: {} agents, base rounds={}",
             agents.size(), orchestratorConfig.rubberDuckConfig().dialogueRounds());
 
         TemplateService templateService = requireTemplateService();
@@ -278,17 +269,14 @@ public class ReviewOrchestrator implements AutoCloseable {
             agents,
             target,
             sharedContext,
-            1,
             orchestratorTimeoutMinutes,
-            (config, reviewTarget, context, reviewPasses, perAgentTimeout) ->
+            (config, reviewTarget, context, perAgentTimeout) ->
                 shouldRunRubberDuck(config)
                     ? agentReviewExecutor.executeRubberDuckSafely(
                         config, reviewTarget, context,
                         rubberDuckConfig, templateService, perAgentTimeout)
-                    : agentReviewExecutor.executeAgentPassesSafely(
-                        config, reviewTarget, context,
-                        1,
-                        perAgentTimeout)
+                    : agentReviewExecutor.executeAgentSafely(
+                        config, reviewTarget, context, perAgentTimeout)
         );
     }
 
@@ -329,12 +317,9 @@ public class ReviewOrchestrator implements AutoCloseable {
         return templateService;
     }
 
-    private void logReviewStart(int agentCount,
-                                int reviewPasses,
-                                int totalTasks,
-                                ReviewTarget target) {
-        logger.info("Starting parallel review for {} agents ({} passes each, {} total tasks) on target: {}",
-            agentCount, reviewPasses, totalTasks, target.displayName());
+    private void logReviewStart(int agentCount, ReviewTarget target) {
+        logger.info("Starting parallel review for {} agents on target: {}",
+            agentCount, target.displayName());
     }
 
     /// Closes executor resources.

@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.orchestrator;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.service.TemplateService;
 import io.micronaut.core.annotation.Nullable;
@@ -19,6 +20,7 @@ public record OrchestratorConfig(
     String invocationTimestamp,
     PromptTexts promptTexts,
     RubberDuckConfig rubberDuckConfig,
+    PromptBudgetConfig promptBudgetConfig,
     @Nullable TemplateService templateService
 ) {
     public OrchestratorConfig(
@@ -34,7 +36,24 @@ public record OrchestratorConfig(
     ) {
         this(githubToken, githubMcpConfig, localFileConfig, executionConfig,
             reasoningEffort, outputConstraints, invocationTimestamp, promptTexts,
-            rubberDuckConfig, null);
+            rubberDuckConfig, new PromptBudgetConfig(), null);
+    }
+
+    public OrchestratorConfig(
+        @Nullable String githubToken,
+        @Nullable GithubMcpConfig githubMcpConfig,
+        LocalFileConfig localFileConfig,
+        ExecutionConfig executionConfig,
+        @Nullable String reasoningEffort,
+        @Nullable String outputConstraints,
+        String invocationTimestamp,
+        PromptTexts promptTexts,
+        RubberDuckConfig rubberDuckConfig,
+        @Nullable TemplateService templateService
+    ) {
+        this(githubToken, githubMcpConfig, localFileConfig, executionConfig,
+            reasoningEffort, outputConstraints, invocationTimestamp, promptTexts,
+            rubberDuckConfig, new PromptBudgetConfig(), templateService);
     }
 
     public OrchestratorConfig {
@@ -43,6 +62,7 @@ public record OrchestratorConfig(
         invocationTimestamp = invocationTimestamp != null ? invocationTimestamp : "unknown-start-time";
         promptTexts = promptTexts != null ? promptTexts : new PromptTexts(null, null, null);
         rubberDuckConfig = rubberDuckConfig != null ? rubberDuckConfig : new RubberDuckConfig();
+        promptBudgetConfig = promptBudgetConfig != null ? promptBudgetConfig : new PromptBudgetConfig();
     }
 
     public boolean isRubberDuckEnabled() {

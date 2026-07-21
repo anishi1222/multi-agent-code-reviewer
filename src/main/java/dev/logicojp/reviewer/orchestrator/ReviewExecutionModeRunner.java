@@ -19,19 +19,18 @@ import java.util.concurrent.TimeoutException;
 
 final class ReviewExecutionModeRunner {
 
-    private record ExecutionParams(int reviewPasses, int agentCount, long timeoutMinutes, long perAgentTimeoutMinutes) {
+    private record ExecutionParams(int agentCount, long timeoutMinutes, long perAgentTimeoutMinutes) {
     }
 
-    private record SubtaskWithConfig(StructuredTaskScope.Subtask<List<ReviewResult>> subtask, AgentConfig config) {
+    private record SubtaskWithConfig(StructuredTaskScope.Subtask<ReviewResult> subtask, AgentConfig config) {
     }
 
     @FunctionalInterface
-    interface AgentPassExecutor {
-        List<ReviewResult> execute(AgentConfig config,
-                                   ReviewTarget target,
-                                   ReviewContext context,
-                                   int reviewPasses,
-                                   long perAgentTimeoutMinutes);
+    interface AgentExecutor {
+        ReviewResult execute(AgentConfig config,
+                             ReviewTarget target,
+                             ReviewContext context,
+                             long perAgentTimeoutMinutes);
     }
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewExecutionModeRunner.class);
@@ -51,42 +50,30 @@ final class ReviewExecutionModeRunner {
     List<ReviewResult> executeStructured(Map<String, AgentConfig> agents,
                                          ReviewTarget target,
                                          ReviewContext sharedContext,
-                                         AgentPassExecutor agentPassExecutor) {
+                                         AgentExecutor agentExecutor) {
         return executeStructured(
             agents,
             target,
             sharedContext,
-            executionConfig.reviewPasses(),
             executionConfig.orchestratorTimeoutMinutes(),
-            agentPassExecutor
+            agentExecutor
         );
     }
 
     List<ReviewResult> executeStructured(Map<String, AgentConfig> agents,
                                          ReviewTarget target,
                                          ReviewContext sharedContext,
-                                         int reviewPasses,
-                                         AgentPassExecutor agentPassExecutor) {
-        return executeStructured(
-            agents,
-            target,
-            sharedContext,
-            reviewPasses,
-            executionConfig.orchestratorTimeoutMinutes(),
-            agentPassExecutor
-        );
-    }
-
-    List<ReviewResult> executeStructured(Map<String, AgentConfig> agents,
-                                         ReviewTarget target,
-                                         ReviewContext sharedContext,
-                                         int reviewPasses,
                                          long orchestratorTimeoutMinutes,
-                                         AgentPassExecutor agentPassExecutor) {
+                                         AgentExecutor agentExecutor) {
         metrics.markRunStart();
         try {
-            return executeStructuredInternal(agents, target, sharedContext,
-                reviewPasses, orchestratorTimeoutMinutes, agentPassExecutor);
+            return executeStructuredInternal(
+                agents,
+                target,
+                sharedContext,
+                orchestratorTimeoutMinutes,
+                agentExecutor
+            );
         } finally {
             metrics.markRunEnd();
             metrics.logSummary();
@@ -94,87 +81,71 @@ final class ReviewExecutionModeRunner {
     }
 
     private List<ReviewResult> executeStructuredInternal(Map<String, AgentConfig> agents,
-                                         ReviewTarget target,
-                                         ReviewContext sharedContext,
-                                         int reviewPasses,
-                                         long orchestratorTimeoutMinutes,
-                                         AgentPassExecutor agentPassExecutor) {
-        ExecutionParams params = executionParams(agents.size(), reviewPasses, orchestratorTimeoutMinutes);
+                                                         ReviewTarget target,
+                                                         ReviewContext sharedContext,
+                                                         long orchestratorTimeoutMinutes,
+                                                         AgentExecutor agentExecutor) {
+        ExecutionParams params = executionParams(agents.size(), orchestratorTimeoutMinutes);
         List<SubtaskWithConfig> tasks = new ArrayList<>(params.agentCount());
         var parentMdcContext = ExecutionCorrelation.captureMdcContext();
-        try (var scope = StructuredConcurrencyUtils.<List<ReviewResult>>openAwaitAllScope()) {
+        try (var scope = StructuredConcurrencyUtils.<ReviewResult>openAwaitAllScope()) {
             for (var config : agents.values()) {
-                @SuppressWarnings("unchecked")
-                var subtask = (StructuredTaskScope.Subtask<List<ReviewResult>>) scope.fork(() -> executeAgentPasses(
+                var subtask = scope.fork(() -> executeAgent(
                     config,
                     target,
                     sharedContext,
-                    params.reviewPasses(),
                     params.perAgentTimeoutMinutes(),
-                    agentPassExecutor,
+                    agentExecutor,
                     parentMdcContext
                 ));
                 tasks.add(new SubtaskWithConfig(subtask, config));
             }
 
             joinStructuredWithTimeout(scope, tasks, params.timeoutMinutes());
-
-            return finalizeResults(
-                params.reviewPasses(),
-                collectStructuredResults(tasks, target, params.perAgentTimeoutMinutes(), params.reviewPasses())
+            return reviewResultPipeline.finalizeResults(
+                collectStructuredResults(tasks, target, params.perAgentTimeoutMinutes())
             );
         }
     }
 
-    private ExecutionParams executionParams(int agentCount,
-                                            int reviewPasses,
-                                            long orchestratorTimeoutMinutes) {
-        int normalizedReviewPasses = Math.max(1, reviewPasses);
-        long normalizedTimeoutMinutes = Math.max(1L, orchestratorTimeoutMinutes);
+    private ExecutionParams executionParams(int agentCount, long orchestratorTimeoutMinutes) {
         return new ExecutionParams(
-            normalizedReviewPasses,
             agentCount,
-            normalizedTimeoutMinutes,
-            perAgentTimeoutMinutes()
+            Math.max(1L, orchestratorTimeoutMinutes),
+            executionConfig.agentTimeoutMinutes() * (executionConfig.maxRetries() + 1L)
         );
     }
 
-    private long perAgentTimeoutMinutes() {
-        return executionConfig.agentTimeoutMinutes() * (executionConfig.maxRetries() + 1L);
-    }
-
-    private List<ReviewResult> summarizeTaskResult(SubtaskWithConfig taskWithConfig,
-                                                   ReviewTarget target,
-                                                   long perAgentTimeoutMinutes,
-                                                   int reviewPasses) {
-        var subtask = taskWithConfig.subtask();
-        var state = subtask.state();
-        if (state == StructuredTaskScope.Subtask.State.SUCCESS) {
-            return subtask.get();
-        }
-        if (state == StructuredTaskScope.Subtask.State.FAILED) {
-            Throwable cause = subtask.exception();
-            return ReviewResult.failedResults(taskWithConfig.config(), target.displayName(), reviewPasses,
-                "Review failed: " + (cause != null ? cause.getMessage() : "unknown"));
-        }
-        return ReviewResult.failedResults(taskWithConfig.config(), target.displayName(), reviewPasses,
-            "Review cancelled after " + perAgentTimeoutMinutes + " minutes");
+    private ReviewResult summarizeTaskResult(SubtaskWithConfig taskWithConfig,
+                                             ReviewTarget target,
+                                             long perAgentTimeoutMinutes) {
+        return switch (taskWithConfig.subtask().state()) {
+            case SUCCESS -> taskWithConfig.subtask().get();
+            case FAILED -> {
+                Throwable cause = taskWithConfig.subtask().exception();
+                yield ReviewResult.failed(
+                    taskWithConfig.config(),
+                    target.displayName(),
+                    "Review failed: " + (cause != null ? cause.getMessage() : "unknown")
+                );
+            }
+            case UNAVAILABLE -> ReviewResult.failed(
+                taskWithConfig.config(),
+                target.displayName(),
+                "Review cancelled after " + perAgentTimeoutMinutes + " minutes"
+            );
+        };
     }
 
     private List<ReviewResult> collectStructuredResults(
             List<SubtaskWithConfig> tasks,
             ReviewTarget target,
-            long perAgentTimeoutMinutes,
-            int reviewPasses) {
-        List<ReviewResult> results = new ArrayList<>(tasks.size() * reviewPasses);
+            long perAgentTimeoutMinutes) {
+        List<ReviewResult> results = new ArrayList<>(tasks.size());
         for (var task : tasks) {
-            results.addAll(summarizeTaskResult(task, target, perAgentTimeoutMinutes, reviewPasses));
+            results.add(summarizeTaskResult(task, target, perAgentTimeoutMinutes));
         }
         return results;
-    }
-
-    private List<ReviewResult> finalizeResults(int reviewPasses, List<ReviewResult> results) {
-        return reviewResultPipeline.finalizeResults(results, reviewPasses);
     }
 
     @SuppressWarnings("rawtypes")
@@ -183,10 +154,10 @@ final class ReviewExecutionModeRunner {
                                            long timeoutMinutes) {
         try {
             StructuredConcurrencyUtils.joinWithTimeout(scope, timeoutMinutes, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            logger.error("Structured concurrency interrupted", e);
-        } catch (TimeoutException e) {
+            logger.error("Structured concurrency interrupted", exception);
+        } catch (TimeoutException exception) {
             int unfinishedTaskCount = (int) tasks.stream()
                 .map(SubtaskWithConfig::subtask)
                 .filter(subtask -> subtask.state() == StructuredTaskScope.Subtask.State.UNAVAILABLE)
@@ -195,45 +166,33 @@ final class ReviewExecutionModeRunner {
                 "Structured concurrency timed out after {} minutes; cancelling {} unfinished task(s)",
                 timeoutMinutes,
                 unfinishedTaskCount,
-                e
+                exception
             );
             scope.close();
         }
     }
 
-    private List<ReviewResult> executeAgentPasses(AgentConfig config,
-                                                   ReviewTarget target,
-                                                   ReviewContext sharedContext,
-                                                   int reviewPasses,
-                                                   long perAgentTimeoutMinutes,
-                                                   AgentPassExecutor agentPassExecutor,
-                                                   Map<String, String> parentMdcContext) {
+    private ReviewResult executeAgent(AgentConfig config,
+                                      ReviewTarget target,
+                                      ReviewContext sharedContext,
+                                      long perAgentTimeoutMinutes,
+                                      AgentExecutor agentExecutor,
+                                      Map<String, String> parentMdcContext) {
         try {
-            return ExecutionCorrelation.callWithMdcContext(parentMdcContext, () -> {
-                logAgentStart(config, reviewPasses);
-                return agentPassExecutor.execute(
+            return ExecutionCorrelation.callWithMdcContext(
+                parentMdcContext,
+                () -> agentExecutor.execute(
                     config,
                     target,
                     sharedContext,
-                    reviewPasses,
                     perAgentTimeoutMinutes
-                );
-            });
-        } catch (Exception e) {
-            if (e instanceof RuntimeException runtimeException) {
+                )
+            );
+        } catch (Exception exception) {
+            if (exception instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
-            throw new IllegalStateException("Failed to execute agent passes", e);
+            throw new IllegalStateException("Failed to execute agent review", exception);
         }
     }
-
-    private void logAgentStart(AgentConfig config,
-                              int reviewPasses) {
-        if (reviewPasses <= 1) {
-            return;
-        }
-        logger.info("Agent {}: starting {} passes (structured)",
-            config.name(), reviewPasses);
-    }
-
 }

@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.orchestrator;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.GithubMcpConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.config.RubberDuckConfig;
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.service.CopilotService;
@@ -87,7 +88,7 @@ public class ReviewOrchestratorFactory {
                                      @Nullable String outputConstraints,
                                      String invocationTimestamp) {
         return create(githubToken, executionConfig, reasoningEffort, outputConstraints,
-            invocationTimestamp, new RubberDuckConfig());
+            invocationTimestamp, new RubberDuckConfig(), new PromptBudgetConfig());
     }
 
     public ReviewOrchestrator create(@Nullable String githubToken,
@@ -96,13 +97,25 @@ public class ReviewOrchestratorFactory {
                                      @Nullable String outputConstraints,
                                      String invocationTimestamp,
                                      RubberDuckConfig rubberDuckConfig) {
+        return create(githubToken, executionConfig, reasoningEffort, outputConstraints,
+            invocationTimestamp, rubberDuckConfig, new PromptBudgetConfig());
+    }
+
+    public ReviewOrchestrator create(@Nullable String githubToken,
+                                     ExecutionConfig executionConfig,
+                                     @Nullable String reasoningEffort,
+                                     @Nullable String outputConstraints,
+                                     String invocationTimestamp,
+                                     RubberDuckConfig rubberDuckConfig,
+                                     PromptBudgetConfig promptBudgetConfig) {
         var orchestratorConfig = buildOrchestratorConfig(
             githubToken,
             executionConfig,
             reasoningEffort,
             outputConstraints,
             invocationTimestamp,
-            rubberDuckConfig
+            rubberDuckConfig,
+            promptBudgetConfig
         );
         return createOrchestrator(orchestratorConfig);
     }
@@ -112,7 +125,8 @@ public class ReviewOrchestratorFactory {
                                                        String reasoningEffort,
                                                        String outputConstraints,
                                                        String invocationTimestamp,
-                                                       RubberDuckConfig rubberDuckConfig) {
+                                                       RubberDuckConfig rubberDuckConfig,
+                                                       PromptBudgetConfig promptBudgetConfig) {
         PromptTexts promptTexts = loadPromptTexts();
 
         return new OrchestratorConfig(
@@ -125,6 +139,7 @@ public class ReviewOrchestratorFactory {
             invocationTimestamp,
             promptTexts,
             rubberDuckConfig,
+            promptBudgetConfig,
             templateService
         );
     }

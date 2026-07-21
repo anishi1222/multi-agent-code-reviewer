@@ -2,9 +2,9 @@ package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
-import dev.logicojp.reviewer.report.finding.ReviewFindingParser;
-import dev.logicojp.reviewer.report.merger.ReviewOverallSummaryAppender;
-import dev.logicojp.reviewer.report.merger.ReviewResultMerger;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
+import dev.logicojp.reviewer.config.RubberDuckConfig;
+import dev.logicojp.reviewer.report.formatter.ReviewOverallSummaryAppender;
 import dev.logicojp.reviewer.service.ReportService;
 import dev.logicojp.reviewer.service.ReviewService;
 import dev.logicojp.reviewer.target.ReviewTarget;
@@ -15,19 +15,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 /// Executes the review run lifecycle: review execution, report generation, summary generation.
 @Singleton
 class ReviewRunExecutor {
-
-    private static final String CHECKPOINTS_DIR = ".checkpoints";
-    private static final String PASS_REPORTS_DIR = "passes";
 
     @FunctionalInterface
     interface ReviewRunner {
@@ -68,9 +62,9 @@ class ReviewRunExecutor {
                 resolvedToken,
                 context.parallelism(),
                 context.reasoningEffort(),
-                context.noSharedSession(),
                 context.invocationTimestamp(),
-                context.rubberDuckConfig()
+                context.rubberDuckConfig(),
+                context.promptBudgetConfig()
             ),
             reportService::generateReports,
             (results, context) -> reportService.generateSummary(
@@ -78,7 +72,8 @@ class ReviewRunExecutor {
                 context.target().displayName(),
                 context.outputDirectory(),
                 context.summaryModel(),
-                context.reasoningEffort()
+                context.reasoningEffort(),
+                context.promptBudgetConfig()
             )
         );
     }
@@ -98,22 +93,14 @@ class ReviewRunExecutor {
     }
 
     public int execute(String resolvedToken, ReviewRunRequest context) {
-        try {
-            output.println("Starting reviews...");
-            List<ReviewResult> passResults = executeReviews(resolvedToken, context);
-            List<ReviewResult> sanitizedPassResults = sanitizePassResults(passResults);
-            generatePassReports(sanitizedPassResults, context.outputDirectory());
+        output.println("Starting reviews...");
+        List<ReviewResult> reviewResults = executeReviews(resolvedToken, context);
+        List<ReviewResult> finalResults = ReviewOverallSummaryAppender.appendToResults(reviewResults);
 
-            List<ReviewResult> mergedResults = ReviewResultMerger.mergeByAgent(sanitizedPassResults);
-            List<ReviewResult> finalResults = ReviewOverallSummaryAppender.appendToMergedResults(mergedResults);
+        generateFinalOutputs(finalResults, context);
 
-            generateFinalOutputs(finalResults, context);
-
-            outputFormatter.printCompletionSummary(finalResults, context.outputDirectory());
-            return ExitCodes.OK;
-        } finally {
-            cleanupCheckpoints(context.outputDirectory());
-        }
+        outputFormatter.printCompletionSummary(finalResults, context.outputDirectory());
+        return ExitCodes.OK;
     }
 
     private List<ReviewResult> executeReviews(String resolvedToken, ReviewRunRequest context) {
@@ -123,32 +110,6 @@ class ReviewRunExecutor {
     private void generateFinalOutputs(List<ReviewResult> results, ReviewRunRequest context) {
         generateReports(results, context.outputDirectory());
         generateSummaryIfEnabled(results, context);
-    }
-
-    private void generatePassReports(List<ReviewResult> passResults, Path outputDirectory) {
-        Path passDirectory = outputDirectory.resolve(CHECKPOINTS_DIR).resolve(PASS_REPORTS_DIR);
-        generateAndPrintReports(passResults, passDirectory, "Generating pass reports");
-    }
-
-    private List<ReviewResult> sanitizePassResults(List<ReviewResult> passResults) {
-        return passResults.stream()
-            .map(this::stripOverallSummary)
-            .toList();
-    }
-
-    private ReviewResult stripOverallSummary(ReviewResult result) {
-        if (result == null || !result.success() || result.content() == null || result.content().isBlank()) {
-            return result;
-        }
-        String strippedContent = ReviewFindingParser.stripOverallSummary(result.content());
-        return ReviewResult.builder()
-            .agentConfig(result.agentConfig())
-            .repository(result.repository())
-            .content(strippedContent)
-            .success(true)
-            .errorMessage(result.errorMessage())
-            .timestamp(result.timestamp())
-            .build();
     }
 
     private void generateSummaryIfEnabled(List<ReviewResult> results, ReviewRunRequest context) {
@@ -189,28 +150,6 @@ class ReviewRunExecutor {
         }
     }
 
-    private void cleanupCheckpoints(Path outputDirectory) {
-        Path checkpointsDirectory = outputDirectory.resolve(CHECKPOINTS_DIR);
-        if (!Files.exists(checkpointsDirectory)) {
-            return;
-        }
-
-        try (Stream<Path> pathStream = Files.walk(checkpointsDirectory)) {
-            pathStream
-                .sorted(Comparator.reverseOrder())
-                .forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                });
-        } catch (IOException | UncheckedIOException e) {
-            logger.warn("Failed to cleanup checkpoints directory '{}': {}",
-                checkpointsDirectory, e.getMessage());
-        }
-    }
-
     public record ReviewRunRequest(
         ReviewTarget target,
         String summaryModel,
@@ -219,9 +158,9 @@ class ReviewRunExecutor {
         Map<String, AgentConfig> agentConfigs,
         int parallelism,
         boolean noSummary,
-        boolean noSharedSession,
         Path outputDirectory,
-        dev.logicojp.reviewer.config.RubberDuckConfig rubberDuckConfig
+        RubberDuckConfig rubberDuckConfig,
+        PromptBudgetConfig promptBudgetConfig
     ) {
         public ReviewRunRequest(
             ReviewTarget target,
@@ -231,22 +170,38 @@ class ReviewRunExecutor {
             Map<String, AgentConfig> agentConfigs,
             int parallelism,
             boolean noSummary,
-            boolean noSharedSession,
             Path outputDirectory
         ) {
             this(target, summaryModel, reasoningEffort, invocationTimestamp, agentConfigs,
-                parallelism, noSummary, noSharedSession, outputDirectory, new dev.logicojp.reviewer.config.RubberDuckConfig());
+                parallelism, noSummary, outputDirectory, new RubberDuckConfig(), new PromptBudgetConfig());
+        }
+
+        public ReviewRunRequest(
+            ReviewTarget target,
+            String summaryModel,
+            String reasoningEffort,
+            String invocationTimestamp,
+            Map<String, AgentConfig> agentConfigs,
+            int parallelism,
+            boolean noSummary,
+            Path outputDirectory,
+            RubberDuckConfig rubberDuckConfig
+        ) {
+            this(target, summaryModel, reasoningEffort, invocationTimestamp, agentConfigs,
+                parallelism, noSummary, outputDirectory, rubberDuckConfig, new PromptBudgetConfig());
         }
 
         public ReviewRunRequest {
-            rubberDuckConfig = rubberDuckConfig != null ? rubberDuckConfig : new dev.logicojp.reviewer.config.RubberDuckConfig();
+            rubberDuckConfig = rubberDuckConfig != null ? rubberDuckConfig : new RubberDuckConfig();
+            promptBudgetConfig = promptBudgetConfig != null ? promptBudgetConfig : new PromptBudgetConfig();
         }
 
         @Override
         public String toString() {
-            return "ReviewRunRequest{target=%s, summaryModel='%s', reasoningEffort='%s', invocationTimestamp='%s', parallelism=%d, noSummary=%s, noSharedSession=%s, outputDirectory=%s, rubberDuck=%s}"
+            return "ReviewRunRequest{target=%s, summaryModel='%s', reasoningEffort='%s', invocationTimestamp='%s', parallelism=%d, noSummary=%s, outputDirectory=%s, rubberDuck=%s, compactPrompts=%s}"
                 .formatted(target, summaryModel, reasoningEffort, invocationTimestamp,
-                    parallelism, noSummary, noSharedSession, outputDirectory, rubberDuckConfig.enabled());
+                    parallelism, noSummary, outputDirectory,
+                    rubberDuckConfig.enabled(), promptBudgetConfig.compactPrompts());
         }
     }
 }

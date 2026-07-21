@@ -4,6 +4,7 @@ import dev.logicojp.reviewer.agent.ReviewContext;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.LocalFileConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import com.github.copilot.CopilotClient;
 import com.github.copilot.rpc.McpServerConfig;
 
@@ -19,6 +20,7 @@ final class ReviewContextFactory {
     private final String invocationTimestamp;
     private final Map<String, McpServerConfig> cachedMcpServers;
     private final LocalFileConfig localFileConfig;
+    private final PromptBudgetConfig promptBudgetConfig;
     private final SharedCircuitBreaker reviewCircuitBreaker;
 
     ReviewContextFactory(CopilotClient client,
@@ -29,6 +31,28 @@ final class ReviewContextFactory {
                          Map<String, McpServerConfig> cachedMcpServers,
                          LocalFileConfig localFileConfig,
                          SharedCircuitBreaker reviewCircuitBreaker) {
+        this(
+            client,
+            executionConfig,
+            reasoningEffort,
+            outputConstraints,
+            invocationTimestamp,
+            cachedMcpServers,
+            localFileConfig,
+            new PromptBudgetConfig(),
+            reviewCircuitBreaker
+        );
+    }
+
+    ReviewContextFactory(CopilotClient client,
+                         ExecutionConfig executionConfig,
+                         String reasoningEffort,
+                         String outputConstraints,
+                         String invocationTimestamp,
+                         Map<String, McpServerConfig> cachedMcpServers,
+                         LocalFileConfig localFileConfig,
+                         PromptBudgetConfig promptBudgetConfig,
+                         SharedCircuitBreaker reviewCircuitBreaker) {
         this.client = client;
         this.executionConfig = executionConfig;
         this.reasoningEffort = reasoningEffort;
@@ -36,6 +60,7 @@ final class ReviewContextFactory {
         this.invocationTimestamp = invocationTimestamp;
         this.cachedMcpServers = cachedMcpServers;
         this.localFileConfig = localFileConfig;
+        this.promptBudgetConfig = promptBudgetConfig;
         this.reviewCircuitBreaker = reviewCircuitBreaker;
     }
 
@@ -45,13 +70,13 @@ final class ReviewContextFactory {
             .timeoutMinutes(executionConfig.agentTimeoutMinutes())
             .idleTimeoutMinutes(executionConfig.idleTimeoutMinutes())
             .reasoningEffort(reasoningEffort)
-            .sharedSessionEnabled(executionConfig.isSharedSessionEnabled())
             .maxRetries(executionConfig.maxRetries())
             .outputConstraints(outputConstraints)
             .invocationTimestamp(invocationTimestamp)
             .cachedMcpServers(cachedMcpServers)
             .cachedSourceContent(cachedSourceContent.orElse(null))
             .localFileConfig(localFileConfig)
+            .promptBudgetConfig(promptBudgetConfig)
             .reviewCircuitBreaker(reviewCircuitBreaker)
             .agentTuningConfig(new ReviewContext.AgentTuningConfig(
                 executionConfig.instructionBufferExtraCapacity()))

@@ -4,6 +4,7 @@ import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.report.finding.FindingsExtractor;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.config.TemplateConfig;
 import dev.logicojp.reviewer.service.TemplateService;
 import org.junit.jupiter.api.DisplayName;
@@ -61,8 +62,83 @@ class SummaryPromptBuilderTest {
         assertThat(prompt).contains("ERR:Security:timeout");
     }
 
+    @Test
+    @DisplayName("compact prompt有効時は構造化された指摘のみを要約入力へ含める")
+    void buildsCompactPromptFromFindingBlocks() throws IOException {
+        TemplateService templateService = createTemplateService();
+        var budget = new PromptBudgetConfig(true, 100, 100, 100, 100, 500, 1000, 100);
+        var builder = new SummaryPromptBuilder(templateService, 1000, 2000, 8192, 4096, budget);
+        String content = """
+            ### 1. SQL injection
+
+            | 項目 | 内容 |
+            |------|------|
+            | **Priority** | High |
+            | **指摘の概要** | Query concatenates user input |
+            | **該当箇所** | src/App.java L10 |
+
+            **推奨対応**
+
+            Use parameterized queries.
+
+            **効果**
+
+            Safer queries.
+            """;
+
+        String prompt = builder.buildSummaryPrompt(List.of(successResult("A", content)), "owner/repo");
+
+        assertThat(prompt).contains("SQL injection");
+        assertThat(prompt).contains("Priority: High");
+        assertThat(prompt).contains("Summary: Query concatenates user input");
+        assertThat(prompt).doesNotContain("Safer queries.");
+    }
+
+    @Test
+    @DisplayName("構造化フィールドのないfinding blockは本文の抜粋を保持する")
+    void preservesFallbackBodyForUnstructuredFindingBlock() throws IOException {
+        TemplateService templateService = createTemplateService();
+        var budget = new PromptBudgetConfig(true, 100, 100, 100, 100, 500, 1000, 100);
+        var builder = new SummaryPromptBuilder(templateService, 1000, 2000, 8192, 4096, budget);
+        String content = """
+            ### 1. レビュー結果
+
+            指摘事項なし
+            """;
+
+        String prompt = builder.buildSummaryPrompt(List.of(successResult("A", content)), "owner/repo");
+
+        assertThat(prompt).contains("レビュー結果");
+        assertThat(prompt).contains("指摘事項なし");
+    }
+
+    @Test
+    @DisplayName("複数エージェントの重複指摘を統合した一覧をプロンプトへ含める")
+    void includesDeduplicatedFindingsAcrossAgents() throws IOException {
+        TemplateService templateService = createTemplateService();
+        var builder = new SummaryPromptBuilder(templateService, 1000, 4000, 8192, 4096);
+        String content = """
+            ### 1. Shared issue
+
+            | 項目 | 内容 |
+            |------|------|
+            | **Priority** | High |
+            """;
+
+        String prompt = builder.buildSummaryPrompt(
+            List.of(successResult("Security", content), successResult("Quality", content)),
+            "owner/repo"
+        );
+
+        assertThat(prompt).contains("#### High (1)");
+        assertThat(prompt).contains("指摘元: Security, Quality");
+    }
+
     private TemplateService createTemplateService() throws IOException {
-        Files.writeString(tempDir.resolve("summary-prompt.md"), "repo=${repository}\n${results}");
+        Files.writeString(
+            tempDir.resolve("summary-prompt.md"),
+            "repo=${repository}\nfindings=${findingsSummary}\n${results}"
+        );
         Files.writeString(tempDir.resolve("summary-result-entry.md"), "${displayName}:${content}\n");
         Files.writeString(tempDir.resolve("summary-result-error-entry.md"), "ERR:${displayName}:${errorMessage}\n");
 

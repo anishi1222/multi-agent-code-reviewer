@@ -86,56 +86,48 @@ class OrchestratorMetricsTest {
     }
 
     @Test
-    @DisplayName("全成功のリストはSUCCESSに分類される")
-    void classifiesAllSuccessAsSuccess() {
-        var results = List.of(
-            ReviewResult.builder().agentConfig(agent("a")).repository("r")
-                .content("ok").success(true).timestamp(Instant.now()).build()
-        );
-        assertThat(OrchestratorMetrics.classifyOutcome(results))
+    @DisplayName("成功結果はSUCCESSに分類される")
+    void classifiesSuccessAsSuccess() {
+        var result = ReviewResult.builder().agentConfig(agent("a")).repository("r")
+            .content("ok").success(true).timestamp(Instant.now()).build();
+        assertThat(OrchestratorMetrics.classifyOutcome(result))
             .isEqualTo(OrchestratorMetrics.OutcomeType.SUCCESS);
     }
 
     @Test
     @DisplayName("タイムアウトメッセージを含む失敗はTIMEOUTに分類される")
     void classifiesTimeoutFailureAsTimeout() {
-        var results = List.of(
-            ReviewResult.builder().agentConfig(agent("a")).repository("r")
-                .success(false).errorMessage("Review timed out after 5 minutes")
-                .timestamp(Instant.now()).build()
-        );
-        assertThat(OrchestratorMetrics.classifyOutcome(results))
+        var result = ReviewResult.builder().agentConfig(agent("a")).repository("r")
+            .success(false).errorMessage("Review timed out after 5 minutes")
+            .timestamp(Instant.now()).build();
+        assertThat(OrchestratorMetrics.classifyOutcome(result))
             .isEqualTo(OrchestratorMetrics.OutcomeType.TIMEOUT);
     }
 
     @Test
     @DisplayName("割り込みメッセージを含む失敗はINTERRUPTEDに分類される")
     void classifiesInterruptedFailureAsInterrupted() {
-        var results = List.of(
-            ReviewResult.builder().agentConfig(agent("a")).repository("r")
-                .success(false).errorMessage("Review interrupted during execution")
-                .timestamp(Instant.now()).build()
-        );
-        assertThat(OrchestratorMetrics.classifyOutcome(results))
+        var result = ReviewResult.builder().agentConfig(agent("a")).repository("r")
+            .success(false).errorMessage("Review interrupted during execution")
+            .timestamp(Instant.now()).build();
+        assertThat(OrchestratorMetrics.classifyOutcome(result))
             .isEqualTo(OrchestratorMetrics.OutcomeType.INTERRUPTED);
     }
 
     @Test
     @DisplayName("その他の失敗はFAILUREに分類される")
     void classifiesGenericFailureAsFailure() {
-        var results = List.of(
-            ReviewResult.builder().agentConfig(agent("a")).repository("r")
-                .success(false).errorMessage("Review failed: some error")
-                .timestamp(Instant.now()).build()
-        );
-        assertThat(OrchestratorMetrics.classifyOutcome(results))
+        var result = ReviewResult.builder().agentConfig(agent("a")).repository("r")
+            .success(false).errorMessage("Review failed: some error")
+            .timestamp(Instant.now()).build();
+        assertThat(OrchestratorMetrics.classifyOutcome(result))
             .isEqualTo(OrchestratorMetrics.OutcomeType.FAILURE);
     }
 
     @Test
-    @DisplayName("空リストはFAILUREに分類される")
-    void classifiesEmptyListAsFailure() {
-        assertThat(OrchestratorMetrics.classifyOutcome(List.of()))
+    @DisplayName("null結果はFAILUREに分類される")
+    void classifiesNullAsFailure() {
+        assertThat(OrchestratorMetrics.classifyOutcome(null))
             .isEqualTo(OrchestratorMetrics.OutcomeType.FAILURE);
     }
 

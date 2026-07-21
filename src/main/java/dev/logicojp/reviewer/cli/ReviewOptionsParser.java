@@ -45,6 +45,7 @@ class ReviewOptionsParser {
     private ReviewOptions toParsedOptions(ParseState state) {
         ReviewTargetSelection target = validateTargetSelection(state.repository, state.localDirectory);
         ReviewAgentSelection agents = validateAgentSelection(state.allAgents, state.agentNames);
+        validateRubberDuckSelection(state.rubberDuck, state.noRubberDuck);
         return ReviewOptions.builder()
             .target(target)
             .agents(agents)
@@ -53,13 +54,14 @@ class ReviewOptionsParser {
             .githubToken(state.githubToken)
             .parallelism(state.parallelism)
             .noSummary(state.noSummary)
-            .noSharedSession(state.noSharedSession)
             .reviewModel(state.reviewModel)
             .reportModel(state.reportModel)
             .summaryModel(state.summaryModel)
             .defaultModel(state.defaultModel)
             .trustTarget(state.trustTarget)
             .rubberDuck(state.rubberDuck)
+            .noRubberDuck(state.noRubberDuck)
+            .compactPrompts(state.compactPrompts)
             .dialogueRounds(state.dialogueRounds)
             .peerModel(state.peerModel)
             .build();
@@ -75,13 +77,14 @@ class ReviewOptionsParser {
         private String githubToken;
         private int parallelism;
         private boolean noSummary;
-        private boolean noSharedSession;
         private String reviewModel;
         private String reportModel;
         private String summaryModel;
         private String defaultModel;
         private boolean trustTarget;
         private boolean rubberDuck;
+        private boolean noRubberDuck;
+        private boolean compactPrompts;
         private int dialogueRounds;
         private String peerModel;
         private boolean helpRequested;
@@ -160,10 +163,6 @@ class ReviewOptionsParser {
                 state.noSummary = true;
                 yield OptionalInt.of(i);
             }
-            case "--no-shared-session" -> {
-                state.noSharedSession = true;
-                yield OptionalInt.of(i);
-            }
             default -> OptionalInt.empty();
         };
     }
@@ -194,6 +193,14 @@ class ReviewOptionsParser {
                 state.rubberDuck = true;
                 yield OptionalInt.of(i);
             }
+            case "--no-rubber-duck" -> {
+                state.noRubberDuck = true;
+                yield OptionalInt.of(i);
+            }
+            case "--compact-prompts" -> {
+                state.compactPrompts = true;
+                yield OptionalInt.of(i);
+            }
             case "--dialogue-rounds" -> OptionalInt.of(CliParsing.readInto(args, i, "--dialogue-rounds",
                 v -> state.dialogueRounds = parseInt(v, "--dialogue-rounds")));
             case "--peer-model" -> OptionalInt.of(CliParsing.readInto(args, i, "--peer-model",
@@ -221,12 +228,19 @@ class ReviewOptionsParser {
         if (!allAgents && !hasAgents) {
             throw new CliValidationException("Either --all or --agents must be specified.", true);
         }
+
         if (allAgents && hasAgents) {
             throw new CliValidationException("Specify either --all or --agents (not both).", true);
         }
         return allAgents
             ? new ReviewAgentSelection.All()
             : new ReviewAgentSelection.Named(List.copyOf(agentNames));
+    }
+
+    private static void validateRubberDuckSelection(boolean rubberDuck, boolean noRubberDuck) {
+        if (rubberDuck && noRubberDuck) {
+            throw new CliValidationException("Specify either --rubber-duck or --no-rubber-duck (not both).", true);
+        }
     }
 
     private int parseInt(String value, String optionName) {

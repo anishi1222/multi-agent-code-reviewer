@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ReviewSessionExecutorTest {
 
     @Test
-    @DisplayName("session configはpass情報、MCP、system promptを反映する")
+    @DisplayName("session configはMCPとsystem promptを反映する")
     void createsSessionConfigFromRequest() {
         AgentConfig config = new AgentConfig(
             "security", "Security", "model-a", "SYSTEM", "instruction", null, List.of("auth"), List.of());
@@ -48,13 +48,11 @@ class ReviewSessionExecutorTest {
             "owner/repo",
             "instruction",
             "source",
-            mcpServers,
-            2,
-            3
+            mcpServers
         ));
 
         assertThat(sessionConfig.getModel()).isEqualTo("model-a");
-        assertThat(sessionConfig.getSessionId()).isEqualTo("security_2of3_2026-06-24-14-00-00");
+        assertThat(sessionConfig.getSessionId()).isEqualTo("security_2026-06-24-14-00-00");
         assertThat(sessionConfig.getMcpServers()).containsKey("github");
         assertThat(sessionConfig.getSystemMessage().getContent())
             .contains("SYSTEM")

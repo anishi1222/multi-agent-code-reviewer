@@ -227,8 +227,8 @@ class FindingsExtractorTest {
         }
 
         @Test
-        @DisplayName("同一タイトルでもエージェントが異なる指摘は厳密マージで分離される")
-        void keepsSameTitleFindingsFromDifferentAgentsSeparate() {
+        @DisplayName("同一タイトル・優先度の指摘をエージェント横断で統合する")
+        void mergesSameFindingAcrossAgents() {
             String content = """
                 ### 1. 共通指摘
 
@@ -246,8 +246,9 @@ class FindingsExtractorTest {
 
             String summary = FindingsExtractor.buildFindingsSummary(results);
 
-            assertThat(summary).contains("High (2)");
+            assertThat(summary).contains("High (1)");
             assertThat(summary).contains("共通指摘");
+            assertThat(summary).contains("指摘元: security Review, performance Review");
         }
     }
 }

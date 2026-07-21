@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.config.LocalFileConfig;
 import dev.logicojp.reviewer.config.ExecutionConfig;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import com.github.copilot.CopilotClient;
 import com.github.copilot.rpc.McpServerConfig;
 import io.micronaut.core.annotation.Nullable;
@@ -18,27 +19,50 @@ import java.util.Objects;
 /// @param client              The Copilot SDK client
 /// @param timeoutConfig       Timeout and retry configuration
 /// @param invocationTimestamp CLI invocation timestamp shared across the run
-/// @param sharedSessionEnabled Whether multi-pass execution can reuse a single shared session
 /// @param reasoningEffort     Reasoning effort level for reasoning models (nullable)
 /// @param outputConstraints   Output constraints template content (nullable)
 /// @param cachedResources     Pre-computed cached resources for reuse across agents (nullable fields)
 /// @param localFileConfig     Local file collection configuration (used by fallback path)
+/// @param promptBudgetConfig  Prompt compaction budget configuration
 /// @param agentTuningConfig   Internal tuning parameters for agent execution
 public record ReviewContext(
     CopilotClient client,
     TimeoutConfig timeoutConfig,
     String invocationTimestamp,
-    boolean sharedSessionEnabled,
     @Nullable String reasoningEffort,
     @Nullable String outputConstraints,
     CachedResources cachedResources,
     LocalFileConfig localFileConfig,
+    PromptBudgetConfig promptBudgetConfig,
     AgentTuningConfig agentTuningConfig,
     SharedCircuitBreaker reviewCircuitBreaker
 ) {
 
     private static final SharedCircuitBreaker DEFAULT_REVIEW_CIRCUIT_BREAKER =
         SharedCircuitBreaker.forReviewDomain();
+
+    public ReviewContext(CopilotClient client,
+                         TimeoutConfig timeoutConfig,
+                         String invocationTimestamp,
+                         @Nullable String reasoningEffort,
+                         @Nullable String outputConstraints,
+                         CachedResources cachedResources,
+                         LocalFileConfig localFileConfig,
+                         AgentTuningConfig agentTuningConfig,
+                         SharedCircuitBreaker reviewCircuitBreaker) {
+        this(
+            client,
+            timeoutConfig,
+            invocationTimestamp,
+            reasoningEffort,
+            outputConstraints,
+            cachedResources,
+            localFileConfig,
+            new PromptBudgetConfig(),
+            agentTuningConfig,
+            reviewCircuitBreaker
+        );
+    }
 
     /// Groups timeout and retry parameters.
     ///
@@ -72,6 +96,7 @@ public record ReviewContext(
         timeoutConfig = timeoutConfig != null ? timeoutConfig : new TimeoutConfig(0, 0, 0);
         invocationTimestamp = invocationTimestamp != null ? invocationTimestamp : "unknown-start-time";
         cachedResources = cachedResources != null ? cachedResources : new CachedResources(null, null);
+        promptBudgetConfig = promptBudgetConfig != null ? promptBudgetConfig : new PromptBudgetConfig();
         agentTuningConfig = agentTuningConfig != null ? agentTuningConfig : AgentTuningConfig.DEFAULTS;
         reviewCircuitBreaker = reviewCircuitBreaker != null
             ? reviewCircuitBreaker
@@ -87,13 +112,13 @@ public record ReviewContext(
         private long timeoutMinutes;
         private long idleTimeoutMinutes;
         private String invocationTimestamp;
-        private boolean sharedSessionEnabled = true;
         private String reasoningEffort;
         private int maxRetries;
         private String outputConstraints;
         private Map<String, McpServerConfig> cachedMcpServers;
         private String cachedSourceContent;
         private LocalFileConfig localFileConfig;
+        private PromptBudgetConfig promptBudgetConfig;
         private AgentTuningConfig agentTuningConfig;
         private SharedCircuitBreaker reviewCircuitBreaker;
 
@@ -122,11 +147,6 @@ public record ReviewContext(
             return this;
         }
 
-        public Builder sharedSessionEnabled(boolean sharedSessionEnabled) {
-            this.sharedSessionEnabled = sharedSessionEnabled;
-            return this;
-        }
-
         public Builder maxRetries(int maxRetries) {
             this.maxRetries = maxRetries;
             return this;
@@ -152,6 +172,11 @@ public record ReviewContext(
             return this;
         }
 
+        public Builder promptBudgetConfig(PromptBudgetConfig promptBudgetConfig) {
+            this.promptBudgetConfig = promptBudgetConfig;
+            return this;
+        }
+
         public Builder agentTuningConfig(AgentTuningConfig agentTuningConfig) {
             this.agentTuningConfig = agentTuningConfig;
             return this;
@@ -173,11 +198,11 @@ public record ReviewContext(
                 client,
                 new TimeoutConfig(timeoutMinutes, idleTimeoutMinutes, maxRetries),
                 invocationTimestamp,
-                sharedSessionEnabled,
                 reasoningEffort,
                 outputConstraints,
                 new CachedResources(cachedMcpServers, cachedSourceContent),
                 effectiveLocalFileConfig,
+                promptBudgetConfig,
                 agentTuningConfig,
                 reviewCircuitBreaker
             );

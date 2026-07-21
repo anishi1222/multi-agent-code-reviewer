@@ -50,7 +50,6 @@ class ReviewContextFactoryTest {
             assertThat(context.reasoningEffort()).isEqualTo("high");
             assertThat(context.outputConstraints()).isEqualTo("constraints");
             assertThat(context.invocationTimestamp()).isEqualTo("2026-03-05-12-34-56");
-            assertThat(context.sharedSessionEnabled()).isTrue();
             assertThat(context.cachedResources().mcpServers()).isEqualTo(cachedMcp);
             assertThat(context.cachedResources().sourceContent()).isEqualTo("SOURCE_CONTENT");
         } finally {

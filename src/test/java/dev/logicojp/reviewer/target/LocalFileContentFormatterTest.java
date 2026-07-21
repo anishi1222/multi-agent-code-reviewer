@@ -29,6 +29,23 @@ class LocalFileContentFormatterTest {
     }
 
     @Test
+    @DisplayName("Markdown内のコードフェンスより長い外側フェンスを使用する")
+    void usesLongerFenceForMarkdownWithNestedFence() {
+        var formatter = new LocalFileContentFormatter(tempDir, 4096);
+        var files = List.of(new LocalFileProvider.LocalFile(
+            "README.md",
+            "Example:\n\n```java\nclass Main {}\n```\n",
+            42
+        ));
+
+        String content = formatter.generateReviewContent(files);
+
+        assertThat(content).contains("````markdown");
+        assertThat(content).contains("\n````\n");
+        assertThat(content).contains("```java");
+    }
+
+    @Test
     @DisplayName("空の入力ではno source filesメッセージを返す")
     void returnsNoSourceFilesMessageForEmptyInput() {
         var formatter = new LocalFileContentFormatter(tempDir, 4096);

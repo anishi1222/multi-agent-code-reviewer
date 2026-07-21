@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.agent;
 
 import dev.logicojp.reviewer.service.TemplateService;
 import dev.logicojp.reviewer.util.PlaceholderUtils;
+import dev.logicojp.reviewer.util.PromptContentCompactor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +24,8 @@ final class RubberDuckPromptBuilder {
     private final AgentConfig config;
     private final ReviewContext ctx;
     private final TemplateService templateService;
+    private final boolean compactPrompts;
+    private final int peerContentMaxChars;
 
     RubberDuckPromptBuilder(AgentConfig config,
                             ReviewContext ctx,
@@ -30,6 +33,8 @@ final class RubberDuckPromptBuilder {
         this.config = Objects.requireNonNull(config);
         this.ctx = Objects.requireNonNull(ctx);
         this.templateService = Objects.requireNonNull(templateService);
+        this.compactPrompts = ctx.promptBudgetConfig().compactPrompts();
+        this.peerContentMaxChars = ctx.promptBudgetConfig().peerContentMaxChars();
     }
 
     String buildInitialPrompt(String instruction, String localSourceContent) {
@@ -64,7 +69,15 @@ final class RubberDuckPromptBuilder {
 
     private String replacePeerContent(String template, String peerContent) {
         return PlaceholderUtils.replaceDollarPlaceholders(
-            template, Map.of("peerReviewContent", safeContent(peerContent)));
+            template, Map.of("peerReviewContent", peerContentForPrompt(peerContent)));
+    }
+
+    private String peerContentForPrompt(String peerContent) {
+        String safeContent = safeContent(peerContent);
+        if (!compactPrompts) {
+            return safeContent;
+        }
+        return PromptContentCompactor.compactKeepingTail(safeContent, peerContentMaxChars);
     }
 
     private String buildSystemPrompt(String roleDescription) {

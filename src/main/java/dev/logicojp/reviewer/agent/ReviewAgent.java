@@ -57,7 +57,9 @@ public class ReviewAgent {
     private final AgentConfig config;
     private final ReviewContext ctx;
     private final ReviewTargetInstructionResolver reviewTargetInstructionResolver;
-    private final ReviewPassRunner reviewPassRunner;
+    private final ReviewRetryExecutor reviewRetryExecutor;
+    private final ReviewResultFactory reviewResultFactory;
+    private final ReviewRunner reviewRunner;
 
     /// Creates default collaborators for a given agent configuration and context.
     /// Collaborators are created via `new` rather than DI because they are per-invocation
@@ -68,6 +70,7 @@ public class ReviewAgent {
             new ReviewTargetInstructionResolver(
                 config,
                 ctx.localFileConfig(),
+                ctx.promptBudgetConfig(),
                 () -> logger.debug("Computed source content locally for agent: {}", config.name())
             ),
             new ReviewSessionMessageSender(config.name()),
@@ -111,6 +114,8 @@ public class ReviewAgent {
         this.config = Objects.requireNonNull(config);
         this.ctx = Objects.requireNonNull(ctx);
         this.reviewTargetInstructionResolver = collaborators.reviewTargetInstructionResolver();
+        this.reviewRetryExecutor = collaborators.reviewRetryExecutor();
+        this.reviewResultFactory = collaborators.reviewResultFactory();
 
         ReviewSessionExecutor sessionExecutor = new ReviewSessionExecutor(
             config,
@@ -123,11 +128,10 @@ public class ReviewAgent {
             localSourceHeaderPrompt,
             localReviewResultPrompt
         );
-        this.reviewPassRunner = new ReviewPassRunner(
+        this.reviewRunner = new ReviewRunner(
             config,
-            ctx,
-            collaborators.reviewRetryExecutor(),
-            collaborators.reviewResultFactory(),
+            reviewRetryExecutor,
+            reviewResultFactory,
             sessionExecutor,
             this::resolveReviewParams
         );
@@ -138,13 +142,7 @@ public class ReviewAgent {
     /// @param target The target to review (GitHub repository or local directory)
     /// @return ReviewResult containing the review content
     public ReviewResult review(ReviewTarget target) {
-        return reviewPassRunner.review(target);
-    }
-
-    /// Executes multiple review passes while reusing a single Copilot session for this agent.
-    /// This reduces MCP initialization overhead across passes.
-    public List<ReviewResult> reviewPasses(ReviewTarget target, int reviewPasses) {
-        return reviewPassRunner.reviewPasses(target, reviewPasses);
+        return reviewRunner.review(target);
     }
 
     /// Executes a rubber-duck peer-discussion dialogue for this agent.
@@ -161,17 +159,15 @@ public class ReviewAgent {
         var resolvedInstruction = resolveTargetInstruction(target);
         var executor = new RubberDuckDialogueExecutor(
             config, ctx, rubberDuckConfig, templateService);
-        return executor.execute(
-            target,
-            resolvedInstruction.instruction(),
-            resolvedInstruction.localSourceContent(),
-            resolvedInstruction.mcpServers());
-    }
-
-    static String resolveLocalSourceContentForPass(ReviewTarget target,
-                                                   String localSourceContent,
-                                                   int passNumber) {
-        return ReviewPassRunner.resolveLocalSourceContentForPass(target, localSourceContent, passNumber);
+        return reviewRetryExecutor.execute(
+            () -> executor.execute(
+                target,
+                resolvedInstruction.instruction(),
+                resolvedInstruction.localSourceContent(),
+                resolvedInstruction.mcpServers()
+            ),
+            exception -> reviewResultFactory.fromException(config, target.displayName(), exception)
+        );
     }
 
     private ReviewTargetInstructionResolver.ResolvedInstruction resolveTargetInstruction(ReviewTarget target) {
@@ -182,9 +178,9 @@ public class ReviewAgent {
         );
     }
 
-    private ReviewPassRunner.ResolvedReviewParams resolveReviewParams(ReviewTarget target) {
+    private ReviewRunner.ResolvedReviewParams resolveReviewParams(ReviewTarget target) {
         var resolvedInstruction = resolveTargetInstruction(target);
-        return new ReviewPassRunner.ResolvedReviewParams(
+        return new ReviewRunner.ResolvedReviewParams(
             target.displayName(),
             resolvedInstruction.instruction(),
             resolvedInstruction.localSourceContent(),

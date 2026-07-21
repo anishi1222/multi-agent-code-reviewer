@@ -5,6 +5,7 @@ import dev.logicojp.reviewer.report.summary.SummaryGenerator;
 
 import dev.logicojp.reviewer.agent.CircuitBreakerFactory;
 import dev.logicojp.reviewer.agent.SharedCircuitBreaker;
+import dev.logicojp.reviewer.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.config.SummaryConfig;
 import dev.logicojp.reviewer.service.TemplateService;
 import com.github.copilot.CopilotClient;
@@ -35,6 +36,7 @@ public class ReportGeneratorFactory {
                                 long timeoutMinutes,
                                 TemplateService templateService,
                                 SummaryConfig summaryConfig,
+                                PromptBudgetConfig promptBudgetConfig,
                                 SharedCircuitBreaker circuitBreaker);
     }
 
@@ -52,11 +54,12 @@ public class ReportGeneratorFactory {
             templateService,
             summaryConfig,
             ReportGenerator::new,
-            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, cfg, breaker) ->
+            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, cfg, budget, breaker) ->
                 SummaryGenerator.builder(outputDirectory, client, summaryModel, ts)
                     .reasoningEffort(reasoningEffort)
                     .timeoutMinutes(timeoutMinutes)
                     .summaryConfig(cfg)
+                    .promptBudgetConfig(budget)
                     .circuitBreaker(breaker)
                     .build(),
             circuitBreakerFactory.forSummary()
@@ -69,11 +72,12 @@ public class ReportGeneratorFactory {
             templateService,
             summaryConfig,
             ReportGenerator::new,
-            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, cfg, breaker) ->
+            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, cfg, budget, breaker) ->
                 SummaryGenerator.builder(outputDirectory, client, summaryModel, ts)
                     .reasoningEffort(reasoningEffort)
                     .timeoutMinutes(timeoutMinutes)
                     .summaryConfig(cfg)
+                    .promptBudgetConfig(budget)
                     .circuitBreaker(breaker)
                     .build(),
             SharedCircuitBreaker.forSummaryDomain()
@@ -113,6 +117,22 @@ public class ReportGeneratorFactory {
                                                     String summaryModel,
                                                     String reasoningEffort,
                                                     long timeoutMinutes) {
+        return createSummaryGenerator(
+            outputDirectory,
+            client,
+            summaryModel,
+            reasoningEffort,
+            timeoutMinutes,
+            null
+        );
+    }
+
+    public SummaryGenerator createSummaryGenerator(Path outputDirectory,
+                                                    CopilotClient client,
+                                                    String summaryModel,
+                                                    String reasoningEffort,
+                                                    long timeoutMinutes,
+                                                    PromptBudgetConfig promptBudgetConfig) {
         return summaryGeneratorCreator.create(
             outputDirectory,
             client,
@@ -121,6 +141,7 @@ public class ReportGeneratorFactory {
             timeoutMinutes,
             templateService,
             summaryConfig,
+            promptBudgetConfig,
             circuitBreaker
         );
     }

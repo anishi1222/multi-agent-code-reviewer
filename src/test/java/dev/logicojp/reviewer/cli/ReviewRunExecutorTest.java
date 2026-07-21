@@ -1,21 +1,19 @@
 package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
-import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,10 +30,7 @@ class ReviewRunExecutorTest {
             new PrintStream(OutputStream.nullOutputStream()),
             new PrintStream(OutputStream.nullOutputStream())
         );
-        ReviewOutputFormatter formatter = new ReviewOutputFormatter(
-            cliOutput,
-            dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0)
-        );
+        ReviewOutputFormatter formatter = new ReviewOutputFormatter(cliOutput);
 
         AtomicBoolean summaryCalled = new AtomicBoolean(false);
 
@@ -60,7 +55,6 @@ class ReviewRunExecutorTest {
             Map.of("agent-a", new AgentConfig("agent-a", "Agent A", "model", "system", "instruction", null, List.of(), List.of())),
             1,
             true,
-            false,
             Path.of("reports")
         );
 
@@ -71,16 +65,14 @@ class ReviewRunExecutorTest {
     }
 
     @Test
-    @DisplayName("CLI終了時に.checkpointsディレクトリを削除する")
-    void cleansUpCheckpointsDirectoryOnExit() throws IOException {
+    @DisplayName("最終レポートを1回だけ生成する")
+    void generatesFinalReportsOnce() {
         CliOutput cliOutput = new CliOutput(
             new PrintStream(OutputStream.nullOutputStream()),
             new PrintStream(OutputStream.nullOutputStream())
         );
-        ReviewOutputFormatter formatter = new ReviewOutputFormatter(
-            cliOutput,
-            dev.logicojp.reviewer.testutil.ExecutionConfigFixtures.config(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0)
-        );
+        ReviewOutputFormatter formatter = new ReviewOutputFormatter(cliOutput);
+        AtomicInteger reportGenerationCount = new AtomicInteger();
 
         ReviewRunExecutor executor = new ReviewRunExecutor(
             null,
@@ -89,10 +81,8 @@ class ReviewRunExecutorTest {
             cliOutput,
             (resolvedToken, context) -> List.of(successResult("agent-a", context.target().displayName())),
             (results, outputDirectory) -> {
-                Path report = outputDirectory.resolve("agent-a-report.md");
-                Files.createDirectories(report.getParent());
-                Files.writeString(report, "report");
-                return List.of(report);
+                reportGenerationCount.incrementAndGet();
+                return List.of(outputDirectory.resolve("agent-a-report.md"));
             },
             (results, context) -> context.outputDirectory().resolve("executive-summary.md")
         );
@@ -106,14 +96,13 @@ class ReviewRunExecutorTest {
             Map.of("agent-a", new AgentConfig("agent-a", "Agent A", "model", "system", "instruction", null, List.of(), List.of())),
             1,
             false,
-            false,
             outputDirectory
         );
 
         int exitCode = executor.execute("token", request);
 
         assertThat(exitCode).isEqualTo(ExitCodes.OK);
-        assertThat(outputDirectory.resolve(".checkpoints")).doesNotExist();
+        assertThat(reportGenerationCount.get()).isEqualTo(1);
     }
 
     private static ReviewResult successResult(String agentName, String repository) {

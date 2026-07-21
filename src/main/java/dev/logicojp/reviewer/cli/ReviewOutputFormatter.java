@@ -1,7 +1,6 @@
 package dev.logicojp.reviewer.cli;
 
 import dev.logicojp.reviewer.agent.AgentConfig;
-import dev.logicojp.reviewer.config.ExecutionConfig;
 import dev.logicojp.reviewer.config.ModelConfig;
 import dev.logicojp.reviewer.report.core.ReviewResult;
 import dev.logicojp.reviewer.target.ReviewTarget;
@@ -18,12 +17,10 @@ import java.util.Map;
 class ReviewOutputFormatter {
 
     private final CliOutput output;
-    private final ExecutionConfig executionConfig;
 
     @Inject
-    public ReviewOutputFormatter(CliOutput output, ExecutionConfig executionConfig) {
+    public ReviewOutputFormatter(CliOutput output) {
         this.output = output;
-        this.executionConfig = executionConfig;
     }
 
     public void printBanner(Map<String, AgentConfig> agentConfigs,
@@ -36,9 +33,6 @@ class ReviewOutputFormatter {
         printTargetSection(target, agentConfigs, outputDirectory);
         printAgentDirectories(agentDirs);
         printModelSection(modelConfig, reviewModel);
-        if (executionConfig.reviewPasses() > 1) {
-            output.println("Review passes: " + executionConfig.reviewPasses() + " per agent");
-        }
         printBlankLine();
     }
 

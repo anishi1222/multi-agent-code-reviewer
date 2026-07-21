@@ -23,9 +23,7 @@ class ReviewSessionExecutor {
         String displayName,
         String instruction,
         String localSourceContent,
-        Map<String, McpServerConfig> mcpServers,
-        int currentPass,
-        int totalPasses
+        Map<String, McpServerConfig> mcpServers
     ) {
     }
 
@@ -63,26 +61,22 @@ class ReviewSessionExecutor {
         SessionConfig sessionConfig = createSessionConfig(request);
         try (var session = ctx.client().createSession(sessionConfig)
             .get(ctx.timeoutConfig().timeoutMinutes(), TimeUnit.MINUTES)) {
-            return executeWithSession(request, session);
+            String content = sendAndCollectContent(session, request.instruction(), request.localSourceContent());
+            ReviewResult result = reviewResultFactory.fromContent(
+                config,
+                request.displayName(),
+                content,
+                request.mcpServers() != null
+            );
+            if (result.success()) {
+                logger.info("Review completed for agent: {} (content length: {} chars)",
+                    config.name(), content.length());
+            } else {
+                logger.warn("Agent {} returned invalid/empty review output: {}",
+                    config.name(), result.errorMessage());
+            }
+            return result;
         }
-    }
-
-    ReviewResult executeWithSession(Request request, CopilotSession session) throws Exception {
-        String content = sendAndCollectContent(session, request.instruction(), request.localSourceContent());
-        ReviewResult result = reviewResultFactory.fromContent(
-            config,
-            request.displayName(),
-            content,
-            request.mcpServers() != null
-        );
-        if (result.success()) {
-            logger.info("Review completed for agent: {} (content length: {} chars)",
-                config.name(), content.length());
-        } else {
-            logger.warn("Agent {} returned invalid/empty review output: {}",
-                config.name(), result.errorMessage());
-        }
-        return result;
     }
 
     SessionConfig createSessionConfig(Request request) {
@@ -90,9 +84,7 @@ class ReviewSessionExecutor {
             config,
             ctx,
             buildSystemPrompt(),
-            request.mcpServers(),
-            request.currentPass(),
-            request.totalPasses()
+            request.mcpServers()
         );
     }
 

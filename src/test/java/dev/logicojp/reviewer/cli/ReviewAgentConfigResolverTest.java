@@ -108,6 +108,29 @@ class ReviewAgentConfigResolverTest {
         assertThat(config.dialogueRounds()).isEqualTo(3);
     }
 
+    @Test
+    @DisplayName("no-rubber-duck指定はagent設定とpeer-model指定より優先される")
+    void disablesRubberDuckForAllAgents() {
+        Map<String, AgentConfig> original = new LinkedHashMap<>();
+        original.put("a", agentConfig("a", "base-1").withRubberDuckEnabled(true));
+
+        var resolver = new ReviewAgentConfigResolver(
+            additionalDirs -> List.of(Path.of("agents")),
+            (selection, dirs) -> original
+        );
+        ReviewOptions options = ReviewOptions.builder()
+            .target(new ReviewTargetSelection.Repository("owner/repo"))
+            .agents(new ReviewAgentSelection.All())
+            .noRubberDuck(true)
+            .peerModel("peer-model-x")
+            .dialogueRounds(3)
+            .build();
+
+        ReviewAgentConfigResolver.AgentResolution result = resolver.resolve(options);
+
+        assertThat(result.agentConfigs().get("a").rubberDuckEnabled()).isFalse();
+    }
+
     private static ReviewOptions parsedOptions(String reviewModel) {
         return parsedOptions(reviewModel, false, 0, null);
     }

@@ -37,7 +37,25 @@ public final class FindingsExtractor {
     /// @param title   The finding title
     /// @param priority The priority level (Critical, High, Medium, Low)
     /// @param agent   The agent name that produced the finding
-    public record Finding(String title, String priority, String agent, String category) {}
+    public record Finding(String title,
+                          String priority,
+                          String agent,
+                          String category,
+                          String summary,
+                          String location) {
+        public Finding(String title, String priority, String agent, String category) {
+            this(title, priority, agent, category, "", "");
+        }
+
+        public Finding {
+            title = title != null ? title : "";
+            priority = priority != null ? priority : "Unknown";
+            agent = agent != null ? agent : "unknown";
+            category = category != null ? category : "unknown";
+            summary = summary != null ? summary : "";
+            location = location != null ? location : "";
+        }
+    }
 
     /// Builds a deterministic findings summary from all review results.
     ///
@@ -109,8 +127,27 @@ public final class FindingsExtractor {
     }
 
     static List<Finding> extractFindings(String content, String agentName, String category) {
+        List<ReviewFindingParser.FindingBlock> blocks = ReviewFindingParser.extractFindingBlocks(content);
+        if (!blocks.isEmpty()) {
+            List<Finding> findings = blocks.stream()
+                .map(block -> new Finding(
+                    block.title(),
+                    priorityOrUnknown(ReviewFindingParser.extractTableValue(block.body(), "Priority")),
+                    agentName,
+                    category,
+                    ReviewFindingParser.extractTableValue(block.body(), "指摘の概要"),
+                    ReviewFindingParser.extractTableValue(block.body(), "該当箇所")
+                ))
+                .toList();
+            logger.debug("Agent '{}': extracted {} structured finding(s)", agentName, findings.size());
+            return findings;
+        }
         List<Finding> findings = FindingsParser.extractFindings(content, agentName, category);
         logger.debug("Agent '{}': extracted {} finding(s)", agentName, findings.size());
         return findings;
+    }
+
+    private static String priorityOrUnknown(String priority) {
+        return priority == null || priority.isBlank() ? "Unknown" : priority;
     }
 }

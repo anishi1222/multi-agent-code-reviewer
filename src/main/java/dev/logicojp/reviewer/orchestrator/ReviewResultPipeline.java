@@ -15,10 +15,10 @@ final class ReviewResultPipeline {
     ReviewResultPipeline() {
     }
 
-    List<ReviewResult> finalizeResults(List<ReviewResult> results, int reviewPasses) {
+    List<ReviewResult> finalizeResults(List<ReviewResult> results) {
         List<ReviewResult> filtered = filterNonNull(results);
         logCompletionSummary(filtered);
-        logger.info("Collected {} raw pass result(s) (reviewPasses={})", filtered.size(), reviewPasses);
+        logger.info("Collected {} review result(s)", filtered.size());
         return filtered;
     }
 

@@ -98,34 +98,21 @@ final class OrchestratorMetrics {
 
     // ---- Outcome classification ----
 
-    static OutcomeType classifyOutcome(List<ReviewResult> results) {
-        if (results.isEmpty()) {
+    static OutcomeType classifyOutcome(ReviewResult result) {
+        if (result == null) {
             return OutcomeType.FAILURE;
         }
-        boolean allSuccess = true;
-        boolean hasTimeout = false;
-        boolean hasInterrupted = false;
-        for (ReviewResult r : results) {
-            if (!r.success()) {
-                allSuccess = false;
-                String msg = r.errorMessage();
-                if (msg != null) {
-                    if (msg.contains("timed out")) {
-                        hasTimeout = true;
-                        break; // TIMEOUT is the highest-priority non-success outcome; no need to scan further
-                    } else if (msg.contains("interrupted")) {
-                        hasInterrupted = true;
-                    }
-                }
-            }
-        }
-        if (allSuccess) {
+        if (result.success()) {
             return OutcomeType.SUCCESS;
         }
-        if (hasTimeout) {
+        String message = result.errorMessage();
+        if (message != null && message.contains("timed out")) {
             return OutcomeType.TIMEOUT;
         }
-        return hasInterrupted ? OutcomeType.INTERRUPTED : OutcomeType.FAILURE;
+        if (message != null && message.contains("interrupted")) {
+            return OutcomeType.INTERRUPTED;
+        }
+        return OutcomeType.FAILURE;
     }
 
     // ---- Snapshot / summary ----

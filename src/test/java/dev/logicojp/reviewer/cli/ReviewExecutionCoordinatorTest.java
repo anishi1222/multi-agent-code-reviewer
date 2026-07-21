@@ -110,7 +110,6 @@ class ReviewExecutionCoordinatorTest {
             agentConfigs,
             2,
             false,
-            false,
             Path.of("./reports/owner/repo")
         );
     }

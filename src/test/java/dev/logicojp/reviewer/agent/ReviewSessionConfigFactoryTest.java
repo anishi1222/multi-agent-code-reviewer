@@ -51,7 +51,7 @@ class ReviewSessionConfigFactoryTest {
             ReviewContext ctx = createContext(null);
 
             SessionConfig result = factory.create(
-                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null, 1, 1);
+                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null);
 
             assertThat(result.getModel()).isEqualTo(MODEL);
         }
@@ -62,7 +62,7 @@ class ReviewSessionConfigFactoryTest {
             ReviewContext ctx = createContext(null);
 
             SessionConfig result = factory.create(
-                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null, 1, 1);
+                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null);
 
             assertThat(result.getSystemMessage()).isNotNull();
             assertThat(result.getSystemMessage().getContent()).isEqualTo(SYSTEM_PROMPT);
@@ -75,7 +75,7 @@ class ReviewSessionConfigFactoryTest {
             ReviewContext ctx = createContext(null);
 
             SessionConfig result = factory.create(
-                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null, 1, 1);
+                AGENT_CONFIG, ctx, SYSTEM_PROMPT, null);
 
             // Should not throw
             assertThat(result).isNotNull();
@@ -91,10 +91,10 @@ class ReviewSessionConfigFactoryTest {
             );
 
             SessionConfig result = factory.create(
-                AGENT_CONFIG, ctx, SYSTEM_PROMPT, mcpServers, 2, 3);
+                AGENT_CONFIG, ctx, SYSTEM_PROMPT, mcpServers);
 
             assertThat(result).isNotNull();
-            assertThat(result.getSessionId()).isEqualTo("test-agent_2of3_2026-03-05-12-34-56");
+            assertThat(result.getSessionId()).isEqualTo("test-agent_2026-03-05-12-34-56");
         }
     }
 }

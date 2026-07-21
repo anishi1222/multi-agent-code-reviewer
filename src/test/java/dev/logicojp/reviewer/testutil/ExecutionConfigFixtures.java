@@ -11,7 +11,7 @@ public final class ExecutionConfigFixtures {
     /// {@code maxAccumulatedSize} and {@code initialAccumulatedCapacity} are accepted
     /// but ignored after Phase 3c removed the legacy event accumulator.
     public static ExecutionConfig config(int parallelism,
-                                         int reviewPasses,
+                                         @SuppressWarnings("unused") int ignoredRemovedValue,
                                          long orchestratorTimeoutMinutes,
                                          long agentTimeoutMinutes,
                                          long idleTimeoutMinutes,
@@ -24,7 +24,6 @@ public final class ExecutionConfigFixtures {
                                          int instructionBufferExtraCapacity) {
         return ExecutionConfig.Builder.from(ExecutionConfig.defaults())
             .parallelism(parallelism)
-            .reviewPasses(reviewPasses)
             .orchestratorTimeoutMinutes(orchestratorTimeoutMinutes)
             .agentTimeoutMinutes(agentTimeoutMinutes)
             .idleTimeoutMinutes(idleTimeoutMinutes)

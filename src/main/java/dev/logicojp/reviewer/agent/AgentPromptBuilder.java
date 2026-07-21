@@ -1,7 +1,10 @@
 package dev.logicojp.reviewer.agent;
 
+import dev.logicojp.reviewer.config.SkillConfig;
+import dev.logicojp.reviewer.skill.SkillDefinition;
 import dev.logicojp.reviewer.util.PlaceholderUtils;
 
+import java.util.List;
 import java.util.Map;
 
 /// Builds prompt strings from {@link AgentConfig} data.
@@ -136,15 +139,47 @@ public final class AgentPromptBuilder {
     /// Centralizes ${repository}, ${displayName}, ${name}, ${focusAreas} replacement.
     private static String applyPlaceholders(AgentConfig config, String targetName) {
         String focusAreaText = formatFocusAreas(config);
-        return PlaceholderUtils.replaceDollarPlaceholders(
-            config.instruction(),
-            Map.of(
-                "repository", targetName,
-                "displayName", config.displayName() != null ? config.displayName() : config.name(),
-                "name", config.name(),
-                "focusAreas", focusAreaText
-            )
+        Map<String, String> placeholders = Map.of(
+            "repository", targetName,
+            "displayName", config.displayName() != null ? config.displayName() : config.name(),
+            "name", config.name(),
+            "focusAreas", focusAreaText
         );
+        String instruction = PlaceholderUtils.replaceDollarPlaceholders(
+            config.instruction(),
+            placeholders
+        );
+        return appendAssignedSkills(config, placeholders, instruction);
+    }
+
+    private static String appendAssignedSkills(AgentConfig config,
+                                               Map<String, String> placeholders,
+                                               String instruction) {
+        List<SkillDefinition> assignedSkills = config.skills().stream()
+            .filter(skill -> config.name().equals(skill.metadata().get("agent")))
+            .toList();
+        if (assignedSkills.isEmpty()) {
+            return instruction;
+        }
+
+        var prompt = new StringBuilder(instruction);
+        prompt.append("\n\n## Assigned Review Skills\n\n")
+            .append("以下のSKILL仕様を、このエージェントの必須レビュー観点として適用してください。\n");
+        for (SkillDefinition skill : assignedSkills) {
+            prompt.append("\n### ").append(skill.name()).append("\n\n");
+            if (!skill.description().isBlank()) {
+                prompt.append(skill.description()).append("\n\n");
+            }
+            prompt.append(PlaceholderUtils.replaceDollarPlaceholders(skill.prompt(), placeholders))
+                .append("\n");
+        }
+        int skillSectionLength = prompt.length() - instruction.length();
+        if (skillSectionLength > SkillConfig.DEFAULT_MAX_PARAMETER_VALUE_LENGTH) {
+            throw new IllegalStateException(
+                "Assigned review skill guidance exceeds maximum length for agent: " + config.name()
+            );
+        }
+        return prompt.toString();
     }
 
     private static String formatFocusAreas(AgentConfig config) {

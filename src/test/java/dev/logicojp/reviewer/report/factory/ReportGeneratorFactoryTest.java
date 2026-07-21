@@ -51,12 +51,13 @@ class ReportGeneratorFactoryTest {
                 reportCreatorCalled.set(true);
                 return new ReportGenerator(outputDirectory, ts);
             },
-            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, summaryConfig, breaker) -> {
+            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, summaryConfig, budget, breaker) -> {
                 summaryCreatorCalled.set(true);
                 return SummaryGenerator.builder(outputDirectory, client, summaryModel, ts)
                     .reasoningEffort(reasoningEffort)
                     .timeoutMinutes(timeoutMinutes)
                     .summaryConfig(summaryConfig)
+                    .promptBudgetConfig(budget)
                     .circuitBreaker(breaker)
                     .build();
             },
@@ -86,12 +87,13 @@ class ReportGeneratorFactoryTest {
                 reportCreatorCalled.set(true);
                 return new ReportGenerator(outputDirectory, ts);
             },
-            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, summaryConfig, breaker) -> {
+            (outputDirectory, client, summaryModel, reasoningEffort, timeoutMinutes, ts, summaryConfig, budget, breaker) -> {
                 summaryCreatorCalled.set(true);
                 return SummaryGenerator.builder(outputDirectory, client, summaryModel, ts)
                     .reasoningEffort(reasoningEffort)
                     .timeoutMinutes(timeoutMinutes)
                     .summaryConfig(summaryConfig)
+                    .promptBudgetConfig(budget)
                     .circuitBreaker(breaker)
                     .build();
             },
