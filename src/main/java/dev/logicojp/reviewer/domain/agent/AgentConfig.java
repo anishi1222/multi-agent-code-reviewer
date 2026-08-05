@@ -58,6 +58,18 @@ public record AgentConfig(
         return Builder.from(this).model(overrideModel).build();
     }
 
+    /// Validates that required fields are non-blank.
+    ///
+    /// @throws IllegalStateException if {@code name} is blank or {@code model} is blank
+    public void validateRequired() {
+        if (name == null || name.isBlank()) {
+            throw new IllegalStateException("Agent configuration requires a non-blank 'name' field");
+        }
+        if (model == null || model.isBlank()) {
+            throw new IllegalStateException("Agent '" + name + "' requires a non-blank 'model' field");
+        }
+    }
+
     public AgentConfig withSkills(List<SkillDefinition> newSkills) {
         return Builder.from(this).skills(newSkills).build();
     }

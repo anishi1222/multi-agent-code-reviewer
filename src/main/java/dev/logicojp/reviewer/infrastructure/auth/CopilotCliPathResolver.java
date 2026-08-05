@@ -10,7 +10,7 @@ import java.nio.file.Path;
 @Singleton
 public class CopilotCliPathResolver {
 
-    static final String CLI_PATH_ENV = "COPILOT_CLI_PATH";
+    public static final String CLI_PATH_ENV = "COPILOT_CLI_PATH";
     private static final String[] CLI_CANDIDATES = {"github-copilot", "copilot"};
     private final String configuredCliPath;
     private final String configuredPath;
