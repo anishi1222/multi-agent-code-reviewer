@@ -4,7 +4,6 @@ import dev.logicojp.reviewer.application.port.inbound.ExecuteSkillPort;
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.application.port.inbound.ResolveTokenPort;
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
-import dev.logicojp.reviewer.presentation.command.SkillCommand;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -41,7 +40,7 @@ public class SkillExecutionPreparation {
         this.tokenResolver = tokenResolver;
     }
 
-    public PreparationResult prepare(SkillCommand.ParsedOptions options) {
+    public PreparationResult prepare(SkillOptions options) {
         // Side-effect: loads agents so the skill registry is populated
         loadAgentPort.loadAll(options.additionalAgentDirs());
 
@@ -52,7 +51,7 @@ public class SkillExecutionPreparation {
         return prepareExecution(options);
     }
 
-    private PreparationResult prepareExecution(SkillCommand.ParsedOptions options) {
+    private PreparationResult prepareExecution(SkillOptions options) {
         String skillId = requireSkillId(options.skillId());
         String resolvedToken = resolveRequiredToken(options.githubToken());
         ensureSkillExists(skillId);

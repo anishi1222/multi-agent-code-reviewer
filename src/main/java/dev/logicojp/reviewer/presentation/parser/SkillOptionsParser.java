@@ -2,7 +2,7 @@ package dev.logicojp.reviewer.presentation.parser;
 
 import dev.logicojp.reviewer.presentation.CliParsing;
 import dev.logicojp.reviewer.presentation.CliValidationException;
-import dev.logicojp.reviewer.presentation.command.SkillCommand;
+import dev.logicojp.reviewer.presentation.SkillOptions;
 import jakarta.inject.Singleton;
 
 import java.nio.file.Path;
@@ -14,7 +14,7 @@ import java.util.Optional;
 @Singleton
 public class SkillOptionsParser {
 
-    public Optional<SkillCommand.ParsedOptions> parse(String[] args) {
+    public Optional<SkillOptions> parse(String[] args) {
         args = Objects.requireNonNullElse(args, new String[0]);
         var state = new SkillParseState();
 
@@ -26,7 +26,7 @@ public class SkillOptionsParser {
             }
         }
 
-        return Optional.of(new SkillCommand.ParsedOptions(
+        return Optional.of(new SkillOptions(
             state.skillId,
             List.copyOf(state.paramStrings),
             state.githubToken,

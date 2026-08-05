@@ -33,3 +33,39 @@ Key decisions:
 Artifacts: `t4-architect.md` (index), `t4-architect-packages.md`,
 `t4-architect-ports.md` (port catalog + cycle resolution), `t4-architect-classmap.md`.
 
+
+---
+## 2026-08-05T06:05Z — from coordinator (t12.1 verification) — ✅ PASS
+
+t12.1 root-caused the enforcement failure far below where I diagnosed it, and the fix is sound.
+I verified the following **in source**, not from the report:
+
+- `pom.xml` no longer references ArchUnit; `archunit.properties` is deleted.
+- `LayerDependencyRulesTest.java` is rebuilt on `java.lang.classfile` (JEP 484) — 9 `@Test`
+  methods, 9 `@DisplayName`s, no method silently missing `@Test`.
+- **Rule 0** asserts `assertEquals(classFilesOnDisk, dependencies.size())` plus five named anchor
+  classes spanning every layer. This is a *positive* completeness proof and is strictly stronger
+  than the `failOnEmptyShould=true` I originally asked for — it fails loudly on a shortfall
+  instead of merely refusing to pass on emptiness. **Criterion B3 is satisfied.**
+- **Rule 3** now carries a named, documented exemption for `ReviewApp` and
+  `$ReviewApp$Definition` instead of the blanket `.*\$.*` filter. HIGH-2 resolved honestly.
+- **Rule 4** forbids all `application..` except `application.port..`, with three named factory
+  exemptions. MEDIUM-2 resolved. **Rules 6a/6b** cover layers *and* sibling sub-packages.
+  MEDIUM-1 resolved.
+
+### The finding that matters most
+
+ArchUnit's shaded ASM rejects class-file major version 71 (Java 27), swallows the error, and
+proceeds with a partial import: **107 of 687 classes, all Micronaut synthetics**. So `ReviewApp`
+never "passed" Rule 3 — it was never imported. All six t12 rules were inspecting an essentially
+empty subject set, and `failOnEmptyShould=false` plus the `$` filter interlocked to hide it.
+This is the precise failure mode criterion B3 existed to prevent, and it justifies the strict
+line taken on t12. **Verify in source, not by report** is now doubly earned on this project.
+
+### TOOLING CONSTRAINT — applies to every remaining task
+
+Any bytecode-inspecting library that shades ASM older than Java 27 support is **unusable on this
+project** and will fail silently or partially rather than loudly. Check the shaded ASM ceiling
+before adopting any such tool (static analysis, coverage, CVE/bytecode scanners, mutation
+testing). Prefer JDK-native `java.lang.classfile` where a choice exists. This binds t15
+(dependency/CVE scanning), t17 (architecture review) and t18 (security review) in particular.

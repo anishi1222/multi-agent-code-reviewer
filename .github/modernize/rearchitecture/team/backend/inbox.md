@@ -266,3 +266,62 @@ The presentation layer, `ApplicationPortFactory` port wiring, the `@Singleton` f
 `SummaryGenerator` template-constant corrections all look correct — keep them. This is a defect
 in the enforcement layer only. Criteria B1 and B2 appear satisfied; state explicitly in the
 revised artifact how you verified B1 (`LoadAgentUseCase` actually instantiable and exercised).
+
+---
+## 2026-08-05T06:05Z — from coordinator (t12.1 verification) — ✅ PASS
+
+t12.1 root-caused the enforcement failure far below where I diagnosed it, and the fix is sound.
+I verified the following **in source**, not from the report:
+
+- `pom.xml` no longer references ArchUnit; `archunit.properties` is deleted.
+- `LayerDependencyRulesTest.java` is rebuilt on `java.lang.classfile` (JEP 484) — 9 `@Test`
+  methods, 9 `@DisplayName`s, no method silently missing `@Test`.
+- **Rule 0** asserts `assertEquals(classFilesOnDisk, dependencies.size())` plus five named anchor
+  classes spanning every layer. This is a *positive* completeness proof and is strictly stronger
+  than the `failOnEmptyShould=true` I originally asked for — it fails loudly on a shortfall
+  instead of merely refusing to pass on emptiness. **Criterion B3 is satisfied.**
+- **Rule 3** now carries a named, documented exemption for `ReviewApp` and
+  `$ReviewApp$Definition` instead of the blanket `.*\$.*` filter. HIGH-2 resolved honestly.
+- **Rule 4** forbids all `application..` except `application.port..`, with three named factory
+  exemptions. MEDIUM-2 resolved. **Rules 6a/6b** cover layers *and* sibling sub-packages.
+  MEDIUM-1 resolved.
+
+### The finding that matters most
+
+ArchUnit's shaded ASM rejects class-file major version 71 (Java 27), swallows the error, and
+proceeds with a partial import: **107 of 687 classes, all Micronaut synthetics**. So `ReviewApp`
+never "passed" Rule 3 — it was never imported. All six t12 rules were inspecting an essentially
+empty subject set, and `failOnEmptyShould=false` plus the `$` filter interlocked to hide it.
+This is the precise failure mode criterion B3 existed to prevent, and it justifies the strict
+line taken on t12. **Verify in source, not by report** is now doubly earned on this project.
+
+### TOOLING CONSTRAINT — applies to every remaining task
+
+Any bytecode-inspecting library that shades ASM older than Java 27 support is **unusable on this
+project** and will fail silently or partially rather than loudly. Check the shaded ASM ceiling
+before adopting any such tool (static analysis, coverage, CVE/bytecode scanners, mutation
+testing). Prefer JDK-native `java.lang.classfile` where a choice exists. This binds t15
+(dependency/CVE scanning), t17 (architecture review) and t18 (security review) in particular.
+
+### MANDATORY ACCEPTANCE CRITERIA carried into t13 (from t12.1)
+
+**E1 — the enforcement layer contains a deliberate self-destruct that t13 must trigger.**
+`LayerDependencyRulesTest.legacyPackagesAreExplicitlyOutOfCycleScope` and the `LEGACY_PACKAGES`
+constant exist only to keep the pre-migration tree (`cli/`, `agent/`, `report/`, `service/`, …)
+out of cycle scope while it still exists. When t13 deletes that tree the test **will fail by
+design** — that is the intended cleanup trigger, not a regression. t13 must delete both the test
+method and the `LEGACY_PACKAGES` constant as part of the cleanup, and must not "fix" the failure
+by weakening any other rule.
+
+**E2 — Rule 0 must still hold after cleanup.** Deleting ~150 legacy classes changes
+`classFilesOnDisk`. Rule 0 asserts parsed-count equals on-disk-count, so it stays valid
+automatically — but the five named anchor classes must still resolve. If cleanup moves
+`LogbackLevelSwitcher` or `ReviewApp`, update the anchors in the same commit.
+
+**E3 — the pre-existing exemptions must shrink, never grow.** t13 may remove the `ReviewApp` /
+`$ReviewApp$Definition` exemptions if `ReviewApp` moves into `presentation` (see ADR-0006), but
+must not add new named exemptions to any rule. If cleanup appears to require a new exemption,
+that is a design problem — escalate rather than exempt.
+
+**E4 — report the full test count and the Rule 0 line.** Your `[DONE]` must quote the
+`[arch] Rule 0: parsed N/N classes` output so the completeness gate is visible in the record.

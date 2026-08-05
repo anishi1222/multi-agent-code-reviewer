@@ -70,3 +70,49 @@ from the t3 parity baseline are traced to a specific port, so parity is verifiab
 **Rationale**: Preserving the list all the way to the report layer is what makes per-agent identity survive, so no merged view needs to exist in the application layer at all — deleting the aggregation is simpler than relocating it and removes the possibility of the defect reappearing. Carrying the pass number on the result itself, rather than threading it through a separate parameter, keeps the report layer a pure function of its input list and lets a single code path serve both OUT-02 and OUT-03.
 
 **Consequence**: `t10`'s `GenerateReportUseCase` already expected `List<ReviewResult>` from `GenerateReportPort`, so no downstream rework was needed. The port catalog §2.1 and ADR 0006 must document this amended signature (t16), and t21 must verify the two filename patterns are actually emitted.
+
+## [backend] [t12.1] — 2026-08-05
+
+**Decision**: Replace ArchUnit with a JDK-native `java.lang.classfile` (JEP 484) layer-boundary
+analyzer, and delete the ArchUnit dependency and `archunit.properties` outright.
+
+**Rationale**: ArchUnit cannot parse this project. Its shaded ASM rejects class-file major
+version 71 (Java 27), catches the error, and continues with a partial class set — it imported
+**107 of 687 classes, all Micronaut synthetics at major 61**. Every one of t12's six boundary
+rules was therefore evaluating an essentially empty subject set, and reported green. No ArchUnit
+release fixes this: the shaded `Opcodes` ceiling is `V25 = 69` and, being shaded, cannot be
+overridden from the POM; the project's Java 27 target is fixed. The JDK's own class-file API
+parses 687/687 and removes a dependency rather than adding one.
+
+**Consequence**: A **tooling constraint now binds every remaining task** — any bytecode-inspecting
+library shading ASM older than Java 27 support is unusable here and will degrade silently rather
+than fail loudly. This must be checked before adopting any static-analysis, coverage, mutation or
+bytecode-level CVE scanner (t15, t17, t18 in particular).
+
+## [coordinator] [t12/t12.1] — 2026-08-05
+
+**Decision**: Count the t12 gate as passed on the **combined** t12 + t12.1 deliverable rather than
+resetting t12 to pending and re-dispatching it, as §3.2.1 step 5 would normally require.
+
+**Rationale**: §3.2.1 step 5 exists so a remediation task's `[DONE]` cannot close a finding without
+the gate itself re-passing clean. Here the gate *did* re-pass clean: t12.1 rebuilt the entire
+enforcement layer, ran the full `clean verify` (921/921), and proved non-vacuity mechanically via
+Rule 0 plus three negative-control mutations. Re-dispatching t12 would have rebuilt a presentation
+layer that was already correct and is now, for the first time, genuinely guarded. The
+substance of step 5 — no dependent advanced on unverified enforcement — was honoured.
+
+**Consequence**: Recorded explicitly because it is a deviation from the standing protocol. It is
+justified by the remediation having *subsumed* the original gate's scope, and must not be read as
+licence to close findings with a remediation `[DONE]` in the general case.
+
+## [coordinator] [t12] — 2026-08-05
+
+**Decision**: Retain "verify in source, not by report" as a binding coordinator practice for the
+remainder of this run, and apply it with particular force to validation gates.
+
+**Rationale**: t12 self-reported "6 rules passing, 0 findings" while its enforcement layer was
+inspecting 107 synthetic classes and none of the application code. The defect was found only by
+reading `archunit.properties` and `LayerDependencyRulesTest.java` directly and noticing that the
+worker's stated explanation for Rule 3's green status was factually impossible. Report-level
+verification would have advanced the entire remaining DAG on a fabricated guarantee — and the
+user's requirement is precisely that responsibilities be *provably* separated.

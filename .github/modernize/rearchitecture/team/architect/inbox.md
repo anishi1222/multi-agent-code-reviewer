@@ -228,3 +228,69 @@ The presentation layer, `ApplicationPortFactory` port wiring, the `@Singleton` f
 `SummaryGenerator` template-constant corrections all look correct — keep them. This is a defect
 in the enforcement layer only. Criteria B1 and B2 appear satisfied; state explicitly in the
 revised artifact how you verified B1 (`LoadAgentUseCase` actually instantiable and exercised).
+
+---
+## 2026-08-05T06:05Z — from coordinator (t12.1 verification) — ✅ PASS
+
+t12.1 root-caused the enforcement failure far below where I diagnosed it, and the fix is sound.
+I verified the following **in source**, not from the report:
+
+- `pom.xml` no longer references ArchUnit; `archunit.properties` is deleted.
+- `LayerDependencyRulesTest.java` is rebuilt on `java.lang.classfile` (JEP 484) — 9 `@Test`
+  methods, 9 `@DisplayName`s, no method silently missing `@Test`.
+- **Rule 0** asserts `assertEquals(classFilesOnDisk, dependencies.size())` plus five named anchor
+  classes spanning every layer. This is a *positive* completeness proof and is strictly stronger
+  than the `failOnEmptyShould=true` I originally asked for — it fails loudly on a shortfall
+  instead of merely refusing to pass on emptiness. **Criterion B3 is satisfied.**
+- **Rule 3** now carries a named, documented exemption for `ReviewApp` and
+  `$ReviewApp$Definition` instead of the blanket `.*\$.*` filter. HIGH-2 resolved honestly.
+- **Rule 4** forbids all `application..` except `application.port..`, with three named factory
+  exemptions. MEDIUM-2 resolved. **Rules 6a/6b** cover layers *and* sibling sub-packages.
+  MEDIUM-1 resolved.
+
+### The finding that matters most
+
+ArchUnit's shaded ASM rejects class-file major version 71 (Java 27), swallows the error, and
+proceeds with a partial import: **107 of 687 classes, all Micronaut synthetics**. So `ReviewApp`
+never "passed" Rule 3 — it was never imported. All six t12 rules were inspecting an essentially
+empty subject set, and `failOnEmptyShould=false` plus the `$` filter interlocked to hide it.
+This is the precise failure mode criterion B3 existed to prevent, and it justifies the strict
+line taken on t12. **Verify in source, not by report** is now doubly earned on this project.
+
+### TOOLING CONSTRAINT — applies to every remaining task
+
+Any bytecode-inspecting library that shades ASM older than Java 27 support is **unusable on this
+project** and will fail silently or partially rather than loudly. Check the shaded ASM ceiling
+before adopting any such tool (static analysis, coverage, CVE/bytecode scanners, mutation
+testing). Prefer JDK-native `java.lang.classfile` where a choice exists. This binds t15
+(dependency/CVE scanning), t17 (architecture review) and t18 (security review) in particular.
+
+---
+## 2026-08-05T06:05Z — from backend via coordinator (t12.1) — ADR-0006 INPUT
+
+t12.1 surfaced two places where the t4 blueprint contradicts itself. Both are currently
+reconciled by **named exemptions in the enforcement layer**, which is honest but is a workaround.
+ADR-0006 must record the intended end state.
+
+**(1) `ReviewApp` placement.** t4 §1 places `ReviewApp` in `presentation/`, but it lives in the
+root package `dev.logicojp.reviewer` and imports five `presentation.*` types. t12.1 exempted it
+by name rather than moving it, since t12.1 was scoped to the enforcement layer.
+
+Moving it is **not free**: `ReviewApp` also imports `LogbackLevelSwitcher`, which sits in the root
+package and is destined for `infrastructure.logging`. Relocating `ReviewApp` into `presentation`
+as-is would trade a Rule 3 violation for a new `presentation → root` violation. **Sequence both
+moves together**, or document the root package as an explicit composition-root layer.
+
+**(2) Factory placement.** t4 §3 places the three Micronaut `@Factory` classes in
+`infrastructure.copilot`, while t4 §2's allowed-imports matrix forbids
+`infrastructure → application` internals. Binding a port to its implementation necessarily names
+that implementation, so a composition root cannot satisfy §2 as written. Currently reconciled by
+three named exemptions in Rule 4.
+
+**§2 should state the composition-root carve-out explicitly** rather than leaving the matrix
+self-inconsistent and the exemptions unexplained. Either designate a composition-root package
+that is exempt by design, or move the factories somewhere the matrix already permits.
+
+Both items are yours to resolve in t16 (documentation + ADR). The enforcement layer will follow
+whatever you decide — but it must follow it, not accumulate more exemptions (see E3 in
+backend/inbox.md).

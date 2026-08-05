@@ -7,6 +7,7 @@ import dev.logicojp.reviewer.presentation.CliUsage;
 import dev.logicojp.reviewer.presentation.ExitCodes;
 import dev.logicojp.reviewer.presentation.SkillExecutionCoordinator;
 import dev.logicojp.reviewer.presentation.SkillExecutionPreparation;
+import dev.logicojp.reviewer.presentation.SkillOptions;
 import dev.logicojp.reviewer.presentation.formatter.SkillOutputFormatter;
 import dev.logicojp.reviewer.presentation.parser.SkillOptionsParser;
 import io.micronaut.context.annotation.Value;
@@ -15,8 +16,6 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 
 /// Skill command that executes individual agent skills via inbound ports.
@@ -24,21 +23,6 @@ import java.util.Optional;
 public class SkillCommand implements CliCommand {
 
     private static final Logger logger = LoggerFactory.getLogger(SkillCommand.class);
-
-    /// Parsed CLI options for the skill command.
-    public record ParsedOptions(
-        String skillId,
-        List<String> paramStrings,
-        String githubToken,
-        String model,
-        List<Path> additionalAgentDirs,
-        boolean listSkills
-    ) {
-        public ParsedOptions {
-            paramStrings = paramStrings != null ? List.copyOf(paramStrings) : List.of();
-            additionalAgentDirs = additionalAgentDirs != null ? List.copyOf(additionalAgentDirs) : List.of();
-        }
-    }
 
     private final ExecuteSkillPort executeSkillPort;
     private final SkillExecutionPreparation executionPreparation;
@@ -83,11 +67,11 @@ public class SkillCommand implements CliCommand {
         );
     }
 
-    private Optional<ParsedOptions> parseArgs(String[] args) {
+    private Optional<SkillOptions> parseArgs(String[] args) {
         return optionsParser.parse(args);
     }
 
-    private int executeInternal(ParsedOptions options) {
+    private int executeInternal(SkillOptions options) {
         SkillExecutionPreparation.PreparationResult prepared = executionPreparation.prepare(options);
         if (prepared.listOnly()) {
             return printAvailableSkills();
