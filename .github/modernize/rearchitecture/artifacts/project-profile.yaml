@@ -1,0 +1,99 @@
+project:
+  scope_path: "."
+  loc: 33740
+  languages: [Java, YAML, Markdown]
+  git: true
+  structure:
+    "src/main/java/dev/logicojp/reviewer": "ルート: ReviewApp（エントリポイント）, LogbackLevelSwitcher — 2 files / 242 LOC"
+    "src/main/java/dev/logicojp/reviewer/agent": "エージェント定義の読込・解析・検証、レビュー実行、ラバーダック対話 — 30 files / 3464 LOC"
+    "src/main/java/dev/logicojp/reviewer/cli": "自作CLI引数解析、コマンド（review/list-agents/skill/doctor）、出力整形 — 28 files / 2922 LOC"
+    "src/main/java/dev/logicojp/reviewer/config": "Micronaut @ConfigurationProperties（reviewer.* バインディング） — 13 files / 1436 LOC"
+    "src/main/java/dev/logicojp/reviewer/instruction": "カスタム指示の frontmatter と安全性検証 — 2 files / 209 LOC"
+    "src/main/java/dev/logicojp/reviewer/orchestrator": "仮想スレッドによる並列エージェント実行の調整 — 16 files / 1451 LOC"
+    "src/main/java/dev/logicojp/reviewer/report": "レポート生成（core/factory/finding/formatter/merger/sanitize/summary/util） — 24 files / 2704 LOC"
+    "src/main/java/dev/logicojp/reviewer/service": "Copilot SDK クライアント管理、テンプレート、レポート、エージェント、スキルのサービス群 — 13 files / 1472 LOC"
+    "src/main/java/dev/logicojp/reviewer/skill": "スキル定義の解析・登録・実行 — 6 files / 586 LOC"
+    "src/main/java/dev/logicojp/reviewer/target": "レビュー対象（ローカルファイル収集・整形） — 7 files / 803 LOC"
+    "src/main/java/dev/logicojp/reviewer/util": "並行処理・テキスト解析・トークン/シークレット処理・可観測性の混在 — 16 files / 1434 LOC"
+    "src/test/java/dev/logicojp/reviewer": "JUnit 5 + AssertJ + Micronaut Test。main のパッケージ構成をミラー — 148 files / 17017 LOC"
+    "templates/": "Mustache 風 {{placeholder}} の Markdown テンプレート — 30 files"
+    "agents/ , .github/agents/": ".agent.md エージェント定義（YAML frontmatter + Markdown セクション） — 各 9 files"
+    "docs/adr/": "アーキテクチャ決定記録 — 0001〜0005 + テンプレート"
+  notes: |
+    GitHub Copilot SDK for Java を用いて複数の AI エージェントを仮想スレッドで並列実行し、
+    コードレビューを行う CLI アプリケーション。Micronaut 5 による DI、Maven 単一モジュール、
+    shade fat JAR と GraalVM 26 EA native image (-Pnative) の両方をビルド対象とする。
+    外部ランタイム依存として GitHub Copilot CLI の導入と認証が必要。
+
+    main 157 files / 16723 LOC、test 148 files / 17017 LOC（合計 33740 LOC）。
+
+    構造的課題（recon で検出）:
+    - 循環依存 6 組: service⇄orchestrator(2/6), service⇄agent(6/2), service⇄report(5/9),
+      agent⇄report(8/8), agent⇄skill(1/3), util→agent(1)
+    - 外部 SDK 型 com.github.copilot.* が 8 パッケージ・53 箇所に漏出
+      (agent 21, report 8, service 7, orchestrator 6, skill 6, cli 4, util 3, config 2)
+    - io.micronaut.* が config 以外の 6 パッケージに、jakarta.inject.* が 7 パッケージに散在
+    - util→config, target→config により最下層ユーティリティが Micronaut 束縛型に依存
+    - service パッケージが SDK クライアント管理／テンプレート／レポート／エージェント取得を同居
+    - cli パッケージが引数解析／コマンド実行／ユースケース調整／出力整形を同居
+    - util が並行処理／テキスト解析／トークン処理／可観測性を同居
+
+assessment:
+  change_type: rewrite
+  rationale: |
+    ユーザー要求は「責務分担を明確にした Layered architecture で再構築」。
+    スタック（Java 26 / Micronaut 5 / Copilot SDK / Maven）は変更せず、バージョン更新でもなく、
+    モジュールを別サービスへ切り出すものでもない。既存の全パッケージ境界を解体し、
+    presentation / application / domain / infrastructure / shared の 4 層 + 共通へ内部構造を
+    全面的に組み替える「スタック内の構造的リライト」であるため rewrite に分類する。
+
+    upgrade ではない: 依存やランタイムのバージョン変更を伴わない。
+    extract ではない: 単一デプロイ単位のまま、サービス分割を行わない。
+
+    recon が示す 6 組の循環依存と 8 パッケージへの SDK 漏出は、現行が層構造として
+    成立していないことの決定的証拠であり、部分的な是正ではなく再構成を要する。
+  transformations:
+    - fromStack: "Layered architecture 不在（技術的関心事ごとのフラットなパッケージ構成）"
+      fromStackVersion: "n/a"
+      toStack: "Ports & Adapters による 4 層 + 共通（presentation / application / domain / infrastructure / shared）"
+      toStackVersion: "n/a"
+    - fromStack: "Java"
+      fromStackVersion: "26 (GraalVM 26 EA)"
+      toStack: "Java"
+      toStackVersion: "26 (GraalVM 26 EA)"
+    - fromStack: "Micronaut"
+      fromStackVersion: "5"
+      toStack: "Micronaut"
+      toStackVersion: "5"
+  grouping_needed: false
+  deep_planning: true
+  deep_planning_rationale: |
+    dag-generation Stage 1 の判定。change_type=rewrite かつアーキテクチャパターンの全面変更であり、
+    main 157 ファイル・test 148 ファイルの層写像（どのクラスがどの層に行くか）とポートカタログが
+    確定するまで execute タスクを列挙できない。6 組の循環解消順序と SDK 型 53 箇所の変換責務配置も
+    設計成果物に依存するため、二段階 DAG（plan → execute+validate）とする。
+
+user_decisions:
+  depth: "完全な Ports & Adapters — domain を SDK/Micronaut/jakarta から完全純化し、依存は内向き一方向、循環ゼロ"
+  boundary_enforcement: "単一 Maven モジュール + ArchUnit でテストによる境界強制（マルチモジュール化・JPMS は採用しない）"
+  backward_compatibility: "非互換を許容 — より良い設計のためなら CLI オプション名・設定キーの破壊的変更を認める（ただし無目的な変更は行わず、ADR に理由を記録する）"
+
+progress_sync:
+  run_id: 6F90BA68-0FFD-486B-B11A-0094E573B3B3
+  grouping_mode: none
+  execution_mode: all-at-once
+  plan_start_time: 2026-08-05T02:03:52Z
+  plan_completed_time: null
+  execution_start_time: 2026-08-05T02:08:00Z
+  execution_completed_time: null
+  validation_start_time: null
+  validation_completed_time: null
+  total_phases: 6
+  completed_phases: 1
+  total_modules: 11
+  completed_modules: 0
+  total_tasks: 6
+  completed_tasks: 1
+  total_commits: 513
+  build_verified: false
+  test_verified: false
