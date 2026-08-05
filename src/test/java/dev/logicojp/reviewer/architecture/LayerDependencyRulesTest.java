@@ -25,6 +25,7 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -262,31 +263,54 @@ class LayerDependencyRulesTest {
     }
 
     @Test
-    @DisplayName("Rule 6 scope: pre-migration packages are excluded, but named and counted")
-    void legacyPackagesAreExplicitlyOutOfCycleScope() {
-        Map<String, Integer> legacy = new TreeMap<>();
+    @DisplayName("Rule 6 scope: every package under the base package is one of the five layers")
+    void everyPackageBelongsToALayer() {
+        // The pre-migration tree is gone (t13), so Rules 6a/6b — which slice by layer — now cover
+        // the whole codebase. That coverage is only trustworthy if it is *proved* rather than
+        // assumed: this guard fails the moment a package appears outside the five layers, which
+        // would otherwise silently escape both cycle rules.
+        //
+        // This replaces the former `legacyPackagesAreExplicitlyOutOfCycleScope` self-destruct,
+        // whose job was to fail once the legacy tree was deleted. It has now fired and been
+        // removed, as its own failure message instructed.
+        Set<String> allowedAtRoot = Set.of(BASE + ".ReviewApp", BASE + ".$ReviewApp$Definition");
+
+        Map<String, Integer> strays = new TreeMap<>();
+        List<String> rootDwellers = new ArrayList<>();
+
         for (String owner : dependencies.keySet()) {
             if (!owner.startsWith(BASE + ".")) {
                 continue;
             }
             String topLevel = topLevelPackageOf(owner);
-            if (!NEW_LAYERS.contains(topLevel)) {
-                legacy.merge(topLevel, 1, Integer::sum);
+            if (NEW_LAYERS.contains(topLevel)) {
+                continue;
             }
+            if (topLevel.equals(BASE)) {
+                // A class sitting directly in the base package belongs to no layer, so only the
+                // two entries exempted by Rule 3 may live there. Nested types (ReviewApp$Xxx)
+                // are part of their enclosing class and inherit its exemption.
+                String enclosing = owner.contains("$") ? owner.substring(0, owner.indexOf('$')) : owner;
+                if (!allowedAtRoot.contains(owner) && !allowedAtRoot.contains(enclosing)) {
+                    rootDwellers.add(owner);
+                }
+                continue;
+            }
+            strays.merge(topLevel, 1, Integer::sum);
         }
 
-        // Documented, not silent. These packages carry the ten cycles catalogued in t2 and are
-        // deleted by t13. Rules 6a/6b are scoped to the new layers so that known, scheduled-for-
-        // removal code cannot mask a regression in the new architecture.
-        System.out.printf("[arch] Rule 6 scope: %d pre-migration package(s) excluded, removed by t13%n",
-            legacy.size());
-        legacy.forEach((pkg, count) -> System.out.printf("[arch]   %-44s %4d classes%n", pkg, count));
+        System.out.printf("[arch] Rule 6 scope: %d layer(s) cover every package under %s%n",
+            NEW_LAYERS.size(), BASE);
 
-        // Trigger for t13: once the legacy tree is gone this assertion fails, forcing the
-        // exclusion — and this test — to be removed rather than left behind as dead scaffolding.
-        assertFalse(legacy.isEmpty(),
-            "No pre-migration packages remain, so the t13 cleanup is complete. Delete this test "
-                + "and widen Rules 6a/6b to every package under " + BASE + ".");
+        assertTrue(strays.isEmpty(),
+            () -> "Package(s) outside the five layers escape Rules 6a/6b — add them to a layer:\n"
+                + strays.entrySet().stream()
+                    .map(e -> "  " + e.getKey() + " (" + e.getValue() + " classes)")
+                    .collect(Collectors.joining("\n")));
+
+        assertTrue(rootDwellers.isEmpty(),
+            () -> "Class(es) in the base package " + BASE + " belong to no layer: " + rootDwellers
+                + ". Only " + allowedAtRoot + " may live there.");
     }
 
     // ------------------------------------------------------------------------------------------

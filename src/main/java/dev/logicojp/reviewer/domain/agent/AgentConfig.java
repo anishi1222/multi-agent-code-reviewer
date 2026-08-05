@@ -60,14 +60,17 @@ public record AgentConfig(
 
     /// Validates that required fields are non-blank.
     ///
-    /// @throws IllegalStateException if {@code name} is blank or {@code model} is blank
+    /// Delegates to [AgentConfigValidator], which also reports *all* missing fields at once and
+    /// warns about incomplete `outputFormat` sections.
+    ///
+    /// T013: the rewrite replaced this delegation with a weaker inline check that validated only
+    /// `name`/`model` and threw [IllegalStateException]. That silently dropped the `systemPrompt`
+    /// and `instruction` checks — malformed agent markdown loaded successfully and failed later
+    /// with an unrelated error — and left [AgentConfigValidator] as dead code.
+    ///
+    /// @throws IllegalArgumentException if any required field is missing
     public void validateRequired() {
-        if (name == null || name.isBlank()) {
-            throw new IllegalStateException("Agent configuration requires a non-blank 'name' field");
-        }
-        if (model == null || model.isBlank()) {
-            throw new IllegalStateException("Agent '" + name + "' requires a non-blank 'model' field");
-        }
+        AgentConfigValidator.validateRequired(this);
     }
 
     public AgentConfig withSkills(List<SkillDefinition> newSkills) {

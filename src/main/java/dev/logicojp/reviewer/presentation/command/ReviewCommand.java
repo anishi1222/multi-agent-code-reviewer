@@ -4,6 +4,7 @@ import dev.logicojp.reviewer.application.port.inbound.ReviewRequest;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
 import dev.logicojp.reviewer.presentation.CliCommand;
+import dev.logicojp.reviewer.presentation.CliSecurityAudit;
 import dev.logicojp.reviewer.presentation.CliOutput;
 import dev.logicojp.reviewer.presentation.CliUsage;
 import dev.logicojp.reviewer.presentation.ReviewAgentConfigResolver;
@@ -15,11 +16,11 @@ import dev.logicojp.reviewer.presentation.ReviewRunRequestFactory;
 import dev.logicojp.reviewer.presentation.ReviewTargetResolver;
 import dev.logicojp.reviewer.presentation.parser.ReviewOptionsParser;
 import dev.logicojp.reviewer.shared.ExecutionCorrelation;
-import dev.logicojp.reviewer.util.SecurityAuditLogger;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -88,11 +89,11 @@ public class ReviewCommand implements CliCommand {
 
     private int executeInternal(ReviewOptions options) {
         String executionId = ExecutionCorrelation.generateExecutionId();
-        dev.logicojp.reviewer.util.ExecutionCorrelation.putExecutionId(executionId);
+        MDC.put(ExecutionCorrelation.EXECUTION_ID_MDC_KEY, executionId);
         try {
             return runWithCorrelation(options, executionId);
         } finally {
-            dev.logicojp.reviewer.util.ExecutionCorrelation.clearExecutionId();
+            MDC.remove(ExecutionCorrelation.EXECUTION_ID_MDC_KEY);
         }
     }
 
@@ -125,7 +126,7 @@ public class ReviewCommand implements CliCommand {
     }
 
     private void logReviewAuditEvent(ReviewTarget target, boolean trustMode, boolean hasToken) {
-        SecurityAuditLogger.log(
+        CliSecurityAudit.log(
             "access",
             "review.start",
             "Review access initiated",

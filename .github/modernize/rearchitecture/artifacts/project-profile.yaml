@@ -90,11 +90,11 @@ progress_sync:
   validation_start_time: null
   validation_completed_time: null
   total_phases: 11
-  completed_phases: 7
+  completed_phases: 8
   total_modules: 11
   completed_modules: 0
-  total_tasks: 24
-  completed_tasks: 14
+  total_tasks: 25
+  completed_tasks: 15
   total_commits: 540
-  build_verified: false  # compile-only verified at t7; full verify pending t13
-  test_verified: false
+  build_verified: true  # compile-only verified at t7; full verify pending t13
+  test_verified: true

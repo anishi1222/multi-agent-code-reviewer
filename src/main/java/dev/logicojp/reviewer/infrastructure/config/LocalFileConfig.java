@@ -38,10 +38,42 @@ public record LocalFileConfig(
         "gradle", "cmake", "makefile", "md", "rst", "adoc"
     );
     private static final List<String> FALLBACK_SENSITIVE_FILE_PATTERNS = List.of(
-        "application-prod", "application-staging", "application-secret",
-        ".env", ".env.local", ".env.production", ".env.development",
-        "secrets", "credentials", "service-account",
-        "keystore", "truststore", "id_rsa", "id_ed25519"
+        "application-prod",
+        "application-staging",
+        "application-secret",
+        "application-local",
+        "application-dev",
+        "application-ci",
+        "secrets",
+        "credentials",
+        ".env",
+        ".env.local",
+        ".env.production",
+        ".env.development",
+        ".env.staging",
+        ".env.test",
+        "service-account",
+        "keystore",
+        "truststore",
+        "id_rsa",
+        "id_ed25519",
+        "id_ecdsa",
+        ".netrc",
+        ".npmrc",
+        ".pypirc",
+        ".docker/config",
+        "vault-config",
+        "aws-credentials",
+        "terraform.tfvars",
+        "kubeconfig",
+        ".kube/config",
+        "htpasswd",
+        "shadow",
+        "application.yml",
+        "application.yaml",
+        "config.json",
+        "settings.json",
+        "settings.yaml"
     );
     private static final List<String> FALLBACK_SENSITIVE_EXTENSIONS = List.of(
         "pem", "key", "p12", "pfx", "jks", "keystore", "cert"

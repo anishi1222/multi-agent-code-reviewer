@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer;
 
+import dev.logicojp.reviewer.infrastructure.logging.LogbackLevelSwitcher;
 import dev.logicojp.reviewer.presentation.CliCommand;
 import dev.logicojp.reviewer.presentation.CliParsing;
 import dev.logicojp.reviewer.presentation.CliOutput;

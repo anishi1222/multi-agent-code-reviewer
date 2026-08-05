@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.logging;
 
+import dev.logicojp.reviewer.shared.LogValueSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -43,7 +44,6 @@ public final class SecurityAuditLogger {
     }
 
     static String sanitizeForLogValue(String value) {
-        if (value == null) return "";
-        return value.replace('\n', ' ').replace('\r', ' ');
+        return LogValueSanitizer.sanitize(value);
     }
 }

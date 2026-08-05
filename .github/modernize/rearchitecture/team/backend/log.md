@@ -152,3 +152,41 @@
 - backend/java-subpackage-visibility, backend/micronaut-factory-port-binding
 - teamlead/domain-purity-rules, teamlead/layer-naming-conventions
 - architect/domain-subpackage-organization
+
+## [t13] Migrated 148 tests, deleted the pre-migration tree, full build green (877 tests, 0 failures)
+
+- **The single biggest lesson: deleting the old tree is what actually verifies a rewrite.** T007–T012
+  all reported green because the legacy tests were still exercising the legacy classes, which still
+  existed. The moment the migrated tests ran against the new production code they exposed **7
+  regressions** (1 critical auth breakage, 2 security). Any rewrite that keeps both trees alive has
+  zero real verification.
+- **My display redacts secret-like literals — never compare strings by eye.** `"Bearer {token}"`
+  renders to me as `"******"`, so two genuinely different strings print identically, producing
+  nonsense like `expected: "******" but was: "******"`. I only caught it because `diff` claimed two
+  lines differed while printing them identically. Technique: compute `len()` + `sha256()[:16]` in
+  Python and test for marker substrings (`'{token}' in v`); to repair, copy the literal
+  programmatically via `git show HEAD:<path>` + regex, never by retyping.
+- **javac's 100-error cap masked ~60% of the work.** `mvn test-compile` stops at 100 errors, so each
+  fix wave revealed a brand-new set of broken files — five waves before convergence. Always re-run
+  to convergence; use `-Xmaxerrs 500` for standalone `javac`.
+- **Surefire under-reports twice.** The `.txt` files under-report, and even the XML `tests` attribute
+  under-counts (868 vs 877) because `@Nested`/parameterized containers aren't counted there. Count
+  `<testcase>` elements.
+- **A defensive copy can silently strip a security wrapper.** `McpServerSpec`'s compact constructor
+  did `Map.copyOf(headers)`, which discarded the masking wrapper and leaked the raw token via
+  `toString()`. Wiring masking at the call site *looked* correct and still failed — the probe proved
+  it. Fix was to make masking an invariant of the DTO itself.
+- **Dead code is a symptom worth chasing.** Both `SensitiveHeaderMasking` classes and
+  `AgentConfigValidator` were unreferenced. In each case that was the fingerprint of a dropped
+  behaviour, not harmless cruft. Grep for `main` classes with zero inbound references after a rewrite.
+- **Parallel sub-agent pattern that worked** (15 agents, all `mode: "background"`): give each a
+  pre-exported classpath at `/tmp/cp.txt`, an explicit "do NOT run maven", a standalone
+  `javac --release 27 -Xmaxerrs 500 -d <own dir> -cp "target/classes:$(cat /tmp/cp.txt)"` verify
+  command, "ignore errors in files that are not yours", and **disjoint file ownership**. Group by
+  package. Require every deleted test method to be justified, so deletions can't be used to force green.
+- **`ArrayDeque` rejects nulls** — it silently breaks any test whose purpose is feeding null values.
+  `LinkedList` is the null-tolerant swap.
+- Java quirk re-confirmed: package-private does **not** extend to sub-packages, so any `presentation/`
+  type used from `presentation.command`/`.parser`/`.formatter` must be `public`.
+- Learnings consumed: [backend/dual-jdk-build-invocation, backend/archunit-banned-use-classfile-api,
+  backend/surefire-xml-is-authoritative, architect/layer-import-matrix]

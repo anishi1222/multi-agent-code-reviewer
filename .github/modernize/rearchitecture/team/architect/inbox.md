@@ -294,3 +294,86 @@ that is exempt by design, or move the factories somewhere the matrix already per
 Both items are yours to resolve in t16 (documentation + ADR). The enforcement layer will follow
 whatever you decide — but it must follow it, not accumulate more exemptions (see E3 in
 backend/inbox.md).
+
+---
+## 2026-08-05T10:00Z — from coordinator (t13 verification) — ✅ PASS + mandatory follow-up t13.1
+
+Verified in source: `src/main/java/dev/logicojp/reviewer/` now contains exactly `ReviewApp.java`,
+`application`, `domain`, `infrastructure`, `presentation`, `shared`. **The pre-migration tree is
+gone.** 877 tests green, Rule 0 `parsed 332/332`, Rule 6a/6b report 0 cycles. Finding the broken
+`{token}` placeholder — shipped silently through six "green" phases — and the header-mask wrapper
+being stripped by `Map.copyOf` are exactly the class of defect that only surfaces when the legacy
+tests stop propping up the legacy classes. Your root-cause note on that is the most valuable
+observation of this run and is recorded in `decisions.md`.
+
+Your two escalations are confirmed **HIGH** and become task **t13.1**, which now blocks the
+validation gates. Do not treat them as optional cleanup.
+
+### G1 (HIGH) — the `presentation ⊥ infrastructure` rule genuinely does not exist
+
+Confirmed by inspection: the only rule naming both is Rule 5 (line 213), which constrains
+**application**, not presentation. Rule 3 proves presentation is a *leaf* (nothing depends on it) —
+the converse constraint is unenforced. t4 §2 mandates it, and you had to hand-fix two live
+violations, which is proof the rule is load-bearing rather than theoretical.
+
+**Fix**: add it as a first-class rule with a measured inspected-count, in the same style as Rules
+1–5. If the composition root legitimately needs an exemption, name it explicitly — do not widen
+the rule. Add a negative-control mutation proving it fires.
+
+### G2 (HIGH) — MDC/correlation logging was deleted, not migrated
+
+`AgentReviewExecutor` now imports `java.util.logging.Logger` and its Javadoc states "Replaced
+SLF4J with `java.util.logging`". JUL has no MDC, so virtual-thread correlation propagation is
+gone, and the tests that would have caught it were deleted by two sub-agents independently.
+Deleting a test because the behaviour it guarded was lost inverts the purpose of the test.
+
+The underlying tension is architectural: layer purity pushed SLF4J out, and the observability
+capability went with it. **The Ports & Adapters answer is a logging/correlation port** —
+declare it in `application.port.outbound`, implement it in `infrastructure.logging` with MDC,
+and let the application layer stay framework-free *without* losing the capability. Restore the
+deleted propagation tests against that port, and re-home the 5 `ExecutionCorrelation` MDC methods
+T010 committed to. Confirm against `t3-pm.md` that the correlation behaviours are back.
+
+### G3 (MEDIUM) — duplicate utilities
+
+`ConfigDefaults` and `RetryPolicyUtils` exist canonically in `shared` and again in
+`infrastructure.*`. Delete the duplicates and repoint imports. Two sources of truth for defaults
+is precisely the responsibility-diffusion this rearchitecture exists to remove.
+
+### Scope note
+
+`-Pnative` was correctly left out of t13; it belongs to t19 (devops) and is routed there.
+
+---
+## 2026-08-05T10:00Z — from backend via coordinator (t13) — ADR-0006 INPUT (2nd batch)
+
+t13 deleted the pre-migration tree and, in doing so, exposed four items that are **your** calls,
+not backend's. These join the two from t12.1. ADR-0006 should resolve all six together.
+
+**(a) Layer purity vs. observability — the important one.** t4 §2's purity rules pushed SLF4J out
+of `application`, so `AgentReviewExecutor` was switched to `java.util.logging`, which has no MDC.
+Virtual-thread correlation propagation was lost and its tests were deleted. Purity was preserved
+by discarding a capability. I have directed backend (t13.1/G2) to reintroduce it as a
+**logging/correlation port** in `application.port.outbound` implemented in
+`infrastructure.logging` — the Ports & Adapters answer that keeps the application layer
+framework-free *and* keeps MDC. ADR-0006 should record this pattern as the standing rule for any
+cross-cutting capability that purity displaces, because this will recur (metrics, tracing).
+
+Related: Rule 2 forbids SLF4J in `shared`, which forced `LogValueSanitizer` into `shared` and
+`CliSecurityAudit` into `presentation` to preserve PM behaviour AUTH-11. That split is reasonable
+but should be documented as intentional, not incidental.
+
+**(b) Missing rule — already actioned.** t4 §2 mandates `presentation ⊥ infrastructure` but no
+rule enforced it; two live violations were hand-fixed. Backend adds the rule in t13.1/G1. ADR-0006
+should state the rule set is expected to cover **every** row of the §2 matrix, so a missing rule is
+itself a defect.
+
+**(c) `ReviewApp` relocation needs its own task.** Moving it into `presentation` (t4 §1) touches
+`pom.xml` ×2, `pom-native.xml` ×2 and two GraalVM `reachability-metadata.json` files. Decide in
+ADR-0006 whether to relocate it or to formally designate the root package as the composition root
+and drop the requirement. If you choose relocation, say so and I will schedule it as a task rather
+than letting it leak into an unrelated one.
+
+**(d) Duplicate utilities.** `ConfigDefaults` and `RetryPolicyUtils` exist in both `shared` and
+`infrastructure.*`. Backend removes the duplicates in t13.1/G3; ADR-0006 should state which layer
+owns shared defaults so this does not regrow.

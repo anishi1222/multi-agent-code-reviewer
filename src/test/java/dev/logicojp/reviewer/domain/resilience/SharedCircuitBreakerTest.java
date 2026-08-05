@@ -1,64 +1,94 @@
 package dev.logicojp.reviewer.domain.resilience;
 
+import dev.logicojp.reviewer.infrastructure.config.CircuitBreakerConfig;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.concurrent.atomic.AtomicLong;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DisplayName("SharedCircuitBreaker")
 class SharedCircuitBreakerTest {
 
     @Test
-    void allowsRequests_whenBelowThreshold() {
-        SharedCircuitBreaker cb = new SharedCircuitBreaker(3, 10_000L);
-        assertTrue(cb.allowRequest());
-        cb.onFailure();
-        cb.onFailure();
-        assertTrue(cb.allowRequest(), "below threshold: should still allow");
+    @DisplayName("ドメイン別デフォルトブレーカーは独立している")
+    void domainDefaultBreakersAreIsolated() {
+        SharedCircuitBreaker review = SharedCircuitBreaker.forReviewDomain();
+        SharedCircuitBreaker skill = SharedCircuitBreaker.forSkillDomain();
+        SharedCircuitBreaker summary = SharedCircuitBreaker.forSummaryDomain();
+
+        review.reset();
+        skill.reset();
+        summary.reset();
+        try {
+            for (int i = 0; i < CircuitBreakerConfig.DEFAULT_FAILURE_THRESHOLD; i++) {
+                review.onFailure();
+            }
+
+            assertThat(review.allowRequest()).isFalse();
+            assertThat(skill.allowRequest()).isTrue();
+            assertThat(summary.allowRequest()).isTrue();
+        } finally {
+            review.reset();
+            skill.reset();
+            summary.reset();
+        }
     }
 
     @Test
-    void blocksRequests_whenThresholdReached() {
-        SharedCircuitBreaker cb = new SharedCircuitBreaker(3, 10_000L, System::currentTimeMillis);
-        cb.onFailure();
-        cb.onFailure();
-        cb.onFailure();
-        assertFalse(cb.allowRequest(), "at threshold: should block");
+    @DisplayName("異なるインスタンス間で障害が分離される")
+    void independentInstancesIsolateFailures() {
+        SharedCircuitBreaker review = new SharedCircuitBreaker(2, 100L);
+        SharedCircuitBreaker skill = new SharedCircuitBreaker(2, 100L);
+
+        review.onFailure();
+        review.onFailure();
+
+        assertThat(review.allowRequest()).isFalse();
+        assertThat(skill.allowRequest()).isTrue();
     }
 
     @Test
-    void resetsAfterTimeout() {
-        long[] fakeClock = { 0L };
-        SharedCircuitBreaker cb = new SharedCircuitBreaker(2, 5_000L, () -> fakeClock[0]);
-        cb.onFailure();
-        cb.onFailure();
-        assertFalse(cb.allowRequest(), "before timeout: should block");
+    @DisplayName("失敗閾値に達するとリクエストを遮断する")
+    void blocksAfterFailureThreshold() {
+        AtomicLong clock = new AtomicLong(0L);
+        SharedCircuitBreaker breaker = new SharedCircuitBreaker(3, 10_000L, clock::get);
 
-        fakeClock[0] = 6_000L;
-        assertTrue(cb.allowRequest(), "after timeout: should allow probe");
+        assertThat(breaker.allowRequest()).isTrue();
+        breaker.onFailure();
+        breaker.onFailure();
+        breaker.onFailure();
+
+        assertThat(breaker.allowRequest()).isFalse();
     }
 
     @Test
-    void onSuccess_resetsBreakerToClosedState() {
-        SharedCircuitBreaker cb = new SharedCircuitBreaker(2, 10_000L);
-        cb.onFailure();
-        cb.onFailure();
-        assertFalse(cb.allowRequest());
+    @DisplayName("リセット時間経過後は再度リクエストを許可する")
+    void allowsAfterResetTimeout() {
+        AtomicLong clock = new AtomicLong(0L);
+        SharedCircuitBreaker breaker = new SharedCircuitBreaker(2, 100L, clock::get);
 
-        cb.reset();
-        assertTrue(cb.allowRequest(), "after reset: should allow again");
-        cb.onSuccess();
-        assertTrue(cb.allowRequest(), "after onSuccess: should allow");
+        breaker.onFailure();
+        breaker.onFailure();
+        assertThat(breaker.allowRequest()).isFalse();
+
+        clock.set(101L);
+        assertThat(breaker.allowRequest()).isTrue();
     }
 
     @Test
-    void defaultConstants_matchExpectedValues() {
-        assertEquals(8, SharedCircuitBreaker.DEFAULT_FAILURE_THRESHOLD);
-        assertEquals(30_000L, SharedCircuitBreaker.DEFAULT_RESET_TIMEOUT_MS);
-    }
+    @DisplayName("成功時に状態をリセットする")
+    void resetsOnSuccess() {
+        AtomicLong clock = new AtomicLong(0L);
+        SharedCircuitBreaker breaker = new SharedCircuitBreaker(2, 100L, clock::get);
 
-    @Test
-    void implementsCircuitBreakerInterface() {
-        SharedCircuitBreaker cb = SharedCircuitBreaker.withDefaultConfig();
-        assertTrue(cb instanceof dev.logicojp.reviewer.shared.CircuitBreaker,
-            "SharedCircuitBreaker must implement shared.CircuitBreaker");
+        breaker.onFailure();
+        breaker.onFailure();
+        assertThat(breaker.allowRequest()).isFalse();
+
+        breaker.onSuccess();
+
+        assertThat(breaker.allowRequest()).isTrue();
     }
 }

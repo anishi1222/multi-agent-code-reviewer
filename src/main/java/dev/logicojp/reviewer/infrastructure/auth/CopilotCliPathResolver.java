@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.auth;
 
+import dev.logicojp.reviewer.domain.resilience.CopilotCliException;
 import dev.logicojp.reviewer.infrastructure.config.CopilotConfig;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

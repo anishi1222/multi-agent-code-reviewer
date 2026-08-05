@@ -1,6 +1,6 @@
 package dev.logicojp.reviewer.testutil;
 
-import dev.logicojp.reviewer.config.ExecutionConfig;
+import dev.logicojp.reviewer.infrastructure.config.ExecutionConfig;
 
 public final class ExecutionConfigFixtures {
 
@@ -22,18 +22,13 @@ public final class ExecutionConfigFixtures {
                                          @SuppressWarnings("unused") int maxAccumulatedSize,
                                          @SuppressWarnings("unused") int initialAccumulatedCapacity,
                                          int instructionBufferExtraCapacity) {
-        return ExecutionConfig.Builder.from(ExecutionConfig.defaults())
-            .parallelism(parallelism)
-            .reviewPasses(reviewPasses)
-            .orchestratorTimeoutMinutes(orchestratorTimeoutMinutes)
-            .agentTimeoutMinutes(agentTimeoutMinutes)
-            .idleTimeoutMinutes(idleTimeoutMinutes)
-            .skillTimeoutMinutes(skillTimeoutMinutes)
-            .summaryTimeoutMinutes(summaryTimeoutMinutes)
-            .ghAuthTimeoutSeconds(ghAuthTimeoutSeconds)
-            .ghAuthFallbackEnabled(false)
-            .maxRetries(maxRetries)
-            .instructionBufferExtraCapacity(instructionBufferExtraCapacity)
-            .build();
+        return new ExecutionConfig(
+            new ExecutionConfig.ConcurrencySettings(parallelism, reviewPasses),
+            new ExecutionConfig.TimeoutSettings(orchestratorTimeoutMinutes, agentTimeoutMinutes,
+                idleTimeoutMinutes, skillTimeoutMinutes, summaryTimeoutMinutes, ghAuthTimeoutSeconds),
+            new ExecutionConfig.RetrySettings(maxRetries),
+            new ExecutionConfig.BufferSettings(instructionBufferExtraCapacity),
+            null,
+            false);
     }
 }

@@ -39,17 +39,17 @@ public class CopilotClientStarter {
                 if (retryWithBackoff(attempt, RetryPolicyUtils.isTransientException(e), "failed", e.getMessage())) {
                     continue;
                 }
-                client.close();
+                closeQuietly(client);
                 throw mapExecutionException(e, startupErrorFormatter);
             } catch (TimeoutException e) {
                 if (retryWithBackoff(attempt, true, "timed out", null)) {
                     continue;
                 }
-                client.close();
+                closeQuietly(client);
                 throw new CopilotCliException(
                     startupErrorFormatter.buildClientTimeoutMessage(timeoutSeconds), e);
             } catch (InterruptedException e) {
-                client.close();
+                closeQuietly(client);
                 throw e;
             }
         }
@@ -80,5 +80,17 @@ public class CopilotClientStarter {
         return cause != null
             ? new CopilotCliException("Copilot client start failed: " + cause.getMessage(), cause)
             : new CopilotCliException("Copilot client start failed", e);
+    }
+
+    /// Closes the client without letting a close failure mask the original startup error.
+    ///
+    /// Restored in T013: the rewrite called `client.close()` directly inside the catch blocks,
+    /// so an exception from `close()` replaced the real Copilot startup failure.
+    private void closeQuietly(StartableClient client) {
+        try {
+            client.close();
+        } catch (Exception e) {
+            logger.debug("Failed to close Copilot client after startup failure: {}", e.getMessage(), e);
+        }
     }
 }

@@ -1,5 +1,7 @@
 package dev.logicojp.reviewer.application.port.outbound;
 
+import dev.logicojp.reviewer.shared.SensitiveHeaderMasking;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -11,7 +13,8 @@ import java.util.Objects;
 ///
 /// @param name    logical server name (e.g. "github")
 /// @param url     HTTP endpoint URL for this server
-/// @param headers HTTP headers to send with every request (may include auth; use masked map externally)
+/// @param headers HTTP headers to send with every request. Auth values are masked in
+///                {@code toString()} automatically; {@code get()} still returns the raw value.
 /// @param tools   list of tool names exposed by this MCP server (empty = all tools available)
 public record McpServerSpec(
     String name,
@@ -23,7 +26,12 @@ public record McpServerSpec(
     public McpServerSpec {
         Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(url, "url must not be null");
-        headers = headers != null ? Map.copyOf(headers) : Map.of();
+        // T013: wrap rather than Map.copyOf(...). A plain defensive copy strips any masking
+        // wrapper the caller supplied, so toString() emitted the raw Authorization token into
+        // SDK debug logs. Masking is now an invariant of this DTO on every construction path:
+        // toString() shows "Bearer ***" while get("Authorization") still returns the real value.
+        // MaskedHeadersMap copies defensively itself, so immutability is preserved.
+        headers = headers != null ? SensitiveHeaderMasking.wrapHeaders(headers) : Map.of();
         tools = tools != null ? List.copyOf(tools) : List.of();
     }
 

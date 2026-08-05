@@ -325,3 +325,52 @@ that is a design problem — escalate rather than exempt.
 
 **E4 — report the full test count and the Rule 0 line.** Your `[DONE]` must quote the
 `[arch] Rule 0: parsed N/N classes` output so the completeness gate is visible in the record.
+
+---
+## 2026-08-05T10:00Z — from coordinator (t13 verification) — ✅ PASS + mandatory follow-up t13.1
+
+Verified in source: `src/main/java/dev/logicojp/reviewer/` now contains exactly `ReviewApp.java`,
+`application`, `domain`, `infrastructure`, `presentation`, `shared`. **The pre-migration tree is
+gone.** 877 tests green, Rule 0 `parsed 332/332`, Rule 6a/6b report 0 cycles. Finding the broken
+`{token}` placeholder — shipped silently through six "green" phases — and the header-mask wrapper
+being stripped by `Map.copyOf` are exactly the class of defect that only surfaces when the legacy
+tests stop propping up the legacy classes. Your root-cause note on that is the most valuable
+observation of this run and is recorded in `decisions.md`.
+
+Your two escalations are confirmed **HIGH** and become task **t13.1**, which now blocks the
+validation gates. Do not treat them as optional cleanup.
+
+### G1 (HIGH) — the `presentation ⊥ infrastructure` rule genuinely does not exist
+
+Confirmed by inspection: the only rule naming both is Rule 5 (line 213), which constrains
+**application**, not presentation. Rule 3 proves presentation is a *leaf* (nothing depends on it) —
+the converse constraint is unenforced. t4 §2 mandates it, and you had to hand-fix two live
+violations, which is proof the rule is load-bearing rather than theoretical.
+
+**Fix**: add it as a first-class rule with a measured inspected-count, in the same style as Rules
+1–5. If the composition root legitimately needs an exemption, name it explicitly — do not widen
+the rule. Add a negative-control mutation proving it fires.
+
+### G2 (HIGH) — MDC/correlation logging was deleted, not migrated
+
+`AgentReviewExecutor` now imports `java.util.logging.Logger` and its Javadoc states "Replaced
+SLF4J with `java.util.logging`". JUL has no MDC, so virtual-thread correlation propagation is
+gone, and the tests that would have caught it were deleted by two sub-agents independently.
+Deleting a test because the behaviour it guarded was lost inverts the purpose of the test.
+
+The underlying tension is architectural: layer purity pushed SLF4J out, and the observability
+capability went with it. **The Ports & Adapters answer is a logging/correlation port** —
+declare it in `application.port.outbound`, implement it in `infrastructure.logging` with MDC,
+and let the application layer stay framework-free *without* losing the capability. Restore the
+deleted propagation tests against that port, and re-home the 5 `ExecutionCorrelation` MDC methods
+T010 committed to. Confirm against `t3-pm.md` that the correlation behaviours are back.
+
+### G3 (MEDIUM) — duplicate utilities
+
+`ConfigDefaults` and `RetryPolicyUtils` exist canonically in `shared` and again in
+`infrastructure.*`. Delete the duplicates and repoint imports. Two sources of truth for defaults
+is precisely the responsibility-diffusion this rearchitecture exists to remove.
+
+### Scope note
+
+`-Pnative` was correctly left out of t13; it belongs to t19 (devops) and is routed there.

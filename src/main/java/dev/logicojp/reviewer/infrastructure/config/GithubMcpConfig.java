@@ -48,7 +48,7 @@ public record GithubMcpConfig(
         tools = (tools == null || tools.isEmpty()) ? List.of("*") : List.copyOf(tools);
         headers = (headers == null) ? Map.of() : Map.copyOf(headers);
         authHeaderName = ConfigDefaults.defaultIfBlank(authHeaderName, "Authorization");
-        authHeaderTemplate = ConfigDefaults.defaultIfBlank(authHeaderTemplate, "******");
+        authHeaderTemplate = ConfigDefaults.defaultIfBlank(authHeaderTemplate, "Bearer {token}");
         allowedHosts = List.copyOf(effectiveAllowedHosts);
     }
 
@@ -102,7 +102,8 @@ public record GithubMcpConfig(
     public McpServerSpec toMcpServerSpec(String token) {
         Map<String, String> combinedHeaders = new HashMap<>(headers != null ? headers : Map.of());
         applyAuthHeader(token, combinedHeaders);
-        return new McpServerSpec("github", url, Map.copyOf(combinedHeaders), List.copyOf(tools));
+        // McpServerSpec masks sensitive header values in toString() as a construction invariant.
+        return new McpServerSpec("github", url, combinedHeaders, List.copyOf(tools));
     }
 
     private void applyAuthHeader(String token, Map<String, String> combinedHeaders) {

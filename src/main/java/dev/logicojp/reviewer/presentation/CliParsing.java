@@ -1,6 +1,6 @@
 package dev.logicojp.reviewer.presentation;
 
-import dev.logicojp.reviewer.util.TokenReadUtils;
+import dev.logicojp.reviewer.shared.TokenReadUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
