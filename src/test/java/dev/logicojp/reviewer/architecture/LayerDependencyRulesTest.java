@@ -70,7 +70,13 @@ class LayerDependencyRulesTest {
 
     private static final String DOMAIN = BASE + ".domain";
     private static final String APPLICATION = BASE + ".application";
-    private static final String APPLICATION_PORT = BASE + ".application.port";
+
+    /// The *driven* side of the port set — the only part of `application` that infrastructure is
+    /// allowed to name (ADR-0006 D2). `application.port.inbound` is deliberately **not** included:
+    /// an inbound port is implemented by `application` and called by `presentation`, so an
+    /// infrastructure class that names one is either implementing a port it has no business
+    /// implementing, or calling into the application from the wrong side.
+    private static final String APPLICATION_PORT_OUTBOUND = BASE + ".application.port.outbound";
     private static final String INFRASTRUCTURE = BASE + ".infrastructure";
     private static final String PRESENTATION = BASE + ".presentation";
     private static final String SHARED = BASE + ".shared";
@@ -191,19 +197,38 @@ class LayerDependencyRulesTest {
     }
 
     @Test
-    @DisplayName("Rule 4: infrastructure reaches application only through its ports")
+    @DisplayName("Rule 4: infrastructure reaches application only through its outbound ports")
     void infrastructureUsesApplicationPortsOnly() {
-        assertNoViolations("Rule 4 (infrastructure -> application.port only)", classesIn(INFRASTRUCTURE),
-            dep -> dep.startsWith(APPLICATION) && !dep.startsWith(APPLICATION_PORT),
-            // Micronaut @Factory classes form the composition root: binding a port to its
-            // implementation necessarily names that implementation, and this is the one place in
-            // the system where that is legitimate. Note for ADR-0006 — t4 §3 places these
-            // factories in infrastructure.copilot while §2 forbids infrastructure -> application
-            // internals; that tension in the blueprint is still unresolved.
-            Set.of(
-                INFRASTRUCTURE + ".copilot.ApplicationPortFactory",
-                INFRASTRUCTURE + ".copilot.ReviewContextFactory",
-                INFRASTRUCTURE + ".copilot.ReviewOrchestratorFactory"));
+        // Micronaut @Factory / @Singleton classes form the composition root: binding a port to its
+        // implementation necessarily names that implementation, and this is the one place in the
+        // system where that is legitimate.
+        //
+        // Note for ADR-0006 D3 — relocating these to the composition root package would retire the
+        // exemptions, but only `ApplicationPortFactory` is actually a Micronaut `@Factory`; the
+        // other two carry config-mapping logic and an inbound-port implementation, which D1 forbids
+        // the root from holding. See t16.1's artifact before acting on D3.
+        Set<String> compositionRoot = Set.of(
+            INFRASTRUCTURE + ".copilot.ApplicationPortFactory",
+            INFRASTRUCTURE + ".copilot.ReviewContextFactory",
+            INFRASTRUCTURE + ".copilot.ReviewOrchestratorFactory");
+
+        Predicate<String> reachesApplicationOffPort =
+            dep -> dep.startsWith(APPLICATION) && !dep.startsWith(APPLICATION_PORT_OUTBOUND);
+
+        // Narrowed from `application.port` to `application.port.outbound` in t16.1.
+        //
+        // The wider form passed vacuously for the two defects ADR-0006 recorded as deviations #1
+        // and #2: `infrastructure.auth.GitHubTokenResolver` implemented the *inbound*
+        // `ResolveTokenPort`, and `infrastructure.copilot.SkillExecutor` implemented the *inbound*
+        // `ExecuteSkillPort` — shadowing `application.skill.ExecuteSkillUseCase`, which the DI
+        // container therefore never instantiated. Both were direction inversions that this rule was
+        // supposed to catch and could not, because `application.port.inbound` sits underneath
+        // `application.port`. Narrowing the prefix made both fail mechanically; they were then
+        // fixed, not exempted.
+        assertNoViolations("Rule 4 (infrastructure -> application.port.outbound only)",
+            classesIn(INFRASTRUCTURE),
+            reachesApplicationOffPort,
+            withGeneratedBeanDefinitions(compositionRoot, reachesApplicationOffPort));
     }
 
     @Test
@@ -344,6 +369,85 @@ class LayerDependencyRulesTest {
     // ------------------------------------------------------------------------------------------
     // Rule assertion helper
     // ------------------------------------------------------------------------------------------
+
+    /// Expands a set of exempt, hand-written classes to include the Micronaut bean-definition
+    /// classes generated *from* them — `$ApplicationPortFactory$ExecuteSkillPort5$Definition` and
+    /// friends.
+    ///
+    /// Narrowing Rule 4 to `application.port.outbound` brought these into scope for the first time:
+    /// a factory method returning an inbound port produces a `$…$Definition` naming that port, so
+    /// the generated mirror violates the rule for exactly the reason its source class is exempt.
+    /// Listing them by hand is possible but hostile — the numeric infix is the factory method's
+    /// declaration index, so inserting a method silently renames several of them.
+    ///
+    /// This is **not** the blanket "skip anything containing `$`" exclusion that an earlier revision
+    /// used and that Rule 3's comment warns about. Two conditions must both hold, and together they
+    /// make the expansion provably non-loosening:
+    ///
+    /// 1. the generated class's declaring source class is itself already exempt, and
+    /// 2. its forbidden dependencies are a **subset** of the source's forbidden dependencies.
+    ///
+    /// So a generated class can only ever inherit an exemption that a human already justified for
+    /// the code it was generated from. A generated class whose source is *not* exempt still fails
+    /// the rule — which is what caught `$GitHubTokenResolver$Definition` alongside
+    /// `GitHubTokenResolver` in t16.1 — and a generated class that somehow acquired a dependency its
+    /// source does not have also still fails.
+    private static Set<String> withGeneratedBeanDefinitions(Set<String> exemptSources,
+                                                             Predicate<String> forbidden) {
+        Set<String> expanded = new TreeSet<>(exemptSources);
+        Set<String> derived = new TreeSet<>();
+
+        for (String candidate : dependencies.keySet()) {
+            String declaring = declaringClassOfGenerated(candidate);
+            if (declaring == null || !exemptSources.contains(declaring)) {
+                continue;
+            }
+            Set<String> candidateDeps = forbiddenDepsOf(candidate, forbidden);
+            // Only classes that actually violate may be exempted: `assertNoViolations` requires the
+            // exemption set to equal the violator set exactly, so listing a clean class would
+            // register as a stale exemption and fail the build.
+            if (candidateDeps.isEmpty()) {
+                continue;
+            }
+            if (forbiddenDepsOf(declaring, forbidden).containsAll(candidateDeps)) {
+                expanded.add(candidate);
+                derived.add(candidate.substring(candidate.lastIndexOf('.') + 1));
+            }
+        }
+
+        if (!derived.isEmpty()) {
+            System.out.printf("[arch] Rule 4: %d generated bean definition(s) inherit a "
+                + "composition-root exemption: %s%n", derived.size(), String.join(", ", derived));
+        }
+        return Set.copyOf(expanded);
+    }
+
+    /// Maps a Micronaut-generated class to the class it was generated from, or `null` when the name
+    /// is not of that shape. `a.b.$Foo$Definition` and `a.b.$Foo$Bar5$Definition` both map to
+    /// `a.b.Foo`.
+    private static String declaringClassOfGenerated(String fqn) {
+        int lastDot = fqn.lastIndexOf('.');
+        String simpleName = lastDot < 0 ? fqn : fqn.substring(lastDot + 1);
+        if (!simpleName.startsWith("$")) {
+            return null;
+        }
+        int end = simpleName.indexOf('$', 1);
+        if (end < 0) {
+            return null;
+        }
+        String declaringSimpleName = simpleName.substring(1, end);
+        return lastDot < 0 ? declaringSimpleName : fqn.substring(0, lastDot + 1) + declaringSimpleName;
+    }
+
+    private static Set<String> forbiddenDepsOf(String owner, Predicate<String> forbidden) {
+        Set<String> forbiddenDeps = new TreeSet<>();
+        for (String dep : dependencies.getOrDefault(owner, Set.of())) {
+            if (!dep.equals(owner) && forbidden.test(dep)) {
+                forbiddenDeps.add(dep);
+            }
+        }
+        return forbiddenDeps;
+    }
 
     /// Asserts that no class in `subjects` references a type matching `forbidden`, other than the
     /// classes named in `expectedViolators`.

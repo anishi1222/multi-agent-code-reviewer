@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 ///
 /// Key change from brownfield: {@code toMcpServerSpec()} returns {@link McpServerSpec}
 /// (a domain DTO) instead of SDK {@code McpHttpServerConfig}.
-/// The infrastructure adapter ({@code SkillExecutor}, {@code ReviewSessionConfigFactory})
+/// The infrastructure adapter ({@code ReviewSessionConfigFactory})
 /// is responsible for converting {@link McpServerSpec} to the SDK type when needed.
 @ConfigurationProperties("reviewer.mcp.github")
 public record GithubMcpConfig(

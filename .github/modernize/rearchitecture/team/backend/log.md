@@ -212,3 +212,27 @@
 - **Thread-identity assertions matter.** Each propagation test asserts the child thread name differs from the caller's; without it the test would pass vacuously if the work were ever inlined onto the calling thread.
 - **Stale Javadoc is actively harmful.** Three classes carried comments stating MDC was *intentionally* removed. Left alone, the next agent would have read the regression as a decision and preserved it.
 - Learnings consumed: [backend/archunit-java27-bytecode-ceiling, backend/self-cleaning-architecture-exclusions, backend/sibling-package-cycle-granularity, backend/micronaut-factory-port-binding, devops/dual-jdk-build-activation, teamlead/domain-purity-rules, teamlead/layer-naming-conventions]
+
+## [t16.1] Narrowed Rule 4 to application.port.outbound, then fixed the two inversions it exposed
+- **Narrowing a rule is itself a negative control.** Pointing Rule 4 at `application.port.outbound`
+  made 11 violators appear where the ADR predicted 2. The extra 9 were not noise — they were the
+  generated `$…$Definition` mirrors plus the already-exempt composition-root classes. Running the
+  narrowing *before* the fixes is what made the defects fail mechanically instead of by review.
+- **Wrong assumption I corrected mid-task:** I expected to hard-code the generated-mirror FQNs as
+  exemptions. They are named by *method declaration index* (`$…$ExecuteSkillPort5$Definition`), so
+  any inserted factory method renames them and the exemption list rots silently. Switched to
+  deriving them (declaring class must already be exempt AND deps ⊆ source deps).
+- **Dead end:** the obvious fix for `ResolveTokenPort` — move it to `application.port.outbound` —
+  looks right until you check the *callers*. They are `presentation` classes, which may not reach
+  outbound. Worse, no rule enforces presentation's allowlist, so it would have been an invisible
+  violation. Always check both halves of a port-direction rule: implementer AND caller.
+- **ADR premises are not evidence.** Deviation #4 named three "Micronaut factory classes";
+  `grep -rln "@Factory"` returned exactly one. Verifying the premise found a *fifth* inversion
+  (`ReviewOrchestratorFactory` implements inbound `RunReviewPort`) that nobody had recorded.
+- **Static rules can't catch mis-selection.** `ExecuteSkillUseCase` was correct and simply not the
+  bean being handed out. No reference was wrong, so no bytecode rule could see it. Needed a
+  `@MicronautTest` asserting `isInstanceOf` on the resolved bean.
+- **Surefire counts two different numbers.** Console = actual `<testcase>` elements; XML root
+  `tests` attribute = declared. Three parameterized classes here differ by 9 total, which is the
+  whole "928 vs 937" mystery from earlier tasks. Use the console figure.
+- Learnings consumed: [architect/port-direction-by-implementer, backend/architecture-rule-negative-control, backend/self-cleaning-architecture-exclusions, architect/matrix-row-requires-enforcement-rule]

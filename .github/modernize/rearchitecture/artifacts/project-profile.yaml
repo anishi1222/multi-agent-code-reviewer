@@ -93,8 +93,8 @@ progress_sync:
   completed_phases: 9
   total_modules: 11
   completed_modules: 0
-  total_tasks: 29
-  completed_tasks: 20
-  total_commits: 547
+  total_tasks: 30
+  completed_tasks: 21
+  total_commits: 549
   build_verified: true  # compile-only verified at t7; full verify pending t13
   test_verified: true

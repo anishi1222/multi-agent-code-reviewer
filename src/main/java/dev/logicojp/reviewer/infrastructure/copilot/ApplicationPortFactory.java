@@ -1,10 +1,13 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
 import dev.logicojp.reviewer.application.agent.LoadAgentUseCase;
+import dev.logicojp.reviewer.application.auth.ResolveTokenUseCase;
 import dev.logicojp.reviewer.application.port.inbound.ExecuteSkillPort;
 import dev.logicojp.reviewer.application.port.inbound.GenerateReportPort;
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
+import dev.logicojp.reviewer.application.port.inbound.ResolveTokenPort;
 import dev.logicojp.reviewer.application.port.inbound.RunDiagnosticsPort;
+import dev.logicojp.reviewer.application.port.outbound.AcquireGitHubTokenPort;
 import dev.logicojp.reviewer.application.port.outbound.ManageCopilotClientPort;
 import dev.logicojp.reviewer.application.port.outbound.RunCopilotSessionPort;
 import dev.logicojp.reviewer.application.port.outbound.WriteReportPort;
@@ -13,6 +16,7 @@ import dev.logicojp.reviewer.application.port.outbound.LoadTemplatePort;
 import dev.logicojp.reviewer.application.report.GenerateReportUseCase;
 import dev.logicojp.reviewer.application.report.SummaryGenerator.SummaryGenerationConfig;
 import dev.logicojp.reviewer.application.review.RunDiagnosticsUseCase;
+import dev.logicojp.reviewer.application.skill.ExecuteSkillUseCase;
 import dev.logicojp.reviewer.domain.agent.ReviewSystemPromptFormatter;
 import dev.logicojp.reviewer.infrastructure.config.AgentPathConfig;
 import dev.logicojp.reviewer.infrastructure.config.ExecutionConfig;
@@ -110,16 +114,20 @@ public class ApplicationPortFactory {
         );
     }
 
-    /// Provides {@link ExecuteSkillPort} backed by {@link SkillExecutor}.
+    /// Provides {@link ExecuteSkillPort} backed by {@link ExecuteSkillUseCase}.
+    ///
+    /// The use case is skill-registry agnostic: lookup and listing arrive as a function and a
+    /// supplier, so the application layer never names {@code infrastructure.parsing.SkillRegistry}.
+    /// Same lambda-injection shape as {@link #loadAgentPort}.
     @Singleton
     ExecuteSkillPort executeSkillPort(RunCopilotSessionPort runCopilotSession,
                                        SkillRegistry skillRegistry,
                                        ModelConfig modelConfig) {
-        return new SkillExecutor(
+        return new ExecuteSkillUseCase(
             runCopilotSession,
-            skillRegistry,
-            modelConfig.defaultModel(),
-            List.of()
+            skillRegistry::get,
+            skillRegistry::getAll,
+            modelConfig.defaultModel()
         );
     }
 
@@ -138,5 +146,22 @@ public class ApplicationPortFactory {
             summaryConfig.excerptNormalizationMultiplier()
         );
         return new GenerateReportUseCase(writer, templates, aiSummary, config);
+    }
+
+    /// Provides {@link ResolveTokenPort} backed by {@link ResolveTokenUseCase}.
+    ///
+    /// The precedence policy lives in the use case; {@link AcquireGitHubTokenPort} supplies only
+    /// the mechanisms. The fallback switch is configuration, so it is read here — in the
+    /// composition root — and handed to the use case as a plain value, exactly as
+    /// {@code defaultModel} is for {@link #executeSkillPort}.
+    ///
+    /// **Keep this method last.** Micronaut names each generated bean definition after the
+    /// method's declaration index (`…$ResolveTokenPort7$Definition`), and
+    /// {@code LayerDependencyRulesTest} Rule 4 derives its exemptions from those names. Inserting
+    /// a method above this one renumbers every definition that follows it.
+    @Singleton
+    ResolveTokenPort resolveTokenPort(AcquireGitHubTokenPort tokenSource,
+                                       ExecutionConfig executionConfig) {
+        return new ResolveTokenUseCase(tokenSource, executionConfig.isGhAuthFallbackEnabled());
     }
 }

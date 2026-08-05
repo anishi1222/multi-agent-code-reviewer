@@ -524,3 +524,41 @@ L62 の `AgentConfigLoader` に渡る時点で**型から出自が消えてい�
 
 **この run で 6 例目の同一パターン**（[systemic] ADR 参照）— ただし今回は制御でもテストでもなく **型** の層で発生した。
 制御が空虚（t12/t13.1/t16/t18）でも未検証（t14）でもなく、**制御が必要な情報を受け取れない**形。
+
+---
+
+## 2026-08-05T09:20Z — from backend (t16.1), routed by coordinator
+
+### ADR-0006 deviations #1, #2, #3 are CLOSED — Status column needs updating
+
+Coordinator independently verified all three in source at working tree:
+
+| Deviation | Closure evidence (verified, not report-only) |
+|---|---|
+| #1 `ResolveTokenPort` inversion | `application/auth/ResolveTokenUseCase.java:26 implements ResolveTokenPort`; `infrastructure/auth/GitHubTokenResolver.java:24 implements AcquireGitHubTokenPort` (outbound only). New outbound port `application/port/outbound/AcquireGitHubTokenPort.java` exists. |
+| #2 `ExecuteSkillPort` double-implementation | `ApplicationPortFactory:117,123` — `ExecuteSkillPort` now backed by `ExecuteSkillUseCase`. `infrastructure/copilot/SkillExecutor.java` **deleted** along with its test. |
+| #3 Rule 4 over-permissive | `LayerDependencyRulesTest:79` `APPLICATION_PORT_OUTBOUND = BASE + ".application.port.outbound"`, applied at `:216`. The `.application.port` prefix that permitted `infrastructure → application.port.inbound` is gone. |
+
+945 tests, 0 failures, BUILD SUCCESS. Reconciles to t14's 937 as −2 +5 +5.
+
+### Two items now need YOUR decision (both are t16.2 scope, not backend's)
+
+**(a) ADR-0006 D3's premise is factually wrong.** D3 names three "Micronaut factory classes" to relocate into the composition root, but `grep -rln "@Factory"` returns **only** `ApplicationPortFactory`. `ReviewContextFactory` is a plain class holding config-mapping logic; `ReviewOrchestratorFactory` is a `@Singleton` implementing the inbound `RunReviewPort`. Executing D3 as written would move **business logic and an inbound-port implementation** into the composition root — contradicting D1's own "wiring only / no business decisions" constraint.
+
+**(b) A fifth, unrecorded direction inversion exists.** `infrastructure.copilot.ReviewOrchestratorFactory` implements the **inbound** `RunReviewPort` — structurally identical to closed deviation #1, but on the review path (the highest-risk path in the app). It is currently masked by a composition-root exemption in Rule 4.
+
+Backend's recommendation, which the coordinator endorses: **record (b) as ADR-0006 deviation #8 and fix it as a real refactor**, rather than letting D3's file-move conceal it. Backend deliberately did **not** implement deviation #4 for exactly this reason — following it would have hidden a live defect behind a green build. That judgement is why t16.1 passes rather than being marked incomplete.
+
+### Coordinator note on the systemic pattern
+
+This is the **seventh instance** of the run's standing pattern, and the second at the *scope-of-application* layer: Rule 4's composition-root exemption is a carve-out whose blast radius is invisible at the call site. Narrowing Rule 4 (t16.1's first act) is what made #1 and #2 fail mechanically instead of by review — and the same narrowing is what left #8 visible only because the exemption list is now the *only* thing hiding it. Consistent with the standing rule in `decisions.md`: **assert the scope, not just the outcome.**
+
+Do not act on D3 as written. Rule the premise first.
+
+### Also on your desk for t17
+
+- `presentation/CliSecurityAudit` retains a direct `org.slf4j.MDC` import — **deliberate** per ADR-0006, not a Rule 5b violation. Pre-warned so certification does not re-flag it.
+- ADR-0006 D4 is recorded **PARTIAL**: `domain` (4 files) and `application` (10 files) still use `java.util.logging`.
+- `ApplicationPortFactory` method **order is now load-bearing** — Micronaut names generated bean definitions by declaration index (`…$ResolveTokenPort7$Definition`). Append-only; documented in-method by backend. Rule 4's generated-bean exemptions are **derived**, not hard-coded, so they will not silently rot.
+
+---

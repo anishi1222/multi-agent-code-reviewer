@@ -4,9 +4,13 @@ import java.util.Optional;
 
 /// Inbound port: resolve a GitHub personal access token from a raw input string.
 ///
-/// Implementer: {@code infrastructure.auth.GitHubTokenResolver}
+/// Implementer: {@code application.auth.ResolveTokenUseCase}
 /// Callers:     {@code presentation.ReviewTargetResolver},
 ///              {@code presentation.SkillExecutionPreparation}
+///
+/// The use case owns the precedence policy below; the mechanisms sit behind the outbound port
+/// {@code application.port.outbound.AcquireGitHubTokenPort}, implemented by
+/// {@code infrastructure.auth.GitHubTokenResolver}.
 ///
 /// Token sources (in order):
 /// <ol>
