@@ -5,6 +5,8 @@
 > 責務分担を明確にしたLayered architectureで再構築して。
 
 **Project started**: 2026-08-05T02:07:48Z
+
+**Pull request opened**: 2026-08-05T23:47Z — `anishi1222-layered-architecture-rebuild` -> `main`, 37 commits, 567 files (+26,101/-16,361). Opened at the user's request as a checkpoint on the verified-green tree (945 tests, BUILD SUCCESS), **not** at pipeline completion: the security gate (t18) is still `failed[findings]`, and t16.2 / t17 / t18.2 / t19 / t14.1 / t20-t22 remain. Open items are disclosed in the PR body, including the two coordinator-verified **pre-existing** build defects (non-executable jar, `pom-native.xml` does not compile at HEAD) so they are not misread as regressions from this change.
 **Run**: 6F90BA68-0FFD-486B-B11A-0094E573B3B3
 **Baseline commit**: fb2e795c569a56021e5ff680b3c8682dae9165ee
 **Classification**: brownfield-rewrite / grouping=none / deep_planning=true
