@@ -60,15 +60,15 @@ public final class SummaryGenerator {
     ) {}
 
     // Template key constants — must match what LoadTemplatePort.loadRaw() serves
-    static final String TEMPLATE_SUMMARY_USER_PROMPT    = "summary/user-prompt";
-    static final String TEMPLATE_SUMMARY_RESULT_ENTRY   = "summary/result-entry";
-    static final String TEMPLATE_SUMMARY_RESULT_ERROR   = "summary/result-error-entry";
-    static final String TEMPLATE_FALLBACK               = "summary/fallback";
-    static final String TEMPLATE_FALLBACK_AGENT_ROW     = "summary/fallback-agent-row";
-    static final String TEMPLATE_FALLBACK_AGENT_SUCCESS = "summary/fallback-agent-success";
-    static final String TEMPLATE_FALLBACK_AGENT_FAILURE = "summary/fallback-agent-failure";
-    static final String TEMPLATE_EXECUTIVE_SUMMARY      = "summary/executive";
-    static final String TEMPLATE_REPORT_LINK_ENTRY      = "report/link-entry";
+    static final String TEMPLATE_SUMMARY_USER_PROMPT    = "summary-prompt.md";
+    static final String TEMPLATE_SUMMARY_RESULT_ENTRY   = "summary-result-entry.md";
+    static final String TEMPLATE_SUMMARY_RESULT_ERROR   = "summary-result-error-entry.md";
+    static final String TEMPLATE_FALLBACK               = "fallback-summary.md";
+    static final String TEMPLATE_FALLBACK_AGENT_ROW     = "fallback-agent-row.md";
+    static final String TEMPLATE_FALLBACK_AGENT_SUCCESS = "fallback-agent-success.md";
+    static final String TEMPLATE_FALLBACK_AGENT_FAILURE = "fallback-agent-failure.md";
+    static final String TEMPLATE_EXECUTIVE_SUMMARY      = "executive-summary.md";
+    static final String TEMPLATE_REPORT_LINK_ENTRY      = "report-link-entry.md";
 
     public SummaryGenerator(LoadTemplatePort templates,
                              GenerateAiSummaryPort aiSummary,

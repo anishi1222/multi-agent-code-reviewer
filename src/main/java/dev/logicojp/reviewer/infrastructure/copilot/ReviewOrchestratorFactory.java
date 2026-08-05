@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
+import dev.logicojp.reviewer.application.port.inbound.ReviewRequest;
 import dev.logicojp.reviewer.application.port.inbound.RunReviewPort;
 import dev.logicojp.reviewer.application.review.OrchestratorConfig;
 import dev.logicojp.reviewer.application.review.ReviewOrchestrator;
@@ -14,6 +15,9 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dev.logicojp.reviewer.domain.report.ReviewResult;
+
+import java.util.List;
 import java.util.Objects;
 
 /// CRITICAL DI wiring point — assembles all infrastructure adapters and creates
@@ -31,7 +35,7 @@ import java.util.Objects;
 ///   RunRubberDuckSessionPort ← {@link RubberDuckDialogueExecutor}
 /// </pre>
 @Singleton
-public class ReviewOrchestratorFactory {
+public class ReviewOrchestratorFactory implements RunReviewPort {
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewOrchestratorFactory.class);
 
@@ -113,5 +117,20 @@ public class ReviewOrchestratorFactory {
                                            String outputConstraints) {
         return new ReviewContextFactory(executionConfig, modelConfig, rubberDuckConfig)
             .buildOrchestratorConfig(githubToken, invocationTimestamp, reasoningEffort, outputConstraints);
+    }
+
+    /// {@inheritDoc}
+    ///
+    /// Implements {@link RunReviewPort}: translates a {@link ReviewRequest} (presentation DTO)
+    /// into an {@link OrchestratorConfig} and delegates to {@link ReviewOrchestrator#execute(ReviewRequest)}.
+    @Override
+    public List<ReviewResult> execute(ReviewRequest request) {
+        OrchestratorConfig config = buildConfig(
+            request.githubToken(),
+            request.invocationTimestamp(),
+            request.reasoningEffort(),
+            null
+        );
+        return create(config).execute(request);
     }
 }

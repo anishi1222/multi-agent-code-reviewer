@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.infrastructure.file;
 import dev.logicojp.reviewer.application.port.outbound.CollectLocalSourcePort;
 import dev.logicojp.reviewer.domain.review.LocalFileCandidate;
 import dev.logicojp.reviewer.domain.review.LocalFileSelectionConfig;
+import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +18,7 @@ import java.util.List;
 /// Collects source files from a local directory for code review,
 /// walking the directory tree and filtering for source files.
 ///
-/// No DI annotations — instantiated by the factory in infrastructure.copilot.
+@Singleton
 public class LocalFileProvider implements CollectLocalSourcePort {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalFileProvider.class);

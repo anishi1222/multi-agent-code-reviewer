@@ -8,6 +8,7 @@ import com.github.copilot.rpc.SystemMessageConfig;
 import dev.logicojp.reviewer.application.port.outbound.McpServerSpec;
 import dev.logicojp.reviewer.application.port.outbound.SessionRequest;
 import dev.logicojp.reviewer.infrastructure.config.ModelConfig;
+import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 /// Builds SDK {@link SessionConfig} from a domain {@link SessionRequest}.
 ///
 /// Converts {@code McpServerSpec} domain DTOs to SDK {@code McpHttpServerConfig}.
+@Singleton
 final class ReviewSessionConfigFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewSessionConfigFactory.class);

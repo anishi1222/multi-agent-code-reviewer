@@ -1,0 +1,68 @@
+package dev.logicojp.reviewer.presentation;
+
+import dev.logicojp.reviewer.application.port.inbound.ResolveTokenPort;
+import dev.logicojp.reviewer.domain.review.ReviewTarget;
+import io.micronaut.core.annotation.Nullable;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+@Singleton
+public class ReviewTargetResolver {
+
+    public record TargetAndToken(ReviewTarget target, @Nullable String resolvedToken) {
+        @Override
+        public String toString() {
+            return "TargetAndToken{target=%s, resolvedToken=***}".formatted(target);
+        }
+    }
+
+    private final ResolveTokenPort tokenResolver;
+
+    @Inject
+    public ReviewTargetResolver(ResolveTokenPort tokenResolver) {
+        this.tokenResolver = tokenResolver;
+    }
+
+    public TargetAndToken resolve(ReviewTargetSelection targetSelection, @Nullable String githubToken) {
+        return switch (targetSelection) {
+            case ReviewTargetSelection.Repository(String repository) ->
+                resolveRepositoryTarget(repository, githubToken);
+            case ReviewTargetSelection.LocalDirectory(Path localDir) ->
+                resolveLocalTarget(localDir);
+        };
+    }
+
+    private TargetAndToken resolveRepositoryTarget(String repository, @Nullable String githubToken) {
+        String resolvedToken = requireRepositoryToken(githubToken);
+        return new TargetAndToken(ReviewTarget.gitHub(repository), resolvedToken);
+    }
+
+    private String requireRepositoryToken(@Nullable String githubToken) {
+        String resolvedToken = tokenResolver.resolve(githubToken).orElse(null);
+        if (resolvedToken == null || resolvedToken.isBlank()) {
+            throw new CliValidationException(
+                "GitHub token is required for repository review. Use --token - (stdin). "
+                    + "Optional fallback to `gh auth token` requires enabling reviewer.execution.gh-auth-fallback-enabled=true.",
+                true);
+        }
+        return resolvedToken;
+    }
+
+    private TargetAndToken resolveLocalTarget(Path localDir) {
+        Path localPath = localDir.toAbsolutePath();
+        validateLocalDirectory(localPath);
+        return new TargetAndToken(ReviewTarget.local(localPath), null);
+    }
+
+    private void validateLocalDirectory(Path localPath) {
+        if (!Files.exists(localPath)) {
+            throw new CliValidationException("Local directory does not exist: " + localPath, true);
+        }
+        if (!Files.isDirectory(localPath)) {
+            throw new CliValidationException("Path is not a directory: " + localPath, true);
+        }
+    }
+}

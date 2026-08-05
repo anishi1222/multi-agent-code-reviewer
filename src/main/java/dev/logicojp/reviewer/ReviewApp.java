@@ -1,10 +1,10 @@
 package dev.logicojp.reviewer;
 
-import dev.logicojp.reviewer.cli.CliCommand;
-import dev.logicojp.reviewer.cli.CliParsing;
-import dev.logicojp.reviewer.cli.CliOutput;
-import dev.logicojp.reviewer.cli.CliUsage;
-import dev.logicojp.reviewer.cli.ExitCodes;
+import dev.logicojp.reviewer.presentation.CliCommand;
+import dev.logicojp.reviewer.presentation.CliParsing;
+import dev.logicojp.reviewer.presentation.CliOutput;
+import dev.logicojp.reviewer.presentation.CliUsage;
+import dev.logicojp.reviewer.presentation.ExitCodes;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.Environment;
 import jakarta.inject.Inject;

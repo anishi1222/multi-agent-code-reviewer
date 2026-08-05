@@ -12,7 +12,7 @@ import java.util.Optional;
 
 /// Resolves a GitHub token from CLI options, environment, or gh auth.
 @Singleton
-public final class GitHubTokenResolver {
+public final class GitHubTokenResolver implements dev.logicojp.reviewer.application.port.inbound.ResolveTokenPort {
 
     private static final Logger logger = LoggerFactory.getLogger(GitHubTokenResolver.class);
     private static final long DEFAULT_TIMEOUT_SECONDS = 10;

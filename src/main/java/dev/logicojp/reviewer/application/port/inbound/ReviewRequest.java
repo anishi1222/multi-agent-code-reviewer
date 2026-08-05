@@ -15,13 +15,18 @@ import java.util.Objects;
 /// before construction and stored as opaque strings — they are not exposed as
 /// typed domain objects.
 ///
-/// @param target           what to review (GitHub repo or local dir)
-/// @param agents           agents to run (in order)
-/// @param parallelism      max concurrent agent executions (≥ 1)
-/// @param outputDir        directory for report output
-/// @param focusAreas       optional focus area hints (may be empty)
-/// @param localFileConfig  configuration for local file selection (null if not a local review)
-/// @param rubberDuck       whether to run rubber-duck dialogue after review
+/// @param target             what to review (GitHub repo or local dir)
+/// @param agents             agents to run (in order)
+/// @param parallelism        max concurrent agent executions (≥ 1)
+/// @param outputDir          directory for report output
+/// @param focusAreas         optional focus area hints (may be empty)
+/// @param localFileConfig    configuration for local file selection (null if not a local review)
+/// @param rubberDuck         whether to run rubber-duck dialogue after review
+/// @param githubToken        resolved GitHub token (empty string for local reviews)
+/// @param invocationTimestamp timestamp string set at CLI startup for session correlation
+/// @param reasoningEffort    optional reasoning effort override (null = use configured default)
+/// @param noSharedSession    whether to disable shared Copilot sessions
+/// @param noSummary          whether to skip AI executive summary generation
 public record ReviewRequest(
     ReviewTarget target,
     List<AgentConfig> agents,
@@ -29,7 +34,12 @@ public record ReviewRequest(
     Path outputDir,
     List<String> focusAreas,
     LocalFileSelectionConfig localFileConfig,
-    boolean rubberDuck
+    boolean rubberDuck,
+    String githubToken,
+    String invocationTimestamp,
+    String reasoningEffort,
+    boolean noSharedSession,
+    boolean noSummary
 ) {
 
     public ReviewRequest {
@@ -44,10 +54,13 @@ public record ReviewRequest(
         Objects.requireNonNull(outputDir, "outputDir must not be null");
         agents = List.copyOf(agents);
         focusAreas = focusAreas != null ? List.copyOf(focusAreas) : List.of();
+        githubToken = githubToken != null ? githubToken : "";
+        invocationTimestamp = invocationTimestamp != null ? invocationTimestamp : "unknown";
     }
 
     /// Creates a minimal review request with default options.
     public static ReviewRequest of(ReviewTarget target, List<AgentConfig> agents, Path outputDir) {
-        return new ReviewRequest(target, agents, 1, outputDir, List.of(), null, false);
+        return new ReviewRequest(target, agents, 1, outputDir, List.of(), null, false,
+            "", "unknown", null, false, false);
     }
 }

@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.infrastructure.copilot;
 
 import dev.logicojp.reviewer.domain.resilience.CopilotCliException;
 import dev.logicojp.reviewer.infrastructure.auth.RetryPolicyUtils;
+import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,6 +14,7 @@ import java.util.concurrent.TimeoutException;
 /// Phase 3a verification confirmed that {@code setAutoRestart(true)} is currently a
 /// no-op in SDK {@code 0.3.0-java.2}. We therefore retain three start attempts to
 /// absorb transient initial-connect failures.
+@Singleton
 public class CopilotClientStarter {
 
     @FunctionalInterface

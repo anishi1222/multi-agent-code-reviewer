@@ -1,6 +1,6 @@
 package dev.logicojp.reviewer;
 
-import dev.logicojp.reviewer.cli.CliCommand;
+import dev.logicojp.reviewer.presentation.CliCommand;
 import dev.logicojp.reviewer.config.ExecutionConfig;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.Environment;
