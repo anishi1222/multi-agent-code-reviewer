@@ -6,6 +6,7 @@ import dev.logicojp.reviewer.application.port.outbound.CollectLocalSourcePort;
 import dev.logicojp.reviewer.application.port.outbound.LoadTemplatePort;
 import dev.logicojp.reviewer.application.port.outbound.ManageCopilotClientPort;
 import dev.logicojp.reviewer.application.port.outbound.McpServerSpec;
+import dev.logicojp.reviewer.application.port.outbound.PropagateCorrelationPort;
 import dev.logicojp.reviewer.application.port.outbound.RunCopilotSessionPort;
 import dev.logicojp.reviewer.application.port.outbound.RunRubberDuckSessionPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
@@ -43,6 +44,7 @@ public final class ReviewOrchestrator implements RunReviewPort {
     private final LoadTemplatePort loadTemplate;
     private final RunCopilotSessionPort runCopilotSession;
     private final RunRubberDuckSessionPort runRubberDuckSession;
+    private final PropagateCorrelationPort propagateCorrelation;
     private final OrchestratorConfig config;
 
     public ReviewOrchestrator(ManageCopilotClientPort manageCopilotClient,
@@ -50,12 +52,14 @@ public final class ReviewOrchestrator implements RunReviewPort {
                                LoadTemplatePort loadTemplate,
                                RunCopilotSessionPort runCopilotSession,
                                RunRubberDuckSessionPort runRubberDuckSession,
+                               PropagateCorrelationPort propagateCorrelation,
                                OrchestratorConfig config) {
         this.manageCopilotClient = manageCopilotClient;
         this.collectLocalSource = collectLocalSource;
         this.loadTemplate = loadTemplate;
         this.runCopilotSession = runCopilotSession;
         this.runRubberDuckSession = runRubberDuckSession;
+        this.propagateCorrelation = propagateCorrelation;
         this.config = config;
     }
 
@@ -119,8 +123,9 @@ public final class ReviewOrchestrator implements RunReviewPort {
             resources.agentExecutionExecutor(),
             passRunner,
             rubberDuckRunner,
-            metrics);
-        var modeRunner = new ReviewExecutionModeRunner(config, pipeline, metrics);
+            metrics,
+            propagateCorrelation);
+        var modeRunner = new ReviewExecutionModeRunner(config, pipeline, metrics, propagateCorrelation);
 
         try {
             return modeRunner.executeStructured(
@@ -153,8 +158,9 @@ public final class ReviewOrchestrator implements RunReviewPort {
             resources.agentExecutionExecutor(),
             passRunner,
             rubberDuckRunner,
-            metrics);
-        var modeRunner = new ReviewExecutionModeRunner(config, pipeline, metrics);
+            metrics,
+            propagateCorrelation);
+        var modeRunner = new ReviewExecutionModeRunner(config, pipeline, metrics, propagateCorrelation);
 
         int rounds = config.rubberDuckRounds();
         long perAgentTimeout = config.agentTimeoutMinutes() * (config.maxRetries() + 1L);

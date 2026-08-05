@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.auth;
 
+import dev.logicojp.reviewer.shared.RetryPolicyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

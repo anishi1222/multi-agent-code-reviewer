@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.application.review;
 
+import dev.logicojp.reviewer.application.port.outbound.PropagateCorrelationPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.report.ReviewResult;
 import dev.logicojp.reviewer.domain.review.ReviewContext;
@@ -20,8 +21,10 @@ import java.util.logging.Logger;
 /// - Replaced old {@code agent.ReviewContext} → {@code domain.review.ReviewContext}.
 /// - Replaced old {@code report.core.ReviewResult} → {@code domain.report.ReviewResult}.
 /// - Replaced old {@code config.ExecutionConfig} → config values from {@code OrchestratorConfig}.
-/// - Replaced SLF4J with {@code java.util.logging}.
-/// - Removed MDC context propagation (implementation-detail of old logging approach).
+/// - Replaced SLF4J with {@code java.util.logging} for this class's own diagnostics.
+/// - MDC context propagation is restored through {@link PropagateCorrelationPort}: forked
+///   subtasks run on fresh virtual threads whose correlation context starts empty, so the
+///   parent context is captured and re-installed inside each fork.
 public final class ReviewExecutionModeRunner {
 
     private record ExecutionParams(int reviewPasses, int agentCount, long timeoutMinutes, long perAgentTimeoutMinutes) {}
@@ -42,13 +45,16 @@ public final class ReviewExecutionModeRunner {
     private final OrchestratorConfig config;
     private final ReviewResultPipeline reviewResultPipeline;
     private final OrchestratorMetrics metrics;
+    private final PropagateCorrelationPort propagateCorrelation;
 
     public ReviewExecutionModeRunner(OrchestratorConfig config,
                                      ReviewResultPipeline reviewResultPipeline,
-                                     OrchestratorMetrics metrics) {
+                                     OrchestratorMetrics metrics,
+                                     PropagateCorrelationPort propagateCorrelation) {
         this.config = config;
         this.reviewResultPipeline = reviewResultPipeline;
         this.metrics = metrics;
+        this.propagateCorrelation = propagateCorrelation;
     }
 
     public List<ReviewResult> executeStructured(Map<String, AgentConfig> agents,
@@ -92,15 +98,18 @@ public final class ReviewExecutionModeRunner {
                                                          AgentPassExecutor agentPassExecutor) {
         long perAgentTimeoutMinutes = config.agentTimeoutMinutes() * (config.maxRetries() + 1L);
         List<SubtaskWithConfig> tasks = new ArrayList<>();
+        // Captured on the orchestrator thread: each fork below runs on a fresh virtual
+        // thread that would otherwise start with an empty correlation context.
+        Map<String, String> parentContext = propagateCorrelation.captureContext();
 
         try (var scope = StructuredConcurrencyUtils.<List<ReviewResult>>openAwaitAllScope()) {
             for (Map.Entry<String, AgentConfig> entry : agents.entrySet()) {
                 AgentConfig agentConfig = entry.getValue();
-                var subtask = scope.fork(() -> {
+                var subtask = scope.fork(() -> propagateCorrelation.callWithContext(parentContext, () -> {
                     logAgentStart(agentConfig, reviewPasses);
                     return agentPassExecutor.execute(
                         agentConfig, target, sharedContext, reviewPasses, perAgentTimeoutMinutes);
-                });
+                }));
                 tasks.add(new SubtaskWithConfig(subtask, agentConfig));
             }
             joinStructuredWithTimeout(scope, tasks, orchestratorTimeoutMinutes);

@@ -1,9 +1,13 @@
 package dev.logicojp.reviewer.application.review;
 
+import dev.logicojp.reviewer.application.port.outbound.PropagateCorrelationPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.report.ReviewResult;
 import dev.logicojp.reviewer.domain.review.ReviewContext;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
+import dev.logicojp.reviewer.infrastructure.logging.MdcCorrelationAdapter;
+import dev.logicojp.reviewer.shared.ExecutionCorrelation;
+import org.slf4j.MDC;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +21,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ReviewExecutionModeRunner")
 class ReviewExecutionModeRunnerTest {
+
+    /// The real MDC-backed adapter, so the propagation test asserts against the actual
+    /// logging context rather than a stub that could pass while production loses the ID.
+    private static final PropagateCorrelationPort CORRELATION = new MdcCorrelationAdapter();
 
     private AgentConfig agent(String name) {
         return new AgentConfig(name, name, "model", "system", "instruction", null, List.of(), List.of());
@@ -32,7 +40,7 @@ class ReviewExecutionModeRunnerTest {
             .build();
         var pipeline = new ReviewResultPipeline();
         var metrics = new OrchestratorMetrics();
-        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
+        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics, CORRELATION);
         var results = runner.executeStructured(
             Map.of("security", agent("security")),
             ReviewTarget.gitHub("owner/repo"),
@@ -74,7 +82,7 @@ class ReviewExecutionModeRunnerTest {
             .build();
         var pipeline = new ReviewResultPipeline();
         var metrics = new OrchestratorMetrics();
-        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
+        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics, CORRELATION);
 
         var results = runner.executeStructured(
             Map.of("security", agent("security")),
@@ -109,7 +117,7 @@ class ReviewExecutionModeRunnerTest {
             .build();
         var pipeline = new ReviewResultPipeline();
         var metrics = new OrchestratorMetrics();
-        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics);
+        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics, CORRELATION);
         var sharedContext = ReviewContext.builder()
             .reasoningEffort("high")
             .outputConstraints("strict output")
@@ -141,4 +149,56 @@ class ReviewExecutionModeRunnerTest {
     }
 
     // removed: propagatesExecutionIdToStructuredTasks because MDC execution-id propagation no longer exists; ReviewExecutionModeRunner explicitly removed MDC handling.
+
+    @Test
+    @DisplayName("structuredタスクへexecution IDのMDCが伝播される")
+    void propagatesExecutionIdToStructuredTasks() {
+        // Regression guard: StructuredTaskScope.fork() runs each subtask on a fresh virtual
+        // thread with an empty MDC. Without PropagateCorrelationPort the captured value is null.
+        var config = OrchestratorConfig.builder()
+            .reviewPasses(1)
+            .agentTimeoutMinutes(2)
+            .maxRetries(1)
+            .build();
+        var pipeline = new ReviewResultPipeline();
+        var metrics = new OrchestratorMetrics();
+        var runner = new ReviewExecutionModeRunner(config, pipeline, metrics, CORRELATION);
+        AtomicReference<String> capturedExecutionId = new AtomicReference<>();
+        AtomicReference<String> forkThread = new AtomicReference<>();
+        String callerThread = Thread.currentThread().getName();
+
+        try {
+            CORRELATION.bindExecutionId("exec-structured");
+
+            var results = runner.executeStructured(
+                Map.of("security", agent("security")),
+                ReviewTarget.gitHub("owner/repo"),
+                context(),
+                (agentConfig, target, context, reviewPasses, perAgentTimeoutMinutes) -> {
+                    forkThread.set(Thread.currentThread().getName());
+                    capturedExecutionId.set(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY));
+                    return List.of(ReviewResult.builder()
+                        .agentConfig(agentConfig)
+                        .repository(target.displayName())
+                        .content("ok")
+                        .success(true)
+                        .timestamp(Instant.now())
+                        .build());
+                }
+            );
+
+            assertThat(results).hasSize(1);
+            assertThat(capturedExecutionId.get())
+                .as("execution ID must be visible inside the forked subtask")
+                .isEqualTo("exec-structured");
+            assertThat(forkThread.get())
+                .as("the assertion above is only meaningful if the subtask really ran on another thread")
+                .isNotEqualTo(callerThread);
+            assertThat(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY))
+                .as("the orchestrator thread's own context must survive the forks")
+                .isEqualTo("exec-structured");
+        } finally {
+            CORRELATION.clearExecutionId();
+        }
+    }
 }

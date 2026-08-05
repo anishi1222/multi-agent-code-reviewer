@@ -4,13 +4,15 @@ import java.util.UUID;
 
 /// Utilities for review execution correlation IDs.
 ///
-/// The MDC-propagation methods from the original {@code util.ExecutionCorrelation}
-/// are intentionally omitted here: SLF4J MDC is an infrastructure concern.
-/// Those methods remain in the original class until the logging infrastructure
-/// layer (T010) takes them over.
+/// This class is deliberately JDK-only. The MDC propagation helpers that the original
+/// {@code util.ExecutionCorrelation} carried now live behind
+/// {@code application.port.outbound.PropagateCorrelationPort}, implemented by
+/// {@code infrastructure.logging.MdcCorrelationAdapter} — SLF4J MDC is an
+/// infrastructure concern and must not leak into `shared` or `application`.
 ///
-/// Only the pieces that are genuinely shared (UUID generation, the key constant,
-/// and the {@link CheckedSupplier} contract) are present in this layer.
+/// What remains here is what is genuinely shared and framework-free: the MDC key
+/// constant (a naming contract, not an SLF4J dependency), UUID generation, and the
+/// {@link CheckedSupplier} contract used by the port's call wrappers.
 public final class ExecutionCorrelation {
 
     /// MDC key used to propagate execution IDs across log statements.

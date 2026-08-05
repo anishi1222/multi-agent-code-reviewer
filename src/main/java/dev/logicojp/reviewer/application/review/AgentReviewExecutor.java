@@ -1,12 +1,14 @@
 package dev.logicojp.reviewer.application.review;
 
 import dev.logicojp.reviewer.application.port.outbound.McpServerSpec;
+import dev.logicojp.reviewer.application.port.outbound.PropagateCorrelationPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.report.ReviewResult;
 import dev.logicojp.reviewer.domain.review.ReviewContext;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -21,7 +23,10 @@ import java.util.logging.Logger;
 /// Purified from {@code orchestrator.AgentReviewExecutor}:
 /// - Replaced {@code AgentReviewerFactory} with {@link ReviewPassRunner}
 ///   + {@link RubberDuckDialogueRunner}.
-/// - Replaced SLF4J with {@code java.util.logging}.
+/// - Replaced SLF4J with {@code java.util.logging} for this class's own diagnostics.
+/// - Correlation-context propagation is no longer done with a direct MDC call; it goes
+///   through {@link PropagateCorrelationPort} so the capability survives without the
+///   application layer importing a logging framework.
 /// - Removed {@code TemplateService} reference (template loading moved to {@code RubberDuckDialogueRunner}).
 public final class AgentReviewExecutor {
 
@@ -32,17 +37,20 @@ public final class AgentReviewExecutor {
     private final ReviewPassRunner reviewPassRunner;
     private final RubberDuckDialogueRunner rubberDuckDialogueRunner;
     private final OrchestratorMetrics metrics;
+    private final PropagateCorrelationPort propagateCorrelation;
 
     public AgentReviewExecutor(Semaphore concurrencyLimit,
                                ExecutorService agentExecutionExecutor,
                                ReviewPassRunner reviewPassRunner,
                                RubberDuckDialogueRunner rubberDuckDialogueRunner,
-                               OrchestratorMetrics metrics) {
+                               OrchestratorMetrics metrics,
+                               PropagateCorrelationPort propagateCorrelation) {
         this.concurrencyLimit = concurrencyLimit;
         this.agentExecutionExecutor = agentExecutionExecutor;
         this.reviewPassRunner = reviewPassRunner;
         this.rubberDuckDialogueRunner = rubberDuckDialogueRunner;
         this.metrics = metrics;
+        this.propagateCorrelation = propagateCorrelation;
     }
 
     /// Executes standard review passes for an agent with concurrency permit and metrics.
@@ -118,8 +126,12 @@ public final class AgentReviewExecutor {
                                                          long perAgentTimeoutMinutes,
                                                          List<McpServerSpec> mcpServers,
                                                          int maxRetries) {
+        // Capture on the caller's thread; the submitted task runs on a pool thread whose
+        // correlation context would otherwise start empty (see PropagateCorrelationPort).
+        Map<String, String> parentContext = propagateCorrelation.captureContext();
         Future<List<ReviewResult>> future = agentExecutionExecutor.submit(
-            () -> reviewPassRunner.run(config, target, context, reviewPasses, mcpServers, maxRetries));
+            () -> propagateCorrelation.callWithContext(parentContext,
+                () -> reviewPassRunner.run(config, target, context, reviewPasses, mcpServers, maxRetries)));
         return getWithTimeout(future, config, target, reviewPasses, perAgentTimeoutMinutes);
     }
 
@@ -129,8 +141,10 @@ public final class AgentReviewExecutor {
                                                              int rubberDuckRounds,
                                                              long perAgentTimeoutMinutes,
                                                              List<McpServerSpec> mcpServers) {
+        Map<String, String> parentContext = propagateCorrelation.captureContext();
         Future<List<ReviewResult>> future = agentExecutionExecutor.submit(
-            () -> rubberDuckDialogueRunner.run(config, target, context, rubberDuckRounds, mcpServers));
+            () -> propagateCorrelation.callWithContext(parentContext,
+                () -> rubberDuckDialogueRunner.run(config, target, context, rubberDuckRounds, mcpServers)));
         return getWithTimeout(future, config, target, 1, perAgentTimeoutMinutes);
     }
 

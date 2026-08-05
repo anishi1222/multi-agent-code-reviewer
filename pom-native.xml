@@ -35,8 +35,10 @@
         <copilot.sdk.version>1.0.6</copilot.sdk.version>
         <dependency.check.version>12.2.2</dependency.check.version>
 
-        <!-- Security: override BOM-managed tools.jackson.core:jackson-databind from vulnerable 3.1.3 to 3.1.4 -->
-        <jackson.version>3.1.4</jackson.version>
+        <!-- Security: override BOM-managed tools.jackson.core:jackson-databind to a patched version.
+             3.1.3 and 3.1.4 are both vulnerable to CVE-2026-59889 / GHSA-5gvw-p9qm-jgwh
+             (@JsonView bypassed for @JsonUnwrapped container properties); fixed in 3.1.5. -->
+        <jackson.version>3.1.5</jackson.version>
         <!-- Security: centralize BOM-managed com.fasterxml.jackson:* 2.x transitives; see osv-scanner.toml for GHSA-5jmj-h7xm-6q6v. -->
         <jackson2.version>2.22.1</jackson2.version>
         <!-- Override BOM-managed logback version to prevent convergence conflict:

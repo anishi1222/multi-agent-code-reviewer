@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.presentation.command;
 
 import dev.logicojp.reviewer.application.port.inbound.ReviewRequest;
+import dev.logicojp.reviewer.application.port.outbound.PropagateCorrelationPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
 import dev.logicojp.reviewer.presentation.CliCommand;
@@ -20,7 +21,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -30,8 +30,12 @@ import java.util.Optional;
 
 /// Main review command that executes the multi-agent code review.
 ///
-/// Injection dependencies are all from {@code presentation.*}, {@code application.port.inbound},
-/// {@code domain.*}, {@code shared.*}, or brownfield {@code util.*} — no {@code infrastructure.*}.
+/// Injection dependencies are all from {@code presentation.*}, {@code application.port.*},
+/// {@code domain.*}, or {@code shared.*} — no {@code infrastructure.*}.
+///
+/// The execution-correlation binding goes through {@link PropagateCorrelationPort} rather
+/// than a direct MDC call, so presentation stays independent of the logging backend and the
+/// same abstraction carries the ID into the application layer's worker threads.
 @Singleton
 public class ReviewCommand implements CliCommand {
 
@@ -45,6 +49,7 @@ public class ReviewCommand implements CliCommand {
     private final ReviewRunRequestFactory runRequestFactory;
     private final ReviewExecutionCoordinator executionCoordinator;
     private final CliOutput output;
+    private final PropagateCorrelationPort propagateCorrelation;
 
     @Inject
     public ReviewCommand(
@@ -55,7 +60,8 @@ public class ReviewCommand implements CliCommand {
             ReviewPreparationService preparationService,
             ReviewRunRequestFactory runRequestFactory,
             ReviewExecutionCoordinator executionCoordinator,
-            CliOutput output) {
+            CliOutput output,
+            PropagateCorrelationPort propagateCorrelation) {
         this.modelConfigResolver = modelConfigResolver;
         this.optionsParser = optionsParser;
         this.targetResolver = targetResolver;
@@ -64,6 +70,7 @@ public class ReviewCommand implements CliCommand {
         this.runRequestFactory = runRequestFactory;
         this.executionCoordinator = executionCoordinator;
         this.output = output;
+        this.propagateCorrelation = propagateCorrelation;
     }
 
     @Override
@@ -89,11 +96,11 @@ public class ReviewCommand implements CliCommand {
 
     private int executeInternal(ReviewOptions options) {
         String executionId = ExecutionCorrelation.generateExecutionId();
-        MDC.put(ExecutionCorrelation.EXECUTION_ID_MDC_KEY, executionId);
+        propagateCorrelation.bindExecutionId(executionId);
         try {
             return runWithCorrelation(options, executionId);
         } finally {
-            MDC.remove(ExecutionCorrelation.EXECUTION_ID_MDC_KEY);
+            propagateCorrelation.clearExecutionId();
         }
     }
 

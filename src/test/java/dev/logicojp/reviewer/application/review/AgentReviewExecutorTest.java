@@ -1,11 +1,17 @@
 package dev.logicojp.reviewer.application.review;
 
+import dev.logicojp.reviewer.domain.agent.DialogueRound;
 import dev.logicojp.reviewer.application.port.outbound.LoadTemplatePort;
+import dev.logicojp.reviewer.application.port.outbound.PropagateCorrelationPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.report.ReviewResult;
 import dev.logicojp.reviewer.domain.report.ReviewResultFactory;
 import dev.logicojp.reviewer.domain.review.ReviewContext;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
+import dev.logicojp.reviewer.infrastructure.logging.MdcCorrelationAdapter;
+import dev.logicojp.reviewer.shared.ExecutionCorrelation;
+import org.slf4j.MDC;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.AbstractExecutorService;
@@ -22,6 +28,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("AgentReviewExecutor")
 class AgentReviewExecutorTest {
 
+    /// The real MDC-backed adapter, so the propagation test asserts against the actual
+    /// logging context rather than a stub that could pass while production loses the ID.
+    private static final PropagateCorrelationPort CORRELATION = new MdcCorrelationAdapter();
+
     private AgentConfig agentConfig() {
         return new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
     }
@@ -36,7 +46,8 @@ class AgentReviewExecutorTest {
                                          java.util.concurrent.ExecutorService executorService,
                                          ReviewPassRunner reviewPassRunner,
                                          OrchestratorMetrics metrics) {
-        return new AgentReviewExecutor(semaphore, executorService, reviewPassRunner, unusedRubberDuckRunner(), metrics);
+        return new AgentReviewExecutor(semaphore, executorService, reviewPassRunner,
+            unusedRubberDuckRunner(), metrics, CORRELATION);
     }
 
     private ReviewPassRunner reviewPassRunnerReturning(String content) {
@@ -245,6 +256,104 @@ class AgentReviewExecutorTest {
         @Override
         public List<ReviewResult> get(long timeout, TimeUnit unit) throws InterruptedException {
             throw new InterruptedException("forced interruption");
+        }
+    }
+
+    @Test
+    @DisplayName("agent実行スレッドへexecution IDのMDCが伝播される")
+    void propagatesExecutionIdToAgentExecutionThread() {
+        // Regression guard: the submitted task runs on a *different* virtual thread, whose MDC
+        // starts empty. Without PropagateCorrelationPort the captured value is null and every
+        // agent log line loses the execution ID that ties it to the CLI invocation.
+        var executorService = Executors.newVirtualThreadPerTaskExecutor();
+        AtomicReference<String> capturedExecutionId = new AtomicReference<>();
+        AtomicReference<String> callerThread = new AtomicReference<>();
+        AtomicReference<String> workerThread = new AtomicReference<>();
+        try {
+            var executor = executor(
+                new Semaphore(1),
+                executorService,
+                new ReviewPassRunner(_ -> {
+                    workerThread.set(Thread.currentThread().getName());
+                    capturedExecutionId.set(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY));
+                    return "ok";
+                }, new ReviewResultFactory()),
+                new OrchestratorMetrics()
+            );
+
+            CORRELATION.bindExecutionId("exec-agent");
+            callerThread.set(Thread.currentThread().getName());
+
+            var results = executor.executeAgentPassesSafely(
+                agentConfig(),
+                ReviewTarget.gitHub("owner/repo"),
+                context(),
+                1,
+                1,
+                List.of(),
+                0
+            );
+
+            assertThat(results).hasSize(1);
+            assertThat(results.getFirst().success()).isTrue();
+            assertThat(capturedExecutionId.get())
+                .as("execution ID must be visible inside the agent execution thread")
+                .isEqualTo("exec-agent");
+            assertThat(workerThread.get())
+                .as("the assertion above is only meaningful if the work really crossed a thread boundary")
+                .isNotEqualTo(callerThread.get());
+            assertThat(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY))
+                .as("the caller's own context must be untouched")
+                .isEqualTo("exec-agent");
+        } finally {
+            CORRELATION.clearExecutionId();
+            executorService.close();
+        }
+    }
+
+    @Test
+    @DisplayName("rubber-duck実行スレッドへもexecution IDのMDCが伝播される")
+    void propagatesExecutionIdToRubberDuckThread() {
+        var executorService = Executors.newVirtualThreadPerTaskExecutor();
+        AtomicReference<String> capturedExecutionId = new AtomicReference<>();
+        try {
+            var executor = new AgentReviewExecutor(
+                new Semaphore(1),
+                executorService,
+                reviewPassRunnerReturning("unused"),
+                new RubberDuckDialogueRunner(_ -> {
+                    capturedExecutionId.set(MDC.get(ExecutionCorrelation.EXECUTION_ID_MDC_KEY));
+                    return List.of(new DialogueRound(1, "model-a", "a", "model-b", "b"));
+                }, new LoadTemplatePort() {
+                    @Override
+                    public String render(String templateKey, Map<String, String> placeholders) {
+                        return "";
+                    }
+
+                    @Override
+                    public String loadRaw(String templateKey) {
+                        return "";
+                    }
+                }, new ReviewResultFactory()),
+                new OrchestratorMetrics(),
+                CORRELATION
+            );
+
+            CORRELATION.bindExecutionId("exec-duck");
+            var results = executor.executeRubberDuckSafely(
+                agentConfig(),
+                ReviewTarget.gitHub("owner/repo"),
+                context(),
+                1,
+                1,
+                List.of()
+            );
+
+            assertThat(results).isNotEmpty();
+            assertThat(capturedExecutionId.get()).isEqualTo("exec-duck");
+        } finally {
+            CORRELATION.clearExecutionId();
+            executorService.close();
         }
     }
 }

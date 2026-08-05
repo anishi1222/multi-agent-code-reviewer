@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.application.review;
 
+import dev.logicojp.reviewer.infrastructure.logging.MdcCorrelationAdapter;
 import dev.logicojp.reviewer.application.port.inbound.ReviewRequest;
 import dev.logicojp.reviewer.application.port.outbound.CollectLocalSourcePort;
 import dev.logicojp.reviewer.application.port.outbound.LoadTemplatePort;
@@ -58,6 +59,7 @@ class ReviewOrchestratorTest {
             unusedTemplates(),
             copilotSession,
             unusedRubberDuckSession(),
+            new MdcCorrelationAdapter(),
             OrchestratorConfig.builder()
                 .githubToken("secret-token")
                 .reviewPasses(1)

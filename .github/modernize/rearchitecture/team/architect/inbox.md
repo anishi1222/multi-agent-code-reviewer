@@ -377,3 +377,59 @@ than letting it leak into an unrelated one.
 **(d) Duplicate utilities.** `ConfigDefaults` and `RetryPolicyUtils` exist in both `shared` and
 `infrastructure.*`. Backend removes the duplicates in t13.1/G3; ADR-0006 should state which layer
 owns shared defaults so this does not regrow.
+
+---
+## 2026-08-05T10:45Z — from backend/t13.1 via coordinator — ✅ PASS, all three gaps closed
+
+Verified in source, each independently:
+
+- **G1** — Rule 5b exists at `LayerDependencyRulesTest:217-243`. Subject `classesIn(PRESENTATION)`,
+  predicate `dep.startsWith(INFRASTRUCTURE)`, **exemption set empty**. That is the strongest form the
+  rule can take, and the inline comment correctly explains why the gap survived this long: Rule 3
+  proves presentation is a *leaf* (nothing depends on it) and Rule 5 *names* both adapter layers but
+  constrains `application`. Two rules mentioning the right words while guarding neither direction is
+  exactly how an unenforced edge hides. Negative control captured at line 357. `@Test` count 9 → 10.
+- **G2** — `application/port/outbound/PropagateCorrelationPort` +
+  `infrastructure/logging/MdcCorrelationAdapter` exist; `AgentReviewExecutor` injects the port.
+  Restored coverage confirmed present: `MdcCorrelationAdapterTest` and — the important one —
+  `PropagateCorrelationPortWiringTest`. Keeping JUL for the class's own diagnostics while routing
+  correlation through the port is the right split, and the Javadoc says so.
+- **G3** — only `shared/RetryPolicyUtils` and `shared/ConfigDefaults` remain; both infrastructure
+  duplicates are gone, 12 call sites repointed.
+
+892 passed / 0 failed across 148 classes, Rule 0 `parsed 333/333`, all 8 rules green.
+
+### The `RetryPolicyUtils` near-miss is the most valuable thing in this task
+
+The two copies had **disjoint** transient-error marker lists, and only one carried the
+`InterruptedException` guard and null-safety. "Delete the duplicate" — the obvious reading of G3, and
+what I would have accepted without complaint — would have silently changed retry behaviour in
+production with a green build. Catching that the duplicates had *diverged* rather than assuming
+duplicates are identical is the difference between consolidation and data loss. Merging the union
+and documenting the widening is the correct call.
+
+Because it **is** a widening, more error types are now treated as transient. I have routed this to
+tester so t14/t20 confirm the wider set cannot turn a genuine hard failure into a retry loop.
+
+### Your two downstream notes are accepted and routed
+
+`presentation/CliSecurityAudit`'s direct `org.slf4j.MDC` import is flagged to architect so t17 does
+not read it as a Rule 5b inconsistency. Your "every outbound port needs a DI wiring test" note is
+recorded — it generalises the exact silent-disappearance failure mode that cost us G2, and it now
+applies to any port added from here on.
+
+---
+## 2026-08-05T10:45Z — from coordinator (t13.1) — TWO ITEMS FOR t17
+
+**1. Do not read `presentation/CliSecurityAudit` as a Rule 5b violation.** It retains a direct
+`org.slf4j.MDC` import. Per ADR-0006 this is deliberate: the audit fields are same-thread scoped and
+never cross a thread boundary, so they do not need the correlation port. Rule 5b constrains
+`presentation -> infrastructure` and SLF4J is neither. Flagging pre-emptively so it does not consume
+review cycles as a false positive.
+
+**2. The adapter matrix is now closed — please verify that claim rather than accept it.** Rules 4, 5
+and 5b together assert: infrastructure reaches application only through ports; application reaches
+neither adapter; presentation does not reach infrastructure. t13 proved by counterexample that a
+missing rule is invisible until someone reads the design matrix against the rule set line by line.
+Do exactly that against `t4-architect.md` §2 — **every row of the matrix must map to a rule**, and a
+row with no rule is itself a defect regardless of whether violations exist today.

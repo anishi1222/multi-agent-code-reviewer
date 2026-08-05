@@ -15,3 +15,37 @@
 - Cycle 9 (finding⇄formatter) resolved by making FindingsExtractor produce data only, Formatter consumes — no mutual ref
 - domain.report is largest sub-package (~18 files) — may benefit from further sub-splitting during implementation
 - DoctorCommand needs new RunDiagnosticsPort to avoid SDK types in presentation
+
+## [t16] Authored ADR 0006 and re-synced all user-facing docs to the implemented layering
+
+- **Docs must be verified against source, not against upstream artifacts.** t4's port catalog
+  (§2.1) still showed a superseded single-result `RunReviewPort`, and the README mermaid named
+  8 classes that no longer exist. Had I documented from the artifacts alone, ADR-0006 would have
+  shipped a wrong contract. Every structural claim in this task was re-derived from HEAD.
+- **The port-direction defect was found while writing docs, not while reviewing code.** Trying to
+  draw the layer diagram forced the question "who implements this port?" — which immediately
+  exposed that `ResolveTokenPort` and `ExecuteSkillPort` are inbound-by-package but
+  infrastructure-by-implementer. Diagramming is a cheap defect detector; the arrow has to point
+  somewhere and a misclassified port makes it point the wrong way.
+- **`ExecuteSkillUseCase` is dead code**: `ApplicationPortFactory` binds the inbound port straight
+  to `infrastructure.copilot.SkillExecutor`, so the application-layer use case has zero references
+  outside its own Javadoc. A grep for "who calls this" is worth running on every use-case class
+  before certifying a layer.
+- **Wrong initial assumption: "move `ReviewApp` down into `presentation`."** It looked like the
+  obvious fix for the Rule 3 exemption. It is not — it trades a documented exemption for a
+  *stricter* `presentation → infrastructure` violation, and breaks `mainClass` in 4 places, 2
+  GraalVM `reachability-metadata.json` files, and the `d.l.reviewer.ReviewApp` logger name that
+  `docs/runbook.md` asserts verbatim. Moving the 3 `@Factory` classes *up* into the root instead
+  reduces net exemptions and left runbook.md needing no edit at all. Check what asserts a class's
+  FQN before proposing to move it.
+- **Technique worth reusing:** for line-for-line parallel EN/JA docs, splice with a throwaway
+  script that (a) asserts its anchor lines before touching anything and (b) replaces regions
+  bottom-up so earlier offsets stay valid. First run failed its own assertion because
+  `'│   └── util/'.strip()` does not start with `└──` — box-drawing glyphs are not whitespace.
+  Assert on `in`, not `startswith`, when tree glyphs are involved.
+- **Historical ADRs: cross-link, don't rewrite.** 0001/0002/0003 are still Accepted; only their
+  file paths moved. Adding one "still valid, location moved" line to each References section
+  preserves the decision history while removing dead paths.
+- Learnings consumed: [architect/port-catalog-design, architect/domain-subpackage-organization,
+  architect/shared-domain-types-cycle-roots, architect/template-service-cycle-hub,
+  teamlead/layer-naming-conventions, teamlead/domain-purity-rules]

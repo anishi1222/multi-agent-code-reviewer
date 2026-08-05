@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.infrastructure.copilot;
 
 import dev.logicojp.reviewer.application.port.inbound.ReviewRequest;
 import dev.logicojp.reviewer.application.port.inbound.RunReviewPort;
+import dev.logicojp.reviewer.application.port.outbound.PropagateCorrelationPort;
 import dev.logicojp.reviewer.application.review.OrchestratorConfig;
 import dev.logicojp.reviewer.application.review.ReviewOrchestrator;
 import dev.logicojp.reviewer.domain.agent.ReviewSystemPromptFormatter;
@@ -25,7 +26,7 @@ import java.util.Objects;
 ///
 /// Holds all Micronaut-injectable infrastructure singletons and wires them into
 /// pure-application / pure-domain objects. This is the only place in the codebase
-/// where all five port implementations come together.
+/// where all port implementations come together.
 ///
 /// <pre>
 ///   ManageCopilotClientPort  ← {@link CopilotService}
@@ -33,6 +34,7 @@ import java.util.Objects;
 ///   LoadTemplatePort         ← {@link TemplateRepository}
 ///   RunCopilotSessionPort    ← {@link ReviewSessionExecutor}
 ///   RunRubberDuckSessionPort ← {@link RubberDuckDialogueExecutor}
+///   PropagateCorrelationPort ← {@code MdcCorrelationAdapter}
 /// </pre>
 @Singleton
 public class ReviewOrchestratorFactory implements RunReviewPort {
@@ -46,6 +48,7 @@ public class ReviewOrchestratorFactory implements RunReviewPort {
     private final ModelConfig modelConfig;
     private final RubberDuckConfig rubberDuckConfig;
     private final ReviewSessionConfigFactory sessionConfigFactory;
+    private final PropagateCorrelationPort propagateCorrelation;
 
     @Inject
     public ReviewOrchestratorFactory(CopilotService copilotService,
@@ -54,7 +57,8 @@ public class ReviewOrchestratorFactory implements RunReviewPort {
                                       ExecutionConfig executionConfig,
                                       ModelConfig modelConfig,
                                       RubberDuckConfig rubberDuckConfig,
-                                      ReviewSessionConfigFactory sessionConfigFactory) {
+                                      ReviewSessionConfigFactory sessionConfigFactory,
+                                      PropagateCorrelationPort propagateCorrelation) {
         this.copilotService = Objects.requireNonNull(copilotService);
         this.localFileProvider = Objects.requireNonNull(localFileProvider);
         this.templateRepository = Objects.requireNonNull(templateRepository);
@@ -62,12 +66,13 @@ public class ReviewOrchestratorFactory implements RunReviewPort {
         this.modelConfig = Objects.requireNonNull(modelConfig);
         this.rubberDuckConfig = Objects.requireNonNull(rubberDuckConfig);
         this.sessionConfigFactory = Objects.requireNonNull(sessionConfigFactory);
+        this.propagateCorrelation = Objects.requireNonNull(propagateCorrelation);
     }
 
     /// Creates a fully-wired {@link RunReviewPort} for the given orchestrator configuration.
     ///
     /// @param config per-invocation parameters (token, timeout, passes, etc.)
-    /// @return {@link ReviewOrchestrator} with all five port implementations wired
+    /// @return {@link ReviewOrchestrator} with all port implementations wired
     public RunReviewPort create(OrchestratorConfig config) {
         Objects.requireNonNull(config, "config must not be null");
 
@@ -103,6 +108,7 @@ public class ReviewOrchestratorFactory implements RunReviewPort {
             templateRepository,
             sessionExecutor,
             rubberDuckExecutor,
+            propagateCorrelation,
             config
         );
     }

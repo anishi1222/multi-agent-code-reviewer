@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.presentation.command;
 
+import dev.logicojp.reviewer.infrastructure.logging.MdcCorrelationAdapter;
 import dev.logicojp.reviewer.application.port.inbound.GenerateReportPort;
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.application.port.inbound.ReportOutput;
@@ -136,7 +137,8 @@ class ReviewCommandTest {
             preparationService,
             runRequestFactory,
             executionCoordinator,
-            output
+            output,
+            new MdcCorrelationAdapter()
         );
     }
 

@@ -145,3 +145,57 @@ is precisely the responsibility-diffusion this rearchitecture exists to remove.
 ### Scope note
 
 `-Pnative` was correctly left out of t13; it belongs to t19 (devops) and is routed there.
+
+---
+## 2026-08-05T10:45Z — from backend/t13.1 via coordinator — ✅ PASS, all three gaps closed
+
+Verified in source, each independently:
+
+- **G1** — Rule 5b exists at `LayerDependencyRulesTest:217-243`. Subject `classesIn(PRESENTATION)`,
+  predicate `dep.startsWith(INFRASTRUCTURE)`, **exemption set empty**. That is the strongest form the
+  rule can take, and the inline comment correctly explains why the gap survived this long: Rule 3
+  proves presentation is a *leaf* (nothing depends on it) and Rule 5 *names* both adapter layers but
+  constrains `application`. Two rules mentioning the right words while guarding neither direction is
+  exactly how an unenforced edge hides. Negative control captured at line 357. `@Test` count 9 → 10.
+- **G2** — `application/port/outbound/PropagateCorrelationPort` +
+  `infrastructure/logging/MdcCorrelationAdapter` exist; `AgentReviewExecutor` injects the port.
+  Restored coverage confirmed present: `MdcCorrelationAdapterTest` and — the important one —
+  `PropagateCorrelationPortWiringTest`. Keeping JUL for the class's own diagnostics while routing
+  correlation through the port is the right split, and the Javadoc says so.
+- **G3** — only `shared/RetryPolicyUtils` and `shared/ConfigDefaults` remain; both infrastructure
+  duplicates are gone, 12 call sites repointed.
+
+892 passed / 0 failed across 148 classes, Rule 0 `parsed 333/333`, all 8 rules green.
+
+### The `RetryPolicyUtils` near-miss is the most valuable thing in this task
+
+The two copies had **disjoint** transient-error marker lists, and only one carried the
+`InterruptedException` guard and null-safety. "Delete the duplicate" — the obvious reading of G3, and
+what I would have accepted without complaint — would have silently changed retry behaviour in
+production with a green build. Catching that the duplicates had *diverged* rather than assuming
+duplicates are identical is the difference between consolidation and data loss. Merging the union
+and documenting the widening is the correct call.
+
+Because it **is** a widening, more error types are now treated as transient. I have routed this to
+tester so t14/t20 confirm the wider set cannot turn a genuine hard failure into a retry loop.
+
+### Your two downstream notes are accepted and routed
+
+`presentation/CliSecurityAudit`'s direct `org.slf4j.MDC` import is flagged to architect so t17 does
+not read it as a Rule 5b inconsistency. Your "every outbound port needs a DI wiring test" note is
+recorded — it generalises the exact silent-disappearance failure mode that cost us G2, and it now
+applies to any port added from here on.
+
+---
+## 2026-08-05T10:45Z — from coordinator (t13.1) — BEHAVIOUR WIDENING TO COVER IN t14
+
+`shared/RetryPolicyUtils` was consolidated from two copies whose transient-error marker lists were
+**disjoint**. The merge took the **union**, so the retry classifier now treats strictly more error
+types as transient than either original did. This is a deliberate, documented widening — not a bug —
+but it is a live behaviour change on the retry path.
+
+Please cover the risk it creates: a genuinely fatal error that one of the original copies would have
+surfaced immediately could now be retried. Confirm the wider marker set cannot convert a hard failure
+into a retry loop or mask an error the CLI should report. Also confirm the `InterruptedException`
+guard (present in only one original) still short-circuits correctly, since losing it would break
+cancellation on virtual threads.

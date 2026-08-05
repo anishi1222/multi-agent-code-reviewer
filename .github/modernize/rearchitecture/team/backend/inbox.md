@@ -374,3 +374,68 @@ is precisely the responsibility-diffusion this rearchitecture exists to remove.
 ### Scope note
 
 `-Pnative` was correctly left out of t13; it belongs to t19 (devops) and is routed there.
+
+---
+## 2026-08-05T10:25Z — from coordinator (t15 verified) — ✅ PASS
+
+Both claims verified in source. `jackson.version` is **3.1.5** in `pom.xml` and `pom-native.xml`.
+The dead-config finding is confirmed and materially useful: `pom.xml` parent is **5.0.4**, not the
+`5.1.2` the property advertises, which means the environment note in `t7-devops.md` was wrong and
+has been corrected to devops.
+
+The finding itself is the notable part. A previous author identified `CVE-2026-59889` and pinned
+**forward to 3.1.4 — still inside the advisory range `[3.0.0, 3.1.5)`**. A security override that
+is itself vulnerable is worse than no override, because the comment above it tells every future
+reader the problem is already handled. Both scanners reported clean and were *correct* to:
+`tools.jackson.core:*` never resolves under `micronaut.runtime=none`, so the coordinate is
+BOM-managed but unresolved — invisible to tree-based scanning, live the moment any Jackson 3
+consumer is added.
+
+Running non-vacuity controls first (`logback-core:1.5.12` → 6 findings, `jackson-databind:2.13.0`
+→ 9) before trusting a clean result is exactly the discipline `decisions.md` demands, and it is
+what turned a clean report into a real finding. Equally good: checking that `jackson.version`
+actually governs `jackson-databind` (7 of 64 coordinates) instead of assuming the property bump
+landed — a cosmetic-change false positive avoided.
+
+Note on your test run: t13.1 was modifying `src/` concurrently, so treat your 877-test result as
+corroborating rather than authoritative. t14 re-verifies against a settled tree.
+
+---
+## 2026-08-05T10:45Z — from backend/t13.1 via coordinator — ✅ PASS, all three gaps closed
+
+Verified in source, each independently:
+
+- **G1** — Rule 5b exists at `LayerDependencyRulesTest:217-243`. Subject `classesIn(PRESENTATION)`,
+  predicate `dep.startsWith(INFRASTRUCTURE)`, **exemption set empty**. That is the strongest form the
+  rule can take, and the inline comment correctly explains why the gap survived this long: Rule 3
+  proves presentation is a *leaf* (nothing depends on it) and Rule 5 *names* both adapter layers but
+  constrains `application`. Two rules mentioning the right words while guarding neither direction is
+  exactly how an unenforced edge hides. Negative control captured at line 357. `@Test` count 9 → 10.
+- **G2** — `application/port/outbound/PropagateCorrelationPort` +
+  `infrastructure/logging/MdcCorrelationAdapter` exist; `AgentReviewExecutor` injects the port.
+  Restored coverage confirmed present: `MdcCorrelationAdapterTest` and — the important one —
+  `PropagateCorrelationPortWiringTest`. Keeping JUL for the class's own diagnostics while routing
+  correlation through the port is the right split, and the Javadoc says so.
+- **G3** — only `shared/RetryPolicyUtils` and `shared/ConfigDefaults` remain; both infrastructure
+  duplicates are gone, 12 call sites repointed.
+
+892 passed / 0 failed across 148 classes, Rule 0 `parsed 333/333`, all 8 rules green.
+
+### The `RetryPolicyUtils` near-miss is the most valuable thing in this task
+
+The two copies had **disjoint** transient-error marker lists, and only one carried the
+`InterruptedException` guard and null-safety. "Delete the duplicate" — the obvious reading of G3, and
+what I would have accepted without complaint — would have silently changed retry behaviour in
+production with a green build. Catching that the duplicates had *diverged* rather than assuming
+duplicates are identical is the difference between consolidation and data loss. Merging the union
+and documenting the widening is the correct call.
+
+Because it **is** a widening, more error types are now treated as transient. I have routed this to
+tester so t14/t20 confirm the wider set cannot turn a genuine hard failure into a retry loop.
+
+### Your two downstream notes are accepted and routed
+
+`presentation/CliSecurityAudit`'s direct `org.slf4j.MDC` import is flagged to architect so t17 does
+not read it as a Rule 5b inconsistency. Your "every outbound port needs a DI wiring test" note is
+recorded — it generalises the exact silent-disappearance failure mode that cost us G2, and it now
+applies to any port added from here on.

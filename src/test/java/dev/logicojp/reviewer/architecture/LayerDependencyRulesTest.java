@@ -214,6 +214,34 @@ class LayerDependencyRulesTest {
             Set.of());
     }
 
+    @Test
+    @DisplayName("Rule 5b: presentation depends on no infrastructure")
+    void presentationDependsOnNoInfrastructure() {
+        // The `presentation ⊥ infrastructure` edge of t4 §2 had no rule at all until t13.1.
+        //
+        // It is genuinely independent of the rules around it, and the gap was easy to miss
+        // precisely because those rules *mention* both layers:
+        //   - Rule 3 proves presentation is a leaf — that nothing depends *on* presentation.
+        //     It says nothing about what presentation depends on.
+        //   - Rule 5 names both adapter layers, but constrains `application`, not presentation.
+        // So the two directions that the driving adapter must not take — into the driven
+        // adapter — were unguarded, and t13 found two live violations by hand rather than by
+        // build failure (they were fixed by extracting `shared.LogValueSanitizer` and
+        // `presentation.CliSecurityAudit`).
+        //
+        // Rules 4 + 5 + 5b together now close the adapter matrix: infrastructure may only
+        // reach application through ports, application may reach neither adapter, and
+        // presentation may not reach infrastructure. The CLI talks to the outside world only
+        // through inbound ports, so the DI container — not the driving adapter — chooses the
+        // implementations.
+        //
+        // The exemption set is empty and must stay that way. A presentation class that needs
+        // something from infrastructure needs a port instead.
+        assertNoViolations("Rule 5b (presentation ⊥ infrastructure)", classesIn(PRESENTATION),
+            dep -> dep.startsWith(INFRASTRUCTURE),
+            Set.of());
+    }
+
     // ------------------------------------------------------------------------------------------
     // Rule 6 — acyclicity, at two granularities
     // ------------------------------------------------------------------------------------------

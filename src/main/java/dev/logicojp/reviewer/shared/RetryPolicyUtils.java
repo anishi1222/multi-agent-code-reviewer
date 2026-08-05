@@ -34,14 +34,27 @@ public final class RetryPolicyUtils {
         }
     }
 
+    /// Determines whether a failure is a transient fault worth retrying.
+    ///
+    /// The marker list is the union of the two pre-consolidation copies of this helper
+    /// (`shared` and `infrastructure.auth`); dropping either set would silently change
+    /// retry behaviour for one group of callers.
     public static boolean isTransientException(Throwable throwable) {
         Throwable rootCause = unwrap(throwable);
 
+        if (rootCause == null) {
+            return false;
+        }
         if (rootCause instanceof TimeoutException) {
             return true;
         }
         if (rootCause instanceof IOException) {
             return true;
+        }
+        // An interrupt is a deliberate cancellation signal, never a transient fault —
+        // retrying would defeat the interruption.
+        if (rootCause instanceof InterruptedException) {
+            return false;
         }
 
         return isTransientMessage(rootCause.getMessage());
@@ -75,14 +88,20 @@ public final class RetryPolicyUtils {
         }
         String lower = message.toLowerCase(Locale.ROOT);
         return containsAny(lower,
+            // originally only in shared.RetryPolicyUtils
             "timeout",
             "temporarily",
             "rate limit",
             "too many requests",
             "429",
             "503",
+            "network",
+            // shared by both copies
             "connection reset",
-            "network"
+            // originally only in infrastructure.auth.RetryPolicyUtils
+            "unavailable",
+            "stream closed",
+            "broken pipe"
         );
     }
 

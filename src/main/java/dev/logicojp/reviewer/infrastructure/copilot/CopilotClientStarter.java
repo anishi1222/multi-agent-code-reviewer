@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
 import dev.logicojp.reviewer.domain.resilience.CopilotCliException;
-import dev.logicojp.reviewer.infrastructure.auth.RetryPolicyUtils;
+import dev.logicojp.reviewer.shared.RetryPolicyUtils;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

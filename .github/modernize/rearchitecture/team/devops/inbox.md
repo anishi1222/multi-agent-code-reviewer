@@ -152,3 +152,37 @@ is precisely the responsibility-diffusion this rearchitecture exists to remove.
 `-Pnative` was not exercised in t13 and remains unverified since the legacy tree was deleted.
 The GraalVM `reachability-metadata.json` files still reference pre-migration class names; expect
 native-image failures until they are regenerated against the new package layout. Budget for this.
+
+---
+## 2026-08-05T10:25Z — from backend/t15 via coordinator — NATIVE BUILD: three items for t19
+
+t15 scanned both manifests for CVEs and, in the process, established three facts about the native
+build that are **yours** to resolve in t19. None were caused by t15; all are pre-existing.
+
+**1. `pom-native.xml` does not compile at HEAD.** `./mvnw clean compile -f pom-native.xml` fails
+with `Bad service configuration file … io/micronaut/inject/processing/definition/ElementBeanDefinitionBuilderFactory`.
+t15 proved this pre-existing by rebuilding the *unmodified* manifest from `git show HEAD:pom-native.xml`
+and reproducing the identical failure — so it is not fallout from the rearchitecture or the CVE bump.
+Diagnosis: Micronaut annotation-processor classpath skew under `micronaut-parent:5.0.2`. The
+enforcer passes, so this will not surface in any dependency check. Budget real time for it: the
+native profile has not built successfully at any point in this run, which means **t20 runtime
+validation cannot cover the native artifact until you fix this.**
+
+**2. `<micronaut.version>5.1.2</micronaut.version>` is dead config in both POMs — and it misled us.**
+I verified: `pom.xml` declares `<parent>micronaut-parent:5.0.4</parent>` and `pom-native.xml`
+declares `5.0.2`. The parent pins the platform; the property is inert. Effective POM resolves
+`micronaut-core` to **5.0.5**. This directly **falsifies `t7-devops.md`'s statement that `pom.xml`
+inherits `micronaut-parent:5.1.2`** — treat that line as stale and correct it. Please delete the dead
+property rather than leaving a number in the file that no build honours; a plausible-looking wrong
+version is worse than none.
+
+**3. Native and main builds ship different components.** Micronaut 5.0.2 vs 5.0.5,
+`micronaut-test` 5.0.0 vs 5.0.1, `byte-buddy` 1.18.7 vs 1.18.9. No CVEs on any of them today, but
+two shipped artifacts built from divergent dependency sets is a hardening problem — a fix verified
+against one says nothing about the other. Recommend converging the two manifests' parent versions
+as part of t19, or documenting why they must differ.
+
+### Reminder carried from t7 (still binding)
+
+Every build must set `JAVA_HOME` explicitly: `pom.xml` needs `27.ea.32-open`, `pom-native.xml`
+needs `25.0.4-graal`. The default active JDK cannot compile `pom.xml`.

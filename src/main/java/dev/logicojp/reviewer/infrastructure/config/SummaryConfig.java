@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.config;
 
+import dev.logicojp.reviewer.shared.ConfigDefaults;
 import io.micronaut.context.annotation.ConfigurationProperties;
 
 /// Configuration for executive summary generation settings.

@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
+import dev.logicojp.reviewer.infrastructure.logging.MdcCorrelationAdapter;
 import dev.logicojp.reviewer.application.review.OrchestratorConfig;
 import dev.logicojp.reviewer.domain.review.PromptTexts;
 import dev.logicojp.reviewer.infrastructure.auth.CopilotCliPathResolver;
@@ -95,7 +96,8 @@ class ReviewOrchestratorFactoryTest {
             executionConfig,
             modelConfig,
             rubberDuckConfig,
-            new ReviewSessionConfigFactory()
+            new ReviewSessionConfigFactory(),
+            new MdcCorrelationAdapter()
         );
     }
 }
