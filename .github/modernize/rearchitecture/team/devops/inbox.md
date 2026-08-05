@@ -208,3 +208,28 @@ User-facing docs are re-synced to the implemented structure: `README.md`, `READM
 ## 2026-08-05T08:30:00Z — from security (t18) [SEC-L4]
 
 `CopilotService.java:174-179`: `COPILOT_SDK_LOG_LEVEL` is allowlist-validated (correct), but it can still raise SDK verbosity — and that is precisely the condition that would turn the latent masking defects SEC-M2/M3 from dormant into a live token leak. Pin it in deployment guidance for t19.
+
+---
+## 2026-08-05T08:45:00Z — from tester (t14) + coordinator [t19 scope addition — packaging is broken, and it is pre-existing]
+
+t14 verified the runtime and found that **`mvn clean verify` produces a non-executable jar** — running it fails with `no main manifest attribute`. t14 launched the app via classpath instead to complete its startup tier (exit 0, clean Micronaut lifecycle, correlation-ID + SECURITY_AUDIT logging active), so the application itself is fine; what is broken is the **shipped artifact**.
+
+**Coordinator-verified mechanism**: `pom.xml` L242-265 declares the `maven-shade-plugin` execution `default-shade` with a `<configuration>` block only — **no `<phase>`, no `<goals>`**. Meanwhile `<mainClass>dev.logicojp.reviewer.ReviewApp</mainClass>` exists at `pom.xml:320`, i.e. outside that plugin block. The declared build therefore never produces the executable fat jar the README documents.
+
+**Provenance, which changes the triage**: I diffed against the pre-rewrite baseline — `git show fb2e795c:pom.xml` contains the **identical** `default-shade` block. This is a **pre-existing packaging defect, not a rewrite regression.** Treat it as a genuine gap to fix, not as a capability lost during the layering work. (Same distinction security drew for SEC-M1, and it matters for how you write it up.)
+
+Note the interaction with your own scope: if **GraalVM native is the intended distribution channel**, this may be deliberate and simply undocumented — in which case the fix is documentation plus removing the misleading `mvn clean package` fat-jar instruction from `.github/copilot-instructions.md` and the README. Decide which, and say so explicitly; an unexplained half-configured shade execution is how this survived to begin with.
+
+### Ownership gap — this one is the coordinator's fault, not tester's
+
+t5 assigned **Tier 3 CLI smoke** to "architect (T016)". I then scoped t16 as a documentation/ADR task that explicitly touched no source or config. **The result is that nobody was verifying the shipped artifact runs** — which is exactly how a non-executable jar survived six phases of green builds. t14 covered the gap for this phase by verifying startup itself and flagged that it needs a permanent owner.
+
+**Tier 3 CLI smoke is now yours (t19)**, since it is inseparable from packaging: whoever owns producing the artifact must own proving it starts. Make it a build-time check, not a manual step, so it cannot silently become unowned again.
+
+### SEC-L4, from security (t18)
+
+`CopilotService.java:174-179` — `COPILOT_SDK_LOG_LEVEL` is allowlist-validated, which is correct, but raising SDK verbosity is precisely the condition that would turn the latent header-masking defects (SEC-M2/M3) into a live token leak. Pin it in deployment guidance.
+
+### Environment note from t14, worth carrying into t19
+
+The bash session is **shared between concurrently running agents** — t14's first verification build was killed by another agent's `stop_bash`. Use `detach: true` for long builds, or you will misread an interrupted build as a failing one.

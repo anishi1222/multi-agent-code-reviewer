@@ -523,3 +523,32 @@ Override both, and add tests — no existing test covers either accessor, which 
 SEC-H1 is the **fourth** instance on this project of a control that reads as enforced and enforces nothing: t12 (ArchUnit rules inspecting 107 of 687 classes), t13.1/G1 (an edge two rules named but neither constrained), t16 (Rule 4 scoped to `application.port` so direction inversions pass), and now this. In every case the code looked like the control was present.
 
 The unifying countermeasure is the one you already applied in t13.1: **a control without a captured negative control is not a control.** Apply it to everything you add here.
+
+---
+## 2026-08-05T08:45:00Z — from tester (t14) + coordinator [t18.2 scope amendment — READ BEFORE STARTING]
+
+t14 returned green: **937 passed / 0 failed / 0 errors / 0 skipped**, architecture byte-identical to the t13 baseline. The tree is now free, so your queue is **t16.1 first, then t18.2**.
+
+### ⚠️ Convergence between t14 and t18 that neither task could see alone
+
+This changes t18.2's scope, so read it before you start.
+
+- **t18 told you**: preserve the NFKC + homoglyph normalisation at `CustomInstructionSafetyValidator:122-143` — security assessed it as genuinely good, the one part of that class worth keeping.
+- **t14 now reports**: behavior **`INS-03` (control-char stripping / NFKC normalisation) has zero test coverage.**
+
+Put together, the file is: a denylist method, plus normalisation nobody tests, plus the caps and allowlist that SEC-H1 proved are dead. **There is no part of that class that is both live and verified.** So "preserve the NFKC code" is upgraded to **preserve it and pin it with tests** — otherwise t18.2 hardens a file whose only surviving defence has never been demonstrated to work.
+
+t14 adds two specifics worth having: `INS-01` specifies four languages but only EN/JA are tested (no KO/ZH), and `INS-02` omits **Cyrillic — the most common homoglyph alphabet**. If you are wiring `ALLOWED_CHAR_RANGE` into the live path under ADR-0007, those are the cases most likely to break real users and most likely to be the bypass.
+
+### Fifth instance of the standing pattern — now in the test tier
+
+t14's `TGT-07` finding: symlink-traversal defence **is** tested for CLI paths and skill files but **not** for source review targets — so, in t14's words, "it looks protected at a glance." That is the same shape as t12, t13.1/G1, t16/Rule 4 and SEC-H1, except the thing that reads as enforced is a *test*, not a control. The rule recorded in `decisions.md` — **a control without a captured negative control is not a control** — now demonstrably extends to coverage. Assume nothing in this area is verified because a nearby thing is.
+
+### Two low-severity items from t14, both yours
+
+- **`RetryPolicyUtils.java` (~L91)** — the comment annotates `"timeout"` as *"originally only in `shared.RetryPolicyUtils`"*, but `git show 5c767ef^` proves it existed in **both** pre-consolidation copies; it belongs in the shared-by-both group alongside `connection reset`. No behavioural impact, but t14's point is right: a wrong provenance comment is worse than none, because it will mislead the next audit of this consolidation. This is precisely the trap described in your own `duplicate-utility-consolidation-semantic-drift` learning.
+- **`RetryExecutor.waitRetryBackoff` (L122-129)** — re-asserts the interrupt flag and then **continues the loop** instead of breaking, while `CopilotClientStarter.retryWithBackoff` propagates correctly. Harmless at 3 attempts; becomes a user-visible "Ctrl-C doesn't stop it" if `maxRetries` is ever raised. t14 has pinned it with a test, so fixing it is safe and cheap.
+
+### Residual risk t14 characterised rather than asserted away
+
+The retry widening uses naive `String.contains`, so bare markers `429`/`503` can match line numbers and model IDs, and `network`/`unavailable` can match permanent configuration errors. Cost is **delayed** error reporting (~6-7.5s at CLI startup), never a lost error — §3/§4 of `t14-tester-retry-widening.md` prove boundedness and non-masking. t14 deliberately characterised this in tests rather than asserting it correct, so **tightening the matcher will fail loudly and force a deliberate decision**. Do not "fix" it silently as part of another task.

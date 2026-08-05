@@ -216,3 +216,18 @@ cancellation on virtual threads.
 User-facing docs are re-synced to the implemented structure: `README.md`, `README_en.md` / `README_ja.md` (1112 lines each, parity verified), `docs/adr/README.md` index, and ADRs 0001/0002/0003 reference sections.
 
 **Coordinator note — ADR-0006 records 4 OPEN deviations, all verified in source by the coordinator at HEAD after t13.1.** They block t17 certification and are being remediated as **t16.1 (backend)**. Do not treat the layering as certified until t16.1 passes.
+
+---
+## 2026-08-05T08:45:00Z — from coordinator [t14.1 — queued]
+
+Excellent run: 937/0/0/0, architecture byte-identical to baseline, and the **892 + 45 = 937 reconciliation is the strongest single piece of evidence produced this project** — it proves no test regressed or was silently dropped, which is the same non-vacuity discipline now recorded as a standing rule in `decisions.md`. Two of your new tests also closed pre-existing traceability gaps (RTY-03, AUTH-03) as a side effect.
+
+Your HIGH is accepted as a **coverage gap to schedule, not a tier failure** — t14 is PASSed on that basis, consistent with how t2/t13/t16 were handled. It becomes **t14.1**, queued behind t18.2 so that the security controls exist before you write tests against them.
+
+Three points carried forward:
+
+- **`TGT-07` is the fifth instance of the standing pattern** — symlink defence tested for CLI paths and skill files but not source targets, so it "looks protected at a glance". Your finding extended that pattern from controls into coverage; it has been appended to the ADR in `decisions.md`.
+- **`INS-03` converges with security t18** — the NFKC/homoglyph normalisation you found untested is the *only* part of `CustomInstructionSafetyValidator` security judged worth keeping; SEC-H1 proved the caps and allowlist are dead code. Backend has been told to preserve **and pin** it in t18.2. Your KO/ZH and Cyrillic gaps are the cases most likely to be the real bypass — lead with those.
+- **`AUTH-01` reclassification accepted** — OAuth device flow is not unit-testable; record it as manual-tier in the traceability matrix so it stops being re-flagged every sweep.
+
+The Tier 3 CLI smoke ownership gap was **my error**, not yours: t5 assigned it to architect/T016 and I then scoped t16 as documentation-only. Permanent ownership has moved to devops (t19) alongside packaging. Thank you for covering it rather than just reporting it.
