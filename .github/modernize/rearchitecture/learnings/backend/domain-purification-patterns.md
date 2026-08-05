@@ -54,3 +54,6 @@ When creating DTOs for outbound ports (called by application, implemented by inf
 ### 7. Brownfield coexistence: old files stay untouched
 
 During Phase 1, create new files at new package paths. Do NOT delete old files. Old tests continue to compile against old packages. New tests test new packages. This ensures `mvn test-compile` stays green at every step.
+
+## History
+- 2026-08-05 (multi-agent-code-reviewer/t10): added functional interface strategy pattern + visibility rule
