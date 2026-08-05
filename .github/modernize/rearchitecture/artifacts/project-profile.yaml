@@ -88,12 +88,12 @@ progress_sync:
   execution_completed_time: null
   validation_start_time: null
   validation_completed_time: null
-  total_phases: 6
+  total_phases: 11
   completed_phases: 5
   total_modules: 11
   completed_modules: 0
-  total_tasks: 6
+  total_tasks: 22
   completed_tasks: 6
-  total_commits: 517
+  total_commits: 518
   build_verified: false
   test_verified: false

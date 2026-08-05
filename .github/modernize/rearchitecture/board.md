@@ -24,8 +24,33 @@
 ### Phase: Planning 📌 396beb3
 - ✅ t5 [teamlead] Create implementation plan, task breakdown, and test strategy (02:27:49Z→02:29:50Z, 2m 1s) — 6 impl phases / 16 tasks (T001–T016) with DAG + parallelism, 3-tier test strategy (ArchUnit + regression + smoke)
 
-### Phase: Plan Quality Gate
+### Phase: Plan Quality Gate 📌 02441ed
 - ✅ t6 [teamlead] Quality gate — validate implementation plan coverage, traceability, and feasibility (02:33:24Z→02:35:10Z, 1m 46s) — **PASS**: 69/69 behaviors, 10/10 constitution sections, 10/10 cycles resolved, DAG acyclic. 0 HIGH / 0 CRITICAL (2 LOW, 1 INFO — all non-actionable). Carry-forward R1/R2/R3 confirmed resolved.
 
-### Phase: Execute + Validate
-- ⏳ [Execute + Validate phases — pending deep planning completion]
+### Phase: Environment Prep
+- ⏳ t7 [devops] Prepare target environment and verify GraalVM 26 EA toolchain
+
+### Phase: Implementation
+- ⏳ t8 [backend] Phase 1 — shared layer, domain core types, and 12 port interfaces (T001–T003) [deps: t7]
+- ⏳ t9 [backend] Phase 2 — agent domain models and review orchestration use-cases (T004+T005) [deps: t8]
+- ⏳ t10 [backend] Phase 3 — report, skill, and diagnostics application layers (T006–T008) [deps: t8]
+- ⏳ t11 [backend] Phase 4 — infrastructure adapters: Copilot SDK and support (T009+T010) [deps: t9, t10]
+- ⏳ t12 [backend] Phase 5 — presentation layer and ArchUnit boundary tests (T011+T012) [deps: t11]
+- ⏳ t13 [backend] Phase 6 — migrate 148 test files and full build verification (T013+T014) [deps: t12]
+
+### Phase: Hardening
+- ⏳ t14 [tester] Full regression test run (T015) [deps: t13]
+- ⏳ t15 [backend] Scan dependency manifests for CVEs and remediate via skill(cve-remediation) [deps: t13]
+- ⏳ t16 [architect] Update user-facing docs and author ADR 0006 for the Ports & Adapters rewrite [deps: t12]
+
+### Phase: Review
+- ⏳ t17 [architect] Architecture review — verify layered structure matches design [deps: t13]
+- ⏳ t18 [security] Security review — auth flows, secrets handling, input validation [deps: t15]
+
+### Phase: Testing
+- ⏳ t19 [devops] Smoke test — independent build and CLI startup verification [deps: t14, t15]
+- ⏳ t20 [tester] Runtime validation — 3-tier test strategy execution and regression verification [deps: t17, t18, t19]
+
+### Phase: Conformance
+- ⏳ t21 [pm] Feature parity signoff — verify all 69 PM behaviors preserved [deps: t20]
+- ⏳ t22 [teamlead] Completeness & consistency check via skill(quality-gates) gate-completeness [deps: t21, t16]
