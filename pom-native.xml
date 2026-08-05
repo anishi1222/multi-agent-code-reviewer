@@ -39,6 +39,11 @@
         <jackson.version>3.1.4</jackson.version>
         <!-- Security: centralize BOM-managed com.fasterxml.jackson:* 2.x transitives; see osv-scanner.toml for GHSA-5jmj-h7xm-6q6v. -->
         <jackson2.version>2.22.1</jackson2.version>
+        <!-- Override BOM-managed logback version to prevent convergence conflict:
+             micronaut-parent:5.0.2 BOM pulls logback-classic:1.5.37 which has a transitive dep on
+             logback-core:1.5.32, but we pin logback-core:1.5.37 directly. Setting logback.version
+             tells the Micronaut BOM to resolve all logback artifacts at 1.5.37 consistently. -->
+        <logback.version>1.5.37</logback.version>
     </properties>
 
     <repositories>
