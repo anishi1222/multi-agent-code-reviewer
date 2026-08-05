@@ -28,3 +28,21 @@ cycle graph. The remaining cycles all trace to shared mutable domain types livin
 feature packages (`ReviewResult` in `report.core`, `AgentConfig` in `agent`); relocating
 them to `domain` makes the dependencies inward-only by construction. Framework leakage
 measured at 20 files (Copilot SDK), 24 (Micronaut), 32 (Jakarta), 50 (SLF4J).
+
+## architect — t4 — 2026-08-05
+
+**Decision**: Target design is 6 layers / 24 packages with a 12-interface port catalog —
+5 inbound (`RunReviewPort`, `LoadAgentPort`, `ExecuteSkillPort`, `GenerateReportPort`,
+`RunDiagnosticsPort`) and 7 outbound (`LoadTemplatePort`, `RunCopilotSessionPort`,
+`RunRubberDuckSessionPort`, `ManageCopilotClientPort`, `CollectLocalSourcePort`,
+`WriteReportPort`, `GenerateAiSummaryPort`). All 120 files have an assigned target package.
+
+**Rationale**: `LoadTemplatePort` alone resolves cycles 2, 5, 7, 8 and 10 by replacing the
+8+ direct `TemplateService` imports with a single outbound contract. The remaining five
+cycles (1, 3, 4, 6, 9) are resolved by relocating shared types to the domain layer —
+`ReviewResult`→`domain.report`, `AgentConfig`→`domain.agent`, `SkillDefinition`→`domain.skill`,
+`SharedCircuitBreaker`→`domain.resilience` — plus converting the `report.finding`↔
+`report.formatter` mutual import into a one-way data flow. Domain purity is achieved by
+extracting SDK types (`CopilotClient`, `McpServerConfig`) from `ReviewContext` into port
+parameters and replacing `@Nullable` with `Optional` on `AgentConfig`. All 69 behavior IDs
+from the t3 parity baseline are traced to a specific port, so parity is verifiable per port.

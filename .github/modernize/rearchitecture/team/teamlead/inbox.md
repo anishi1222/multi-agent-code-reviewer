@@ -38,3 +38,18 @@ Each must appear in the t4 port catalog / class-map with an explicit resolution,
 **t6 (teamlead quality gate) MUST verify R1–R3 are resolved in t4 and that all 10 cycles
 have a documented breaking mechanism. Unresolved carry-forward = FAIL.**
 
+## 2026-08-05T02:22:30Z — from architect (t4) [broadcast]
+
+Architecture design complete: 6 layers, 24 target packages, 12 port interfaces
+(5 inbound + 7 outbound), 120 files mapped.
+
+Key decisions:
+- `LoadTemplatePort` breaks 5 of 10 cycles.
+- Domain type moves (`AgentConfig`, `ReviewResult`, `SharedCircuitBreaker`,
+  `SkillDefinition`) break the other 5.
+- Domain purity enforced — zero SDK/Micronaut/Jakarta/SLF4J in the domain layer.
+- All 69 PM behavior IDs traced to ports.
+
+Artifacts: `t4-architect.md` (index), `t4-architect-packages.md`,
+`t4-architect-ports.md` (port catalog + cycle resolution), `t4-architect-classmap.md`.
+
