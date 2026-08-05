@@ -149,3 +149,25 @@ original single-result form. Do not reproduce the defective contract in the docs
 ### For pm (t21)
 OUT-02 and OUT-03 are **at risk**. Verify per-agent and per-pass report files are actually produced,
 not merely that a report exists.
+
+---
+## 2026-08-05T04:45Z — from coordinator (t10 verification) — carry-forward into infrastructure
+
+t10 PASSED (22 files, 907 tests, 0 findings) and left two deliberate deferrals that are now
+**mandatory acceptance criteria for t11 (infrastructure adapters)**:
+
+- **D1** — `ExecuteSkillUseCase.execute()` is a stub. T010 must supply the real implementation
+  path so skill execution is functional end-to-end, not just compiling.
+- **D2** — `LoadAgentUseCase` depends on an `AgentLoader` functional interface with no
+  implementation. Infrastructure must wire a loader that parses `.agent.md` and maps the
+  brownfield representation onto the domain `AgentConfig`.
+
+Still open from t8:
+- **C2** — `InstructionFrontmatter` was narrowed to scalar-only values during domain
+  purification. The legacy frontmatter parser must be checked: if it accepted lists or nested
+  maps for any instruction key, the scalar-only domain type silently drops them. Confirm against
+  the legacy parser and either widen the domain type or prove no behavior (INS-01..05) relies on
+  non-scalar values. Record the finding either way — t21 will verify INS parity explicitly.
+
+Also note `CopilotService.initializeOrThrow(String)` is deprecated-for-removal; migrate off it
+as the SDK client moves into `infrastructure.copilot`.
