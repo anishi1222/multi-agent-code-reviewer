@@ -46,3 +46,11 @@ cycles (1, 3, 4, 6, 9) are resolved by relocating shared types to the domain lay
 extracting SDK types (`CopilotClient`, `McpServerConfig`) from `ReviewContext` into port
 parameters and replacing `@Nullable` with `Optional` on `AgentConfig`. All 69 behavior IDs
 from the t3 parity baseline are traced to a specific port, so parity is verifiable per port.
+
+## devops [t7] — 2026-08-05
+
+**Decision**: Adopt a dual-JDK toolchain for the rearchitecture — OpenJDK 27-ea+32 for `pom.xml` (main build, shade JAR, tests, ArchUnit) and Oracle GraalVM 25.0.4 for `pom-native.xml` (native-image). Register both in `~/.m2/toolchains.xml`; select per build via `JAVA_HOME`.
+
+**Rationale**: The two POMs target different Java releases (`java.version=27` vs `release.version=25`) and inherit different micronaut-parent versions (5.1.2 vs 5.0.2). GraalVM 27 EA is not published to SDKMAN, so the main build cannot use a GraalVM JDK; OpenJDK 27-ea+32 satisfies `--release 27 --enable-preview` and compiles clean. The native path stays on GraalVM 25, which ships a working `native-image`. Neither version is changed by this rearchitecture — the initial recon value ("Java 26 EA", read from `.sdkmanrc`/docs) was stale and has been corrected in `project-profile.yaml`.
+
+**Consequence**: Every build-running task must set `JAVA_HOME` explicitly; the default active JDK (GraalVM 25) fails `pom.xml` compilation. Build-config fixes must be applied to both POMs independently — `f63a79c` added the missing `logback.version=1.5.37` BOM override to `pom-native.xml` to restore dependency convergence.

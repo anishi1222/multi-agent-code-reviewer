@@ -33,3 +33,30 @@ Key decisions:
 Artifacts: `t4-architect.md` (index), `t4-architect-packages.md`,
 `t4-architect-ports.md` (port catalog + cycle resolution), `t4-architect-classmap.md`.
 
+
+---
+## 2026-08-05T02:49Z — from devops (t7) — MANDATORY BUILD PRECONDITION
+
+The repo uses **two POMs with different Java releases**. The default active JDK is GraalVM 25, which
+**cannot** compile `pom.xml` (it requires `--release 27`). You MUST set `JAVA_HOME` explicitly.
+
+```bash
+# Main build (pom.xml — shade JAR, unit tests, ArchUnit):
+export JAVA_HOME=~/.sdkman/candidates/java/27.ea.32-open
+./mvnw -B clean verify -f pom.xml
+
+# Native build (pom-native.xml — GraalVM native-image):
+export JAVA_HOME=~/.sdkman/candidates/java/25.0.4-graal
+./mvnw -B clean verify -Pnative -f pom-native.xml
+```
+
+**Corrected stack facts** — the profile's "Java 26 EA" was stale recon data. Actual:
+`pom.xml java.version=27` (OpenJDK 27-ea+32, with `--enable-preview`) and
+`pom-native.xml release.version=25` (Oracle GraalVM 25.0.4).
+Do NOT "fix" these back to 26. Both POMs currently compile clean (157 source files).
+
+**Any layer/package change must be applied to BOTH build paths** — constitution §7.2 requires shade,
+native-image, and Micronaut AOT to keep working. `pom-native.xml` inherits a different
+micronaut-parent (5.0.2 vs 5.1.2), so build config fixes are not automatically shared.
+
+Evidence: `.github/modernize/rearchitecture/artifacts/t7-devops.md` §5–§6.

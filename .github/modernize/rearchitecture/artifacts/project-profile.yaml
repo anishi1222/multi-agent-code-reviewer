@@ -58,9 +58,10 @@ assessment:
       toStack: "Ports & Adapters による 4 層 + 共通（presentation / application / domain / infrastructure / shared）"
       toStackVersion: "n/a"
     - fromStack: "Java"
-      fromStackVersion: "26 (GraalVM 26 EA)"
+      fromStackVersion: "27 (pom.xml, OpenJDK 27-ea+32, --enable-preview) / 25 (pom-native.xml, Oracle GraalVM 25.0.4)"
       toStack: "Java"
-      toStackVersion: "26 (GraalVM 26 EA)"
+      toStackVersion: "27 (pom.xml, OpenJDK 27-ea+32, --enable-preview) / 25 (pom-native.xml, Oracle GraalVM 25.0.4)"
+      note: "Corrected by t7 env audit. Initial recon recorded '26 (GraalVM 26 EA)' from .sdkmanrc/docs; the POMs had already moved to 27/25. No version change is part of this rearchitecture — both values are preserved as-is."
     - fromStack: "Micronaut"
       fromStackVersion: "5"
       toStack: "Micronaut"
@@ -89,11 +90,11 @@ progress_sync:
   validation_start_time: null
   validation_completed_time: null
   total_phases: 11
-  completed_phases: 5
+  completed_phases: 6
   total_modules: 11
   completed_modules: 0
   total_tasks: 22
-  completed_tasks: 6
-  total_commits: 518
-  build_verified: false
+  completed_tasks: 7
+  total_commits: 519
+  build_verified: false  # compile-only verified at t7; full verify pending t13
   test_verified: false

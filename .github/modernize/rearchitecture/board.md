@@ -28,7 +28,7 @@
 - ✅ t6 [teamlead] Quality gate — validate implementation plan coverage, traceability, and feasibility (02:33:24Z→02:35:10Z, 1m 46s) — **PASS**: 69/69 behaviors, 10/10 constitution sections, 10/10 cycles resolved, DAG acyclic. 0 HIGH / 0 CRITICAL (2 LOW, 1 INFO — all non-actionable). Carry-forward R1/R2/R3 confirmed resolved.
 
 ### Phase: Environment Prep
-- ⏳ t7 [devops] Prepare target environment and verify GraalVM 26 EA toolchain
+- ✅ t7 [devops] Prepare target environment and verify GraalVM 26 EA toolchain (02:41:25Z→02:48:30Z, 7m 5s) — **READY**. Dual-JDK toolchain: OpenJDK 27-ea+32 for `pom.xml`, GraalVM 25.0.4 for `pom-native.xml`; both compile clean (157 files). Fixed `pom-native.xml` logback convergence (`f63a79c`). Recon's "Java 26 EA" was stale — profile corrected. **All build tasks must set `JAVA_HOME` explicitly** (routed to 5 inboxes).
 
 ### Phase: Implementation
 - ⏳ t8 [backend] Phase 1 — shared layer, domain core types, and 12 port interfaces (T001–T003) [deps: t7]
