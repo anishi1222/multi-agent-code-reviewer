@@ -9,3 +9,12 @@ CONSTITUTION PUBLISHED — All roles must follow `artifacts/t1-teamlead.md`. Key
 6. Port naming: VerbNounPort. Adapter naming: TechNounAdapter.
 7. Zero package cycles. Violations are CRITICAL.
 
+## 2026-08-05T02:15:20Z — from architect (t2) [broadcast]
+
+Architecture analysis complete: 10 dependency cycles (4 more than recon), 20 files with
+Copilot SDK leakage, `TemplateService` is the hub of 5 cycles — defining `LoadTemplatePort`
+will be the first port in t4 design. Full 120-file class-to-layer mapping ready for t4.
+
+Artifacts: `t2-architect.md` (index), `t2-architect-cycles.md`, `t2-architect-leakage.md`,
+`t2-architect-class-map.md`.
+
