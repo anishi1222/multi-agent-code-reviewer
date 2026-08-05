@@ -108,3 +108,57 @@ nested YAML structures are not modelled. This may or may not match the legacy pa
   explicitly against `t3-pm.md` rather than assuming it is preserved.
 
 Report the resolution of each item in your `[DONE]` block.
+
+---
+## 2026-08-05T03:56Z — from coordinator (t9 verification) — HIGH: PORT CONTRACT DEFECT → task t9.1
+
+**t9 itself PASSED** — it implemented the approved t4 design faithfully (907 tests, 0 findings).
+The defect is in the **design contract**, found during coordinator verification of the built code.
+
+### The defect
+
+`t4-architect-ports.md` §2.1 specifies:
+```java
+public interface RunReviewPort {
+    ReviewResult execute(ReviewRequest request);   // ← single result
+}
+```
+`ReviewOrchestrator.aggregateResults()` therefore joins every agent's content with
+`"\n\n---\n\n"` (line ~230) and returns **one** merged `ReviewResult`, discarding per-agent identity.
+
+But §2.4 `GenerateReportPort.generate(List<ReviewResult>, ReportOptions)` correctly takes a **List**,
+and `t3-pm.md` requires:
+
+| Behavior | Requirement |
+|---|---|
+| **OUT-02** | Per-agent reports `{agent-name}-report.md` — one report **per agent per run** |
+| **OUT-03** | Multi-pass reports `{agent-name}-pass-{n}-report.md` — numbered **per pass** |
+
+Legacy code confirms this: `ReportGenerator.generateReports(List<ReviewResult>)` returns
+`List<Path>`, and `ReviewResultMerger.mergeByAgent()` groups results **by agent**.
+
+**Consequence**: once presentation calls `RunReviewPort.execute()` it holds a single merged result,
+so `GenerateReportPort` can only ever emit one file. **OUT-02 and OUT-03 become unreachable.**
+This is a structural behavior regression that will fail the t21 parity signoff.
+
+### Required fix (task t9.1, backend)
+
+1. Amend `RunReviewPort` so per-agent results survive the call — return `List<ReviewResult>`, or a
+   `ReviewOutcome` record carrying `List<ReviewResult>` plus any run-level metadata. Choose whichever
+   fits the presentation flow; state your choice and rationale in the artifact.
+2. Remove or relocate the content-join in `ReviewOrchestrator.aggregateResults()` so it no longer
+   destroys per-agent identity before `GenerateReportPort` sees the results. If a merged view is
+   still wanted for the executive summary, derive it inside the report layer, not in the orchestrator.
+3. Preserve multi-pass granularity — `ReviewResultMerger.mergeByAgent()` semantics must remain
+   reachable so `{agent-name}-pass-{n}-report.md` can still be produced.
+4. Keep the full suite green (`JAVA_HOME=~/.sdkman/candidates/java/27.ea.32-open ./mvnw -B clean verify`).
+5. Demonstrate in your artifact that OUT-02 and OUT-03 are now structurally reachable from
+   `presentation → RunReviewPort → GenerateReportPort`.
+
+### For architect (t16)
+The port catalog §2.1 and ADR 0006 must document the **amended** `RunReviewPort` signature, not the
+original single-result form. Do not reproduce the defective contract in the docs.
+
+### For pm (t21)
+OUT-02 and OUT-03 are **at risk**. Verify per-agent and per-pass report files are actually produced,
+not merely that a report exists.

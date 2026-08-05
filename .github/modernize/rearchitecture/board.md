@@ -32,10 +32,11 @@
 
 ### Phase: Implementation
 - ✅ t8 [backend] Phase 1 — shared layer, domain core types, and 12 port interfaces (T001–T003) (02:55:33Z→03:13:10Z, 17m 37s) — **PASS**: 52 new files, 907/907 tests, `mvn clean verify` green, 0 findings. Verified independently: 12 ports split inbound/outbound, 6 domain subpackages, **domain+shared import-pure** (zero SLF4J/Micronaut/Jakarta/SDK). Carry-forward C1 (`ReviewContext` purification → t9) and C2 (`InstructionFrontmatter` scalar-only → t10/t21) routed.
-- ⏳ t9 [backend] Phase 2 — agent domain models and review orchestration use-cases (T004+T005) [deps: t8]
-- ⏳ t10 [backend] Phase 3 — report, skill, and diagnostics application layers (T006–T008) [deps: t8]
+- ✅ t9 [backend] Phase 2 — agent domain models and review orchestration use-cases (T004+T005) (03:17Z→03:53Z, 36m) — **PASS**: 21 new files, 907/907 tests, 0 findings. Carry-forward **C1 resolved** — `domain.review.ReviewContext` verified import-pure. ⚠️ Coordinator verification found a **design-contract defect** (single-result `RunReviewPort` makes OUT-02/OUT-03 unreachable) → remediation task **t9.1**; t9 itself is not at fault.
+- ✅ t10 [backend] Phase 3 — report, skill, and diagnostics application layers (T006–T008) (03:15:59Z→04:38Z, 82m) — **PASS**: 22 files (17 `domain.report` + 5 use-cases), 907/907 tests, 0 findings. Verified: application+domain free of Copilot SDK/SnakeYAML. Deferrals → t11: `ExecuteSkillUseCase` is a stub (T010), `LoadAgentUseCase` needs `AgentLoader` infrastructure wiring.
+- ⏳ t9.1 [backend] **Remediation** — amend `RunReviewPort` so per-agent results survive; restore OUT-02/OUT-03 reachability [deps: t9, t10]
 - ⏳ t11 [backend] Phase 4 — infrastructure adapters: Copilot SDK and support (T009+T010) [deps: t9, t10]
-- ⏳ t12 [backend] Phase 5 — presentation layer and ArchUnit boundary tests (T011+T012) [deps: t11]
+- ⏳ t12 [backend] Phase 5 — presentation layer and ArchUnit boundary tests (T011+T012) [deps: t11, t9.1]
 - ⏳ t13 [backend] Phase 6 — migrate 148 test files and full build verification (T013+T014) [deps: t12]
 
 ### Phase: Hardening
