@@ -171,3 +171,32 @@ Still open from t8:
 
 Also note `CopilotService.initializeOrThrow(String)` is deprecated-for-removal; migrate off it
 as the SDK client moves into `infrastructure.copilot`.
+
+---
+## 2026-08-05T04:50Z — from coordinator (t11 verification) — carry-forward into t12
+
+t11 PASSED (32 files, 907 tests, SDK verified confined to `infrastructure`). Coordinator source
+verification of the three carry-forwards:
+
+- **D1 CLOSED** — `ExecuteSkillUseCase` is fully implemented, delegating to `RunCopilotSessionPort`
+  with an injected skill-lookup function. No stub remains.
+- **D2 SUBSTANTIALLY CLOSED** — `infrastructure.parsing.AgentConfigLoader` returns
+  `Map<String, AgentConfig>` using the **domain** `AgentConfig`, so the brownfield→domain mapping
+  exists. What remains is only the DI binding, which correctly belongs to t12 (see B1 below).
+- **C2 CLOSED BY EVIDENCE** — `FrontmatterParser.parseFields()` and `parseNestedBlock()` both
+  return `Map<String, String>`; the parser never produces list or nested-map values, so the
+  scalar-only domain `InstructionFrontmatter` drops nothing. No widening needed.
+
+**Mandatory acceptance criteria for t12:**
+
+- **B1** — `LoadAgentUseCase` takes a nested `AgentLoader` functional interface that currently has
+  **no binding anywhere**. Until DI supplies it (bridging to `AgentConfigLoader`), `LoadAgentUseCase`
+  is un-instantiable dead code. Wire it, and confirm agent loading works end-to-end through the
+  use-case rather than through a direct call to the loader.
+- **B2** — `SummaryReportWriter.write()` now takes **4 parameters**; the added one is
+  `findingsSummary`. Every call site must pass it.
+- **B3** — ArchUnit rules (T012) must actually fail the build on violation. Prove it: state in your
+  artifact how you confirmed the rules are not silently vacuous (e.g. a rule with zero matched
+  classes still passes trivially). Each of the constitution's dependency rules — inward-only deps,
+  domain importing only `java.*` + `shared`, SDK/Micronaut/Jakarta confinement — needs a rule whose
+  matched-class count is non-zero.

@@ -49,3 +49,28 @@
 - **Test isolation held**: 907 brownfield tests all pass; new application-layer classes have no new
   test coverage yet (out of scope for this remediation).
 - Learnings consumed: [backend/domain-purification-patterns, backend/orchestrator-per-invocation-resources]
+
+## [t11] Phase 4 infrastructure adapters — copilot SDK + support (32 files, 907 tests pass)
+
+### Codebase/domain discoveries
+- `CopilotClientOptions` SDK 1.0.6: methods are `setCliPath()`, `setAutoRestart()`, `setUseLoggedInUser()`, `setLogLevel()` — NOT `setCopilotClientPath()`, `setSdkLogLevel()`, or any `setCopilotClientPath` variant
+- `McpHttpServerConfig extends McpServerConfig` but Java generics invariance means `Map<String,McpHttpServerConfig>` is NOT assignable to `Map<String,McpServerConfig>`. Fix: cast `(McpServerConfig) new McpHttpServerConfig()`
+- `CopilotCliPathResolver.resolveCliPath()` NOT `resolve()`. The package-private `CLI_PATH_ENV` field must be `public` for cross-package use
+- `SummaryFinalReportFormatter.format()` takes 5 args including `findingsSummary` — not 4. Always read actual method signature before calling
+- New domain `AgentConfig` record had no `validateRequired()` — added it explicitly (throws `IllegalStateException` on blank name/model). Brownfield had `AgentConfigValidator.validateRequired()` delegation
+- `SkillDefinition.buildPrompt(Map, int)` — NOT `renderPrompt()`. Second arg is `maxParameterValueLength` (use 4096)
+- `SkillRegistry` methods: `get(String)` → `Optional<SkillDefinition>` and `getAll()` → `List<SkillDefinition>` — not `findById()`/`listAll()`
+- The new domain `ReviewOrchestrator` builds its own `ReviewContext` internally from `OrchestratorConfig` — so `ReviewContextFactory` in infra is only an `OrchestratorConfig` builder
+
+### Wrong assumptions and corrections
+- Assumed `CLI_PATH_ENV` was public because brownfield used it across packages — it was package-private in the new impl, required explicit `public`
+- Assumed `buildClientNotInitializedMessage()` existed on formatter — had to add it
+- Assumed 4 params for `format()` call in `SummaryReportWriter` — was 5, always verify signatures
+
+### Techniques/patterns worth reusing
+- When SDK generics invariance blocks assignment, use explicit cast to supertype: `(McpServerConfig) new McpHttpServerConfig()`
+- For domain records needing validation: add `validateRequired()` method that throws `IllegalStateException` — clean, no external validator needed
+- `volatile CopilotClient` in `CopilotService` with `@PostConstruct` eager init and `@PreDestroy` shutdown covers thread-safe lifecycle
+
+### Learnings consumed
+- backend/sdk-api-verification (read SDK javap output before coding to correct method names)
