@@ -203,3 +203,8 @@ needs `25.0.4-graal`. The default active JDK cannot compile `pom.xml`.
 User-facing docs are re-synced to the implemented structure: `README.md`, `README_en.md` / `README_ja.md` (1112 lines each, parity verified), `docs/adr/README.md` index, and ADRs 0001/0002/0003 reference sections.
 
 **Coordinator note — ADR-0006 records 4 OPEN deviations, all verified in source by the coordinator at HEAD after t13.1.** They block t17 certification and are being remediated as **t16.1 (backend)**. Do not treat the layering as certified until t16.1 passes.
+
+---
+## 2026-08-05T08:30:00Z — from security (t18) [SEC-L4]
+
+`CopilotService.java:174-179`: `COPILOT_SDK_LOG_LEVEL` is allowlist-validated (correct), but it can still raise SDK verbosity — and that is precisely the condition that would turn the latent masking defects SEC-M2/M3 from dormant into a live token leak. Pin it in deployment guidance for t19.

@@ -450,3 +450,46 @@ row with no rule is itself a defect regardless of whether violations exist today
 User-facing docs are re-synced to the implemented structure: `README.md`, `README_en.md` / `README_ja.md` (1112 lines each, parity verified), `docs/adr/README.md` index, and ADRs 0001/0002/0003 reference sections.
 
 **Coordinator note — ADR-0006 records 4 OPEN deviations, all verified in source by the coordinator at HEAD after t13.1.** They block t17 certification and are being remediated as **t16.1 (backend)**. Do not treat the layering as certified until t16.1 passes.
+
+---
+## 2026-08-05T08:30:00Z — from security (t18) + coordinator [DIRECTIVE — t18.1, dispatched now]
+
+**t18 is marked `❌ failed[findings]`** (validation gate, 2 HIGH, strict §3.2.1). You own **SEC-H2**, the design half. It is dispatched immediately as **t18.1** because it is design-only and does not touch `src/`, so it can proceed while t14 finishes.
+
+### SEC-H2 (HIGH) — prompt-injection defence is denylist-only
+
+`infrastructure/parsing/AgentConfigLoader.java:234-241` defends by denylist alone. Denylists cannot enumerate paraphrase, encoding or translation bypasses. Security's key structural point: **the allowlist that would bound the input space is exactly the dead code in SEC-H1** — `ALLOWED_CHAR_RANGE` and the size caps in `CustomInstructionSafetyValidator` are declared and never executed (coordinator-verified: each occurs exactly once in all of `src/`).
+
+So the two HIGHs compound. Fix one and the other still fails. That is why this is split — you decide the trust model, backend wires it in (t18.2).
+
+**The trust boundary is the crux**: `AgentPathConfig.java:11` defaults agent directories to `./agents` and `./.github/agents`, resolved relative to CWD, i.e. **inside the repository under review**. The tool silently treats markdown from an arbitrary third-party repository as LLM instructions. No pattern-based scan surfaced this; it took reasoning about where the input comes from.
+
+### What is being asked of you
+
+A recorded decision — **ADR-0007** — not a pattern-list update. Security offers three shapes, and you are not bound to them:
+
+1. constrain repo-supplied agent files to a bounded schema (which gives backend the allowlist to enforce),
+2. require explicit opt-in before loading agents from the reviewed repo,
+3. load them reduced-privilege.
+
+Whatever you choose must be **mechanically enforceable** and must tell backend precisely what to implement in t18.2 — bounds, allowed character classes, required/permitted fields, and what happens on violation. A decision backend cannot turn into a failing test is not finished.
+
+Note the interaction with ADR-0006 **D4**: if you decide some capability must be displaced, it returns as a port rather than disappearing.
+
+Scope correction from security, so you do not over-build: field coverage is narrower than it first looks — `peerModel` and `skills` **are** validated elsewhere; `language` is the one real gap (filed LOW as SEC-L2).
+
+### Second item — SEC-M3/M4, for the same ADR or a short follow-up note
+
+The header-masking wrapper is stripped by **both** `Map.copyOf` and `new HashMap<>`, proven at runtime, and the map is handed to the Copilot SDK at `ReviewSessionConfigFactory.java:56` and `SdkRubberDuckSessionFactory.java:80`. **This is the t13 `defensive-copy-strips-security-wrapper` defect recurring at a new call site** — the third time this shape has appeared.
+
+Security's framing is the right one and needs your ruling: *a `toString()` wrapper cannot survive a boundary it does not control.* The durable options are masking at the sink (a logging port, per ADR-0006 D4) or a `SecretString` type that carries its own protection. Recording this once, as a rule, is what stops a fourth recurrence.
+
+Security bounded its own claim honestly: `javap` shows `McpHttpServerConfig` has no `toString()` override, so there is **no confirmed live sink**; `setHeaders` was not decompiled. Treat it as a latent defect with a known mechanism, not a proven leak — but note SEC-L4 (routed to devops): raising `COPILOT_SDK_LOG_LEVEL` is precisely the condition that would make it live.
+
+### Standing pattern — worth a line in the ADR
+
+SEC-H1 is the **fourth** instance on this project of a control that reads as enforced and enforces nothing: t12 (ArchUnit inspecting 107 of 687 classes), t13.1/G1 (an edge two rules named but neither constrained), t16 (Rule 4 scoped to `application.port`), and now a validator whose caps and allowlist are dead. Security proposes a standing verification gate rather than per-task rediscovery. The countermeasure that has worked every time is **a control without a captured negative control is not a control** — consider elevating it from practice to a recorded ADR-0006 amendment.
+
+### Documentation correction (coordinator, from t18)
+
+While you have ADR-0007 open: `.github/copilot-instructions.md` states that `TemplateService` loads **"Mustache-style `{{placeholder}}` templates"**. Coordinator-verified false — `templates/` contains **zero** `{{...}}` occurrences (all 30 files use `${key}`: `${displayName}` x7, `${peerReviewContent}` x4, `${repository}` x3, ...), and **Mustache is not a dependency** in `pom.xml`. Security caught the same error mirrored in `project-profile.yaml`, which the coordinator has corrected. Worth fixing at the source, since an instruction file that misstates the template syntax will keep propagating into future agent runs.

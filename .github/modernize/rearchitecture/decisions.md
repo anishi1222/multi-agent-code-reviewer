@@ -130,3 +130,32 @@ user's requirement is precisely that responsibilities be *provably* separated.
 **Rationale**: The §3.2 rule maps HIGH/CRITICAL in a `[DONE]` report to `❌ failed[findings]`. That rule targets defects *in the task's own deliverable*. t16's deliverable is documentation — ADR-0006, three READMEs at verified EN/JA parity, the ADR index, and cross-references — and it is complete and internally consistent. The four HIGHs are pre-existing code defects that the act of documenting the structure *uncovered*, in a task with no charter to fix code. This is the t2 and t13 precedent: enumerating the defect was the value delivered, not a failure to deliver. Marking it failed would penalise the behaviour that found the problem. The findings are not waived — they become t16.1, and t17 cannot certify the layering until it passes. This precedent remains confined to analysis and documentation tasks; the validation gates (t17, t18, t20, t22) keep strict §3.2.1 treatment, where a HIGH means a real defect in what that gate was asked to certify.
 
 **Secondary note**: t16 also caught its own mid-flight staleness — t13.1 landed while ADR-0006 was being drafted and invalidated three claims (the logging port's name, the new rule's number, and two deviation statuses). A re-verification sweep before publishing corrected all three. Publishing a stale ADR would have made the architecture of record wrong on its first day.
+
+## coordinator [t18 verdict] — 2026-08-05
+
+**Decision**: t18 is marked `❌ failed[findings]` and will be re-dispatched, rather than passed with carry-forward remediation as t2, t13 and t16 were.
+
+**Rationale**: The distinction recorded at the t16 verdict is load-bearing here, so it is worth stating why it cuts the other way. t2, t13 and t16 were **analysis and documentation** tasks whose HIGH findings described *pre-existing defects in the codebase they were examining* — the deliverable itself (a dependency analysis, a cleanup, an ADR) was sound, and marking it failed would have punished the task for looking carefully. t18 is a **validation gate**. Its deliverable *is* the verdict. A gate that reports 2 HIGH has, by construction, not certified anything, so passing it would record a certification that was never issued and would let t20 proceed on a security review that found unbounded untrusted input reaching an LLM. §3.2.1 applies strictly to gates for exactly this reason.
+
+The practical consequence is not punitive: t18 touched no code and its findings are excellent. It is re-dispatched after t18.1/t18.2 so that the *clean* pass is a real artifact rather than an assumption.
+
+**Remediation split**: SEC-H1 (dead controls) and SEC-H2 (denylist-only defence) compound — the allowlist that would bound H2 *is* H1's dead code — so they are fixed together but by different roles: architect decides the trust model (t18.1, design-only, dispatched immediately), backend implements it (t18.2, queued behind t16.1 to avoid two backend workers on one tree).
+
+---
+
+## coordinator [systemic] — 2026-08-05
+
+**Decision**: Adopt as a standing project rule — **a control without a captured negative control is not a control.** Every architecture rule, security validator, masking wrapper or sanitiser added from this point must ship with a test that *fails when the control is removed or weakened*, and the non-vacuity of the control's subject set must itself be asserted.
+
+**Rationale**: This is now the **fourth** occurrence of the same failure shape on this project, and it has cost more remediation than any other class of defect:
+
+1. **t12** — six ArchUnit rules ran against 107 of 687 classes. The shaded ASM rejected Java 27 class files, swallowed the error, and left the rules inspecting only Micronaut synthetics. All six passed. Green build.
+2. **t13.1/G1** — a `presentation → infrastructure` edge that two adjacent rules *mentioned* but neither constrained. Green build.
+3. **t16** — Rule 4 scoped to `application.port` instead of `application.port.outbound`, permitting the direction inversions that t16.1 now fixes. Green build.
+4. **t18/SEC-H1** — a validator declaring size caps, a line cap, a charset allowlist and a structured result, of which only the denylist is ever called. Green build.
+
+In every case the control **read** as enforced. Code review, type checking and the test suite all passed it. The common defect is not carelessness but that *absence of enforcement is invisible* — nothing fails when a rule constrains nothing, and nothing fails when a validator validates nothing. Only an assertion that the control *can* fail distinguishes the two states.
+
+The countermeasure has already been demonstrated to work here: t12.1's Rule 0 (`parsed == classFilesOnDisk`) turns a silently-empty subject set into a build failure; t13.1's Rule 5b shipped with a negative control; t15's CVE scan fired non-vacuity controls at rows 6 and 9 and thereby earned the right to report "0 CVEs". Each of those is the same idea applied to a different control. Elevating it from per-task practice to a recorded rule is what stops a fifth instance.
+
+**Consequence**: t16.1 and t18.2 are both required to ship negative controls. t22 (final conformance) should verify the property holds across the enforcement surface rather than re-discovering individual gaps.

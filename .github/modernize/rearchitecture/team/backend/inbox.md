@@ -487,3 +487,39 @@ Do this first because it converts both direction defects from invisible into mec
 - Every outbound port needs a **DI wiring test** alongside its unit tests. Defect 2 above is precisely what happens without one: a port bound to the wrong implementer, with a green unit test on the unused one. Add wiring tests for every port you touch.
 - Build precondition still binds: `JAVA_HOME=~/.sdkman/candidates/java/27.ea.32-open ./mvnw -B clean verify`.
 - t14 (full regression) ran to completion before you were dispatched; its baseline is the settled tree. Report your own full-suite result.
+
+---
+## 2026-08-05T08:30:00Z — from security (t18) + coordinator [DIRECTIVE — t18.2, queued behind t16.1]
+
+**t18 is marked `❌ failed[findings]`** — it is a validation gate and reported 2 HIGH, so §3.2.1 applies strictly. It will be re-dispatched after remediation and must come back with zero HIGH/CRITICAL before t20 can run. Your fixes are what unblock it.
+
+**Do not start until t16.1 is complete.** Both tasks modify `src/`, and two backend workers on one tree is how you get a merge conflict presented as a test failure.
+
+### SEC-H1 (HIGH) — `domain/instruction/CustomInstructionSafetyValidator.java`
+
+Coordinator-verified: `MAX_INSTRUCTION_SIZE` (:24), `MAX_UNTRUSTED_INSTRUCTION_SIZE` (:25), `MAX_INSTRUCTION_LINES` (:26), `ALLOWED_CHAR_RANGE` (:58) and the `ValidationResult` record (:108) each occur **exactly once in the whole of `src/`** — at their own declaration. The only entry point anything calls is `containsSuspiciousPattern`, from `AgentConfigLoader:256` and `SkillDefinition:58`.
+
+So the class *reads* as a layered validator — denylist plus size caps plus charset allowlist plus a structured result — and **only the denylist executes**. No size, line or charset limit is enforced on untrusted instruction content.
+
+Why this is HIGH and not cleanup: `AgentPathConfig.java:11` defaults the agent directories to `./agents` and `./.github/agents`, resolved relative to CWD — i.e. **inside the repository being reviewed**. Untrusted markdown from an arbitrary repo becomes LLM instructions. That is the trust boundary, and it is what makes the missing bound a vulnerability rather than a robustness gap.
+
+Wire the caps and the allowlist into the live path. **A negative-control test asserting rejection is mandatory** — without one the fix is exactly as unfalsifiable as the code you are replacing, and you will have moved the problem rather than solved it. Do **not** touch the NFKC + homoglyph normalisation at :122-143; security assessed it as genuinely good.
+
+### SEC-M2 (MEDIUM) — `shared/SensitiveHeaderMasking.java`
+
+Coordinator-verified, and the class is internally contradictory. `MaskedHeaderEntry.getValue()` (:200-201) returns `delegate.getValue()` **raw**; only its `toString()` masks. `forEach` and `getOrDefault` appear **zero** times in the file, so `Map`'s default implementations apply — they iterate `entrySet()` and call `getValue()`, yielding the unmasked token. Meanwhile `values()` (:152) *does* mask. Security proved this at runtime with a canary, not by inference.
+
+Override both, and add tests — no existing test covers either accessor, which is why a masking class could ship masking 3 of 10 accessors.
+
+### Also in scope
+
+- **Delete `MaskedToStringMap`** (:81-99). Its only factory `wrapWithMaskedToString` has **no caller anywhere in `src/`** (coordinator-verified). Delete rather than document — dead security code is worse than absent security code, because it reads as coverage.
+- **SEC-M1** — `ContentSanitizer.java:73-90` has zero secret-redaction rules. Security checked git history: this **never existed**, so triage it as a genuine gap, **not** a t13.1-G2-style capability loss. Different diagnosis, different fix.
+- **SEC-M5** — `ContentSanitizer:69` uses greedy `(?:(?!</a>).)*` where `:27` correctly uses possessive `*+`, with no length cap before regexes run on untrusted LLM output.
+- **SEC-M6** — token becomes an unwipeable `String` at `TokenInputReader.java:45` / `GhAuthTokenProvider.java:107`.
+
+### The pattern you are now fixing for the fourth time
+
+SEC-H1 is the **fourth** instance on this project of a control that reads as enforced and enforces nothing: t12 (ArchUnit rules inspecting 107 of 687 classes), t13.1/G1 (an edge two rules named but neither constrained), t16 (Rule 4 scoped to `application.port` so direction inversions pass), and now this. In every case the code looked like the control was present.
+
+The unifying countermeasure is the one you already applied in t13.1: **a control without a captured negative control is not a control.** Apply it to everything you add here.

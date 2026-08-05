@@ -16,7 +16,7 @@ project:
     "src/main/java/dev/logicojp/reviewer/target": "レビュー対象（ローカルファイル収集・整形） — 7 files / 803 LOC"
     "src/main/java/dev/logicojp/reviewer/util": "並行処理・テキスト解析・トークン/シークレット処理・可観測性の混在 — 16 files / 1434 LOC"
     "src/test/java/dev/logicojp/reviewer": "JUnit 5 + AssertJ + Micronaut Test。main のパッケージ構成をミラー — 148 files / 17017 LOC"
-    "templates/": "Mustache 風 {{placeholder}} の Markdown テンプレート — 30 files"
+    "templates/": "`${key}` プレースホルダの Markdown テンプレート（Mustache ではない — クラスパスに存在しない） — 30 files"
     "agents/ , .github/agents/": ".agent.md エージェント定義（YAML frontmatter + Markdown セクション） — 各 9 files"
     "docs/adr/": "アーキテクチャ決定記録 — 0001〜0005 + テンプレート"
   notes: |
@@ -93,8 +93,8 @@ progress_sync:
   completed_phases: 9
   total_modules: 11
   completed_modules: 0
-  total_tasks: 26
+  total_tasks: 28
   completed_tasks: 18
-  total_commits: 540
+  total_commits: 544
   build_verified: true  # compile-only verified at t7; full verify pending t13
   test_verified: true
