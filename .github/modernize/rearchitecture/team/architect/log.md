@@ -49,3 +49,14 @@
 - Learnings consumed: [architect/port-catalog-design, architect/domain-subpackage-organization,
   architect/shared-domain-types-cycle-roots, architect/template-service-cycle-hub,
   teamlead/layer-naming-conventions, teamlead/domain-purity-rules]
+- **A concurrent task landed mid-write and invalidated part of the ADR.** t13.1 shipped while t16
+  was drafting: it named the logging port `PropagateCorrelationPort` (I had written
+  `LogExecutionPort`), numbered the new rule `5b` (I had written `Rule 7`), and closed two of the
+  seven Known deviations. Re-running the verification sweep *immediately before* writing `[DONE]`
+  caught all of it. **Verify twice on a documentation task: once to write, once to publish.** An
+  ADR that names a port which does not exist is worse than no ADR.
+- Backend's rule-numbering choice (`5b` inserted in position, not `7` appended) is better than
+  mine and is now the recorded convention — prior learnings cite Rules 6a/6b by number, and
+  appending would have been fine but inserting keeps the dependency-direction rules contiguous.
+- Add a **Status** column to any "Known deviations" table in an ADR. Without it the table reads as
+  a permanent indictment; with it, later tasks can close rows in place and the ADR stays live.

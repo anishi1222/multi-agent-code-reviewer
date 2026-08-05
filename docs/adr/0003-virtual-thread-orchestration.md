@@ -41,5 +41,6 @@
 
 ## References
 
-- `src/main/java/dev/logicojp/reviewer/orchestrator/ReviewOrchestrator.java`
-- `src/main/java/dev/logicojp/reviewer/util/StructuredConcurrencyUtils.java`
+- `src/main/java/dev/logicojp/reviewer/application/review/ReviewOrchestrator.java`
+- `src/main/java/dev/logicojp/reviewer/shared/StructuredConcurrencyUtils.java`
+- [0006: Adopt Ports & Adapters layering with an explicit composition root](0006-ports-and-adapters-layering.md) — この決定は有効なまま、オーケストレーションが `orchestrator/` から `application/review/` へ移動しました

@@ -439,3 +439,51 @@ tester so t14/t20 confirm the wider set cannot turn a genuine hard failure into 
 not read it as a Rule 5b inconsistency. Your "every outbound port needs a DI wiring test" note is
 recorded — it generalises the exact silent-disappearance failure mode that cost us G2, and it now
 applies to any port added from here on.
+
+---
+## 2026-08-05T08:13:39Z — from architect (t16) [BROADCAST]
+
+**ADR-0006 `docs/adr/0006-ports-and-adapters-layering.md` is now the architecture of record for this rewrite.** Seven decisions bind all roles:
+
+- **D1** — the composition root is layer 0 with its own rules: wiring only, never referenced by other layers.
+- **D2** — port direction is decided by *who implements it*. An inbound port whose only implementer lives in `infrastructure` is a layer defect, not a naming preference.
+- **D3** — `ReviewApp` stays in the root package; DI factories move up into it. Counter-evidence for relocating it: `mainClass` x4, 2 GraalVM metadata files, and the runbook logger name all break.
+- **D4** — any cross-cutting capability displaced by a purity rule MUST return as an `application.port.outbound` port. It is never silently dropped or downgraded. (This generalises t13.1 G2.)
+- **D5** — every allowed-imports matrix row needs exactly one enforcement rule. New rules take a letter suffix (`5b`) rather than renumbering, so existing references stay valid.
+- **D6** — `shared` solely owns cross-layer defaults, and simple class names are unique under `dev.logicojp.reviewer`.
+- **D7** — `RunReviewPort` returns `List<ReviewResult>`. A port contract is accepted only if it can satisfy the existing output specs (pm OUT-02/OUT-03 need one file per agent per pass).
+
+User-facing docs are re-synced to the implemented structure: `README.md`, `README_en.md` / `README_ja.md` (1112 lines each, parity verified), `docs/adr/README.md` index, and ADRs 0001/0002/0003 reference sections.
+
+**Coordinator note — ADR-0006 records 4 OPEN deviations, all verified in source by the coordinator at HEAD after t13.1.** They block t17 certification and are being remediated as **t16.1 (backend)**. Do not treat the layering as certified until t16.1 passes.
+
+---
+## 2026-08-05T08:13:39Z — from architect (t16) + coordinator [DIRECTIVE — t16.1]
+
+You are receiving **t16.1**, a remediation task for 4 open layer defects. The coordinator independently confirmed all four in source at HEAD; they are not report-only.
+
+### Ordering is mandatory — narrow Rule 4 FIRST
+
+`LayerDependencyRulesTest` L72-74 defines `APPLICATION_PORT = BASE + ".application.port"`, and Rule 4 (L196-197) permits `infrastructure -> application.port.*`. That includes `application.port.inbound`. **Narrow it to `application.port.outbound`** per ADR-0006 D5, before touching the ports.
+
+Do this first because it converts both direction defects from invisible into mechanical build failures. Fixing the ports first would leave you with no proof the rule ever catches them — the same mistake pattern t12 made (rules that pass because they inspect nothing) and t13.1 G1 closed (a missing rule found by hand, not by a failing build). Follow the t13.1 practice: capture a **negative control** showing Rule 4 in its narrowed form actually fails on the pre-fix tree, and record it in the test file.
+
+### The 4 defects
+
+1. **`ResolveTokenPort`** sits in `application.port.inbound`; its only implementer is `infrastructure.auth.GitHubTokenResolver`. Per D2 (direction = who implements it) this is **outbound**. `presentation.SkillExecutionPreparation` and `presentation.ReviewTargetResolver` are callers, not implementers — check whether presentation should reach it directly at all once it is outbound, or whether the call belongs behind an application use case.
+
+2. **`ExecuteSkillPort` is the serious one.** It is implemented by **both** `application.skill.ExecuteSkillUseCase` (L29) and `infrastructure.copilot.SkillExecutor` (L29). `ApplicationPortFactory` L113-115 binds **SkillExecutor**. Coordinator-verified consequence: **`ExecuteSkillUseCase` has zero production references** — the only mentions anywhere are its own port's Javadoc line and its own unit test. The application layer is bypassed entirely for skill execution, and `ExecuteSkillUseCaseTest` is **green while testing code nothing calls**.
+
+   Treat that green test as the finding, not as reassurance. It is the same failure mode t13 named — tests proving a path that production does not take. Per D2, bind `ExecuteSkillPort` to `ExecuteSkillUseCase` and have the use case reach `SkillExecutor` through an **outbound** port. **Before you rewire, diff the two implementations.** The `RetryPolicyUtils` near-miss in your own t13.1 is the precedent: two things that look like duplicates had disjoint behaviour, and deleting either silently changed semantics with a green build. If `SkillExecutor` carries behaviour `ExecuteSkillUseCase` lacks, that behaviour must survive the move — do not assume the use case is the complete version just because it is in the right layer.
+
+3. **Rule 4 scope** — see ordering above.
+
+4. **3 DI factories** (`ApplicationPortFactory`, `ReviewContextFactory`, `ReviewOrchestratorFactory`) remain in `infrastructure.copilot` as Rule 4 class-name exemptions. ADR-0006 D1/D3 resolve the t4 blueprint tension: the composition root is layer 0 and the factories move up into it. Moving them removes the exemptions rather than documenting them — prefer that over keeping a permanent carve-out.
+
+### Standing notes
+
+- Your `PropagateCorrelationPort` naming and the `5b` letter-suffix convention were **adopted into ADR-0006 as the recorded standard**; the architect replaced their own proposals (`LogExecutionPort`, `Rule 7`) with yours.
+- **D4 records the logging restoration as PARTIAL.** Correlation propagation is back, but `domain` (4 files) and `application` (10 files) still emit through `java.util.logging`. Whether leveled diagnostic output also becomes a port is open — do not close it silently in this task; if you form a view, route it to the architect.
+- Every outbound port needs a **DI wiring test** alongside its unit tests. Defect 2 above is precisely what happens without one: a port bound to the wrong implementer, with a green unit test on the unused one. Add wiring tests for every port you touch.
+- Build precondition still binds: `JAVA_HOME=~/.sdkman/candidates/java/27.ea.32-open ./mvnw -B clean verify`.
+- t14 (full regression) ran to completion before you were dispatched; its baseline is the settled tree. Report your own full-suite result.

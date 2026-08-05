@@ -29,4 +29,7 @@ violation. Purity was satisfied; observability was not.
   audit in `presentation`) should be documented as intentional so it isn't "fixed" later.
 
 ## History
-- 2026-08-05 (rearchitecture/t16): initial — recorded as ADR-0006 D4, first application `LogExecutionPort`
+- 2026-08-05 (rearchitecture/t16): initial — recorded as ADR-0006 D4. First application landed in
+  t13.1 as `PropagateCorrelationPort` + `MdcCorrelationAdapter`, scoped to correlation propagation;
+  log *emission* in `domain`/`application` is still on `java.util.logging`, so the displaced
+  capability was only partly restored.

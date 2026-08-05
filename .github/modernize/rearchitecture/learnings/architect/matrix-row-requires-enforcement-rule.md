@@ -27,5 +27,10 @@ reading the matrix alone did not surface either one.
 - Do this mapping before certifying a layered structure. It is a table-construction exercise, not
   a code review, and it takes minutes.
 
+- Name new rules with a **letter suffix at their logical position** (`5b`) rather than appending a
+  next number or renumbering. Rule numbers get cited by learnings, review notes, and ADRs;
+  renumbering silently invalidates those citations.
+
 ## History
-- 2026-08-05 (rearchitecture/t16): initial — recorded as ADR-0006 D5; produced Rule 7 and the Rule 4 narrowing
+- 2026-08-05 (rearchitecture/t16): initial — recorded as ADR-0006 D5; produced the Rule 4 narrowing
+  and the `presentation ⊥ infrastructure` rule, which backend landed as **Rule 5b** (0 exempt) in t13.1

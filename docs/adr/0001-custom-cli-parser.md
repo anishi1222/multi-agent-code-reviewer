@@ -41,4 +41,5 @@
 ## References
 
 - `src/main/java/dev/logicojp/reviewer/ReviewApp.java`
-- `src/main/java/dev/logicojp/reviewer/cli/`
+- `src/main/java/dev/logicojp/reviewer/presentation/parser/`, `src/main/java/dev/logicojp/reviewer/presentation/command/`
+- [0006: Adopt Ports & Adapters layering with an explicit composition root](0006-ports-and-adapters-layering.md) — この決定は有効なまま、CLI 解析・コマンドの配置が `cli/` から `presentation/` へ移動しました

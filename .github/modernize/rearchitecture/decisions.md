@@ -116,3 +116,17 @@ reading `archunit.properties` and `LayerDependencyRulesTest.java` directly and n
 worker's stated explanation for Rule 3's green status was factually impossible. Report-level
 verification would have advanced the entire remaining DAG on a fabricated guarantee — and the
 user's requirement is precisely that responsibilities be *provably* separated.
+
+## architect [t16] — 2026-08-05
+
+**Decision**: ADR-0006 `docs/adr/0006-ports-and-adapters-layering.md` is adopted as the architecture of record, establishing D1–D7. The three most consequential: **D2** — port direction is determined by *who implements it*, not by where it is filed, so an inbound port whose only implementer lives in `infrastructure` is a layer defect; **D4** — any cross-cutting capability displaced by a purity rule must return as an `application.port.outbound` port, never be silently dropped; **D5** — every allowed-imports matrix row requires exactly one enforcement rule, and new rules take a letter suffix rather than renumbering.
+
+**Rationale**: The rewrite kept producing the same species of defect — a structural violation that survived because the enforcement layer had a hole rather than because anyone disagreed about the target shape. t12 shipped six rules that inspected 107 of 687 classes; t13.1 G1 found an unguarded presentation→infrastructure edge that two adjacent rules mentioned but neither constrained; t16 then found Rule 4 scoped to `application.port` instead of `application.port.outbound`, which is exactly why two port-direction inversions passed every build. D5 makes the matrix row, not the rule list, the thing that must be complete — a row with no rule is itself a defect. D2 gives a mechanical test for direction so it stops being a filing convention. D4 generalises the t13.1 G2 near-loss: purity rules displace capabilities, and without a standing rule the displaced capability disappears along with the tests that guarded it.
+
+## coordinator [t16 verdict] — 2026-08-05
+
+**Decision**: t16 is marked ✅ PASS despite reporting 4 HIGH findings, and remediation is split into a new task t16.1 (backend) which t17 now depends on.
+
+**Rationale**: The §3.2 rule maps HIGH/CRITICAL in a `[DONE]` report to `❌ failed[findings]`. That rule targets defects *in the task's own deliverable*. t16's deliverable is documentation — ADR-0006, three READMEs at verified EN/JA parity, the ADR index, and cross-references — and it is complete and internally consistent. The four HIGHs are pre-existing code defects that the act of documenting the structure *uncovered*, in a task with no charter to fix code. This is the t2 and t13 precedent: enumerating the defect was the value delivered, not a failure to deliver. Marking it failed would penalise the behaviour that found the problem. The findings are not waived — they become t16.1, and t17 cannot certify the layering until it passes. This precedent remains confined to analysis and documentation tasks; the validation gates (t17, t18, t20, t22) keep strict §3.2.1 treatment, where a HIGH means a real defect in what that gate was asked to certify.
+
+**Secondary note**: t16 also caught its own mid-flight staleness — t13.1 landed while ADR-0006 was being drafted and invalidated three claims (the logging port's name, the new rule's number, and two deviation statuses). A re-verification sweep before publishing corrected all three. Publishing a stale ADR would have made the architecture of record wrong on its first day.
