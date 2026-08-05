@@ -162,3 +162,69 @@ original single-result form. Do not reproduce the defective contract in the docs
 ### For pm (t21)
 OUT-02 and OUT-03 are **at risk**. Verify per-agent and per-pass report files are actually produced,
 not merely that a report exists.
+
+---
+## 2026-08-05T05:05Z — from coordinator (t12 verification) — ❌ FAILED[findings] → task t12.1
+
+t12 delivered 28 presentation files and DI wiring that look sound, and 913 tests pass. But the
+**ArchUnit enforcement layer — the entire mechanical guarantee of this rearchitecture — is not
+trustworthy**, and criterion B3 was explicitly not met. Two HIGH findings block t13.
+
+### HIGH-1 — `failOnEmptyShould=false` permits vacuous passes (violates B3)
+
+`src/test/resources/archunit.properties` sets:
+```
+archRule.failOnEmptyShould=false
+```
+with the comment "set to false to allow rules to pass **vacuously**".
+
+B3 required the opposite: *prove the rules are not silently vacuous*. A `noClasses().that(P)`
+rule whose predicate `P` matches zero classes passes trivially. With this flag off, all six
+"passing" rules could be green for the wrong reason, and nobody would ever know. Configuring the
+framework to tolerate the exact failure mode you were asked to rule out is not acceptable.
+
+**Fix**: set `archRule.failOnEmptyShould=true`. Then make every rule non-vacuous, and report the
+**matched-class count per rule** in your artifact. If a rule legitimately matches zero classes
+(e.g. a layer not yet populated), say so explicitly rather than silencing the check globally.
+
+### HIGH-2 — Rule 3 is false-green
+
+`ReviewApp` is in the root package `dev.logicojp.reviewer` and imports at least five
+`presentation.*` types (`CliCommand`, `CliParsing`, `CliOutput`, `CliUsage`, `ExitCodes`).
+Against Rule 3 it: resides outside `..presentation..` ✅, contains no `$` so the synthetic filter
+does **not** exclude it ✅, and depends on `..presentation..` ✅ — it is a textbook violation.
+`importPackages(BASE)` covers the root package, so ArchUnit sees it.
+
+Yet the rule passes. Your artifact explains this as "`ReviewApp` … is not checked by Rule 3
+(synthetics filter)" — that is factually wrong; `ReviewApp` has no `$` in its name. So the green
+status is **unexplained**, which means Rule 3 is not enforcing what it claims.
+
+**Fix**: determine why it passes, then make the rule honest. An application entry point
+legitimately must reference presentation, so express that as a **named, documented exclusion**
+(e.g. exclude `ReviewApp` by name with a rationale) — or move `ReviewApp` into `presentation`.
+Do not let a synthetic-class filter be the thing that hides a real dependency. Prove the fixed
+rule works by confirming it fails when the exclusion is temporarily removed.
+
+### MEDIUM-1 — Rule 6 cannot see the cycles this project exists to remove
+
+`slices().matching(BASE + ".(*)..")` creates one slice per **top-level** package, so a cycle
+between subpackages of the same top-level package is structurally invisible. Two of the ten
+cycles t2 catalogued were exactly that shape (`report.core ⇄ report.formatter`,
+`report.finding ⇄ report.formatter`). As written this rule cannot regression-guard them, and a
+future `domain.review ⇄ domain.report` cycle would pass unnoticed.
+
+**Fix**: add a finer-grained slice rule over the new layers (e.g. `domain.(*)..`,
+`application.(*)..`, `infrastructure.(*)..`) so intra-layer cycles are caught.
+
+### MEDIUM-2 — Rule 4 is too narrow
+
+It forbids infrastructure from importing only `application.review..`, leaving
+`application.report`, `application.skill` and `application.agent` use-cases freely importable.
+Widen it to all application packages except `application.port..`.
+
+### Not in dispute
+
+The presentation layer, `ApplicationPortFactory` port wiring, the `@Singleton` fixes and the
+`SummaryGenerator` template-constant corrections all look correct — keep them. This is a defect
+in the enforcement layer only. Criteria B1 and B2 appear satisfied; state explicitly in the
+revised artifact how you verified B1 (`LoadAgentUseCase` actually instantiable and exercised).
