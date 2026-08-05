@@ -64,11 +64,15 @@ public final class ReviewPassRunner {
         for (int pass = 1; pass <= passes; pass++) {
             int currentPass = pass;
             var retryExecutor = new ReviewRetryExecutor(config.name() + "#" + pass, maxRetries);
-            ReviewResult result = retryExecutor.execute(
+            ReviewResult raw = retryExecutor.execute(
                 () -> executePass(config, target, resolved, mcpServers, context, currentPass, usesMcp),
                 e -> reviewResultFactory.fromException(config, target.displayName(), e)
             );
-            results.add(result);
+            // Tag with pass number so GenerateReportUseCase can produce OUT-02/OUT-03 filenames.
+            // passNumber == 0 → single-pass (produces "{agent}-report.md")
+            // passNumber >= 1 → multi-pass (produces "{agent}-pass-{n}-report.md")
+            ReviewResult tagged = passes > 1 ? raw.withPassNumber(currentPass) : raw;
+            results.add(tagged);
         }
         return List.copyOf(results);
     }

@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /// Top-level review orchestrator — implements the inbound port {@link RunReviewPort}.
 ///
@@ -67,11 +66,13 @@ public final class ReviewOrchestrator implements RunReviewPort {
     ///   <li>Pre-computes local source content (if the target is a local directory).</li>
     ///   <li>Builds a pure-domain {@link ReviewContext}.</li>
     ///   <li>Runs all agents in parallel (standard or rubber-duck mode).</li>
-    ///   <li>Aggregates per-agent results into a single consolidated result.</li>
+    ///   <li>Returns all per-agent (per-pass) results without aggregation so that
+    ///       {@code GenerateReportPort} can produce per-agent files (OUT-02) and
+    ///       per-pass files (OUT-03).</li>
     ///   <li>Stops the Copilot client.</li>
     /// </ol>
     @Override
-    public ReviewResult execute(ReviewRequest request) {
+    public List<ReviewResult> execute(ReviewRequest request) {
         logger.info(() -> "Starting review for: " + request.target().displayName()
             + " with " + request.agents().size() + " agent(s), parallelism=" + request.parallelism());
 
@@ -87,7 +88,7 @@ public final class ReviewOrchestrator implements RunReviewPort {
     // Internal orchestration
     // -------------------------------------------------------------------------
 
-    private ReviewResult runReview(ReviewRequest request) {
+    private List<ReviewResult> runReview(ReviewRequest request) {
         var precomputer = new LocalSourcePrecomputer(collectLocalSource);
         var cachedSource = precomputer
             .preComputeSourceContent(request.target(), request.localFileConfig())
@@ -96,14 +97,11 @@ public final class ReviewOrchestrator implements RunReviewPort {
         var context = buildReviewContext(cachedSource);
         var agents = toAgentMap(request.agents());
 
-        List<ReviewResult> allResults;
         if (isRubberDuckMode(request)) {
-            allResults = executeRubberDuckReviews(agents, request, context);
+            return executeRubberDuckReviews(agents, request, context);
         } else {
-            allResults = executeStandardReviews(agents, request, context);
+            return executeStandardReviews(agents, request, context);
         }
-
-        return aggregateResults(allResults, request.target().displayName());
     }
 
     private List<ReviewResult> executeStandardReviews(Map<String, AgentConfig> agents,
@@ -209,43 +207,5 @@ public final class ReviewOrchestrator implements RunReviewPort {
             r -> Thread.ofPlatform().name("review-agent-", 0).unstarted(r));
         var semaphore = new Semaphore(parallelism);
         return new ExecutorResources(executor, semaphore);
-    }
-
-    private ReviewResult aggregateResults(List<ReviewResult> results, String targetDisplayName) {
-        if (results.isEmpty()) {
-            return ReviewResult.builder()
-                .repository(targetDisplayName)
-                .success(false)
-                .errorMessage("No review results were produced")
-                .build();
-        }
-
-        boolean anySuccess = results.stream().anyMatch(ReviewResult::success);
-        String aggregatedContent = results.stream()
-            .filter(r -> r.content() != null && !r.content().isBlank())
-            .map(r -> {
-                String agentName = r.agentConfig() != null ? r.agentConfig().name() : "unknown";
-                return "### Review by: " + agentName + "\n\n" + r.content();
-            })
-            .collect(Collectors.joining("\n\n---\n\n"));
-
-        String errorSummary = anySuccess ? null : results.stream()
-            .filter(r -> !r.success() && r.errorMessage() != null)
-            .map(ReviewResult::errorMessage)
-            .collect(Collectors.joining("; "));
-
-        var firstAgent = results.stream()
-            .map(ReviewResult::agentConfig)
-            .filter(a -> a != null)
-            .findFirst()
-            .orElse(null);
-
-        return ReviewResult.builder()
-            .agentConfig(firstAgent)
-            .repository(targetDisplayName)
-            .content(aggregatedContent.isBlank() ? null : aggregatedContent)
-            .success(anySuccess)
-            .errorMessage(errorSummary)
-            .build();
     }
 }

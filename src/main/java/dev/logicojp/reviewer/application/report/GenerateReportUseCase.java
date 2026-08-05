@@ -121,8 +121,13 @@ public final class GenerateReportUseCase implements GenerateReportPort {
         List<Path> paths = new ArrayList<>(results.size());
         for (ReviewResult result : results) {
             String content = formatter.format(result, date);
-            String safeName = ReportFilenameUtils.sanitizeAgentName(result.agentConfig().name());
-            String filename = "%s_%s.md".formatted(safeName, date);
+            String agentName = result.agentConfig() != null ? result.agentConfig().name() : "unknown";
+            String safeName = ReportFilenameUtils.sanitizeAgentName(agentName);
+            // OUT-02: {agent-name}-report.md          (passNumber == 0, single-pass)
+            // OUT-03: {agent-name}-pass-{n}-report.md (passNumber >= 1, multi-pass)
+            String filename = result.passNumber() > 0
+                ? "%s-pass-%d-report.md".formatted(safeName, result.passNumber())
+                : "%s-report.md".formatted(safeName);
             Path path = writer.write(content, filename, outputDir);
             paths.add(path);
         }

@@ -32,3 +32,20 @@
 - `ExecuteSkillUseCase` is a stub (T010 pending). Design: single class, return `SkillResult.failure()`, no imports from infrastructure needed.
 - Build 907/907 passing after visibility fixes. No new test failures introduced.
 - Learnings consumed: [backend/domain-purification-patterns]
+
+## [t9.1] Remediate RunReviewPort — restore OUT-02/OUT-03 per-agent file reachability
+- **Root cause**: `aggregateResults()` in `ReviewOrchestrator` joined all per-agent `ReviewResult`
+  objects into a single blob before returning from `RunReviewPort.execute()`. The port's
+  `ReviewResult` (singular) return type enforced the collapse.
+- **Fix pattern**: Port → `List<ReviewResult>`; remove aggregation; add `passNumber` field to
+  domain record; tag in `ReviewPassRunner`; fix filenames in `GenerateReportUseCase`.
+- **Record + Builder**: Adding a new field to a Java `record` that uses a custom `Builder` requires
+  updating the `build()` method positional call. Existing call sites via Builder were unaffected
+  (default `passNumber=0`). The `withPassNumber()` wither pattern (canonical constructor call)
+  is cleaner than a full builder chain for pass-tagging in a loop.
+- **Null safety on agentConfig**: `writePerAgentReports()` was calling `result.agentConfig().name()`
+  without null check — error-path results can have `null` agentConfig. Fixed with `!= null ?` guard
+  defaulting to `"unknown"`.
+- **Test isolation held**: 907 brownfield tests all pass; new application-layer classes have no new
+  test coverage yet (out of scope for this remediation).
+- Learnings consumed: [backend/domain-purification-patterns, backend/orchestrator-per-invocation-resources]
