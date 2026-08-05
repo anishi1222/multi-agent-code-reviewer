@@ -60,3 +60,43 @@
   appending would have been fine but inserting keeps the dependency-direction rules contiguous.
 - Add a **Status** column to any "Known deviations" table in an ADR. Without it the table reads as
   a permanent indictment; with it, later tasks can close rows in place and the ADR stays live.
+
+## [t18.1] ADR-0007 — 信頼モデルと秘匿値の遮蔽境界
+
+- **セキュリティ報告の前提を鵜呑みにしなかったのが分岐点だった。** 報告は SEC-H2 を
+  「防御はデニーリストのみ」と要約していたが、`AgentDefinitionPolicy` を実読すると
+  64 KiB 上限・名前の文字種・model 接頭辞・要素数上限は**稼働中**だった。報告の要約に
+  沿ってアローリストを足す ADR を書いていたら、既にある制御を再発明しただけで真因は
+  残っていた。**所見表の 1 行は、必ず該当ソースまで降りて確認する。**
+- **真因は検証ロジックではなく型だった。** `ApplicationPortFactory:48-58` で利用者指定
+  ディレクトリと CWD 相対の既定ディレクトリが素の `List<Path>` に併合されており、
+  出自の情報がそこで消えていた。`AgentConfig` にも出自要素がない。つまり
+  「未信頼側だけ厳しく」は下流でどう書いても実装不可能な状態だった。
+  → 詳細は `learnings/architect/trust-level-must-be-carried-by-a-type.md`
+- **`MaskedHeadersMap` は「直せるバグ」ではなかった。** `get()` は生値・`values()` は
+  マスク値という両立しない 2 契約が 1 型に同居しており、構造的に完全な遮蔽になり得ない。
+  パッチではなく境界の移動（シンク側）が必要と判断。
+  → `learnings/architect/secret-redaction-belongs-at-the-sink.md`
+- **数値は発明せず発掘した。** 8 KiB / 32 KiB / 300 行は
+  `CustomInstructionSafetyValidator` に**既に宣言されていた**死んだ定数の値。
+  「未信頼は 8 KiB」は元々の設計意図であり、ADR はそれを復活させただけ。
+  新しい数字を提案するより、既存の意図を掘り起こす方が反論されにくい。
+- **上限を書く前に実測した。** 自リポジトリの `.agent.md` 18 ファイルを計測（最大
+  4,291 B / 97 行）し、`ALLOWED_CHAR_RANGE` を Python で再実装して全ファイルに当てて
+  逸脱 0 文字を確認。**自分のリポジトリを壊す規則を提案しかけていないかは、
+  提案する前に測れる。** 1.8 倍以上の余裕があると分かって初めて数値を確定した。
+- **「差分テスト」という強制の型を得た。** 単一経路のテストは出自をハードコードした
+  実装でも通ってしまう。同一ファイルを 2 つの出自で読ませ受理／拒否に分かれることを
+  主張すれば、出自が末端まで運ばれていない実装は必ず落ちる。以後、信頼レベルや
+  権限を扱う決定にはこの形を使う。
+- **ドキュメント修正の指摘は氷山の一角だった。** コーディネータの指摘は
+  `{{placeholder}}` 1 点だったが、`.github/copilot-instructions.md` の Architecture 節は
+  t13 で削除済みの旧 9 パッケージ構成をそのまま記述していた。同ファイル内で
+  `{{placeholder}}` と `${repository}` が矛盾していたのが最初の手がかり。
+  **文書が自分自身と矛盾していたら、報告された箇所以外も腐っていると疑う。**
+- 未着手として申し送り: `.sdkmanrc`(Java 26) と `pom.xml`(Java 27) の不整合は devops 案件。
+  SEC-L6 / SEC-L8 は architect 所有だがタスク範囲外のため未裁定。
+- Learnings consumed: [architect/matrix-row-requires-enforcement-rule,
+  architect/purity-displaced-capabilities-become-ports, architect/reverify-docs-before-publishing,
+  architect/port-direction-by-implementer, security/trust-boundary-severity-calibration,
+  security/masked-map-accessor-matrix, security/dead-security-controls]

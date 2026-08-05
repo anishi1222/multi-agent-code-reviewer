@@ -162,4 +162,35 @@ The countermeasure has already been demonstrated to work here: t12.1's Rule 0 (`
 
 **Amendment (same day, t14)** — the count is now **five**, and the fifth instance shows the pattern is not confined to controls. t14 found that symlink-traversal defence (`TGT-07`) **is** tested for CLI paths and skill files but **not** for source review targets: in its words, "it looks protected at a glance." Here the thing that reads as enforced is a *test*, not a rule or a validator. The same invisibility applies — an untested behaviour and a tested one are indistinguishable from the outside unless coverage is asserted against a specification rather than eyeballed.
 
+**Amendment 2 (same day, t18.1)** — the count is now **six**, and the sixth instance is the first at the *type* layer. `ApplicationPortFactory:54-60` merges trusted `--agents-dir` paths and untrusted CWD-relative defaults into one `List<Path>`; by the time `AgentConfigLoader` receives it at :62, provenance has been erased by the type. Note what this does **not** look like: the controls here are neither vacuous (t12/t13.1/t16/t18) nor untested (t14). `AgentDefinitionPolicy`'s 64 KiB cap and name-charset regex are live, applied, and would pass any test written against them. The failure is that the control **cannot receive the input it needs to decide** — it is asked "is this file acceptable?" when the only answerable question is "is this file acceptable *given where it came from*?"
+
+This is why t18's own root cause ("the defence is denylist-only") was wrong in a way its evidence could not reveal: security read the validator and found it weak, but the validator was not the thing that failed. Strengthening it would have produced a stronger control with the same defect.
+
+**Generalisation across all six**: the pattern is not "controls are weak." It is that a control's *scope of application* is invisible at the call site — what it parsed (t12), what edge it covers (t13.1), what package prefix it matches (t16), whether it is called at all (t18), whether it is exercised (t14), and now what it is permitted to know (t18.1). In every case the code reads as protective and the build is green. The countermeasure is unchanged and has worked every time it was applied: **assert the scope, not just the outcome** — `parsed == classFilesOnDisk`, a negative control that must fail, a differential test where the same input is accepted on one path and rejected on the other.
+
+
 t14 also supplied the counter-example that proves the rule is achievable: its **892 + 45 = 937 baseline reconciliation** is a non-vacuity control applied to a test *result*, and it is what allows "937 passed" to mean something stronger than "937 tests ran". Adopt that shape — reconcile against a prior baseline — wherever a count is reported as evidence.
+
+## architect [t18.1] — 2026-08-05
+
+**Decision**: ADR-0007「agent 定義の信頼モデルと秘匿値シンク境界」を採択。D1 信頼レベルは `AgentSource` 型で運ぶ（`--agents-dir` = 信頼 / CWD 相対既定 = 未信頼、格上げ不可）。D2 `AgentDefinitionPolicy` を信頼境界ポリシーの単独所有者とし `CustomInstructionSafetyValidator` を部品に降格。D3 信頼レベル別スキーマ契約。D4 違反は拒否・続行・要約行必須。D5 ポート DTO はセキュリティ制御を担わず `toString()` 遮蔽は制御として不採用。D6 秘匿値の遮蔽は `infrastructure.logging`（シンク）で行う。D7 否定的対照のない制御は制御ではない。
+
+**Rationale**: SEC-H2 を「検証器の強化」として扱うと直らない。真因は `ApplicationPortFactory:54-60` で信頼済み `--agents-dir` と未信頼の CWD 相対既定パスが同一の `List<Path>` に併合され、`AgentConfigLoader` に渡る時点で型から出自が消えていること。検証器をいくら強くしても、どのファイルに厳しい規則を当てるべきかを判断する情報が既に失われている。よって是正は型と境界の側で行う。同じ理由で D5/D6 も「ラッパーを強くする」ではなく「制御を、制御できる境界に移す」形を選んだ。
+
+---
+
+## coordinator [t18.1 verdict] — 2026-08-05
+
+**Decision**: ワーカーが上流ワーカーの所見を訂正した場合、coordinator は**訂正の側を独立に検証してから**採用する。今回は 3 点（稼働中の上限値の実在、真因の所在、単位の不整合）をすべてソースで確認したうえで t18 の SEC-H2 の記述を上書きした。
+
+**Rationale**: 下流が上流を訂正できる構造は健全だが、無検証で採用すると「最後に喋ったワーカーが正しい」になる。t9 のポート欠陥、t12 の ArchUnit 空虚、t16/t18/t14 の各所見と同様、判定の根拠はワーカーの報告ではなく coordinator 自身がソースで見た事実に置く。今回は訂正が正しかったが、訂正が誤っている可能性は同じ手順でしか排除できない。
+
+---
+
+## coordinator [context-file drift] — 2026-08-05
+
+**Decision**: `.github/copilot-instructions.md` のような**エージェントのコンテキストに自動注入されるファイル**は、大規模なパッケージ再編を含むタスクの完了条件に明示的に含める。t13（レガシー削除）の完了条件に入っていなかったため、削除済みの 9 パッケージを「現在の構成」として記述したまま t14〜t18 の全ワーカーに配布され続けた。
+
+**Rationale**: 通常のドキュメントは「読まれなければ害がない」が、自動注入されるファイルは**読まないという選択肢がない**。誤りの伝播速度が違う。実害も確認できている — この run の初期 recon で coordinator 自身が「Mustache テンプレート」と誤認したのはこのファイルが出典であり、それが `project-profile.yaml` にも複写された。t18.1 が指摘するまで 2 系統で生き延びた。
+
+**適用**: 今後 `pom.xml` の座標変更やパッケージ再編を伴うタスクは、`.github/copilot-instructions.md` / `AGENTS.md` / `README.md` の該当節を deliverable に含めるか、明示的に別タスクへ委譲すること。

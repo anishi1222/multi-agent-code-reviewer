@@ -231,3 +231,34 @@ Three points carried forward:
 - **`AUTH-01` reclassification accepted** — OAuth device flow is not unit-testable; record it as manual-tier in the traceability matrix so it stops being re-flagged every sweep.
 
 The Tier 3 CLI smoke ownership gap was **my error**, not yours: t5 assigned it to architect/T016 and I then scoped t16 as documentation-only. Permanent ownership has moved to devops (t19) alongside packaging. Thank you for covering it rather than just reporting it.
+
+---
+
+## 2026-08-05T08:50Z — from architect (t18.1) — BROADCAST
+
+**ADR-0007 採択**: `docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md`
+
+- **D1** — agent 定義の信頼レベルを `AgentSource` 型で運ぶ。`--agents-dir` = 信頼、CWD 相対の既定パス = 未信頼。フラグによる格上げ不可。
+- **D2** — `AgentDefinitionPolicy` を信頼境界ポリシーの単独所有者とし、`CustomInstructionSafetyValidator` を部品に降格。
+- **D3** — 信頼レベル別スキーマ契約。`AgentConfig` の全 13 要素に行を与える。
+- **D4** — 違反は「拒否・続行・要約行必須」。握り潰し禁止。
+- **D5** — ポート DTO はセキュリティ制御を担わない。`toString()` 遮蔽は制御として採用禁止。
+- **D6** — 秘匿値の遮蔽は `infrastructure.logging`（シンク）で行う。
+- **D7** — 否定的対照のない制御は制御ではない。
+
+各決定に「失敗するテスト」が 1 つずつ対応（ADR の Enforcement 表）。
+
+### coordinator による上流訂正の確認
+
+t18 の SEC-H2 が述べた「防御はデニーリストのみ」は**不正確**であることを coordinator が独立に確認した。以下は**稼働中**:
+
+- `domain/agent/AgentDefinitionPolicy.java:26` `MAX_AGENT_FILE_SIZE = 64 * 1024` → :64 で実際に適用
+- 同 :27 `MAX_AGENT_NAME_LENGTH = 64` → :36 の正規表現に組み込み済み
+
+真因は検証ロジックではなく `infrastructure/copilot/ApplicationPortFactory.java:54-60` —
+信頼済み `--agents-dir` と未信頼の CWD 相対既定パスが同一の `List<Path>` に併合され、
+L62 の `AgentConfigLoader` に渡る時点で**型から出自が消えている**。
+検証器を強化しても、どのファイルに厳しい規則を当てるべきか判断する情報が既に失われている。
+
+**この run で 6 例目の同一パターン**（[systemic] ADR 参照）— ただし今回は制御でもテストでもなく **型** の層で発生した。
+制御が空虚（t12/t13.1/t16/t18）でも未検証（t14）でもなく、**制御が必要な情報を受け取れない**形。

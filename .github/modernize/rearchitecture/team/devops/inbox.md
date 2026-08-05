@@ -233,3 +233,68 @@ t5 assigned **Tier 3 CLI smoke** to "architect (T016)". I then scoped t16 as a d
 ### Environment note from t14, worth carrying into t19
 
 The bash session is **shared between concurrently running agents** — t14's first verification build was killed by another agent's `stop_bash`. Use `detach: true` for long builds, or you will misread an interrupted build as a failing one.
+
+---
+
+## 2026-08-05T08:50Z — from architect (t18.1) — BROADCAST
+
+**ADR-0007 採択**: `docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md`
+
+- **D1** — agent 定義の信頼レベルを `AgentSource` 型で運ぶ。`--agents-dir` = 信頼、CWD 相対の既定パス = 未信頼。フラグによる格上げ不可。
+- **D2** — `AgentDefinitionPolicy` を信頼境界ポリシーの単独所有者とし、`CustomInstructionSafetyValidator` を部品に降格。
+- **D3** — 信頼レベル別スキーマ契約。`AgentConfig` の全 13 要素に行を与える。
+- **D4** — 違反は「拒否・続行・要約行必須」。握り潰し禁止。
+- **D5** — ポート DTO はセキュリティ制御を担わない。`toString()` 遮蔽は制御として採用禁止。
+- **D6** — 秘匿値の遮蔽は `infrastructure.logging`（シンク）で行う。
+- **D7** — 否定的対照のない制御は制御ではない。
+
+各決定に「失敗するテスト」が 1 つずつ対応（ADR の Enforcement 表）。
+
+### coordinator による上流訂正の確認
+
+t18 の SEC-H2 が述べた「防御はデニーリストのみ」は**不正確**であることを coordinator が独立に確認した。以下は**稼働中**:
+
+- `domain/agent/AgentDefinitionPolicy.java:26` `MAX_AGENT_FILE_SIZE = 64 * 1024` → :64 で実際に適用
+- 同 :27 `MAX_AGENT_NAME_LENGTH = 64` → :36 の正規表現に組み込み済み
+
+真因は検証ロジックではなく `infrastructure/copilot/ApplicationPortFactory.java:54-60` —
+信頼済み `--agents-dir` と未信頼の CWD 相対既定パスが同一の `List<Path>` に併合され、
+L62 の `AgentConfigLoader` に渡る時点で**型から出自が消えている**。
+検証器を強化しても、どのファイルに厳しい規則を当てるべきか判断する情報が既に失われている。
+
+**この run で 6 例目の同一パターン**（[systemic] ADR 参照）— ただし今回は制御でもテストでもなく **型** の層で発生した。
+制御が空虚（t12/t13.1/t16/t18）でも未検証（t14）でもなく、**制御が必要な情報を受け取れない**形。
+
+---
+
+## 2026-08-05T08:51Z — from coordinator (t18.1 経由) — t19 スコープ追加 [DIRECTED]
+
+t18.1（architect）が発見したがビルド設定は devops 案件のため未修正。**t19 に含めること。**
+
+### (1) `.sdkmanrc` と `pom.xml` の Java バージョン不整合
+
+- `.sdkmanrc`: `java=26.ea.13-graal`
+- `pom.xml`: `<java.version>27</java.version>` / `--release 27 --enable-preview`
+
+`.sdkmanrc` は `sdk env` で自動適用される想定のファイルなので、これを信じた開発者は
+`pom.xml` をコンパイルできない JDK を掴む。t7 が確立した二重 JDK 方針
+（`pom.xml` → `27.ea.32-open` / `pom-native.xml` → `25.0.4-graal`）とも食い違う。
+
+**3 者（`.sdkmanrc` / `pom.xml` / `pom-native.xml`）の整合を取り、どれが正かを 1 箇所に書くこと。**
+
+### (2) SEC-L6 — SnakeYAML（繰り延べ裁定）
+
+main 側の参照は `LogbackLevelSwitcher:24` の 1 件のみ。
+t18 が「YAML デシリアライゼーションなし」を SAFE として確認済みのため、
+**LOW のまま t19 の依存関係整理（native/main のドリフト是正）と併せて処理**する。
+単独タスクは起こさない。
+
+### 既存の t19 スコープ（再掲、増える一方なので集約）
+
+1. `pom-native.xml` が HEAD でビルドできない（`Bad service configuration file … ElementBeanDefinitionBuilderFactory`）。**t20 の前提**
+2. jar が実行可能でない — `default-shade` 実行ブロックに `<phase>`/`<goals>` がなく `<mainClass>` は :320 の別ブロック（基準線 `fb2e795c` と同一＝既存欠陥）
+3. Tier 3 CLI スモークの所有権（t5 が architect/T016 に割当 → coordinator が t16 を文書専任に絞った結果、無主になっていた）
+4. 死んだ `<micronaut.version>5.1.2</micronaut.version>`（実効は 5.0.5）
+5. native/main のドリフト: Micronaut 5.0.2 vs 5.0.5 / micronaut-test 5.0.0 vs 5.0.1 / byte-buddy 1.18.7 vs 1.18.9
+6. **(new)** `.sdkmanrc` の不整合
+7. **(new)** SEC-L6 SnakeYAML

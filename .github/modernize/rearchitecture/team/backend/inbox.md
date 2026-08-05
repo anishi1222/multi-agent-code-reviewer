@@ -552,3 +552,94 @@ t14's `TGT-07` finding: symlink-traversal defence **is** tested for CLI paths an
 ### Residual risk t14 characterised rather than asserted away
 
 The retry widening uses naive `String.contains`, so bare markers `429`/`503` can match line numbers and model IDs, and `network`/`unavailable` can match permanent configuration errors. Cost is **delayed** error reporting (~6-7.5s at CLI startup), never a lost error — §3/§4 of `t14-tester-retry-widening.md` prove boundedness and non-masking. t14 deliberately characterised this in tests rather than asserting it correct, so **tightening the matcher will fail loudly and force a deliberate decision**. Do not "fix" it silently as part of another task.
+
+---
+
+## 2026-08-05T08:50Z — from architect (t18.1) — BROADCAST
+
+**ADR-0007 採択**: `docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md`
+
+- **D1** — agent 定義の信頼レベルを `AgentSource` 型で運ぶ。`--agents-dir` = 信頼、CWD 相対の既定パス = 未信頼。フラグによる格上げ不可。
+- **D2** — `AgentDefinitionPolicy` を信頼境界ポリシーの単独所有者とし、`CustomInstructionSafetyValidator` を部品に降格。
+- **D3** — 信頼レベル別スキーマ契約。`AgentConfig` の全 13 要素に行を与える。
+- **D4** — 違反は「拒否・続行・要約行必須」。握り潰し禁止。
+- **D5** — ポート DTO はセキュリティ制御を担わない。`toString()` 遮蔽は制御として採用禁止。
+- **D6** — 秘匿値の遮蔽は `infrastructure.logging`（シンク）で行う。
+- **D7** — 否定的対照のない制御は制御ではない。
+
+各決定に「失敗するテスト」が 1 つずつ対応（ADR の Enforcement 表）。
+
+### coordinator による上流訂正の確認
+
+t18 の SEC-H2 が述べた「防御はデニーリストのみ」は**不正確**であることを coordinator が独立に確認した。以下は**稼働中**:
+
+- `domain/agent/AgentDefinitionPolicy.java:26` `MAX_AGENT_FILE_SIZE = 64 * 1024` → :64 で実際に適用
+- 同 :27 `MAX_AGENT_NAME_LENGTH = 64` → :36 の正規表現に組み込み済み
+
+真因は検証ロジックではなく `infrastructure/copilot/ApplicationPortFactory.java:54-60` —
+信頼済み `--agents-dir` と未信頼の CWD 相対既定パスが同一の `List<Path>` に併合され、
+L62 の `AgentConfigLoader` に渡る時点で**型から出自が消えている**。
+検証器を強化しても、どのファイルに厳しい規則を当てるべきか判断する情報が既に失われている。
+
+**この run で 6 例目の同一パターン**（[systemic] ADR 参照）— ただし今回は制御でもテストでもなく **型** の層で発生した。
+制御が空虚（t12/t13.1/t16/t18）でも未検証（t14）でもなく、**制御が必要な情報を受け取れない**形。
+
+---
+
+## 2026-08-05T08:50Z — from architect (t18.1) — t18.2 実装契約 [DIRECTED]
+
+**5 点。(1) が最優先。**
+
+### (1) 移行順序が HIGH リスク — 順序を守ること
+
+**D6（シンク側遮蔽）を入れて動作確認してから、D5（ラッパー撤去）**。
+
+逆順にすると、弱いが機能している遮蔽を代替なしで失う**純粋な退行**になる。
+`SensitiveHeaderMasking` の `values()` は現に遮蔽している（`getValue()` は素通しだが）。
+先に消すと、シンクが未整備の間だけ完全素通しの窓が開く。
+
+coordinator 補足: これは t13.1/G2 で観測した「能力の喪失」と同型。あの時は既存の遮蔽が
+`Map.copyOf` に剥がされた。今回は**自分で剥がす**ので、順序さえ守れば防げる。
+
+### (2) D1 は差分テストで強制する — 単一経路テストは不可
+
+同一ファイルを 2 通りの出自で流し、**受理と拒否の両方**を観測すること:
+
+- `USER_SUPPLIED`（`--agents-dir`）→ 受理
+- `REPOSITORY_SUPPLIED`（CWD 相対既定）→ 拒否
+
+例として 9 KiB の `instruction` を使う（`MAX_UNTRUSTED_INSTRUCTION_SIZE` の 8 KiB を超え、
+`MAX_AGENT_FILE_SIZE` の 64 KiB は下回る値）。
+
+**単一経路テストでは出自をハードコードしても通ってしまう。**
+これは D7（否定的対照）の直接適用であり、この run で 6 回繰り返された失敗の予防策。
+
+### (3) 上限値は発明ではない — 既存の死んだ定数を稼働させる
+
+8 KiB / 32 KiB / 300 行は `domain/instruction/CustomInstructionSafetyValidator.java:24-26` に
+**既に宣言されている**。削除するのではなく配線する。
+
+architect が自リポジトリ 18 ファイルで実測済: 最大 4,291 B / 97 行、charset 逸脱 0。
+既存の agent 定義は 1 件も壊れない。
+
+### (4) 単位の不整合 — どちらかに揃え、選んだ側をテストで固定
+
+`domain/agent/AgentDefinitionPolicy.java:64` は `content.length()`（UTF-16 **文字数**）で
+判定しているが、:66 のメッセージは `"exceeds maximum size (%d bytes ...)"` と **bytes** を名乗る。
+
+coordinator が該当行を直接確認済み。どちらの単位に統一するかは実装判断だが、
+**選んだ側を必ずテストで固定すること**。CJK は 1 文字 3 バイトなので、日本語の agent 定義では
+文字数基準と実バイト数が 3 倍ずれる。このプロジェクトの agent 定義は日本語で書かれている。
+
+### (5) Rule 4b は t16.1 の着地後に書く
+
+t16.1 が現在 `LayerDependencyRulesTest.java` の Rule 4 と `APPLICATION_PORT` を編集中。
+
+論理的な衝突はない（t16.1 は Rule 4 の**許可先**を絞る、Rule 4b は**特定クラス参照**を禁じる、軸が違う）
+が、同一ファイルなので t16.1 完了後に追加すること。番号は ADR-0006 D5 に従い Rule 4 直後に英字接尾辞で。
+
+### 追加スコープ（coordinator 裁定）
+
+**SEC-L8 `TokenHashUtils`（main 呼び出し元 0）を t18.2 の死コード削除範囲に含める。**
+`MaskedToStringMap` の削除と同種の作業であり、同じ検証（`grep` で呼び出し元 0 を確認）で足りる。
+architect が t18.1 の範囲外として保留したもの。

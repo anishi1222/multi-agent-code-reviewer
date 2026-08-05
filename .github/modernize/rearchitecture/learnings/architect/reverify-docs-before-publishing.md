@@ -30,6 +30,17 @@ downstream agents treat the ADR as the authority.
   place instead of the table going stale.
 - Do not restate a sibling task's report as fact — re-derive its claims from source. Here the
   report was accurate, but the check cost one command per row.
+- **When told a document has a defect, re-verify the whole document, not the reported line.**
+  A stale doc is rarely stale in exactly one place — the reported defect is a symptom, not the
+  extent. Look for the document contradicting *itself*; that is the cheapest tell.
 
 ## History
 - 2026-08-05 (rearchitecture/t16): initial — t13.1 landed mid-task and changed 3 ADR-0006 claims
+- 2026-08-05 (rearchitecture/t18.1): the coordinator reported one defect in
+  `.github/copilot-instructions.md` (Mustache `{{placeholder}}`, actually `${key}`). Re-reading the
+  whole file showed its entire Architecture section still described the **pre-migration package
+  tree deleted in t13** (`cli/ agent/ orchestrator/ service/ skill/ config/ report/ util/ target/`
+  — all 9 verified GONE), plus two classes that no longer exist. The file even contradicted itself:
+  one line said `{{placeholder}}`, another 5 lines below used `${repository}`. This is the file
+  every AI agent reads first, so the blast radius was the whole run. Fixing only the reported line
+  would have left the worse error in place.
