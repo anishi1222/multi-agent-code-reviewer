@@ -31,7 +31,7 @@
 - ✅ t7 [devops] Prepare target environment and verify GraalVM 26 EA toolchain (02:41:25Z→02:48:30Z, 7m 5s) — **READY**. Dual-JDK toolchain: OpenJDK 27-ea+32 for `pom.xml`, GraalVM 25.0.4 for `pom-native.xml`; both compile clean (157 files). Fixed `pom-native.xml` logback convergence (`f63a79c`). Recon's "Java 26 EA" was stale — profile corrected. **All build tasks must set `JAVA_HOME` explicitly** (routed to 5 inboxes).
 
 ### Phase: Implementation
-- ⏳ t8 [backend] Phase 1 — shared layer, domain core types, and 12 port interfaces (T001–T003) [deps: t7]
+- ✅ t8 [backend] Phase 1 — shared layer, domain core types, and 12 port interfaces (T001–T003) (02:55:33Z→03:13:10Z, 17m 37s) — **PASS**: 52 new files, 907/907 tests, `mvn clean verify` green, 0 findings. Verified independently: 12 ports split inbound/outbound, 6 domain subpackages, **domain+shared import-pure** (zero SLF4J/Micronaut/Jakarta/SDK). Carry-forward C1 (`ReviewContext` purification → t9) and C2 (`InstructionFrontmatter` scalar-only → t10/t21) routed.
 - ⏳ t9 [backend] Phase 2 — agent domain models and review orchestration use-cases (T004+T005) [deps: t8]
 - ⏳ t10 [backend] Phase 3 — report, skill, and diagnostics application layers (T006–T008) [deps: t8]
 - ⏳ t11 [backend] Phase 4 — infrastructure adapters: Copilot SDK and support (T009+T010) [deps: t9, t10]

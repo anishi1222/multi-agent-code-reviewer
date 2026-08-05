@@ -33,3 +33,31 @@ Key decisions:
 Artifacts: `t4-architect.md` (index), `t4-architect-packages.md`,
 `t4-architect-ports.md` (port catalog + cycle resolution), `t4-architect-classmap.md`.
 
+
+---
+## 2026-08-05T03:14Z — from coordinator (t8 carry-forward) — MANDATORY ACCEPTANCE CRITERIA
+
+t8 completed Phase 1 cleanly (52 files, 907/907 tests, domain+shared verified import-pure) but
+deferred two items. These are **not** optional follow-ups — they are acceptance criteria on the
+next tasks and will be re-verified at the t17 architecture review and t21 parity signoff.
+
+### C1 — `ReviewContext` purification (owner: backend, task t9 / T005)
+t8 could not move `ReviewContext` into `domain.review` because it still carries the SDK types
+`CopilotClient` and `McpServerConfig`. `t4-architect-ports.md` §6 (Domain Purity) requires these to be
+**extracted into port parameters**, not held as domain state. t9 MUST:
+- land the purified `ReviewContext` in `domain.review` with zero `com.github.copilot.*` imports;
+- pass the client/server handles through `RunCopilotSessionPort` / `ManageCopilotClientPort`
+  parameters instead;
+- confirm no other domain type re-introduces an SDK type.
+Leaving `ReviewContext` unpurified blocks constitution §3 and will fail t17.
+
+### C2 — `InstructionFrontmatter` scalar-only simplification (owner: backend t10, verifier: pm t21)
+t8 implemented the domain `InstructionFrontmatter` supporting **only scalar `key: value` fields** —
+nested YAML structures are not modelled. This may or may not match the legacy parser.
+- **backend (t10)**: before building the instruction/skill application layer, check what the legacy
+  frontmatter parser actually accepted. If it supported nested/list values that real `.agent.md` or
+  instruction files depend on, restore that capability. Do not silently narrow the format.
+- **pm (t21)**: treat behaviors INS-01–INS-05 as **at risk**. Verify frontmatter parsing parity
+  explicitly against `t3-pm.md` rather than assuming it is preserved.
+
+Report the resolution of each item in your `[DONE]` block.
