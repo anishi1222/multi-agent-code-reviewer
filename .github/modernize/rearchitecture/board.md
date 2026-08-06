@@ -96,6 +96,24 @@ any new appender must carry both `%replace` passes.
 Authoritative build on the settled tree: **980 tests, 0 failures, 0 errors, BUILD SUCCESS**
 (969 + 11 = 2 rule + 9 canary).
 
+### Critical path to completion — recomputed 2026-08-06T12:45Z
+
+**t18 is `❌ failed[findings]` (2 HIGH) and §3.7 forbids closing on it.** A remediation task's own
+`[DONE]` does not close the original finding — t18 must be reset to pending, re-dispatched, and
+return a *fresh clean pass* before t20 runs.
+
+**t18.2's hold is now released.** It was queued behind t16.1 (both touch `src/`, and two backend
+workers on one tree produce merge damage that presents as a test failure); t16.1 is ✅. Its
+dependencies t18.1 ✅ and t16.1 ✅ are both satisfied, so t18.2 is **ready** — but it is backend, and
+t28 is backend and in flight, so it waits for the same single-worker reason, not a dependency.
+
+Blocking chain: **t28 → t18.2 → t18 (re-dispatch, must return 0 HIGH) → t20 → t22**.
+Off the critical path and parallelisable only in the sense of ordering, not concurrency:
+t16.2, t17, t32 (architect), t14.1 (tester, deps t18.2), t19 (devops), t21 (pm).
+
+Dispatch remains **one worker at a time**. The 2-concurrent ceiling was disproven when t27 and t30
+ran together and both got contaminated builds reporting totals *below* baseline.
+
 ## Tasks
 
 ### Phase: Foundation 📌 4a5a420
