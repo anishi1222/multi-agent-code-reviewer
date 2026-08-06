@@ -1218,3 +1218,120 @@ Also confirm the **default** path: with neither key set, banner and executor mus
   cannot compile this project.
 - Tool output redacts auth literals to `******` (see the broadcast). `base64` is the only reliable
   reveal if you hit it.
+
+---
+
+## t18.2 — SEC-H1 / SEC-H2 の根本原因を閉じる（ADR-0007 D1–D4, D7）
+
+**発信**: coordinator / 2026-08-06
+
+### ⚠️ まず: このタスクの範囲は board の旧記述から変わっています
+
+board が当初 t18.2 に与えていた 3 項目のうち **2 項目は t31 が既に完了済み**です。
+私が着手前に src/ を実測して確認しました:
+
+| 旧項目 | 現状 |
+|---|---|
+| `SensitiveHeaderMasking` のアクセサ行列（`getValue()` が生値を返す） | ✅ **t31 が解消済み**。`MaskedHeaderEntry` 自体が存在しない |
+| 死んでいた `wrapWithMaskedToString` / `MaskedToStringMap` の削除 | ✅ **t31 が削除済み**（ADR-0007 D5）。`src/` に残骸なし |
+| SEC-H1 の死んだ制御を実経路に接続 | ❌ **未着手**。下記が本タスクの本体 |
+
+**この 2 項目を「修正した」と報告しないでください。** 既に無い物を消したことにするのは
+虚偽の完了報告です。触るべき対象は残り 1 項目と、その根本原因です。
+
+### 実測で確認した現状（あなたが再確認すべき事実）
+
+1. **SEC-H1 の制御は今も完全に死んでいる。**
+   `MAX_INSTRUCTION_SIZE` / `MAX_UNTRUSTED_INSTRUCTION_SIZE` / `MAX_INSTRUCTION_LINES` /
+   `ALLOWED_CHAR_RANGE` は `src/` 全体で **各 1 出現**、すなわち宣言のみ。呼び出し側ゼロ。
+   `CustomInstructionSafetyValidator.ValidationResult`（:108）も同様に宣言のみ。
+
+2. **SEC-H2 の根本原因は未着手のまま。**
+   `infrastructure/copilot/ApplicationPortFactory.java` の `loadAgentPort` が、
+   `AgentPathConfig` 由来の CWD 相対パス（**非信頼**）と、`--agents-dir` 由来のパス（**信頼**）を
+   `List<Path> merged` に併合しています。**出自が型によって消去されている。**
+   この時点で情報が失われるため、`AgentConfigLoader` 側をどれだけ強化しても
+   信頼レベル別のポリシーは原理的に適用できません。
+   t18.1 の診断のとおりであり、**バリデータの強化だけでは SEC-H2 は閉じません**。
+
+3. **`AgentDefinitionPolicy:64` はサイズ判定に `content.length()`（UTF-16 コード単位）を使い、
+   `:66` のメッセージは "bytes" と報告している。**
+   本プロジェクトは CJK の agent 定義を同梱するため、実バイト数と最大 3 倍乖離します。
+   上限を「効かせる」以上、この不整合は同時に解消する必要があります。
+
+### ⚠️ ADR-0007 の要素数が既に陳腐化しています（実装前に必ず読むこと）
+
+ADR-0007 は **2026-08-05**（`fba3b76`）に、`AgentConfig` が **12 要素**だった時点で書かれました。
+その後 **2026-08-06** の `672b1a5` が `skillBudget` を追加し、**現在は 13 要素**です。
+
+したがって ADR 本文の以下 4 箇所は算術が古い:
+
+- L131「`AgentConfig` に出自を表す要素を 1 つ追加する（12 → 13 要素）」
+- L149「D3. 信頼レベル別スキーマ契約（**全 13 要素**に行を与える）」
+- L280「表の**全 13 行** + ファイル 2 行に 1 つずつ」
+- L335「`AgentConfig` が 12 → 13 要素になり」
+
+**正しくは 13 → 14 です。**
+
+これは単なる誤記ではありません。D3 の強制手段は
+「行の追加漏れは『未カバー要素あり』で落ちる」という設計です。ADR の字面どおり
+13 行の表を書くと、**1 要素が無言で表から漏れ、D3 が守るはずの当の機構が無効化されます。**
+実装時は ADR の数値ではなく、**`AgentConfig` の実際の構成要素を列挙して数えてください。**
+ADR 側の訂正が必要と判断したら `[notify:architect]` を出してください（あなたが ADR を
+書き換える必要はありません）。
+
+### 本タスクの範囲 — ADR-0007 の未実装決定 D1, D2, D3, D4（D7 はレビュー要件）
+
+D5 / D6 は t31 が実装済みです。残る D1–D4 が SEC-H1 と SEC-H2 の両方を閉じます。
+
+**実装順序は D1 → D2 → D3 と固定です。逆転させないでください。**
+D2 の「上限を信頼レベル別に効かせる」は D1 の出自伝播が前提であり、
+D3 の差分テストは出自が末端まで届いていて初めて意味を持ちます。
+D1 を後回しにすると、D2 は「全経路一律の上限」にしかならず、SEC-H2 は開いたままになります。
+
+- **D1**: `domain.agent.AgentSource`（`USER_SUPPLIED` / `REPOSITORY_SUPPLIED`）を導入し、
+  ディレクトリ解決時点から `AgentConfig` まで一貫して運ぶ。
+  出自の判定は**合成のルート**、すなわち上記 `ApplicationPortFactory` の併合箇所で行い、以後変更しない。
+  ADR の明記どおり、`REPOSITORY_SUPPLIED` を `USER_SUPPLIED` に格上げする CLI オプションは**設けない**。
+- **D2**: `domain.agent.AgentDefinitionPolicy` を信頼境界ポリシーの**唯一の所有者**とする。
+  `CustomInstructionSafetyValidator` は「パターン照合の部品」に降格（正規化と suspicious 照合の実装価値は保持）。
+  **死んだ上限定数は削除せず、宣言された意図どおり稼働させる。**
+  上限を消して「未使用コードを除去した」と報告するのは、SEC-H2 の境界を無制限にする改悪です。
+- **D3**: 信頼レベル別スキーマ契約。全要素（**実測 14**）+ ファイル 2 行にそれぞれ行を与える。
+- **D4**: 違反時は「拒否し、続行し、必ず可視化する」。
+  他の agent は読み込まれ、拒否理由に規則識別子が含まれ、要約行が出ること。
+
+### 否定的対照は必須です（D7 / ADR-0006 D5）
+
+ADR-0007 の Enforcement 表は決定ごとに否定的対照の形まで指定しています。そのとおりに作ってください。
+特に **D1 の差分テスト**が本タスクの反空虚性の要です:
+
+> 同一の Agent 定義ファイルを `USER_SUPPLIED` として読むと**受理**、
+> `REPOSITORY_SUPPLIED` として読むと**拒否**される（例: 9 KiB の `instruction`）
+
+出自が末端まで運ばれていなければ両者が同一結果になり、このテストは必ず落ちます。
+**これは設計上そうなっており、それがこのテストの価値です。**
+
+**実装前に、まずこのテストを書いて RED になることを自分の目で確認してください。**
+GREEN になったテストを後から書いて「通った」と報告するのは、
+本プロジェクトで 10 回以上再発している空虚性の罠です。
+D2 のメタテスト（各定数の `src/main` 参照数 ≥ 1 かつ `src/test` 参照数 ≥ 1）も同様に、
+SEC-H1 と同型の「宣言のみ」の再発検出装置として必ず入れてください。
+
+### 検証
+
+- `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` が**必須**です。
+  マシン既定の GraalVM 25 では本プロジェクトはコンパイルできません。
+- **テスト数の基準線は 981 です**（HEAD で `mvn clean verify` を実測した値）。
+  増減は 981 との差分で報告してください。
+- **必ず `mvn clean verify` で測定すること。** 非 clean 実行は過去の surefire レポートを
+  拾って数を水増しします。実際にそれで誤った基準線が生まれ、後続タスクに誤情報が伝播しました。
+- 既存テストの削除・無効化・`@Disabled` 付与で GREEN にしないでください。
+  正当な理由で撤去する場合は、撤去理由を成果物に明記してください。
+
+### 成果物
+
+- `{{BASE_PATH}}/artifacts/t18.2-backend.md`
+- ADR-0007 の要素数が陳腐化している件は `[notify:architect]` で通知（あなたは ADR を書き換えない）
+- `presentation` 層の文字列キー設定束縛について t28 が挙げた Rule 5b の盲点と関連する発見があれば `[notify:architect]`
+
