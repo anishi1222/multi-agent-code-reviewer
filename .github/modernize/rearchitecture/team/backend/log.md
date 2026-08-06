@@ -272,3 +272,56 @@
   across agents would destroy rename detection and produce inconsistent per-file calls.
 - Learnings consumed: [backend/duplicate-utility-consolidation-semantic-drift, backend/layer-dependency-test-is-an-allowlist,
   backend/maven-test-count-reconciliation, backend/jdk-pinning-for-preview-features]
+
+## [t26] F1 negative control for the cumulative assigned-skill budget + ruling on one-knob-many-budgets
+
+- **Verify the brief, don't inherit it.** The brief said one knob governed *three* budgets; enumerating
+  the comparison sites myself found **five**. The two extra sites were where the real defect lived
+  (`AgentPromptBuilder:145` reads the hardcoded constant, not the configured value → raising the knob
+  to silence a warning turns a graceful skip into an `IllegalStateException`). Proposed as F4.
+- **Prove branch reachability algebraically before writing the test.** The cumulative budget at L207 is
+  *unreachable with a single skill*: `isSafeSkill` already enforces `skillLength + 2 <= budget`, so
+  `skillLength > budget` cannot hold on the first iteration. That's why the pre-existing
+  `rejectsOversizedSkillFile` never touched it. Needed ≥2 assigned skills.
+- **Order sensitivity is the airtight isolation trick.** Per-file gates are pure functions of
+  `(file, budget)`, so a byte-identical file at an identical budget cannot behave differently. Showing
+  the same file survives alone but is dropped when preceded by others attributes the drop to the
+  cumulative branch with no hand-waving.
+- **Passing tests ≠ D7 satisfied.** Ran two mutations and built a kill matrix. M1 (cumulative branch off)
+  killed tests 1+2; M2 (`metadata.agent` guard off) killed test 3. **Disjoint** kills prove no test is
+  vacuous — test 3 passes under M1 by design, which would have looked like a weak test without the matrix.
+- **Measure before calling a bug active.** I nearly wrote "the byte gate is ~3× stricter for Japanese".
+  Measuring the real corpus: 27 skills have `bytes != chars` (up to 2×), but **zero** currently fall in
+  the mis-gated window. It's *latent*, not active. Also nearly mis-stated the prompt overhead as 11
+  chars/skill; computing it from the literals gave **10** (`"\n### "` is 5 chars, not 6). Compute, don't count by eye.
+- **Split the deliverable at the charter boundary.** Ruling was "no, one knob may not govern these" —
+  but the fix divides cleanly: renaming the alias into three unit-bearing fields is behaviour-identical
+  and in-charter; new YAML keys are a user-facing contract change needing an ADR, so escalated. Avoided
+  touching the `SkillConfig` record (7 call sites + new config surface needing its own D7 controls).
+- **Don't test a defect into permanence.** Deliberately did *not* write a test asserting the F4
+  `IllegalStateException` — that would ratify the bug as expected behaviour.
+- A real shipped skill (`java-add-graalvm-native-image-support`, 12 908 bytes) is already being dropped
+  at the default budget on every test run — so the F4 remediation path is one users will actually walk.
+- Build: 942 tests (939 baseline, +3 = exactly the tests added), 0 failures, exit 0, 15/15 arch rules.
+- Learnings consumed: [tester/negative-control-inside-the-test, tester/test-conventions,
+  tester/never-pipe-a-verification-build, backend/surefire-declared-vs-actual-test-counts]
+
+### [t26 addendum] clarification.md added to dependencies post-delivery
+
+- **Reconciled all 7 applicable constraints; no deliverable needed revision.** The record
+  *corroborated* ruling B rather than changing it: its "`application.yml` keys may break only
+  when justified ... with ADR and migration notes" clause independently mandates the exact
+  ADR escalation I'd chosen on charter grounds. Worth mining a late dependency for support of
+  decisions already made, not just for contradictions.
+- **Found one real discrepancy: record says Java 26, pom says 28.** Resisted both reflexes —
+  "canonical record wins, downgrade the pom" (would be a genuine regression *and* violate the
+  record's own no-version-upgrades rule) and "record's wrong, ignore it" (hides a process defect).
+- **Provenance check resolved it in 3 commands.** merge-base=27, origin/main=28, and the 27→28
+  commit `98b095c` is authored by the repo owner and is an ancestor of origin/main. So the drift
+  came through Upstream Merge legitimately — **no worker violated scope** — and the record, generated
+  2026-08-05, simply predates the merge. Reported as F5 (MEDIUM, process); did **not** hand-edit
+  the file since it declares itself regenerate-only.
+- **This retroactively validated the t26 build.** I'd built under JDK 28 matching `<release>28</release>`;
+  had I trusted the "Java 26" line I'd have failed the build. Verify claims against build files.
+- No source changed in this addendum (docs/learnings only), so the 942/0 build result stands unchanged.
+- Learnings consumed: [same set as t26, plus reconciliation of clarification.md]

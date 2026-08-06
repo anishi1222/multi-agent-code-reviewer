@@ -37,7 +37,17 @@ public class AgentConfigLoader {
     private final AgentMarkdownParser markdownParser;
     private final SkillMarkdownParser skillParser;
     private final String skillsDirectory;
-    private final int maxSkillPromptLength;
+
+    /// Maximum size of one skill file **on disk, in bytes**, checked before the file is parsed.
+    private final int maxSkillFileBytes;
+
+    /// Maximum **character** length of one skill's injected content
+    /// (`name` + `description` + `prompt`).
+    private final int maxSkillContentChars;
+
+    /// Maximum **cumulative character** length of every skill assigned to a single agent
+    /// through `metadata.agent`.
+    private final int maxAssignedSkillTotalChars;
 
     public static Builder builder(List<Path> agentDirectories) {
         return new Builder(agentDirectories);
@@ -80,7 +90,15 @@ public class AgentConfigLoader {
         this.markdownParser = new AgentMarkdownParser(defaultOutputFormat);
         this.skillParser = new SkillMarkdownParser(skillConfig.filename());
         this.skillsDirectory = skillConfig.directory();
-        this.maxSkillPromptLength = skillConfig.maxParameterValueLength();
+        // These three budgets are all sourced from the single
+        // `reviewer.skills.max-parameter-value-length` knob, but they are NOT interchangeable:
+        // they measure three different quantities, and the first is counted in bytes while the
+        // other two are counted in UTF-16 characters. They are kept as separate fields so that
+        // each call site declares which budget it is applying instead of hiding behind one alias.
+        int sharedSkillBudget = skillConfig.maxParameterValueLength();
+        this.maxSkillFileBytes = sharedSkillBudget;
+        this.maxSkillContentChars = sharedSkillBudget;
+        this.maxAssignedSkillTotalChars = sharedSkillBudget;
     }
 
     /// Loads all agent configurations from all configured directories.
@@ -186,7 +204,7 @@ public class AgentConfigLoader {
             int skillLength = skill.name().length()
                 + skill.description().length()
                 + skill.prompt().length();
-            if (assignedPromptLength + skillLength > maxSkillPromptLength) {
+            if (assignedPromptLength + skillLength > maxAssignedSkillTotalChars) {
                 logger.warn("Assigned review skill budget exceeded for agent '{}', skipping skill '{}'",
                     agentName, skill.id());
                 continue;
@@ -224,9 +242,9 @@ public class AgentConfigLoader {
         List<SkillDefinition> skills = new ArrayList<>();
         for (Path skillFile : skillFiles) {
             try {
-                if (Files.size(skillFile) > maxSkillPromptLength) {
+                if (Files.size(skillFile) > maxSkillFileBytes) {
                     logger.warn("Skill file exceeds maximum size ({} bytes), skipping: {}",
-                        maxSkillPromptLength, skillFile);
+                        maxSkillFileBytes, skillFile);
                     continue;
                 }
                 SkillDefinition skill = skillParser.parse(skillFile);
@@ -246,9 +264,9 @@ public class AgentConfigLoader {
 
     private boolean isSafeSkill(SkillDefinition skill, Path skillFile) {
         String injectedContent = String.join("\n", skill.name(), skill.description(), skill.prompt());
-        if (injectedContent.length() > maxSkillPromptLength) {
+        if (injectedContent.length() > maxSkillContentChars) {
             logger.warn("Skill content exceeds maximum length ({} > {}), skipping: {}",
-                injectedContent.length(), maxSkillPromptLength, skillFile);
+                injectedContent.length(), maxSkillContentChars, skillFile);
             return false;
         }
         if (CustomInstructionSafetyValidator.containsSuspiciousPattern(injectedContent)) {

@@ -841,3 +841,98 @@ correct, and for a stronger reason than backend had — the capability was never
 > to default and every consumer goes through `toPromptBudget()`.
 
 This is the substance of **t27 (F2)**. See board.
+
+---
+
+## [2026-08-06T01:20Z] From: coordinator — Task t26 (F1 HIGH remediation)
+
+t24 の建築適合ゲートは**マージ自体は PASS**（0 CRITICAL / 層違反 0 / Rule 0 331・175 独立検証）だが、
+**HIGH 1 件（F1）**を surfacing したため §3.2.1 によりゲートは `failed[findings]` 扱いです。
+あなたの仕事は F1 の解消です。t24 はあなたの完了後に再ディスパッチされ、clean PASS を出す必要があります。
+
+### F1 の一次情報（**coordinator がソースで実地確認済み** — 引用可）
+
+`src/main/java/dev/logicojp/reviewer/infrastructure/parsing/AgentConfigLoader.java`:
+
+```
+ 40:  private final int maxSkillPromptLength;
+ 83:  this.maxSkillPromptLength = skillConfig.maxParameterValueLength();   ← ★
+165:  List<SkillDefinition> agentSkills = enforceAssignedSkillBudget(
+176:  private List<SkillDefinition> enforceAssignedSkillBudget(String agentName, …
+179:      int assignedPromptLength = 0;
+189:      if (assignedPromptLength + skillLength > maxSkillPromptLength) { … }   ← 累積
+194:      assignedPromptLength += skillLength;
+227:      if (Files.size(skillFile) > maxSkillPromptLength) { … }                ← ファイル単体
+249:      if (injectedContent.length() > maxSkillPromptLength) { … }             ← 展開後
+```
+
+確認済みの追加事実:
+- `shared/PromptBudget` は int 7 フィールド（peerContent / synthesisTurn / synthesisHistory /
+  localSource / summaryContentPerAgent / summaryTotal / summaryFallback）。
+  **スキル関連の予算フィールドは存在しない。** つまり L83 が流用しているのは「他に無いから」です。
+- `SkillConfig.maxParameterValueLength` の既定は `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH`。
+- `src/test/java` 全体で「oversized なスキルファイル」に言及するテストは
+  `AgentConfigLoaderTest:168 rejectsOversizedSkillFile` **1 件のみ**（grep 実測）。
+
+### **未検証**（あなたが確かめること。私はここを事実として断定しません）
+
+前回、私は自分のブリーフで未検証の前提を事実として書き、危うく稼働中の CLI フラグを削除させかけました
+（`decisions.md` の t24 エントリに記録済み）。同じ轍を踏まないため、以下は**問い**として渡します:
+
+- `rejectsOversizedSkillFile` は本当に**単一ファイル**で検証しているか？
+- L189 の累積分岐に**到達するテストが 1 つでも存在するか**？
+- 既定値は実際いくつで、現実のスキルファイル 1 本はそれをどれだけ下回るか？
+
+### 課題 A（必須）— ADR-0007 D7 の否定的対照
+
+D7 は「否定的対照を伴わない制御は、実装されたとみなさない」と規定します。L189 はその状態にあると
+t24 は判定しました。根拠は、**L189 と L227 が同一の `maxSkillPromptLength` を見ている**ため、
+単一ファイルで L189 を踏み越えられる入力は L227 が先に弾く、というものです。
+したがって L189 は「**1 エージェントに割り当てた複数スキルの合計**が上限を超える」場合にしか発火しません。
+
+否定的対照は、その到達経路そのものを再現してください。個々は上限以下・合計は上限超という
+複数スキルを 1 エージェントに割り当て、**L227 ではなく L189 で落ちること**を主張すること。
+「例外が飛んだ」だけでは不十分です（どちらの分岐でも例外は飛ぶため、対照になりません）。
+
+### 課題 B（**要判定** — ここが本質）
+
+L83 は `maxParameterValueLength` を `maxSkillPromptLength` という**別名に代入**しており、
+呼び出し側（L189/227/249）からは「スキル prompt 専用の予算がある」ように読めます。実際には
+**1 つのノブが意味の異なる 3 つの予算**を兼務しています:
+
+| 行 | 実際に測っているもの |
+|---|---|
+| 189 | 1 エージェント分の**割当スキル合計**の prompt 長 |
+| 227 | ディスク上の**スキルファイル 1 本**のサイズ |
+| 249 | **展開後の注入コンテンツ**長 |
+
+これは本プロジェクトで 8 回目の同型パターンです（`decisions.md` 参照）。一般形は
+**「制御の適用範囲は呼び出し地点からは見えない」**。t18.1 の `ApplicationPortFactory:54-60`
+（別名代入が出自を消す）と**同じ形**です。
+
+判定してください:
+- **3 つを 1 ノブで統べるのが正しい**なら、L83 にその理由を記し、3 つの意味が同一である根拠を示す。
+  併せて、L189 が単一ファイルでは到達不能である事実を D7 の観点で許容できるか述べること。
+- **正しくない**なら、専用予算を導入する。その場合 `shared/PromptBudget` へ足すのか
+  `SkillConfig` に足すのかは ADR-0006 の層規則に照らして判断し、既定値は `shared/ConfigDefaults` に置くこと
+  （`SKILL_MAX_PARAMETER_VALUE_LENGTH` が既にそこにある）。設定キーを新設・改名する場合は
+  `application.yml`・README・RELEASE_NOTES の追随が必要かを述べること。
+
+**私は結論を持っていません。** A だけ埋めて B を「現状維持」で通すのも、根拠が示されるなら妥当な判定です。
+ただし B を**黙って素通りさせない**でください。判定内容は artifact に必ず残すこと。
+
+### 出自について（誤帰属の防止）
+
+`enforceAssignedSkillBudget` は **`origin/main` に存在し、マージ基点 `fb2e795c` には存在しません**
+（coordinator が grep で確認）。したがってこれは**上流由来の既存ギャップ**であり、t23 のマージ作業が
+作り込んだ欠陥ではありません。t23 は忠実に移送しただけです。artifact でもそう扱ってください。
+
+### 完了条件
+
+- 課題 A の否定的対照が存在し、失敗経路が L189 であることを主張している
+- 課題 B の判定が根拠付きで artifact に記録されている
+- `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify` が green
+  （**マシン既定の GraalVM 25 ではこのプロジェクトはコンパイルできません**。`--enable-preview` が
+  有効なため、JDK 不一致は誤解を招くエラーを出します）
+- テスト総数の増減を、追加/削除した `@Test` の実数と突き合わせて報告すること
+

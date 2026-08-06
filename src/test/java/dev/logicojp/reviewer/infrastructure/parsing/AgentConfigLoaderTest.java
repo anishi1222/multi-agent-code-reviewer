@@ -14,6 +14,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.skill.SkillDefinition;
 
 @DisplayName("AgentConfigLoader")
 class AgentConfigLoaderTest {
@@ -311,6 +312,159 @@ class AgentConfigLoaderTest {
             Map<String, AgentConfig> agents = loader.loadAllAgents();
 
             assertThat(agents).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("割当スキルの累積予算")
+    class AssignedSkillBudget {
+
+        /// Budget shared by every test below. The skill content is ASCII-only, so
+        /// bytes == chars and the per-file byte gate is measured in the same unit as
+        /// the two character gates — the isolation below does not depend on encoding.
+        private static final int BUDGET = 1_000;
+
+        /// `name` + `description` + `prompt` length of each generated skill.
+        /// Two fit the budget (800); three do not (1200).
+        private static final int SKILL_LENGTH = 400;
+
+        /// Builds a SKILL.md whose `name`+`description`+`prompt` is exactly `totalLength`.
+        /// `agentName == null` omits the `metadata.agent` field entirely.
+        private String skillContent(String skillId, String agentName, int totalLength) {
+            String description = "d";
+            int promptLength = totalLength - skillId.length() - description.length();
+            return "---\n"
+                + "name: " + skillId + "\n"
+                + "description: " + description + "\n"
+                + (agentName == null ? "" : "metadata:\n  agent: " + agentName + "\n")
+                + "---\n\n"
+                + "x".repeat(promptLength) + "\n";
+        }
+
+        private Path writeSkill(Path skillsDir, String skillId, String agentName) throws IOException {
+            Path file = skillsDir.resolve(skillId).resolve("SKILL.md");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, skillContent(skillId, agentName, SKILL_LENGTH));
+            return file;
+        }
+
+        private Path setUpAgent(Path root) throws IOException {
+            Path agentsDir = root.resolve("agents");
+            Files.createDirectories(agentsDir);
+            Files.writeString(agentsDir.resolve("test-agent.agent.md"), AGENT_CONTENT.stripIndent());
+            return agentsDir;
+        }
+
+        private SkillConfig budgetedSkillConfig(Path skillsDir) {
+            SkillConfig defaults = SkillConfig.defaults();
+            return new SkillConfig(
+                defaults.filename(),
+                skillsDir.toString(),
+                BUDGET,
+                defaults.maxExecutorCacheSize(),
+                defaults.executorCacheInitialCapacity(),
+                defaults.executorCacheLoadFactor(),
+                defaults.serviceShutdownTimeoutSeconds(),
+                defaults.executorShutdownTimeoutSeconds()
+            );
+        }
+
+        private List<SkillDefinition> loadSkills(Path agentsDir, Path skillsDir) throws IOException {
+            Map<String, AgentConfig> agents = AgentConfigLoader.builder(List.of(agentsDir))
+                .skillConfig(budgetedSkillConfig(skillsDir))
+                .build()
+                .loadAllAgents();
+            return agents.get("test-agent").skills();
+        }
+
+        /// Negative control for the *other* two gates.
+        ///
+        /// Asserts that for every generated skill file the per-file byte gate and the
+        /// per-skill content gate are both strictly satisfied, using the very expressions
+        /// the production code evaluates. Any skill dropped by the loader therefore cannot
+        /// have been dropped by either of those two branches.
+        private void assertPerFileGatesCannotFire(List<Path> skillFiles) throws IOException {
+            var parser = new SkillMarkdownParser();
+            for (Path file : skillFiles) {
+                SkillDefinition parsed = parser.parse(file);
+                int injectedContentLength = String.join(
+                    "\n", parsed.name(), parsed.description(), parsed.prompt()).length();
+
+                assertThat(Files.size(file))
+                    .describedAs("per-file byte gate must not fire for %s", file)
+                    .isLessThanOrEqualTo(BUDGET);
+                assertThat(injectedContentLength)
+                    .describedAs("per-skill content gate must not fire for %s", file)
+                    .isLessThanOrEqualTo(BUDGET);
+            }
+        }
+
+        @Test
+        @DisplayName("個々は上限以下でも合計が上限を超える割当スキルは除外される")
+        void dropsAssignedSkillOnceCumulativeBudgetIsExceeded(@TempDir Path tempDir) throws IOException {
+            Path agentsDir = setUpAgent(tempDir);
+            Path skillsDir = tempDir.resolve("skills");
+            List<Path> files = List.of(
+                writeSkill(skillsDir, "skill-a", "test-agent"),
+                writeSkill(skillsDir, "skill-b", "test-agent"),
+                writeSkill(skillsDir, "skill-c", "test-agent")
+            );
+
+            // Neither per-file gate can fire — so the drop below is attributable only to
+            // the cumulative branch.
+            assertPerFileGatesCannotFire(files);
+
+            List<SkillDefinition> skills = loadSkills(agentsDir, skillsDir);
+
+            // 400 + 400 <= 1000, but 400 + 400 + 400 > 1000: the third is dropped.
+            assertThat(skills).extracting(SkillDefinition::id)
+                .containsExactly("skill-a", "skill-b");
+        }
+
+        @Test
+        @DisplayName("同一のスキルファイルが単独では採用され後続では除外される")
+        void identicalSkillIsAcceptedAloneButDroppedAfterOthers(@TempDir Path tempDir) throws IOException {
+            // Isolated: skill-c is the only skill present.
+            Path aloneRoot = tempDir.resolve("alone");
+            Path aloneAgents = setUpAgent(aloneRoot);
+            Path aloneSkills = aloneRoot.resolve("skills");
+            Path isolated = writeSkill(aloneSkills, "skill-c", "test-agent");
+
+            // Preceded: a byte-identical skill-c, same budget, but two skills sort ahead of it.
+            Path afterRoot = tempDir.resolve("after");
+            Path afterAgents = setUpAgent(afterRoot);
+            Path afterSkills = afterRoot.resolve("skills");
+            writeSkill(afterSkills, "skill-a", "test-agent");
+            writeSkill(afterSkills, "skill-b", "test-agent");
+            Path preceded = writeSkill(afterSkills, "skill-c", "test-agent");
+
+            assertThat(Files.readString(preceded)).isEqualTo(Files.readString(isolated));
+            assertPerFileGatesCannotFire(List.of(isolated, preceded));
+
+            assertThat(loadSkills(aloneAgents, aloneSkills)).extracting(SkillDefinition::id)
+                .containsExactly("skill-c");
+            assertThat(loadSkills(afterAgents, afterSkills)).extracting(SkillDefinition::id)
+                .doesNotContain("skill-c");
+        }
+
+        @Test
+        @DisplayName("metadata.agentを持たないスキルは累積予算の対象にならない")
+        void skillsWithoutAgentMetadataAreNotSubjectToTheCumulativeBudget(@TempDir Path tempDir)
+                throws IOException {
+            Path agentsDir = setUpAgent(tempDir);
+            Path skillsDir = tempDir.resolve("skills");
+            List<Path> files = List.of(
+                writeSkill(skillsDir, "skill-a", null),
+                writeSkill(skillsDir, "skill-b", null),
+                writeSkill(skillsDir, "skill-c", null)
+            );
+
+            assertPerFileGatesCannotFire(files);
+
+            // Same three sizes and the same budget as the first test, which dropped one.
+            // Only `metadata.agent` differs, and now all three survive.
+            assertThat(loadSkills(agentsDir, skillsDir)).extracting(SkillDefinition::id)
+                .containsExactly("skill-a", "skill-b", "skill-c");
         }
     }
 

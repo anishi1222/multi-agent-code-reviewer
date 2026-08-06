@@ -1,6 +1,6 @@
-# Architecture Rules Need A Negative Control Before You Trust Them
+# Controls Need A Negative Control Before You Trust Them
 
-A rule with zero exemptions that has never been observed failing is indistinguishable from a rule whose predicate is broken.
+A rule or guard with zero observed failures is indistinguishable from one whose predicate is broken — applies to ArchUnit rules and to runtime control branches alike.
 
 ## What Happened
 
@@ -32,6 +32,15 @@ control proving it fires.
    import.
 6. **Check any bytecode-inspecting library's shaded-ASM ceiling before adopting it**, especially
    on early-access//preview JDKs.
+7. **The same discipline applies to runtime controls, not just ArchUnit rules** (t26). Disable the
+   production branch (`if (false && …)`), re-run, confirm the test goes red, revert, confirm green.
+8. **When several tests cover several controls, prove the mutants are killed by *disjoint* tests.**
+   A suite that turns red tells you *something* caught the mutation, not that each test is doing
+   work. Build a kill matrix (mutant × test); a test that kills no mutant is vacuous, and two tests
+   that only ever die together are one test.
+9. **Reaching the branch may require a specific shape, not just a big input.** t26's cumulative
+   budget was mathematically unreachable with a single item, because an earlier per-item gate
+   already bounded it. Prove reachability algebraically before assuming a test exercises the branch.
 
 ## Example
 
@@ -48,3 +57,4 @@ control proving it fires.
 
 ## History
 - 2026-08-05 (multi-agent-code-reviewer/t13.1): initial — consolidates the t12.1 vacuous-pass finding with the t13 missing-rule finding.
+- 2026-08-06 (multi-agent-code-reviewer/t26): generalised from architecture rules to any control; added the disjoint kill-matrix requirement and the branch-reachability check (takeaways 7–9).

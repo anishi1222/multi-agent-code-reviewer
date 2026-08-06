@@ -712,3 +712,128 @@ fix it and say so. If it requires an ADR decision, escalate instead of deciding 
 
 Coordinator note: this closes the escalation backend raised in t23. Backend's keep-our-capability call was
 correct, and for a stronger reason than backend had — the capability was never unsurfaced in the first place.
+
+---
+
+## [2026-08-06T01:35Z] From: backend (t26) — routed by coordinator
+
+### `[notify:architect]` (1/2) — **New finding proposed: F4 (HIGH), needs your ruling**
+
+> `AgentPromptBuilder:145` compares against the hardcoded `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH`
+> and ignores the configured `reviewer.skills.max-parameter-value-length`, while the `AgentConfigLoader`
+> gates honour it. An operator who sees `Assigned review skill budget exceeded … skipping skill` and raises
+> the configured limit — **the natural remediation** — lifts the loader's ceiling above the builder's fixed
+> one, so previously-skipped skills are admitted and the builder then throws `IllegalStateException`,
+> aborting that agent's review. The documented remedy makes the failure mode strictly worse, and the crash
+> window is unbounded, not the ~71-char markup gap. This is live, not theoretical:
+> `java-add-graalvm-native-image-support/SKILL.md` (12,908 bytes) is already dropped at the default budget
+> on every test run, so users have a real incentive to raise the knob.
+> Details in `artifacts/t26-backend.md` §C.
+
+### `[notify:architect]` (2/2) — **Three design decisions escalated from the t26 ruling**
+
+> Out of backend charter — each is a user-facing config contract change requiring an ADR + migration notes:
+> 1. splitting the one knob into separately-configured budgets via new YAML keys;
+> 2. resolving the **bytes-vs-chars conflation** — the file gate compares `Files.size()` in bytes against the
+>    same integer the content gates compare UTF-16 chars against (27 shipped skills diverge, up to 2×, though
+>    **zero** are currently mis-gated, so this is latent not active);
+> 3. whether the loader's cumulative gate should become a true **pre-check** for the builder's rendered-section
+>    gate — today it under-counts by a verified `71 + 10n` chars plus an unbounded placeholder-expansion delta
+>    over the identical skill set.
+
+### Coordinator's disposition
+
+Both are folded into your **t24 re-dispatch** rather than raised as separate tasks — ruling on a proposed
+HIGH and on config-contract design is precisely the architect conformance gate's job, and t24 must
+re-run anyway under §3.2.1 step 5. See the t24 re-dispatch brief below.
+
+
+---
+
+## [2026-08-06T01:40Z] From: coordinator — Task t24 **re-dispatch** (§3.2.1 step 5)
+
+t24 は F1（HIGH）を surfacing したため `❌ failed[findings]` として記録されています。§3.2.1 step 5 により、
+**ゲート自身が再実行され、clean PASS（HIGH/CRITICAL ゼロ）を出すまで** 下流（t25）は解放されません。
+これは再実行ラウンド **1 / 2** です。
+
+### 1. F1 は closable か（t26 の成果を検収する）
+
+backend が t26 で提出したもの:
+- `AgentConfigLoaderTest.AssignedSkillBudget` に否定的対照 3 件
+  （累積 drop / 順序依存の分離 / `metadata.agent` matched-pair ガード）
+- **2-mutant kill matrix**（kill が disjoint = どのテストも vacuous でないことの証明）
+- 兄弟ゲート 2 つが当該テストで inert であることを in-test control で明示
+
+**coordinator がソースで独立確認済み**（引用可）:
+- 本番差分は**純粋な rename** です。`AgentConfigLoader:98` で
+  `int sharedSkillBudget = skillConfig.maxParameterValueLength();` を取り、
+  `maxSkillFileBytes` / `maxSkillContentChars` / `maxAssignedSkillTotalChars` の**3 つとも同じ値**を代入。
+  よって**挙動は bit-identical**。各呼び出し地点が「どの予算を適用しているか」を型と名前で宣言するようになりました。
+- `src/main` に mutant の残滓なし（grep 実測）。
+
+判定してください: **D7 の要求を満たしたか。** 満たしたなら F1 は closed。
+
+### 2. **F4（HIGH 提案）の裁定** — 本再実行の主眼
+
+backend が escalate した F4 を、**coordinator がソースで実地検証しました**。事実は backend の主張より
+**重い**です。以下は推測ではなく実測です:
+
+`ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH`（= 10,000）の**消費者は 5 箇所**:
+
+| # | 場所 | 実際に測っている量 | 単位 | 値の出所 | 超過時 |
+|---|---|---|---|---|---|
+| 1 | `AgentConfigLoader:204` | 1 エージェントの割当スキル**合計** | chars | **設定値** | warn + skip |
+| 2 | `AgentConfigLoader:245` | スキルファイル 1 本 | **bytes** | **設定値** | warn + skip |
+| 3 | `AgentConfigLoader:267` | 注入コンテンツ | chars | **設定値** | warn + skip |
+| 4 | `SkillDefinition:54` | **パラメータ値 1 個**の長さ | chars | 引数 | 拒否 |
+| 5 | `AgentPromptBuilder:145` | レンダリング済み**スキル節**全体 | chars | **ハードコード定数** | **`IllegalStateException` を throw** |
+
+つまり `maxParameterValueLength` という名前が**正確なのは 5 用途のうち #4 だけ**です。
+
+F4 の核心（L136–149 を読んだ上での確認）:
+- #5 は `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH` を**直接**参照しており、
+  `reviewer.skills.max-parameter-value-length` を上げても**この天井は上がりません**。
+- #5 だけが **throw**、#1–#3 は **skip**。つまり「上限に触れたときの挙動」が一貫していません。
+- #1 は #5 の**有効な事前チェックになっていません**。2 つの独立した軸で過小計上します:
+  (a) #5 は `"\n\n## Assigned Review Skills\n\n"` + 日本語 1 行 + スキルごとの `### ` 見出しと改行を
+      **含めて**数えるが、#1 は `name+description+prompt` の素の合計しか数えない（backend 実測 `71 + 10n` chars）。
+  (b) #5 は `PlaceholderUtils.replaceDollarPlaceholders`（L141）で**展開後**を数えるが、
+      #1 は**展開前**を数える。展開による増分に上界はありません。
+
+したがって backend の言う「ノブを上げると罠にかかる」は**帰結の一つに過ぎず**、より本質的には
+**既定設定のままでも #1 を通過した集合が #5 で crash しうる**、という構成上の不整合です。
+
+裁定してください:
+- F4 は HIGH として妥当か（coordinator は妥当と見ますが、**判断はあなたの職掌**です）
+- 妥当なら remediation の**方向性**（#5 を設定値に合わせる / skip に揃える / #1 を真の pre-check にする 等）。
+  実装タスクは私が起票します。**あなたが実装する必要はありません。**
+- なお本件は本プロジェクトで**同型パターンの 9 例目**です（`decisions.md`）。一般形
+  「**制御の適用範囲は呼び出し地点からは見えない**」の最も純粋な形 — #1 は #5 を守っているように*見えて*、
+  別の量を別の天井で別の出所から測っています。この一般形を ADR に昇格すべきかも併せて判断してください。
+
+### 3. escalate された 3 つの設計判断
+
+backend が「backend charter の外」として上げたもの。いずれも利用者向け config 契約の変更で ADR が要ります:
+1. 1 ノブを**個別の予算キー**に分割するか（新 YAML キー + 移行注記）
+2. **bytes vs chars** の混同（#2 は bytes、#1/#3/#5 は chars）。出荷済み 27 スキルで最大 2 倍の乖離、
+   ただし**現時点で誤判定は 0 件**なので latent。
+3. #1 を #5 の真の pre-check に格上げするか
+
+各々について「今 ADR 化する / t24 の後段タスクに送る / 現状維持で根拠を記す」を裁定してください。
+
+### 4. F2 / F3 の再確認
+
+前回 MEDIUM とした 2 件（F2: `PromptBudgetConfig` の `@Bindable` 既定値二重定義、
+F3: `ReviewOutputFormatter:26` の設定キー不一致）は t27 / t28 として未着手のまま残っています。
+**MEDIUM のままか**を再確認してください。HIGH に昇格するなら、その旨を明示すること
+（昇格した場合、本ゲートは再び clean PASS を出せません）。
+
+### 5. 完了条件
+
+- 上記 1–4 すべてに裁定を下し、`artifacts/t24-architect.md` を**更新**（別ファイルにせず追記/改訂）
+- マージそのものへの適合判定を**再発行**すること（前回: 0 CRITICAL / 層違反 0 / Rule 0 331・独立検証 175）
+- **HIGH/CRITICAL が 0 なら clean PASS を明示**。1 件でも残るならラウンド 2 に進み、
+  2 ラウンドで収束しない場合は利用者判断に上げます（§3.2.1）
+- ビルド: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify`
+  （マシン既定の GraalVM 25 では**コンパイルできません**）
+

@@ -16,12 +16,29 @@ import java.util.List;
 /// for a utility that is called at configuration-binding time.
 public final class ConfigDefaults {
 
-    /// Maximum rendered length of the "Assigned Review Skills" prompt section.
+    /// Shared default for every skill-related size budget in the system.
     ///
     /// Lives here rather than on `infrastructure.config.SkillConfig` so that domain
     /// prompt builders can enforce the limit without importing `infrastructure`
-    /// (ADR-0006 Rule 1). `SkillConfig` delegates to this constant, so the value
+    /// (ADR-0006 Rule 1). `SkillConfig` delegates to this constant, so the *default*
     /// still has a single source of truth.
+    ///
+    /// **This one number is compared against five different quantities**, in two different
+    /// units. They are not interchangeable, and this constant is not a single "budget":
+    ///
+    /// | Consumer | Quantity measured | Unit | On breach |
+    /// |---|---|---|---|
+    /// | `AgentConfigLoader` (file gate)      | one skill file on disk            | bytes | skip + warn |
+    /// | `AgentConfigLoader` (content gate)   | one skill's injected content      | chars | skip + warn |
+    /// | `AgentConfigLoader` (assigned total) | cumulative content per agent      | chars | skip + warn |
+    /// | `AgentPromptBuilder`                 | rendered "Assigned Review Skills" | chars | **throws**  |
+    /// | `SkillDefinition#buildPrompt`        | one substituted parameter value   | chars | **throws**  |
+    ///
+    /// Note that `AgentPromptBuilder` reads this constant *directly* and therefore ignores
+    /// any configured `reviewer.skills.max-parameter-value-length` override, while the
+    /// `AgentConfigLoader` gates honour it. Raising the configured value past this constant
+    /// makes the loader admit a skill set that the prompt builder then rejects by throwing.
+    /// See the t26 ruling for the recommended split.
     public static final int SKILL_MAX_PARAMETER_VALUE_LENGTH = 10_000;
 
     private ConfigDefaults() {
