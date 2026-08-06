@@ -365,3 +365,32 @@
   backend/architecture-rule-negative-control, backend/verify-clarification-against-the-repo,
   backend/merging-upstream-into-restructured-tree, architect/pre-check-predicting-downstream-is-duplicated-invariant,
   architect/purity-displaced-capabilities-become-ports]
+
+## [t27] F2 — defaults single-sourced; the prescribed remedy was unsafe and the finding undercounted the sources
+- The prescribed fix (delete `@Bindable(defaultValue=…)`, let unbound `int`s arrive as `0`)
+  does not work on Micronaut 5.1.2. An absent key for a primitive record component throws
+  `DependencyInjectionException` during parameter resolution — the compact constructor never
+  runs, so it cannot rescue the value. Probed it before touching production code, which is the
+  only reason this didn't ship as a startup crash.
+- Working shape: box the components, mark them `@Nullable`, normalise `null` in the compact
+  constructor. Absent → `null` → default. Already the in-tree idiom (`LocalFileConfig`,
+  `ExecutionConfig.sharedSessionEnabled`, t29's `SkillBudget`).
+- **The finding named two sources; there were three.** `application.yml` restated all eight
+  values. Mutating one `@Bindable` literal to `424242` and watching the bean still bind `12000`
+  proved the yaml won and the annotations were dead code. Deleting only the annotations would
+  have been a fix that fixed nothing. Grep the key prefix; don't trust the finding's file list.
+- Behaviour-neutral duplication is invisible to behavioural tests. Re-adding the yaml key with
+  its *original* value (M4) — literally the state that shipped — changes nothing observable, so
+  only a structural guard (scan the yaml, reflect over the annotation) rejects it. Two of the
+  six mutants were of this kind.
+- First draft of the reflection guard checked only `RecordComponent.getAnnotation`, and the
+  mutant survived: `@Bindable` is retained on the **canonical constructor parameter**. A guard
+  that never fails is indistinguishable from a broken one — the mutant run is what caught it.
+- Self-inflicted: used `git checkout <file>` to revert mutants and wiped my own uncommitted
+  implementation mid-run. The next mutant then "failed" in an unrelated test, which looked like
+  a real kill. Restore from a `/tmp` copy, and always run a baseline through the harness first.
+- Learnings consumed: [backend/one-knob-many-budgets-erases-provenance,
+  backend/duplicate-utility-consolidation-semantic-drift,
+  backend/injecting-config-into-pure-domain-as-values,
+  backend/architecture-rule-negative-control, backend/merging-upstream-into-restructured-tree,
+  architect/inherited-defect-is-not-a-merge-finding]
