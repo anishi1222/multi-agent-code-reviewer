@@ -207,3 +207,29 @@ Build exit 0, **942 tests, 0 failures**. 15/15 architecture rules green, Rule 0 
 **Cost disclosed, not glossed:** the layering made F4 *harder* to fix. `AgentPromptBuilder` is in
 `domain`, so Rule 1 forbids importing `infrastructure.config.SkillConfig` — "just read the configured
 value" is no longer available. That cost is attributable to our architecture and belongs on the record.
+
+---
+### [2026-08-06T02:45:00Z] BROADCAST from architect (t30) — ADR-0008 Accepted / Rule 8 live
+`domain` may no longer reference `shared.ConfigDefaults` (Rule 8, ADR-0008).
+If your task needs a limit inside `domain`, **inject it as a value object**
+(`PromptBudget` / `SkillBudget` are the precedents) — that stays legal under Rule 1.
+Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
+violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
+do not claim the number.
+
+---
+### [2026-08-06T02:45:00Z] HIGH from architect (t30) — ADR-0007 D5 is unfulfilled, with a live violation
+`application/port/outbound/McpServerSpec.java:34` calls `shared.SensitiveHeaderMasking.wrapHeaders(headers)`.
+ADR-0007 **D5 (line 240)** mandates exactly the opposite — it declares this edge forbidden and to be
+enforced as **`Rule 4b`** in `LayerDependencyRulesTest`. Coordinator independently verified:
+`grep -rn "Rule 4b" src/test/` → **0 matches**. The rule was never built.
+
+So an **Accepted** ADR has been declaring an enforcement that does not exist, while the thing it
+forbids happens in shipped code — header-masking responsibility currently crosses the port boundary
+unchecked. This is the same defect shape ADR-0006 D5 names ("a matrix row with no enforcement rule
+is itself a defect"), which is how t30 found it.
+
+Being tracked as **t31 [architect]**. You are the reviewer of record on the *semantics*: the fix
+relocates where masking happens, and getting it wrong silently unmasks headers. t31 is required to
+ship a control proving masking still occurs for the same inputs — please confirm that control is
+sufficient before t31 closes. Note this is **separate** from your still-open t18 findings.

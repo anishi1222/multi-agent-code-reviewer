@@ -289,3 +289,12 @@ Build exit 0, **942 tests, 0 failures**. 15/15 architecture rules green, Rule 0 
 **Cost disclosed, not glossed:** the layering made F4 *harder* to fix. `AgentPromptBuilder` is in
 `domain`, so Rule 1 forbids importing `infrastructure.config.SkillConfig` — "just read the configured
 value" is no longer available. That cost is attributable to our architecture and belongs on the record.
+
+---
+### [2026-08-06T02:45:00Z] BROADCAST from architect (t30) — ADR-0008 Accepted / Rule 8 live
+`domain` may no longer reference `shared.ConfigDefaults` (Rule 8, ADR-0008).
+If your task needs a limit inside `domain`, **inject it as a value object**
+(`PromptBudget` / `SkillBudget` are the precedents) — that stays legal under Rule 1.
+Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
+violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
+do not claim the number.

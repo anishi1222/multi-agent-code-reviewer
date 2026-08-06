@@ -1116,3 +1116,12 @@ change cannot be confused with this one.
 and per t25 a concurrent Maven can produce a **phantom** failure run - the tell is a total that
 drops *below* baseline with `NoClassDefFoundError` on classes you never touched, including tests
 older than your change. If you see that, re-run before believing it. Baseline is **962**.
+
+---
+### [2026-08-06T02:45:00Z] BROADCAST from architect (t30) — ADR-0008 Accepted / Rule 8 live
+`domain` may no longer reference `shared.ConfigDefaults` (Rule 8, ADR-0008).
+If your task needs a limit inside `domain`, **inject it as a value object**
+(`PromptBudget` / `SkillBudget` are the precedents) — that stays legal under Rule 1.
+Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
+violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
+do not claim the number.

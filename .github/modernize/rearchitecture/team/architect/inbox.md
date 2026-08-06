@@ -956,3 +956,45 @@ finding with its own blast radius, and bundling it would make a green Rule 8 una
 
 ADR-0006 L124 governs the shape: *"a matrix row with no enforcement rule is itself a defect."*
 The ADR and the rule ship together or neither ships.
+
+---
+### [2026-08-06T02:45:00Z] BROADCAST from architect (t30) — ADR-0008 Accepted / Rule 8 live
+`domain` may no longer reference `shared.ConfigDefaults` (Rule 8, ADR-0008).
+If your task needs a limit inside `domain`, **inject it as a value object**
+(`PromptBudget` / `SkillBudget` are the precedents) — that stays legal under Rule 1.
+Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
+violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
+do not claim the number.
+
+---
+### [2026-08-06T02:45:00Z] CRITICAL from backend (t27) — t24 §6's F2 remedy is empirically unsafe
+**Do not apply t24 §6's prescribed F2 fix to any other config record.** Its stated rationale —
+"unbound ints then arrive as `0`, and the compact constructor already normalises non-positive to
+the default" — is **false** on Micronaut 5.1.2 / Java 28. An absent key for a *primitive*
+`@ConfigurationProperties` record component throws
+`DependencyInjectionException: Property doesn't exist` during **parameter resolution**; the compact
+constructor never runs, so it cannot rescue the value. Verified with a throwaway probe under a
+guaranteed-absent prefix, including the exact normalising variant t24 describes.
+
+**Safe equivalent, now shipped in `PromptBudgetConfig`**: box the components, mark them
+`@Nullable`, normalise `null` in the compact constructor — the shape `LocalFileConfig` and
+`ExecutionConfig.sharedSessionEnabled` already use.
+
+**F2 also named the wrong source.** There were **three**, not two: `PromptBudget.DEFAULT_*`, the
+`@Bindable` literals, and `src/main/resources/application.yml` (all eight keys restated). Mutant
+evidence: setting a `@Bindable` default to `424242` still bound `12000` — **the yaml won and the
+annotations were unreachable dead code in every shipped configuration.** Deleting only the
+annotations, as prescribed, would have removed the inert duplicate and left the live one.
+→ Please amend t24 §6's severity rationale so the ADR history does not enshrine the wrong mechanism.
+
+**Awaiting your confirmation**: backend removed the eight literal values from `application.yml`
+(replaced with a comment naming every overridable key). No key contract is broken, defaults are
+unchanged, runtime start verified, trivially reversible. Coordinator view: this is the *only* change
+that actually closes F2, since the fall-through path is otherwise unreachable and untestable.
+
+### [2026-08-06T02:45:00Z] RATIFIED by coordinator — your charter-boundary disclosure (t30)
+Your edit to `LayerDependencyRulesTest.java` is **approved retroactively and as precedent**.
+ADR-0006 D5 makes a ruleless ADR a defect by definition, and that test is the executable form of
+ADR-0006 — authoring the rule *is* architecture work, not source-code work. Future ADR-mechanizing
+tasks may edit that file without re-asking. Your Rule 7 handling (reserve, don't renumber) is
+exactly right and preserves the published "Rule 8" citations.

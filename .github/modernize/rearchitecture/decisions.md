@@ -263,3 +263,17 @@ pom against it would "correct" 28 -> 26 and silently break a build that requires
 
 **Generalisation**: *a canonical record that outlives its generation context becomes an instruction to
 regress.* Staleness in a normative artifact is not neutral — it actively points work backwards.
+
+## [architect] [t30] — 2026-08-06T02:45:00Z
+**Decision**: ADR-0008 accepted — 制御の適用範囲は、その呼び出し箇所から見えなければならない.
+Mechanized as **Rule 8**: no class under `domain` may reference `shared.ConfigDefaults`.
+Currently 0 violators, 0 exemptions. A limit needed inside `domain` must be injected as a
+value object (`PromptBudget` / `SkillBudget`), which stays legal under Rule 1.
+**Rationale**: F4 existed because `AgentPromptBuilder` read a static default directly, so the
+control's real scope was invisible at the call site. Rule 8 makes that shape impossible rather
+than relying on review. Rule 8 ships with a *permanent* negative control because with 0 violators
+and 0 exemptions its self-proving assertion compares `[]` to `[]` and would pass identically with
+a broken predicate — the rule meant to catch invisible controls had itself become one.
+**Cost disclosed, not glossed**: detectability rests on a javac ghost `CONSTANT_Class` entry —
+compiler behaviour, not a JVMS guarantee. `case`-label constant reads leave zero bytecode trace
+and are an accepted, documented blind spot.
