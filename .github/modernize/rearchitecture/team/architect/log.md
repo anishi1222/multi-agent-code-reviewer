@@ -217,3 +217,39 @@
   architect/completeness-assertions-need-an-independent-side,
   architect/matrix-row-requires-enforcement-rule, architect/reverify-docs-before-publishing,
   architect/purity-rule-is-not-a-membership-rule]
+
+## [t31] Implemented ADR-0007 Rule 4b + D5/D6; resolved the McpServerSpec violation
+- **The task framing omitted a constraint the ADR itself imposed.** ADR-0007 carries a HIGH
+  migration risk: "D5 must not precede D6." t31 asked only for Rule 4b + violation resolution.
+  Doing the obvious thing (delete the wrapper → rule goes green) is precisely the regression the
+  ADR forbids. Rule: **read the ADR's own risk/ordering sections before executing a task that
+  cites one of its D-items.** The task description is not the whole specification.
+- **The wrapper protected nothing — measured, not assumed.** ADR-0007 recorded the SDK's
+  `toString()` behaviour as unverified. Bytecode inspection of `copilot-sdk-java:1.0.8`:
+  `setHeaders` is a plain `putfield` (no defensive copy), and *neither* `McpHttpServerConfig` nor
+  `McpServerConfig` overrides `toString()`. Plus zero call sites in `src/main` log an
+  `McpServerSpec`. So the one guarded surface was unreachable and unvisited. Worth the 20 minutes:
+  it converted a "weak but working defence" narrative into a measured "no defence" — which changed
+  how I wrote the ADR, though *not* the execution order (see next point).
+- **"It protected nothing" still didn't license reordering.** The wrapper had exactly one genuine
+  coverage edge over the pre-existing sink: opaque custom header values (`X-API-Key: <no prefix>`).
+  Name-based vs value-shape-based masking are different sets. That single delta is what D6's second
+  pattern exists to close. Nearly talked myself into "D6 is unnecessary" from the null result.
+- **Found undocumented prior art.** logback already had `%replace` masking from commit `8d8fec1`,
+  predating ADR-0007, mentioned in neither the ADR nor any learning. The ADR was written as if the
+  sink were bare. Always diff the ADR's assumed starting state against the actual tree.
+- **Regex nesting order was a real trap.** `HEADER_MASK_PATTERN`'s value class stops at whitespace,
+  so if it runs *outside* `MASK_PATTERN` it eats only the word `Bearer` and leaves the token
+  exposed. Caught it by testing the composed pattern in a throwaway Java program before touching
+  logback — cheaper than a Maven cycle, and the failure would have been silent.
+- **Logback gotchas when testing the shipped XML**: `${...}` substitution is Joran's job, not
+  `PatternLayout`'s — resolve the properties yourself. A bare `new LoggerContext()` has no
+  MDCAdapter (`setMDCAdapter(new LogbackMDCAdapter())`), and `new LoggingEvent()` has no logger
+  context — build events via `context.getLogger(...)`. Three consecutive errors, each ~1 min.
+  Reading the actual stack trace beat guessing every time.
+- **Mutation-testing the canary paid for itself twice**: it proved the canary can fail, *and*
+  the per-case red/green split independently confirmed my coverage analysis (only the opaque-header
+  case went red). Evidence I did not have to argue for.
+- Learnings consumed: [architect/empty-violator-set-needs-a-permanent-control,
+  architect/matrix-row-requires-enforcement-rule, architect/verify-the-premise-before-ruling,
+  architect/disclose-scope-exceeded-instead-of-narrowing]

@@ -423,3 +423,42 @@ If your task needs a limit inside `domain`, **inject it as a value object**
 Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
 violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
 do not claim the number.
+
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ADR-0007 D5/D6: secret masking moved to the log sink
+
+**Coordinator-verified. Two things everyone must know.**
+
+### 1. Port DTOs now expose raw header values in `toString()` — by design
+
+Object-level masking is **removed** from `application.port.outbound.McpServerSpec`. Masking now
+happens at the **log sink** (`logback.xml` / `logback-json.xml`).
+
+**Do not "fix" this by re-adding a wrapper.** It cannot work (measured: the SDK overrides
+`toString()` on neither config class and stores headers with a plain field write, so a wrapper is
+lost on any copy), and it is now mechanically blocked by `LayerDependencyRulesTest` **Rule 4b**.
+
+### 2. If you add a log appender or logging profile, it MUST carry both `%replace` passes
+
+Both passes, in the documented nesting order, or secrets leak.
+`SensitiveHeaderMaskingSinkCanaryTest` will fail you if it doesn't — **the coordinator confirmed
+this by weakening the shipped `logback.xml` and watching it go red** with
+`SECRET LEAKED THROUGH THE LOG SINK`. It reads the real XML; it is not a re-declared copy.
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ⚠️ TOOLING HAZARD: output redaction can fake a defect
+
+The tool-output pipeline redacts auth-header literals to `******` in **all** output — `cat`, `grep`,
+`view`, `sed`, even Python `repr()`. Source lines then look like broken `"******"` defaults when they
+are perfectly normal templates. This nearly corrupted `GithubMcpConfig.java:52` and
+`application.yml:88`.
+
+**`base64` is the only reliable reveal** — `od -c` and `xxd` are redacted too.
+
+> **Never rewrite a line displaying `******` without decoding it first.**
+
+The coordinator used `grep ... | base64 | base64 -d` throughout t31's verification for exactly this
+reason, and it worked.

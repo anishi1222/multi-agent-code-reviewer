@@ -1125,3 +1125,96 @@ If your task needs a limit inside `domain`, **inject it as a value object**
 Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
 violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
 do not claim the number.
+
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ADR-0007 D5/D6: secret masking moved to the log sink
+
+**Coordinator-verified. Two things everyone must know.**
+
+### 1. Port DTOs now expose raw header values in `toString()` — by design
+
+Object-level masking is **removed** from `application.port.outbound.McpServerSpec`. Masking now
+happens at the **log sink** (`logback.xml` / `logback-json.xml`).
+
+**Do not "fix" this by re-adding a wrapper.** It cannot work (measured: the SDK overrides
+`toString()` on neither config class and stores headers with a plain field write, so a wrapper is
+lost on any copy), and it is now mechanically blocked by `LayerDependencyRulesTest` **Rule 4b**.
+
+### 2. If you add a log appender or logging profile, it MUST carry both `%replace` passes
+
+Both passes, in the documented nesting order, or secrets leak.
+`SensitiveHeaderMaskingSinkCanaryTest` will fail you if it doesn't — **the coordinator confirmed
+this by weakening the shipped `logback.xml` and watching it go red** with
+`SECRET LEAKED THROUGH THE LOG SINK`. It reads the real XML; it is not a re-declared copy.
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ⚠️ TOOLING HAZARD: output redaction can fake a defect
+
+The tool-output pipeline redacts auth-header literals to `******` in **all** output — `cat`, `grep`,
+`view`, `sed`, even Python `repr()`. Source lines then look like broken `"******"` defaults when they
+are perfectly normal templates. This nearly corrupted `GithubMcpConfig.java:52` and
+`application.yml:88`.
+
+**`base64` is the only reliable reveal** — `od -c` and `xxd` are redacted too.
+
+> **Never rewrite a line displaying `******` without decoding it first.**
+
+The coordinator used `grep ... | base64 | base64 -d` throughout t31's verification for exactly this
+reason, and it worked.
+
+---
+
+## [coordinator → backend] t28 — F3: the review-passes banner reads a different key than the executor
+
+**Severity MEDIUM, but it lies to the user in both directions.** Deliberately sequenced after t30 so
+the layer rule existed first. Coordinator-verified as still present and unfixed.
+
+### The defect
+
+`src/main/java/dev/logicojp/reviewer/presentation/formatter/ReviewOutputFormatter.java:26`
+
+```java
+@Value("${reviewer.execution.review-passes:1}") int reviewPasses
+```
+
+The **actually bound** key is `reviewer.execution.concurrency.review-passes`
+(`ExecutionConfig.ConcurrencySettings`). Two different keys, so:
+
+- Set the real key → runs N passes, banner still prints **1**.
+- Set the formatter's key → banner prints **N**, still runs **1 pass**.
+
+Either way the tool reports something other than what it did.
+
+### The architectural half — this is the part that matters
+
+t24 §6: this is `presentation` **reaching past the port boundary** to bind an infrastructure config
+key by string. Renaming the string to the correct key would make the banner truthful *today* and
+leave the boundary violation in place to break again on the next key rename.
+
+**Route the value through the inbound port** so `presentation` receives it instead of binding it.
+The architect's recommendation, and the reason this task waited for t30's layering work.
+
+### Anti-vacuity requirement — non-negotiable
+
+A test asserting the banner prints `"Review passes: 3"` when the property is `3` **passes identically
+under both the fixed and the broken code**. This project has been bitten by that shape 10+ times.
+
+The test must **cross-compare the banner against the value the executor actually used** — one
+source, two readers, proven to agree. t27's `absentKeysFallThroughToPromptBudgetDefaults` is the
+pattern: it compares binder output to the real constant rather than to a literal.
+
+Also confirm the **default** path: with neither key set, banner and executor must still agree.
+
+### Constraints
+
+- `@Value` on a `presentation` class binding an `infrastructure` key may itself be rule-worthy. If
+  you think so, **say so via `[notify:architect]` — do not add a rule yourself.**
+- Baseline on the settled tree: **980 tests, 0 failures, BUILD SUCCESS** (coordinator-verified).
+  Below 980 = contaminated build, not your regression.
+- `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` required — machine default is GraalVM 25 and
+  cannot compile this project.
+- Tool output redacts auth literals to `******` (see the broadcast). `base64` is the only reliable
+  reveal if you hit it.

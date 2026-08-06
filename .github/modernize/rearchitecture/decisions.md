@@ -277,3 +277,25 @@ a broken predicate — the rule meant to catch invisible controls had itself bec
 **Cost disclosed, not glossed**: detectability rests on a javac ghost `CONSTANT_Class` entry —
 compiler behaviour, not a JVMS guarantee. `case`-label constant reads leave zero bytecode trace
 and are an accepted, documented blind spot.
+
+
+## architect [t31] — 2026-08-06
+
+**Decision**: Discharge ADR-0007 D5 + D6 — remove object-level secret masking from
+`application.port.outbound.McpServerSpec`, and make the **log sink** the single masking boundary
+(`HEADER_MASK_PATTERN` in both logback profiles). Enforced by `LayerDependencyRulesTest` **Rule 4b**
+plus `SensitiveHeaderMaskingSinkCanaryTest`.
+
+**Rationale**: The removed wrapper protected nothing — measured, not assumed. `copilot-sdk-java:1.0.8`
+overrides `toString()` on neither `McpHttpServerConfig` nor `McpServerConfig`, stores headers via a
+plain `putfield` with no defensive copy, and **zero** `src/main` call sites log an `McpServerSpec`.
+Its only genuine coverage beyond the pre-existing sink was **opaque custom header values**
+(`X-API-Key:` with no recognizable prefix) — name-based and value-shape-based masking are different
+sets. D6's `HEADER_MASK_PATTERN` closes exactly that gap, mutation-proven.
+
+**Ordering**: ADR-0007 carries a HIGH migration risk that **D5 must not precede D6**. The task brief
+omitted it; t31 caught it from the ADR itself and executed ①RED ②D6 ③D5 ④GREEN.
+
+**Residual limit (recorded, not a regression)**: sink masking is text-shaped — it does not cover
+serialized JSON bodies, heap/core dumps, debuggers, or SDK-internal paths bypassing our logback.
+Equally true before this change. Token lifetime and least-privilege remain security's.

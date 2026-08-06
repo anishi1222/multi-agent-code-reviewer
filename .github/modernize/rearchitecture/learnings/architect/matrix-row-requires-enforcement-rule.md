@@ -48,3 +48,9 @@ reading the matrix alone did not surface either one.
   ADR, or write the item as a proposal and leave the ADR Proposed. Also added the numbering
   clarification above after Rule 8 exposed the ambiguity.
 
+- 2026-08-06 (t31): the ADR-0007 Rule 4b gap above was **closed** — rule written, observed RED
+  against the real violator (`McpServerSpec`), then GREEN after the D5 removal, with a permanent
+  subject-count control because it lands at 0 violators / 0 exemptions. The proposed guard
+  ("an ADR must not be Accepted while a D-item names a rule absent from the test tree") is
+  **still not adopted** and is re-raised in `artifacts/t31-architect.md` §7 for ratification.
+  This was the third instance of the pattern; the row is not the control.
