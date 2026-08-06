@@ -96,5 +96,5 @@ progress_sync:
   total_tasks: 39
   completed_tasks: 29
   total_commits: 601
-  build_verified: true  # compile-only verified at t7; full verify pending t13
+  build_verified: true  # full mvn verify green on the settled tree (980 tests) as of t31
   test_verified: true
