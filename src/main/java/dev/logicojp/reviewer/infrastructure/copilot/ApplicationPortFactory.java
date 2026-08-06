@@ -19,6 +19,8 @@ import dev.logicojp.reviewer.application.report.SummaryGenerator.SummaryGenerati
 import dev.logicojp.reviewer.application.review.DescribeReviewPlanUseCase;
 import dev.logicojp.reviewer.application.review.RunDiagnosticsUseCase;
 import dev.logicojp.reviewer.application.skill.ExecuteSkillUseCase;
+import dev.logicojp.reviewer.domain.agent.AgentSource;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import dev.logicojp.reviewer.domain.agent.ReviewSystemPromptFormatter;
 import dev.logicojp.reviewer.infrastructure.config.AgentPathConfig;
 import dev.logicojp.reviewer.infrastructure.config.ExecutionConfig;
@@ -49,8 +51,25 @@ public class ApplicationPortFactory {
 
     /// Provides {@link LoadAgentPort} backed by {@link LoadAgentUseCase}.
     ///
-    /// The lambda merges the configured default directories with any
-    /// caller-supplied additional paths at runtime.
+    /// ## The trust boundary lives here
+    ///
+    /// This method is the composition root's *only* assignment of agent-definition
+    /// provenance (ADR-0007 D1). Two populations of directories meet here and they are not
+    /// equally trustworthy:
+    ///
+    /// - `agentPathConfig.directories()` are resolved relative to the working directory, so
+    ///   for a review run they resolve inside the repository under review. Their contents are
+    ///   attacker-controlled whenever the reviewed repository is (boundary B3) and are
+    ///   therefore tagged {@link AgentSource#REPOSITORY_SUPPLIED}.
+    /// - `additionalDirs` reach this lambda already tagged by the caller, because they
+    ///   originate from `--agents-dir` on the command line (boundary B1) and the reviewed
+    ///   repository cannot influence argv.
+    ///
+    /// Previously both were flattened into one `List&lt;Path&gt;` here. That merge destroyed
+    /// provenance, which is precisely why every downstream validator had to apply a single
+    /// permissive limit and why the strict limits were never wired up (SEC-H1/SEC-H2).
+    /// Keeping the two populations distinguishable is the whole point of this change: nothing
+    /// downstream re-derives trust, it only reads what was decided here.
     @Singleton
     LoadAgentPort loadAgentPort(AgentPathConfig agentPathConfig, SkillConfig skillConfig) {
         List<String> configuredDirs = agentPathConfig.directories() != null
@@ -58,9 +77,9 @@ public class ApplicationPortFactory {
             : List.of();
 
         return new LoadAgentUseCase(additionalDirs -> {
-            List<Path> merged = new ArrayList<>();
+            List<AgentSourceDirectory> merged = new ArrayList<>();
             for (String d : configuredDirs) {
-                merged.add(Path.of(d));
+                merged.add(AgentSourceDirectory.repositorySupplied(Path.of(d)));
             }
             if (additionalDirs != null) {
                 merged.addAll(additionalDirs);

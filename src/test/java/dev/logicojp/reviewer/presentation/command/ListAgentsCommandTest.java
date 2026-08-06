@@ -4,6 +4,7 @@ import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.presentation.CliOutput;
 import dev.logicojp.reviewer.presentation.ExitCodes;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,7 @@ class ListAgentsCommandTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ByteArrayOutputStream err = new ByteArrayOutputStream();
         CliOutput output = new CliOutput(new PrintStream(out), new PrintStream(err));
-        AtomicReference<List<Path>> requestedDirs = new AtomicReference<>();
+        AtomicReference<List<AgentSourceDirectory>> requestedDirs = new AtomicReference<>();
         LoadAgentPort loadAgentPort = stubLoadAgentPort(requestedDirs, List.of(
             agentConfig("security"),
             agentConfig("performance")
@@ -36,7 +37,9 @@ class ListAgentsCommandTest {
 
         String outText = out.toString();
         assertThat(exit).isEqualTo(ExitCodes.OK);
-        assertThat(requestedDirs.get()).containsExactly(Path.of("."));
+        assertThat(requestedDirs.get())
+            .as("a directory named on the command line is operator input, not repository input")
+            .containsExactly(AgentSourceDirectory.userSupplied(Path.of(".")));
         assertThat(outText).contains("Available agents:");
         assertThat(outText).contains("security");
         assertThat(outText).contains("performance");
@@ -56,17 +59,17 @@ class ListAgentsCommandTest {
         assertThat(err.toString()).contains("Unknown option");
     }
 
-    private static LoadAgentPort stubLoadAgentPort(AtomicReference<List<Path>> requestedDirs,
+    private static LoadAgentPort stubLoadAgentPort(AtomicReference<List<AgentSourceDirectory>> requestedDirs,
                                                    List<AgentConfig> agents) {
         return new LoadAgentPort() {
             @Override
-            public List<AgentConfig> loadAll(List<Path> directories) {
+            public List<AgentConfig> loadAll(List<AgentSourceDirectory> directories) {
                 requestedDirs.set(directories);
                 return agents;
             }
 
             @Override
-            public Optional<AgentConfig> loadByName(String name, List<Path> directories) {
+            public Optional<AgentConfig> loadByName(String name, List<AgentSourceDirectory> directories) {
                 return agents.stream().filter(a -> a.name().equals(name)).findFirst();
             }
         };

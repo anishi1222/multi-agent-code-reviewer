@@ -12,6 +12,7 @@ import dev.logicojp.reviewer.presentation.SkillExecutionPreparation;
 import dev.logicojp.reviewer.presentation.SkillOptions;
 import dev.logicojp.reviewer.presentation.formatter.SkillOutputFormatter;
 import dev.logicojp.reviewer.presentation.parser.SkillOptionsParser;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -131,12 +132,12 @@ class SkillCommandTest {
     private static LoadAgentPort stubLoadAgentPort() {
         return new LoadAgentPort() {
             @Override
-            public List<AgentConfig> loadAll(List<Path> directories) {
+            public List<AgentConfig> loadAll(List<AgentSourceDirectory> directories) {
                 return List.of();
             }
 
             @Override
-            public Optional<AgentConfig> loadByName(String name, List<Path> directories) {
+            public Optional<AgentConfig> loadByName(String name, List<AgentSourceDirectory> directories) {
                 return Optional.empty();
             }
         };

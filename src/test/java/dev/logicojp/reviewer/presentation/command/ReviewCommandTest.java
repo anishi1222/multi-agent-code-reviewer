@@ -20,6 +20,7 @@ import dev.logicojp.reviewer.presentation.ReviewTargetResolver;
 import dev.logicojp.reviewer.presentation.formatter.ReviewOutputFormatter;
 import dev.logicojp.reviewer.presentation.parser.ReviewOptionsParser;
 import dev.logicojp.reviewer.shared.ExecutionCorrelation;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -111,12 +112,12 @@ class ReviewCommandTest {
             "security", "Security", "model", "system", "instruction", null, List.of(), List.of());
         LoadAgentPort loadAgentPort = new LoadAgentPort() {
             @Override
-            public List<AgentConfig> loadAll(List<Path> directories) {
+            public List<AgentConfig> loadAll(List<AgentSourceDirectory> directories) {
                 return List.of(agent);
             }
 
             @Override
-            public Optional<AgentConfig> loadByName(String name, List<Path> directories) {
+            public Optional<AgentConfig> loadByName(String name, List<AgentSourceDirectory> directories) {
                 return "security".equals(name) ? Optional.of(agent) : Optional.empty();
             }
         };

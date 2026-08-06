@@ -104,10 +104,20 @@ class LayerDependencyRulesTest {
     /// Scanning `Utf8Entry` values in addition to `ClassEntry` is required, not optional:
     /// annotation types (`@Singleton`, `@Inject`) and generic signatures appear *only* as UTF-8
     /// descriptors, never as `ClassEntry`. Detecting exactly those annotations is the whole point
-    /// of Rule 1. The sweep slightly over-approximates — a string constant shaped like a
-    /// descriptor would be counted — which can only produce a false failure, never a false pass.
+    /// of Rule 1.
+    ///
+    /// The package separator is **required** (`(?:/…)+`, not `*`). Without it the sweep matched
+    /// unqualified `L…;` runs inside ordinary string constants, and one such constant is emitted
+    /// for every record: `javac` bootstraps `equals`/`hashCode`/`toString` via `ObjectMethods`
+    /// with a `;`-joined list of component names. A record component containing an uppercase `L`
+    /// that is not the final component therefore produced a phantom dependency — the name list
+    /// `…;maxInstructionLines;enforcesCharset` yielded a "class" called `ines`. The trigger was
+    /// positional (the last component has no trailing `;`), so merely reordering fields could
+    /// break the build. Requiring a package separator removes the whole class of false positives
+    /// and costs nothing: every framework annotation and signature is package-qualified, and
+    /// `noProjectClassLivesInTheDefaultPackage` pins the only assumption this relies on.
     private static final Pattern TYPE_DESCRIPTOR =
-        Pattern.compile("L([a-zA-Z_$][a-zA-Z0-9_$]*(?:/[a-zA-Z_$][a-zA-Z0-9_$]*)*);");
+        Pattern.compile("L([a-zA-Z_$][a-zA-Z0-9_$]*(?:/[a-zA-Z_$][a-zA-Z0-9_$]*)+);");
 
     /// Fully-qualified class name -> every type it references.
     private static Map<String, Set<String>> dependencies;
@@ -162,6 +172,26 @@ class LayerDependencyRulesTest {
         System.out.printf("[arch] Rule 0: parsed %d/%d classes%n", dependencies.size(), classFilesOnDisk);
         NEW_LAYERS.forEach(layer ->
             System.out.printf("[arch]   %-44s %4d classes%n", layer, classesIn(layer).size()));
+    }
+
+    @Test
+    @DisplayName("Rule 0b: no class lives in the default package (pins the descriptor-scan assumption)")
+    void noProjectClassLivesInTheDefaultPackage() {
+        // TYPE_DESCRIPTOR requires a package separator, so an unqualified descriptor such as
+        // `LFoo;` is not recognised as a type reference. That narrowing is only safe while every
+        // compiled class is package-qualified. If a default-package class ever appears, this fails
+        // and says so, rather than letting Rules 1-5 quietly stop seeing a dependency.
+        Set<String> defaultPackage = new TreeSet<>();
+        for (String owner : dependencies.keySet()) {
+            if (owner.indexOf('.') < 0) {
+                defaultPackage.add(owner);
+            }
+        }
+
+        assertEquals(Set.of(), defaultPackage,
+            "Classes in the default package are invisible to the UTF-8 descriptor scan. Either "
+                + "move them into a package, or relax TYPE_DESCRIPTOR and re-verify that no record "
+                + "component name reintroduces phantom dependencies.");
     }
 
     // ------------------------------------------------------------------------------------------

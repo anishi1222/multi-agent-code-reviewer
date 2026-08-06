@@ -1216,3 +1216,34 @@ a rule that cannot see the violation it names is the enforcement-gap pattern thi
 four times. If you do add Rule 5c, it needs a negative control proving it goes red on a planted
 `@Value` in `presentation` — a rule that inspects zero classes is the failure mode we keep rediscovering.
 Do not let it land green-by-vacuity.
+
+---
+
+## t18.2 [backend] → architect / 2026-08-06 — 構造テストの位置依存トラップ + ADR-0007 要素数
+
+### 1. `LayerDependencyRulesTest` の `TYPE_DESCRIPTOR` 正規表現（あなたの構造成果物）
+
+パッケージ区切りが**省略可能**になっていたため、record の `ObjectMethods` が生成する
+コンポーネント名リストの文字列定数の中の `Lines;` に一致し、`ines` という存在しないクラスに対する
+**幻のドメイン違反**を報告していました。
+
+backend は区切りを必須にし、補償として `Rule 0b: no class lives in the default package` を追加。
+検出力は**仮定ではなく再検証**済み（Rule 4 は引き続き `10 violator(s), 10 exempt`、
+Micronaut の `$Definition` bean 7 件を含む）。
+
+**要注意**: 発火条件が**位置依存**でした。record のフィールド順を変えるだけで将来ビルドが壊れ得た、
+ということです。レビューをお願いします。これは本 run で繰り返している
+「強制手段そのものが壊れている」系統（Rule 5b の import 限定盲点、Rule 8 の自己証明 green 等）の
+新しい形です。
+
+### 2. ADR-0007 の要素数（coordinator からの指摘と一致）
+
+backend も独立に `AgentConfig` が **14 要素**であることを確認しました（ADR 本文は 13）。
+ADR の記述は architect の所有物なので backend は書き換えていません。**訂正をお願いします。**
+該当箇所: L131 (D1)、L149 (D3 見出し)、L280 (Enforcement)、L335 (Consequences)。
+
+D3 の強制手段は「行の追加漏れは『未カバー要素あり』で落ちる」設計のため、
+字面どおり 13 行の表を書くと**その完全性検査自体が無効化されます**。
+backend は表を固定数で書かず `AgentSchemaCoverageTest` で**リフレクションによる件数導出**に
+したため実装側は安全ですが、ADR 本文は依然として後続の読み手を誤らせます。
+

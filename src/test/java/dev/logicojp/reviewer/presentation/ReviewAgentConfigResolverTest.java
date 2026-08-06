@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.presentation;
 
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +25,11 @@ class ReviewAgentConfigResolverTest {
 
         ReviewAgentConfigResolver.AgentResolution result = resolver.resolve(parsedOptions(null, additionalDirs));
 
-        assertThat(loadAgentPort.loadedDirectories()).containsExactlyElementsOf(additionalDirs);
+        assertThat(loadAgentPort.loadedDirectories())
+            .as("`--agents-dir` values originate from argv, so the resolver must tag them "
+                + "USER_SUPPLIED; tagging them REPOSITORY_SUPPLIED would wrongly apply the "
+                + "strict profile to operator input")
+            .containsExactlyElementsOf(AgentSourceDirectory.allUserSupplied(additionalDirs));
         assertThat(result.agentDirectories()).containsExactlyElementsOf(additionalDirs);
         assertThat(result.agentConfigs()).containsKey("code-quality");
         assertThat(result.agentConfigs().get("code-quality").model()).isEqualTo("model-a");
@@ -117,24 +122,24 @@ class ReviewAgentConfigResolverTest {
 
     private static final class StubLoadAgentPort implements LoadAgentPort {
         private final List<AgentConfig> agents;
-        private List<Path> loadedDirectories = List.of();
+        private List<AgentSourceDirectory> loadedDirectories = List.of();
 
         StubLoadAgentPort(List<AgentConfig> agents) {
             this.agents = List.copyOf(agents);
         }
 
         @Override
-        public List<AgentConfig> loadAll(List<Path> directories) {
+        public List<AgentConfig> loadAll(List<AgentSourceDirectory> directories) {
             loadedDirectories = List.copyOf(directories);
             return agents;
         }
 
         @Override
-        public Optional<AgentConfig> loadByName(String name, List<Path> directories) {
+        public Optional<AgentConfig> loadByName(String name, List<AgentSourceDirectory> directories) {
             return agents.stream().filter(agent -> agent.name().equals(name)).findFirst();
         }
 
-        List<Path> loadedDirectories() {
+        List<AgentSourceDirectory> loadedDirectories() {
             return loadedDirectories;
         }
     }

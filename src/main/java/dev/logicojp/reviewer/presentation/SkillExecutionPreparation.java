@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.presentation;
 
 import dev.logicojp.reviewer.application.port.inbound.ExecuteSkillPort;
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import dev.logicojp.reviewer.application.port.inbound.ResolveTokenPort;
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
 import jakarta.inject.Inject;
@@ -42,7 +43,8 @@ public class SkillExecutionPreparation {
 
     public PreparationResult prepare(SkillOptions options) {
         // Side-effect: loads agents so the skill registry is populated
-        loadAgentPort.loadAll(options.additionalAgentDirs());
+        // `--agents-dir` values come from argv only — user-supplied by definition (ADR-0007 D1).
+        loadAgentPort.loadAll(AgentSourceDirectory.allUserSupplied(options.additionalAgentDirs()));
 
         if (options.listSkills()) {
             return new PreparationResult(true, null, Map.of());

@@ -2,8 +2,8 @@ package dev.logicojp.reviewer.application.agent;
 
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,9 +28,10 @@ public final class LoadAgentUseCase implements LoadAgentPort {
     public interface AgentLoader {
         /// Loads all agents found in the given directories.
         ///
-        /// @param directories directories to search for agent definitions
+        /// @param directories directories to search, each paired with the provenance of its
+        ///                    contents (ADR-0007 D1)
         /// @return list of validated domain {@link AgentConfig} instances
-        List<AgentConfig> load(List<Path> directories);
+        List<AgentConfig> load(List<AgentSourceDirectory> directories);
     }
 
     private final AgentLoader agentLoader;
@@ -41,7 +42,7 @@ public final class LoadAgentUseCase implements LoadAgentPort {
 
     /// {@inheritDoc}
     @Override
-    public List<AgentConfig> loadAll(List<Path> directories) {
+    public List<AgentConfig> loadAll(List<AgentSourceDirectory> directories) {
         if (directories == null || directories.isEmpty()) {
             return List.of();
         }
@@ -50,7 +51,7 @@ public final class LoadAgentUseCase implements LoadAgentPort {
 
     /// {@inheritDoc}
     @Override
-    public Optional<AgentConfig> loadByName(String name, List<Path> directories) {
+    public Optional<AgentConfig> loadByName(String name, List<AgentSourceDirectory> directories) {
         if (name == null || name.isBlank()) {
             return Optional.empty();
         }

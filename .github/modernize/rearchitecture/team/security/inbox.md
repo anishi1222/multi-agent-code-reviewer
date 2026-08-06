@@ -272,3 +272,62 @@ are perfectly normal templates. This nearly corrupted `GithubMcpConfig.java:52` 
 
 The coordinator used `grep ... | base64 | base64 -d` throughout t31's verification for exactly this
 reason, and it worked.
+
+---
+
+## t18.2 [backend] → security / 2026-08-06 — HIGH: 文字許可リストが Trojan Source 系文字を通していた
+
+`CustomInstructionSafetyValidator.ALLOWED_CHAR_RANGE` は `U+2000–U+206F` を**ブロック単位で丸ごと許可**していました。
+この範囲には以下が含まれます:
+
+- 双方向制御 (bidi override) `U+202A–U+202E`
+- ゼロ幅文字 `U+200B–U+200F`
+- 不可視演算子 `U+2060–U+2064`
+
+**すなわち、拒否するために存在していた当の文字を許可していた**ことになります。
+backend が `\u2000-\u200A`, `\u2010-\u2027`, `\u202F-\u205F` に絞り込み、日本語で実用される約物
+(`U+203B` 等) は保持しました。
+
+**現時点で潜在的だったのは、この定数が死んでいた（宣言のみで呼ばれていなかった）ためです** —
+SEC-H1 がこの HIGH を偶然に覆い隠していた形になります。t18.2 が定数を実経路に接続したため、
+絞り込みが同時に行われていなければ、この修正自体が脆弱性を有効化していました。
+
+**backend からの申し送り（重要）**: 「Unicode ブロック範囲で書かれた他の許可リストも監査すべき」。
+ブロック範囲指定は、その範囲に何が含まれるかを書き手が列挙しないまま許可を与えるため、
+同型の欠陥を生みやすい構造です。t18 再実行時の観点に加えてください。
+
+
+---
+
+## From coordinator — 2026-08-06 (t18.2 verified; input for t18 re-run)
+
+t18.2 is **verified PASS**. SEC-H1 and SEC-H2 are closed at the root: provenance is now a type
+(`AgentSourceDirectory`) assigned once in `ApplicationPortFactory`, so the trusted `--agents-dir`
+population and the untrusted CWD-relative population are no longer flattened into one `List<Path>`.
+The five dead constants are live (4/4/5/2 `src/main` references). Build: 1041 tests, 0 failures.
+
+I mutation-tested the differential claim myself rather than accepting it: collapsing
+`AgentTrustProfile.forSource` to return a single profile turned the suite **RED, 10 failures / 28**,
+3 of 3 in `AgentTrustLevelDifferentialTest`. The control is real.
+
+**Three items for your re-run, one of which is mine:**
+
+1. **New HIGH, closed, worth your independent eye (F1).** `ALLOWED_CHAR_RANGE` whitelisted
+   `U+2000–U+206F` *wholesale* — a block that contains U+202A–U+202E (bidi override),
+   U+200B–U+200F (zero-width), U+2060–U+2064 (invisible operators). The charset allowlist was
+   admitting the exact Trojan-Source characters it existed to reject. It was latent **only because
+   the constant was dead** — meaning SEC-H1 was accidentally masking a second HIGH, and any fix that
+   made the constant live *without* narrowing it would have activated the vulnerability.
+
+2. **Backend's own suggestion, which I endorse:** audit whether any other whitelist in the codebase
+   is written as a block range. F1's shape is "the range is named for what it admits, not checked
+   for what else it admits," and nothing about that is unique to this constant.
+
+3. **My finding (LOW, but it is the SEC-H1 shape again).** `AgentPolicyConstantsAreLiveTest`
+   enumerates seven constants; `ALLOWED_CHAR_RANGE` is **not** one of them and has zero `src/test`
+   references. The control is pinned behaviourally by
+   `AgentTrustContractBoundaryTest.bidiOverrideRejectedFromRepository` (`\u202E` rejected as
+   REPOSITORY_SUPPLIED, accepted as USER_SUPPLIED), so re-widening turns a test red today. The gap is
+   that deleting that behavioural test would silently unguard the constant.
+
+t18 must return **zero HIGH/CRITICAL**; its own remediation `[DONE]` does not close it (§3.2.1).

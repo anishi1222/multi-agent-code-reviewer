@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.presentation.command;
 
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import dev.logicojp.reviewer.presentation.CliCommand;
 import dev.logicojp.reviewer.presentation.CliOutput;
 import dev.logicojp.reviewer.presentation.CliParsing;
@@ -84,7 +85,9 @@ public class ListAgentsCommand implements CliCommand {
     }
 
     private int executeInternal(ParsedOptions options) {
-        List<AgentConfig> agents = loadAgentPort.loadAll(options.additionalAgentDirs());
+        // `--agents-dir` values come from argv only — user-supplied by definition (ADR-0007 D1).
+        List<AgentConfig> agents =
+            loadAgentPort.loadAll(AgentSourceDirectory.allUserSupplied(options.additionalAgentDirs()));
 
         if (agents.isEmpty()) {
             output.println("No agents found.");

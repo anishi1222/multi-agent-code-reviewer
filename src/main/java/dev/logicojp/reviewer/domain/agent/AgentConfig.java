@@ -16,6 +16,13 @@ import java.util.List;
 ///                    by `AgentPromptBuilder` — because the budget bounds exactly these skills,
 ///                    and `domain` may not read the configured value itself (ADR-0006 Rule 1).
 ///                    Never null; a null argument normalises to [SkillBudget#SkillBudget()].
+/// @param source      provenance of the definition file this config was parsed from
+///                    (ADR-0007 D1). Decided once at the composition root and never
+///                    recomputed. Retained on the record — rather than discarded after
+///                    validation — so that any later decision about what this agent may
+///                    influence can still ask where it came from. Never null; a null
+///                    argument normalises to [AgentSource#defaultWhenUnknown()], i.e.
+///                    fails closed to the strict profile.
 public record AgentConfig(
     String name,
     String displayName,
@@ -29,7 +36,8 @@ public record AgentConfig(
     boolean rubberDuckEnabled,
     int dialogueRounds,
     String language,
-    SkillBudget skillBudget
+    SkillBudget skillBudget,
+    AgentSource source
 ) {
 
     /// Hardcoded last-resort default model — mirrors {@code ModelConfig.DEFAULT_MODEL}.
@@ -48,7 +56,8 @@ public record AgentConfig(
         List<SkillDefinition> skills
     ) {
         this(name, displayName, model, systemPrompt, instruction, outputFormat,
-            focusAreas, skills, null, false, DEFAULT_DIALOGUE_ROUNDS, DEFAULT_LANGUAGE, null);
+            focusAreas, skills, null, false, DEFAULT_DIALOGUE_ROUNDS, DEFAULT_LANGUAGE, null,
+            AgentSource.defaultWhenUnknown());
     }
 
     public AgentConfig {
@@ -61,6 +70,9 @@ public record AgentConfig(
         peerModel = (peerModel != null && peerModel.isBlank()) ? null : peerModel;
         language = (language == null || language.isBlank()) ? DEFAULT_LANGUAGE : language;
         skillBudget = skillBudget == null ? new SkillBudget() : skillBudget;
+        // Fail closed: an unstated provenance is treated as repository-supplied, so a call
+        // site that forgets to thread it gets the strict profile rather than the lenient one.
+        source = source == null ? AgentSource.defaultWhenUnknown() : source;
     }
 
     public AgentConfig withModel(String overrideModel) {
@@ -99,6 +111,19 @@ public record AgentConfig(
         return Builder.from(this).peerModel(overridePeerModel).build();
     }
 
+    /// Returns a copy tagged with the given provenance.
+    ///
+    /// Called by `infrastructure.parsing.AgentConfigLoader` immediately after a definition
+    /// is parsed, so that the provenance decided at the composition root reaches the record
+    /// (ADR-0007 D1). There is deliberately no path that *raises* trust: callers may only
+    /// stamp the value the composition root already decided for the containing directory.
+    ///
+    /// @param newSource provenance of the file this config was parsed from
+    /// @return a copy carrying `newSource`
+    public AgentConfig withSource(AgentSource newSource) {
+        return Builder.from(this).source(newSource).build();
+    }
+
     public AgentConfig withRubberDuckEnabled(boolean enabled) {
         return Builder.from(this).rubberDuckEnabled(enabled).build();
     }
@@ -134,6 +159,7 @@ public record AgentConfig(
         private int dialogueRounds;
         private String language = DEFAULT_LANGUAGE;
         private SkillBudget skillBudget;
+        private AgentSource source = AgentSource.defaultWhenUnknown();
 
         private Builder() {
         }
@@ -152,7 +178,8 @@ public record AgentConfig(
                 .rubberDuckEnabled(source.rubberDuckEnabled)
                 .dialogueRounds(source.dialogueRounds)
                 .language(source.language)
-                .skillBudget(source.skillBudget);
+                .skillBudget(source.skillBudget)
+                .source(source.source);
         }
 
         public Builder name(String name) { this.name = name; return this; }
@@ -168,10 +195,12 @@ public record AgentConfig(
         public Builder dialogueRounds(int dialogueRounds) { this.dialogueRounds = dialogueRounds; return this; }
         public Builder language(String language) { this.language = language; return this; }
         public Builder skillBudget(SkillBudget skillBudget) { this.skillBudget = skillBudget; return this; }
+        public Builder source(AgentSource source) { this.source = source; return this; }
 
         public AgentConfig build() {
             return new AgentConfig(name, displayName, model, systemPrompt, instruction, outputFormat,
-                focusAreas, skills, peerModel, rubberDuckEnabled, dialogueRounds, language, skillBudget);
+                focusAreas, skills, peerModel, rubberDuckEnabled, dialogueRounds, language, skillBudget,
+                source);
         }
     }
 

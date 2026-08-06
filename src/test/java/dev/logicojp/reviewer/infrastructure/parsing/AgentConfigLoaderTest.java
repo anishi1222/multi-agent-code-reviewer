@@ -15,10 +15,23 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
 
 @DisplayName("AgentConfigLoader")
 class AgentConfigLoaderTest {
+
+    /// Loader fixtures are tagged `REPOSITORY_SUPPLIED` because that is what the loader sees
+    /// in production: `agents/` and `.github/agents/` are resolved relative to the working
+    /// directory, so during a review they resolve inside the repository under review.
+    ///
+    /// Running the pre-existing cases under the *strict* profile is deliberate — it proves
+    /// the tightened limits do not break the ordinary loading path, which is the concrete
+    /// risk in activating limits that were previously dead (SEC-H1). Cases that specifically
+    /// need the permissive profile say so at the call site.
+    private static AgentSourceDirectory repoDir(Path path) {
+        return AgentSourceDirectory.repositorySupplied(path);
+    }
 
     private static final String AGENT_CONTENT = """
         ---
@@ -55,12 +68,14 @@ class AgentConfigLoaderTest {
         @Test
         @DisplayName("builder経由でローダーを構築できる")
         void buildsLoaderWithBuilder(@TempDir Path tempDir) {
-            var loader = AgentConfigLoader.builder(List.of(tempDir))
+            var loader = AgentConfigLoader.builder(List.of(repoDir(tempDir)))
                 .skillConfig(SkillConfig.defaults())
                 .defaultOutputFormat("default")
                 .build();
 
-            assertThat(loader.getAgentDirectories()).containsExactly(tempDir);
+            assertThat(loader.getAgentDirectories())
+                .as("the loader must retain provenance alongside the path, not just the path")
+                .containsExactly(repoDir(tempDir));
         }
     }
 
@@ -74,7 +89,7 @@ class AgentConfigLoaderTest {
             Files.writeString(tempDir.resolve("test-agent.agent.md"),
                 AGENT_CONTENT.stripIndent());
 
-            var loader = new AgentConfigLoader(tempDir);
+            var loader = new AgentConfigLoader(repoDir(tempDir));
             Map<String, AgentConfig> agents = loader.loadAllAgents();
 
             assertThat(agents).hasSize(1);
@@ -85,7 +100,7 @@ class AgentConfigLoaderTest {
         @Test
         @DisplayName("存在しないディレクトリでは空マップを返す")
         void returnsEmptyForNonExistentDirectory(@TempDir Path tempDir) throws IOException {
-            var loader = new AgentConfigLoader(tempDir.resolve("nonexistent"));
+            var loader = new AgentConfigLoader(repoDir(tempDir.resolve("nonexistent")));
             Map<String, AgentConfig> agents = loader.loadAllAgents();
 
             assertThat(agents).isEmpty();
@@ -101,7 +116,7 @@ class AgentConfigLoaderTest {
             Files.writeString(tempDir.resolve("other-agent.agent.md"),
                 agent2.stripIndent());
 
-            var loader = new AgentConfigLoader(tempDir);
+            var loader = new AgentConfigLoader(repoDir(tempDir));
             Map<String, AgentConfig> agents = loader.loadAllAgents();
 
             assertThat(agents).hasSize(2);
@@ -114,8 +129,8 @@ class AgentConfigLoaderTest {
                 Path.of("templates", "default-output-format.md")
             );
             Map<String, AgentConfig> agents = AgentConfigLoader.builder(List.of(
-                    Path.of("agents"),
-                    Path.of(".github", "agents")
+                    repoDir(Path.of("agents")),
+                    repoDir(Path.of(".github", "agents"))
                 ))
                 .skillConfig(SkillConfig.defaults())
                 .defaultOutputFormat(defaultOutputFormat)
@@ -156,7 +171,7 @@ class AgentConfigLoaderTest {
                 defaults.serviceShutdownTimeoutSeconds(),
                 defaults.executorShutdownTimeoutSeconds()
             );
-            var loader = AgentConfigLoader.builder(List.of(agentsDir))
+            var loader = AgentConfigLoader.builder(List.of(repoDir(agentsDir)))
                 .skillConfig(skillConfig)
                 .build();
 
@@ -188,7 +203,7 @@ class AgentConfigLoaderTest {
                 defaults.serviceShutdownTimeoutSeconds(),
                 defaults.executorShutdownTimeoutSeconds()
             );
-            var loader = AgentConfigLoader.builder(List.of(agentsDir))
+            var loader = AgentConfigLoader.builder(List.of(repoDir(agentsDir)))
                 .skillConfig(skillConfig)
                 .build();
 
@@ -226,7 +241,7 @@ class AgentConfigLoaderTest {
                 """;
             Files.writeString(tempDir.resolve("suspicious-agent.agent.md"), suspiciousAgent.stripIndent());
 
-            var loader = new AgentConfigLoader(tempDir);
+            var loader = new AgentConfigLoader(repoDir(tempDir));
             Map<String, AgentConfig> agents = loader.loadAllAgents();
 
             assertThat(agents).isEmpty();
@@ -256,7 +271,7 @@ class AgentConfigLoaderTest {
                 """;
             Files.writeString(tempDir.resolve("disabled.agent.md"), disabledAgent.stripIndent());
 
-            var loader = new AgentConfigLoader(tempDir);
+            var loader = new AgentConfigLoader(repoDir(tempDir));
             Map<String, AgentConfig> agents = loader.loadAllAgents();
 
             assertThat(agents).isEmpty();
@@ -285,7 +300,7 @@ class AgentConfigLoaderTest {
                 """;
             Files.writeString(tempDir.resolve("bad-model.agent.md"), badModelAgent.stripIndent());
 
-            var loader = new AgentConfigLoader(tempDir);
+            var loader = new AgentConfigLoader(repoDir(tempDir));
             Map<String, AgentConfig> agents = loader.loadAllAgents();
 
             assertThat(agents).isEmpty();
@@ -309,7 +324,7 @@ class AgentConfigLoaderTest {
                 """;
             Files.writeString(tempDir.resolve("no-frontmatter.agent.md"), noFrontmatter.stripIndent());
 
-            var loader = new AgentConfigLoader(tempDir);
+            var loader = new AgentConfigLoader(repoDir(tempDir));
             Map<String, AgentConfig> agents = loader.loadAllAgents();
 
             assertThat(agents).isEmpty();
@@ -371,7 +386,7 @@ class AgentConfigLoaderTest {
         }
 
         private List<SkillDefinition> loadSkills(Path agentsDir, Path skillsDir) throws IOException {
-            Map<String, AgentConfig> agents = AgentConfigLoader.builder(List.of(agentsDir))
+            Map<String, AgentConfig> agents = AgentConfigLoader.builder(List.of(repoDir(agentsDir)))
                 .skillConfig(budgetedSkillConfig(skillsDir))
                 .build()
                 .loadAllAgents();
@@ -483,7 +498,7 @@ class AgentConfigLoaderTest {
             Files.writeString(tempDir.resolve("other-agent.agent.md"),
                 agent2.stripIndent());
 
-            var loader = new AgentConfigLoader(tempDir);
+            var loader = new AgentConfigLoader(repoDir(tempDir));
             Map<String, AgentConfig> agents = loader.loadAgents(List.of("test-agent"));
 
             assertThat(agents).hasSize(1);
@@ -498,8 +513,8 @@ class AgentConfigLoaderTest {
         @Test
         @DisplayName("不変リストを返す")
         void returnsImmutableList(@TempDir Path tempDir) {
-            var loader = new AgentConfigLoader(tempDir);
-            List<Path> dirs = loader.getAgentDirectories();
+            var loader = new AgentConfigLoader(repoDir(tempDir));
+            List<AgentSourceDirectory> dirs = loader.getAgentDirectories();
 
             assertThat(dirs).hasSize(1);
             // List.copyOf() produces an unmodifiable list
@@ -519,7 +534,7 @@ class AgentConfigLoaderTest {
             Files.writeString(tempDir.resolve("agent-b.agent.md"),
                 AGENT_CONTENT.replace("test-agent", "agent-b").stripIndent());
 
-            var loader = new AgentConfigLoader(tempDir);
+            var loader = new AgentConfigLoader(repoDir(tempDir));
             List<String> names = loader.listAvailableAgents();
 
             assertThat(names).containsExactly("agent-a", "agent-b");
@@ -573,7 +588,7 @@ class AgentConfigLoaderTest {
                     """);
             }
 
-            return AgentConfigLoader.builder(List.of(agentsDir))
+            return AgentConfigLoader.builder(List.of(repoDir(agentsDir)))
                 .skillConfig(skillConfigAt(skillsDir, budget))
                 .build()
                 .loadAllAgents()

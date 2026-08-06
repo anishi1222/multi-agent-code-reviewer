@@ -12,7 +12,22 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/// Validates custom instruction content for basic prompt-injection safeguards.
+/// Pattern-matching component for prompt-injection safeguards on free-text content.
+///
+/// ## Scope (narrowed by ADR-0007 D2)
+///
+/// This class used to hold both *patterns* and *size limits*. The size limits
+/// (`MAX_INSTRUCTION_SIZE`, `MAX_UNTRUSTED_INSTRUCTION_SIZE`, `MAX_INSTRUCTION_LINES`) were
+/// private and unreferenced — a second, invisible policy home that had drifted out of use
+/// while [dev.logicojp.reviewer.domain.agent.AgentDefinitionPolicy] enforced a different,
+/// looser set. That split is exactly what SEC-H1 was: nobody could tell which file decided
+/// the limit, so the strict one silently decided nothing.
+///
+/// Those limits now live in `AgentDefinitionPolicy`, which is the single policy owner. What
+/// remains here is pattern matching: suspicious-phrase detection, delimiter-injection
+/// detection, and the allowed-character range. `AgentDefinitionPolicy` calls into this class
+/// for the character check rather than duplicating the range, so there is still exactly one
+/// definition of each rule — it is just no longer the case that a *decision* lives here.
 ///
 /// SLF4J logging has been removed from this domain class. Resource-loading
 /// fallbacks proceed silently; callers that need diagnostics should wrap the
@@ -20,10 +35,6 @@ import java.util.stream.Collectors;
 public final class CustomInstructionSafetyValidator {
 
     private static final String SUSPICIOUS_PATTERNS_RESOURCE = "safety/suspicious-patterns.txt";
-
-    private static final int MAX_INSTRUCTION_SIZE = 32 * 1024;
-    private static final int MAX_UNTRUSTED_INSTRUCTION_SIZE = 8 * 1024;
-    private static final int MAX_INSTRUCTION_LINES = 300;
 
     private static final List<String> DEFAULT_SUSPICIOUS_PATTERN_TEXTS = List.of(
         "ignore\\s+(all\\s+)?(previous|prior|above)\\s+instructions?",
@@ -63,7 +74,16 @@ public final class CustomInstructionSafetyValidator {
             + "\\u4E00-\\u9FFF"
             + "\\uFF00-\\uFFEF"
             + "\\uAC00-\\uD7AF"
-            + "\\u2000-\\u206F"
+            // General Punctuation, split to exclude the deception characters this range
+            // exists to keep out. The block as a whole contains U+200B-U+200F (zero-width and
+            // directional marks), U+202A-U+202E (bidirectional embedding and override),
+            // U+2060-U+2064 (invisible operators) and U+2066-U+2069 (bidirectional isolates).
+            // Whitelisting U+2000-U+206F wholesale therefore permitted exactly the characters
+            // that let a definition read one way to a reviewer and another to the model.
+            // U+203B and the other Japanese-relevant marks live above U+202F and are retained.
+            + "\\u2000-\\u200A"
+            + "\\u2010-\\u2027"
+            + "\\u202F-\\u205F"
             + "\\u2190-\\u21FF"
             + "\\u2500-\\u257F"
             + "\\u2580-\\u259F"
@@ -105,9 +125,28 @@ public final class CustomInstructionSafetyValidator {
         }
     }
 
-    public record ValidationResult(boolean safe, String reason) {}
-
     private CustomInstructionSafetyValidator() {
+    }
+
+    /// Reports whether every character in `content` falls inside the allowed ranges.
+    ///
+    /// The range covers printable ASCII, CJK (kana, ideographs, full-width forms), Hangul,
+    /// common punctuation/arrow/box-drawing blocks, and the usual whitespace. It deliberately
+    /// excludes bidirectional-override and other invisible formatting characters, which are
+    /// the classic way to make a definition read differently to a human than to a model.
+    ///
+    /// This check is applied only to repository-supplied definitions
+    /// ([dev.logicojp.reviewer.domain.agent.AgentTrustProfile#enforcesCharset()]). Operator
+    /// input is exempt: an operator who wants an unusual character in their own prompt has
+    /// no one to deceive but themselves, and rejecting it only breaks legitimate use.
+    ///
+    /// @param content text to inspect; null and blank are vacuously allowed
+    /// @return true when all characters are permitted
+    public static boolean containsOnlyAllowedCharacters(String content) {
+        if (content == null || content.isEmpty()) {
+            return true;
+        }
+        return ALLOWED_CHAR_RANGE.matcher(content).matches();
     }
 
     public static boolean containsSuspiciousPattern(String content) {

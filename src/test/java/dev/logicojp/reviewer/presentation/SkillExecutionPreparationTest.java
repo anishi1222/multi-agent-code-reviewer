@@ -5,6 +5,7 @@ import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
 import dev.logicojp.reviewer.domain.skill.SkillResult;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -113,13 +114,13 @@ class SkillExecutionPreparationTest {
     private static LoadAgentPort stubLoadAgentPort(AtomicBoolean loaded) {
         return new LoadAgentPort() {
             @Override
-            public List<AgentConfig> loadAll(List<Path> directories) {
+            public List<AgentConfig> loadAll(List<AgentSourceDirectory> directories) {
                 loaded.set(true);
                 return List.of(agentConfig("a"));
             }
 
             @Override
-            public Optional<AgentConfig> loadByName(String name, List<Path> directories) {
+            public Optional<AgentConfig> loadByName(String name, List<AgentSourceDirectory> directories) {
                 return Optional.of(agentConfig(name));
             }
         };

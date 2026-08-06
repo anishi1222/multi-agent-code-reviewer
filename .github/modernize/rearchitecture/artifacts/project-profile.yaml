@@ -94,9 +94,9 @@ progress_sync:
   total_modules: 11
   completed_modules: 0
   total_tasks: 40
-  completed_tasks: 30
+  completed_tasks: 31
   total_commits: 605
-  build_verified: true  # mvn CLEAN verify green, 981 tests, as of t28 (b53f4b6).
+  build_verified: true  # mvn CLEAN verify green, 1041 tests, as of t18.2. HEAD baseline was 990 (not 981).
   # Baseline corrected: the previously recorded 980 was inflated by orphaned surefire XMLs
   # from an incremental run. True pre-t28 figure at 191307d is 971, measured in an isolated
   # worktree. Only quote counts from `mvn clean verify`.

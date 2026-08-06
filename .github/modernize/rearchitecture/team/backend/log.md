@@ -429,3 +429,58 @@
   first sync cost me a wasted 5-error build.
 - Result: 990 tests, 0 failures (baseline 980, +10). `LayerDependencyRulesTest` needed no edits.
 - Learnings consumed: [backend/derived-exemptions-for-generated-beans, backend/micronaut-factory-port-binding]
+
+## [t18.2] Closed SEC-H1/SEC-H2 at the root — ADR-0007 D1–D4
+
+SEC-H1 and SEC-H2 turned out to be one defect: `ApplicationPortFactory` concatenated
+operator-supplied and repository-supplied directories into one `List<Path>`, and provenance died
+there. Downstream there was only "a path", so only one limit could apply (SEC-H2) and the strict
+constants had nothing to attach to (SEC-H1). Neither is fixable without D1 first — the
+coordinator's D1→D2→D3 ordering is a correctness constraint, not a preference.
+
+### Gotchas that cost real time
+
+- **`surefire:test` does not recompile tests.** `./mvnw -B -o surefire:test` silently runs stale
+  `.class` files. I burned a long stretch chasing a phantom "fixture bug" (`Missing required agent
+  fields: instruction` at 8193 chars) that did not exist — the source edit simply had not been
+  compiled. Always `test-compile surefire:test` when iterating. A standalone probe I wrote to
+  investigate then failed with `NoClassDefFoundError: org/slf4j/LoggerFactory`, a classpath error
+  in the probe, which I briefly misread as a second symptom. There is no size limit in the parser.
+- **The inbox test baseline (981) was stale.** Other tasks landed 9 tests in this shared worktree
+  since it was measured. I re-measured HEAD with `git archive HEAD | tar -x -C /tmp/...` — read-only,
+  never touches the shared worktree — and got 990. Delta is then +51, reconciling exactly against
+  the new files. Reporting "+60" against the stale figure would have implied tests I never wrote.
+
+### Things the new tests caught that I would otherwise have shipped
+
+- **I recreated SEC-H1 while fixing it.** After moving the constants to `AgentDefinitionPolicy`, I
+  wrote the profiles with literals (`16 * 1024`). Numerically right; the constants still had zero
+  references. `AgentPolicyConstantsAreLiveTest` failed 6/8 and named each one. Note this test *must*
+  scan source text — these are JLS §4.12.4 constant variables, inlined by `javac`, so a bytecode
+  scan sees no `Fieldref` and reports a live constant as dead-free. Bytecode analysis cannot detect
+  this class of defect at all.
+- **The charset whitelist admitted the characters it existed to exclude.** `ALLOWED_CHAR_RANGE`
+  whitelisted `\u2000-\u206F` wholesale — which contains the bidi overrides (`U+202A`–`U+202E`) and
+  zero-width/invisible characters. A routine boundary test failed on first run. Activating dead code
+  forces you to ask what it actually does; worth checking other block-range whitelists.
+- **A record field name broke the architecture test.** `Rule 1` reported a dependency on `ines` — not
+  a class. `javac` emits the record's component names as a `;`-joined string constant, and the
+  descriptor regex's optional package separator matched `Lines;` inside `maxInstructionLines;`. The
+  trigger is positional (a sibling record has the same hazard in its *last* component and escapes),
+  so a field reorder could break the build spontaneously. Fixed at the detector, verified detection
+  power via the exact-equality exemption lists, added a default-package guard. Renaming my field
+  would also have gone green while leaving the trap armed.
+
+### Technique worth reusing
+
+Mutation verification per ADR-0007 D7 is cheap and repeatedly informative: back up to `/tmp` with
+md5s (**never** `git checkout` in a shared worktree), reintroduce the exact defect, confirm the
+named test fails, restore, re-verify the checksum. Four mutations, four confirmed reds. Mutation C
+(making both trust profiles identical) reproduces SEC-H2 verbatim and fails 3/3 differential tests —
+that is the strongest single piece of evidence in the artifact.
+
+Also: writing the D1 differential test first and *watching it go red* was what proved the limits are
+genuinely provenance-aware. Without the captured red, a passing test after the fact is compatible
+with a validator that ignores provenance entirely.
+
+- Learnings consumed: [backend/mutation-verify-regression-tests, backend/never-git-checkout-to-revert-a-mutant, backend/one-knob-many-budgets-erases-provenance, backend/surefire-declared-vs-actual-test-counts, backend/architecture-rule-negative-control, backend/archunit-java27-bytecode-ceiling, backend/self-cleaning-architecture-exclusions, backend/derived-exemptions-for-generated-beans, backend/java-subpackage-visibility, backend/domain-purification-patterns, backend/verify-clarification-against-the-repo]
