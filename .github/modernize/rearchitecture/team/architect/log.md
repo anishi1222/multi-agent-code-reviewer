@@ -137,3 +137,51 @@
   backend/merging-upstream-into-restructured-tree, backend/self-cleaning-architecture-exclusions,
   backend/architecture-rule-negative-control, backend/derived-exemptions-for-generated-beans,
   backend/duplicate-utility-consolidation-semantic-drift, tester/never-pipe-a-verification-build]
+
+## [t24 round 1] Post-merge conformance re-check — CLEAN PASS; F1 closed, F4 downgraded to MEDIUM and excluded
+
+- **The merge state changed under me between rounds.** Round 0 recorded `MERGE_HEAD=5844456`,
+  staged-not-committed. Round 1: no `MERGE_HEAD`, `HEAD=3ed3eda`, both commits ancestors. My
+  round-0 wording ("the staged merge may be committed as-is") had become a factual error in my
+  own artifact. **Re-establish git state at the top of every re-check round** — a verdict phrased
+  against a state that no longer exists reads as a stale rubber stamp.
+- **I falsified a premise of my own making.** I first grepped shipped skills for a top-level
+  `agent:` key, found none, and concluded site 5 was unreachable — a conclusion that would have
+  made F4 trivially dismissible. Wrong: `SkillMarkdownParser` reads `metadata` via
+  `FrontmatterParser.parseNestedBlock(raw, "metadata")`, so the key is **nested** under
+  `metadata:`. 25 of 34 skills are agent-assigned. The grep matched the wrong shape. Lesson:
+  when a negative result would conveniently settle a hard question, that is exactly when to
+  re-derive it from the parser's actual code path rather than from a guessed file format.
+- **Backend's premise was also false, and in the same area.** t26 §C cited a 12,908-byte skill
+  dropped every run as F4's live incentive. It is dropped at the *file gate* (site 2, byte-
+  denominated, different warning text), and it carries no `metadata.agent`, so raising the knob
+  would admit it only for `AgentPromptBuilder:127` to filter it straight out. The cited scenario
+  cannot chain to the crash. Two false premises in one round; `rule-the-premise-before-the-question`
+  has now paid off four times in this run.
+- **Simulating the gate chain beat reading it.** Rather than argue about reachability, I
+  reimplemented the exact chain (file gate → content gate → cumulative gate → render, including
+  the header text and per-skill markup) over all 9 agents × 25 assigned skills. Result: worst
+  agent at 3,858/10,000 rendered — 61 % headroom, zero warnings, zero throws. That single table
+  did more to settle F4's severity than any amount of code reading, and it also produced the
+  `72 + ~10n` markup constant that corroborated backend's `71 + 10n` estimate.
+- **Three escalated "decisions" were one defect.** They arrived as separate questions (split the
+  knob / bytes-vs-chars / make site 1 a pre-check) and each has a tempting local answer. Answering
+  them together revealed that the pre-check framing is actively harmful — it would make
+  infrastructure track domain's rendering format forever — and that one change (inject the budget
+  as a value, degrade gracefully) resolves F4, decision A's motivation, and decision C at once.
+  **When several escalations touch the same mechanism, rule them as a set.**
+- **Re-framing beat adjudicating.** The knob split was escalated as a breaking config-contract
+  change needing ADR + migration notes. Making the new keys *additive with fallback to the
+  existing knob* removes the breakage entirely and drops the cost to a single ADR. The most
+  valuable architect output this round was rejecting the question's shape, not answering it.
+- **Guarding against outcome-driven severity.** F4 was proposed HIGH and the gate could not clean-
+  PASS with a HIGH open, so downgrading it was suspiciously convenient. I forced the test "would
+  I rule MEDIUM if the verdict did not depend on it?" — yes, on three grounds that stand alone
+  (bit-identical to `origin/main`; cited trigger provably doesn't chain; 61 % headroom). I also
+  recorded the one thing the restructure made *worse* (Rule 1 removes the one-line fix, so F4 is
+  now a design task) rather than letting the downgrade read as a whitewash.
+- Learnings consumed: [architect/rule-the-premise-before-the-question,
+  architect/completeness-assertions-need-an-independent-side,
+  architect/matrix-row-requires-enforcement-rule, architect/purity-rule-is-not-a-membership-rule,
+  architect/trust-level-must-be-carried-by-a-type,
+  architect/purity-displaced-capabilities-become-ports]

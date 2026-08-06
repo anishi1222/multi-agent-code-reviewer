@@ -837,3 +837,64 @@ F3: `ReviewOutputFormatter:26` の設定キー不一致）は t27 / t28 とし�
 - ビルド: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify`
   （マシン既定の GraalVM 25 では**コンパイルできません**）
 
+
+---
+
+## [BROADCAST] t24 round-1 conformance gate — **CLEAN PASS** (2026-08-06T01:51:53Z)
+
+**0 CRITICAL, 0 HIGH, 3 MEDIUM.** Merge `cd91bb0` + F1 fix `3ed3eda` both stand.
+Build exit 0, **942 tests, 0 failures**. 15/15 architecture rules green, Rule 0 parsed 331/331, 0 cycles.
+
+**Rulings that bind everyone:**
+
+1. **F1 CLOSED.** The negative control at `AgentConfigLoaderTest:386` is genuine — it removes sites 2
+   and 3 as explanations, so the drop is attributable to site 1 alone. Verified in source, not accepted
+   on report.
+2. **F4 → MEDIUM, inherited from `origin/main`, NOT a merge finding.** The defect is real
+   (`AgentPromptBuilder:145` gates on a hardcoded constant and *throws*, while the loader gates read the
+   *configured* knob and *skip*), but it is bit-identical to `origin/main` and unreachable in every
+   shipped configuration: worst agent renders **3,858 / 10,000 — 61% headroom**, and both skills over
+   10 KB declare no `metadata.agent`, so `AgentPromptBuilder:127` filters them out before the gate.
+3. **The systemic pattern gets an ADR.** Nine instances is not bad luck — it is an unrecorded
+   architectural decision. **ADR-0008** is recommended, and per ADR-0006 line 124 it **must** ship with
+   a mechanizable rule or it is a slogan. **Proposed Rule 8**: no class under `domain` may reference a
+   limit constant on `shared.ConfigDefaults`; budgets reach `domain` as injected values. Blast radius
+   verified = **exactly one violator** (F4 itself).
+
+**Cost disclosed, not glossed:** the layering made F4 *harder* to fix. `AgentPromptBuilder` is in
+`domain`, so Rule 1 forbids importing `infrastructure.config.SkillConfig` — "just read the configured
+value" is no longer available. That cost is attributable to our architecture and belongs on the record.
+
+---
+
+## [QUEUED BRIEF] t30 — ADR-0008 + Rule 8 — blocked on t29 — 2026-08-06T01:52:49Z
+
+Your own round-1 recommendation, raised as a task. **Do not start until t29 lands** — Rule 8's single
+violator is F4 itself, so adopting the rule before t29's fix would land a red rule.
+
+### Scope
+
+1. **Author ADR-0008** promoting the systemic pattern *"a control's scope of application is invisible at
+   its call site"* — nine instances: t12, t13.1/G1, t16, t18/SEC-H1, t14/TGT-07, t18.1, t16.2, F1, F4.
+   Convention: **English headings, Japanese body**.
+2. **Implement Rule 8** as an ArchUnit assertion in `LayerDependencyRulesTest`: no class under `domain`
+   may reference a limit constant on `shared.ConfigDefaults`. Budgets and limits reach `domain` as
+   injected values.
+3. Per ADR-0006 line 124 — *"a matrix row with no enforcement rule is itself a defect"* — the ADR
+   **must not** ship without the rule.
+
+### Carry forward into the ADR
+
+Your round-0 corollary belongs here: **Rule 0's completeness assertion is self-referential** — both sides
+derive from one `target/classes` walk — so it needs an independent source-to-classpath check after every
+large merge. That is the same pattern applied to our own tooling, which is the strongest possible
+illustration for the ADR.
+
+Also record the disclosed cost: the layering made F4 *harder* to fix (Rule 1 removed the one-line
+option). An ADR that only lists benefits will not be trusted.
+
+### Guardrail
+
+`PromptBudget` must remain unaffected — it is a `shared` value **instance** injected inward, not a static
+limit read. If your rule flags it, the rule is wrong, not `PromptBudget`. Verify the rule is green at
+exactly 0 violators after t29, and demonstrate it goes red if F4's original form is reintroduced.

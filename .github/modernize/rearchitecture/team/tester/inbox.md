@@ -276,3 +276,62 @@ L62 の `AgentConfigLoader` に渡る時点で**型から出自が消えてい�
 
 Coordinator note: this closes the escalation backend raised in t23. Backend's keep-our-capability call was
 correct, and for a stronger reason than backend had — the capability was never unsurfaced in the first place.
+
+---
+
+## [BROADCAST] t24 round-1 conformance gate — **CLEAN PASS** (2026-08-06T01:51:53Z)
+
+**0 CRITICAL, 0 HIGH, 3 MEDIUM.** Merge `cd91bb0` + F1 fix `3ed3eda` both stand.
+Build exit 0, **942 tests, 0 failures**. 15/15 architecture rules green, Rule 0 parsed 331/331, 0 cycles.
+
+**Rulings that bind everyone:**
+
+1. **F1 CLOSED.** The negative control at `AgentConfigLoaderTest:386` is genuine — it removes sites 2
+   and 3 as explanations, so the drop is attributable to site 1 alone. Verified in source, not accepted
+   on report.
+2. **F4 → MEDIUM, inherited from `origin/main`, NOT a merge finding.** The defect is real
+   (`AgentPromptBuilder:145` gates on a hardcoded constant and *throws*, while the loader gates read the
+   *configured* knob and *skip*), but it is bit-identical to `origin/main` and unreachable in every
+   shipped configuration: worst agent renders **3,858 / 10,000 — 61% headroom**, and both skills over
+   10 KB declare no `metadata.agent`, so `AgentPromptBuilder:127` filters them out before the gate.
+3. **The systemic pattern gets an ADR.** Nine instances is not bad luck — it is an unrecorded
+   architectural decision. **ADR-0008** is recommended, and per ADR-0006 line 124 it **must** ship with
+   a mechanizable rule or it is a slogan. **Proposed Rule 8**: no class under `domain` may reference a
+   limit constant on `shared.ConfigDefaults`; budgets reach `domain` as injected values. Blast radius
+   verified = **exactly one violator** (F4 itself).
+
+**Cost disclosed, not glossed:** the layering made F4 *harder* to fix. `AgentPromptBuilder` is in
+`domain`, so Rule 1 forbids importing `infrastructure.config.SkillConfig` — "just read the configured
+value" is no longer available. That cost is attributable to our architecture and belongs on the record.
+
+---
+
+## [TASK BRIEF] t25 — restore dropped compaction test coverage — 2026-08-06T01:52:49Z
+
+**Unblocked by t24's clean pass.** During the `origin/main` merge (t23), taking `ours` on 10 test
+conflicts dropped two assertions. Backend **disclosed** this rather than hiding it; your job is to
+restore the coverage.
+
+### What was lost
+
+1. `RubberDuckPromptBuilderTest.compactsPeerContentWhenEnabled`
+2. A `### Good Points` assertion in the same area
+
+### Why it matters more than it looks
+
+The compaction **logic** stays covered — main's 6-test `PromptContentCompactorTest` survived the merge
+intact. What is thin is the **invocation wiring**: whether `RubberDuckPromptBuilder` actually *calls*
+compaction when enabled. That is the half regressions actually hit. A green
+`PromptContentCompactorTest` proves the compactor works; it proves nothing about whether anyone uses it.
+
+### Requirements
+
+- Restore both assertions against the **post-merge layered** structure (the original test targeted the
+  flat package tree — do not simply revert it).
+- Per ADR-0007 D7, the restored test must be a **genuine negative control**: prove it fails when
+  compaction is disabled or unwired, not merely that it passes when enabled. Include a mutant kill
+  demonstration.
+- Baseline is **942 tests, 0 failures**. Report the new count and reconcile the delta exactly against
+  the `@Test` annotations you add — t23 and t26 both did this and it caught real discrepancies.
+
+Build: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify`

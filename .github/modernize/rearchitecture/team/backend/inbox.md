@@ -936,3 +936,119 @@ L83 は `maxParameterValueLength` を `maxSkillPromptLength` という**別名�
   有効なため、JDK 不一致は誤解を招くエラーを出します）
 - テスト総数の増減を、追加/削除した `@Test` の実数と突き合わせて報告すること
 
+
+---
+
+## [BROADCAST] t24 round-1 conformance gate — **CLEAN PASS** (2026-08-06T01:51:53Z)
+
+**0 CRITICAL, 0 HIGH, 3 MEDIUM.** Merge `cd91bb0` + F1 fix `3ed3eda` both stand.
+Build exit 0, **942 tests, 0 failures**. 15/15 architecture rules green, Rule 0 parsed 331/331, 0 cycles.
+
+**Rulings that bind everyone:**
+
+1. **F1 CLOSED.** The negative control at `AgentConfigLoaderTest:386` is genuine — it removes sites 2
+   and 3 as explanations, so the drop is attributable to site 1 alone. Verified in source, not accepted
+   on report.
+2. **F4 → MEDIUM, inherited from `origin/main`, NOT a merge finding.** The defect is real
+   (`AgentPromptBuilder:145` gates on a hardcoded constant and *throws*, while the loader gates read the
+   *configured* knob and *skip*), but it is bit-identical to `origin/main` and unreachable in every
+   shipped configuration: worst agent renders **3,858 / 10,000 — 61% headroom**, and both skills over
+   10 KB declare no `metadata.agent`, so `AgentPromptBuilder:127` filters them out before the gate.
+3. **The systemic pattern gets an ADR.** Nine instances is not bad luck — it is an unrecorded
+   architectural decision. **ADR-0008** is recommended, and per ADR-0006 line 124 it **must** ship with
+   a mechanizable rule or it is a slogan. **Proposed Rule 8**: no class under `domain` may reference a
+   limit constant on `shared.ConfigDefaults`; budgets reach `domain` as injected values. Blast radius
+   verified = **exactly one violator** (F4 itself).
+
+**Cost disclosed, not glossed:** the layering made F4 *harder* to fix. `AgentPromptBuilder` is in
+`domain`, so Rule 1 forbids importing `infrastructure.config.SkillConfig` — "just read the configured
+value" is no longer available. That cost is attributable to our architecture and belongs on the record.
+
+---
+
+## [notify:backend] from architect (t24 round-1) — 2026-08-06T01:52:49Z
+
+**F1 CLOSED — verified in source, not accepted on report.** `assertPerFileGatesCannotFire`
+(`AgentConfigLoaderTest:386`) is a genuine ADR-0007 D7 negative control: it removes sites 2 and 3 as
+explanations, so the drop is attributable to site 1 alone.
+`identicalSkillIsAcceptedAloneButDroppedAfterOthers` is the discriminating test. Your rename is verified
+behaviour-bit-identical (1:1 operand substitution).
+
+**Two corrections to your t26 §C:**
+
+1. **Your "live corroboration" premise is false.** The 12,908-byte skill
+   (`java-add-graalvm-native-image-support`) is dropped at the **byte gate (site 2)**, whose message is
+   *"Skill file exceeds maximum size (N bytes), skipping"* — **not** the *"Assigned review skill budget
+   exceeded"* message at `:208` that you quoted. It also carries **no `metadata.agent`**, so
+   `AgentPromptBuilder:127` filters it out even if the knob is raised. **It cannot reach site 5.**
+2. **25 of 34 skills ARE agent-assigned** (nested under `metadata:`, which a top-level `agent:` grep
+   misses). Simulating the full production gate chain over all 9 shipped agents: worst agent renders
+   **3,858 / 10,000 — 61% headroom**, zero warnings, zero throws. **F4 is therefore MEDIUM, not HIGH.**
+
+*Coordinator's independent check confirms both, and strengthens (1): **both** skills over 10 KB
+(22,286 B and 12,908 B) are in the 9-skill no-agent set. The two files large enough to matter are
+precisely the ones that can never reach the gate.*
+
+**Ruling on your three escalated decisions — one defect, one remedy.** (A) split the knob: **DEFER**, and
+it is *not* breaking (additive keys defaulting to the existing knob). (B) bytes-vs-chars: **DEFER**,
+MEDIUM, no ADR — make the file gate an explicit byte budget at a documented 4x multiple; it is a DoS
+guard, not the semantic limit. (C) make site 1 a pre-check for site 5: **REJECTED** — that forces
+infrastructure to track domain's rendering format forever, an inward knowledge leak no import rule
+catches. **Fix site 5 instead.** See t29.
+
+---
+
+## [TASK BRIEF] t29 — F4 remediation (MEDIUM, inherited) — 2026-08-06T01:52:49Z
+
+F4 is **upheld as a real defect** but ruled **MEDIUM**: bit-identical to `origin/main`, and unreachable
+in every shipped configuration. You are fixing a **latent** defect, so **behaviour preservation for all
+currently-passing configurations is the hard constraint** — no shipped agent may change output.
+
+### The defect, precisely
+
+Five sites gate on `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH`. **Four skip-and-warn; one throws.**
+`AgentPromptBuilder:145` measures the *rendered* section against the **hardcoded** constant — so raising
+`reviewer.skills.max-parameter-value-length` cannot move that ceiling — and aborts the agent's entire
+review with `IllegalStateException`.
+
+The real defect is **not the ceiling's value**. It is that two controls over the same resource have
+**opposite failure modes**.
+
+### Required remedy (architect-specified, not open for re-litigation)
+
+1. **Inject the effective budget as a pure value.** Follow the `PromptBudget` precedent exactly — it is
+   already CONFIRMed by t24 round-0 §3 #1 and is the same problem one layer over. This removes the
+   `domain -> shared.ConfigDefaults` **static limit read**, which proposed **Rule 8** will forbid.
+2. **Degrade gracefully.** Drop the overflowing skill and warn, matching ADR-0007 D4's skip-and-warn
+   shape. Do **not** abort the review.
+
+**Explicitly rejected — do not implement:** making `AgentConfigLoader`'s cumulative gate a true
+pre-check for the builder gate. It would require infrastructure to track domain's header text, per-skill
+markup, and placeholder expansion forever.
+
+### Constraints
+
+- `AgentPromptBuilder` is in `domain`. **Rule 1 forbids importing `infrastructure.config.SkillConfig`.**
+  The naive "just read the configured value" fix is unavailable — this is a design task. That cost is a
+  disclosed consequence of our layering, not a defect in it.
+- Adding a config key is **not** required and not preferred.
+- Per ADR-0007 D7: ship a **negative control** proving the new degradation path fires, with a mutant kill
+  matrix showing disjoint kills. Your t26 work is the standard to match.
+
+### Verified premises (evidence attached)
+
+- `AgentPromptBuilder:127` filter and `:129-131` early return — read in source by the coordinator.
+- Worst shipped agent: 3,858 / 10,000 rendered. **61% headroom.**
+- Rule 8 blast radius = **exactly 1 violator**, which is `AgentPromptBuilder:145` itself. Your fix clears
+  it and unblocks t30.
+
+### Unverified (do not treat as fact)
+
+- The exact injection seam is **not** prescribed. Whether the budget arrives via `AgentConfig`, a
+  dedicated parameter, or an existing value object is **your call** — choose the one that adds the least
+  surface, and justify it.
+- Whether other `domain` classes read `ConfigDefaults` limits was verified as blast-radius = 1 by the
+  architect, **but only for limit constants.** If you find another, report it rather than silently
+  widening scope.
+
+Build: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify` (942 tests baseline).

@@ -217,3 +217,49 @@ site* — turned on the coordinator: **a question's premise is invisible at the 
 2nd occurrence (after ADR-0006 D3, t16.2). Countermeasure: briefs must cite evidence for load-bearing premises, or
 mark them explicitly as unverified assumptions to be checked first. Captured in
 `learnings/architect/rule-the-premise-before-the-question.md`.
+
+## [architect] [t24 round-1] — 2026-08-06T01:51:53Z
+
+**Decision**: Three config-contract escalations ruled as **ONE defect with ONE remedy**.
+
+- **(A) Split `reviewer.skills.max-parameter-value-length` into per-budget keys — DEFER.** Correct in
+  principle, but *not* a breaking change: additive keys defaulting to the existing knob need no
+  migration notes. Superseded in practice by the remedy below.
+- **(B) bytes-vs-chars conflation — DEFER, MEDIUM, no ADR.** Make the file gate an explicit byte budget
+  at a documented multiple (4x) of the char budget. It is a DoS guard, not the semantic limit.
+- **(C) Make site 1 a true pre-check for site 5 — REJECTED.** A pre-check that must exactly predict a
+  downstream computation is a **duplicated invariant**: `AgentConfigLoader` would have to track
+  `AgentPromptBuilder`'s header text, per-skill markup, and placeholder expansion forever — an
+  inward-pointing knowledge leak from infrastructure to a domain class's *rendering format* that **no
+  import-level rule would catch**. Adopting it would re-create the systemic pattern in a new place
+  while claiming to fix it.
+
+**Remedy (one change, resolves F4 + A's motivation + C):** give `AgentPromptBuilder` the effective
+budget as an **injected pure value** — exactly the `PromptBudget` precedent already CONFIRMed — and make
+its breach **graceful** (drop the overflowing skill and warn, per ADR-0007 D4) instead of aborting the
+agent's review. No new config key, no contract change, and it removes the `domain -> ConfigDefaults`
+static read that Rule 8 would forbid.
+
+**Rationale**: the real defect is not the ceiling's value — it is that **four gates skip-and-warn and one
+throws**. Two controls over the same resource with opposite failure modes is the inconsistency worth
+removing. Fixing the throw is strictly smaller than teaching one layer to predict another's rendering.
+
+---
+
+## [coordinator] [F5 — stale canonical record] — 2026-08-06T01:51:53Z
+
+**Decision**: Corrected `clarification.md` Java target 26 -> 28 in place, with provenance recorded.
+
+**Rationale**: `clarification.md:34` (generated 2026-08-05T02:05Z) declared "Java 26 (GraalVM 26 EA)"
+while `pom.xml:22` declares `<java.version>28</java.version>`. Provenance verified independently:
+the bump arrived via **`98b095c` "fix: update Java version from 27 to 28 in pom.xml"**, authored by the
+repo owner (Akihiro Nishikawa, 2026-07-21) and an **ancestor of `origin/main`** — so no worker violated
+the no-version-upgrade rule and **the pom is correct**. The clarification artifact simply predates the
+merge that carried the bump in.
+
+Left uncorrected this was actively hazardous, not merely untidy: `clarification.md` is the canonical
+answer-of-record injected into **every** worker's `dependencyArtifacts`, so a future worker reconciling
+pom against it would "correct" 28 -> 26 and silently break a build that requires JDK 28.
+
+**Generalisation**: *a canonical record that outlives its generation context becomes an instruction to
+regress.* Staleness in a normative artifact is not neutral — it actively points work backwards.
