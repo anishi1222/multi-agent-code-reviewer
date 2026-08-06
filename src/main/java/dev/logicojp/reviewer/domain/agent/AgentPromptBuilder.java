@@ -1,17 +1,28 @@
 package dev.logicojp.reviewer.domain.agent;
 
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
-import dev.logicojp.reviewer.shared.ConfigDefaults;
 import dev.logicojp.reviewer.shared.PlaceholderUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /// Builds prompt strings from {@link AgentConfig} data.
 ///
 /// Extracted from {@link AgentConfig} to maintain single responsibility —
 /// the record is a pure data carrier while this class handles prompt construction logic.
 public final class AgentPromptBuilder {
+
+    private static final Logger logger = Logger.getLogger(AgentPromptBuilder.class.getName());
+
+    /// Fixed markup that opens the "Assigned Review Skills" section.
+    ///
+    /// Extracted as a constant so that the section's length can be accounted for *before*
+    /// any skill is rendered — the budget covers the header too, exactly as it did when the
+    /// whole section was measured in one go.
+    static final String ASSIGNED_SKILLS_HEADER =
+        "\n\n## Assigned Review Skills\n\n"
+            + "以下のSKILL仕様を、このエージェントの必須レビュー観点として適用してください。\n";
 
     public static final String DEFAULT_FOCUS_AREAS_GUIDANCE =
         "以下の観点 **のみ** に基づいてレビューしてください。これ以外の観点での指摘は行わないでください。";
@@ -120,6 +131,19 @@ public final class AgentPromptBuilder {
         return appendAssignedSkills(config, placeholders, instruction);
     }
 
+    /// Appends the "Assigned Review Skills" section, honouring the configured rendering budget.
+    ///
+    /// The budget arrives as an injected value on [AgentConfig#skillBudget()] rather than being
+    /// read here from a `shared` constant, so that raising
+    /// `reviewer.skills.max-parameter-value-length` actually moves this ceiling (F4).
+    ///
+    /// A skill that would push the section past the budget is **dropped with a warning**, matching
+    /// the skip-and-warn behaviour of the sibling gates in `AgentConfigLoader`. Degrading the
+    /// review is strictly better than aborting it, and a later, smaller skill may still fit — so
+    /// an overflowing skill does not terminate the loop.
+    ///
+    /// When the budget admits every skill the output is byte-identical to rendering them
+    /// unconditionally, so no shipped agent's prompt changes.
     private static String appendAssignedSkills(AgentConfig config,
                                                Map<String, String> placeholders,
                                                String instruction) {
@@ -130,24 +154,39 @@ public final class AgentPromptBuilder {
             return instruction;
         }
 
-        var prompt = new StringBuilder(instruction);
-        prompt.append("\n\n## Assigned Review Skills\n\n")
-            .append("以下のSKILL仕様を、このエージェントの必須レビュー観点として適用してください。\n");
+        int budget = config.skillBudget().renderedSkillSectionMaxChars();
+        var section = new StringBuilder(ASSIGNED_SKILLS_HEADER);
+        int acceptedCount = 0;
         for (SkillDefinition skill : assignedSkills) {
-            prompt.append("\n### ").append(skill.name()).append("\n\n");
-            if (!skill.description().isBlank()) {
-                prompt.append(skill.description()).append("\n\n");
+            String rendered = renderSkill(skill, placeholders);
+            if (section.length() + rendered.length() > budget) {
+                logger.warning(
+                    "Rendered assigned-skill section budget exceeded for agent '" + config.name()
+                        + "' (limit=" + budget + " chars); skipping skill: " + skill.name());
+                continue;
             }
-            prompt.append(PlaceholderUtils.replaceDollarPlaceholders(skill.prompt(), placeholders))
-                .append("\n");
+            section.append(rendered);
+            acceptedCount++;
         }
-        int skillSectionLength = prompt.length() - instruction.length();
-        if (skillSectionLength > ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH) {
-            throw new IllegalStateException(
-                "Assigned review skill guidance exceeds maximum length for agent: " + config.name()
-            );
+        if (acceptedCount == 0) {
+            return instruction;
         }
-        return prompt.toString();
+        return instruction + section;
+    }
+
+    /// Renders one skill's fragment of the assigned-skills section.
+    ///
+    /// Kept separate so a fragment can be measured against the remaining budget before it is
+    /// committed to the section.
+    private static String renderSkill(SkillDefinition skill, Map<String, String> placeholders) {
+        var sb = new StringBuilder();
+        sb.append("\n### ").append(skill.name()).append("\n\n");
+        if (!skill.description().isBlank()) {
+            sb.append(skill.description()).append("\n\n");
+        }
+        sb.append(PlaceholderUtils.replaceDollarPlaceholders(skill.prompt(), placeholders))
+            .append("\n");
+        return sb.toString();
     }
 
     private static String formatFocusAreas(AgentConfig config) {

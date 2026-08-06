@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import dev.logicojp.reviewer.infrastructure.config.SkillConfig;
+import dev.logicojp.reviewer.shared.ConfigDefaults;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -522,6 +523,92 @@ class AgentConfigLoaderTest {
             List<String> names = loader.listAvailableAgents();
 
             assertThat(names).containsExactly("agent-a", "agent-b");
+        }
+    }
+
+    @Nested
+    @DisplayName("skillBudget wiring")
+    class SkillBudgetWiring {
+
+        private static final int CONFIGURED_BUDGET = 4_242;
+
+        private SkillConfig skillConfigAt(Path skillsDir, int budget) throws IOException {
+            Files.createDirectories(skillsDir);
+            SkillConfig defaults = SkillConfig.defaults();
+            return new SkillConfig(
+                defaults.filename(),
+                skillsDir.toString(),
+                budget,
+                defaults.maxExecutorCacheSize(),
+                defaults.executorCacheInitialCapacity(),
+                defaults.executorCacheLoadFactor(),
+                defaults.serviceShutdownTimeoutSeconds(),
+                defaults.executorShutdownTimeoutSeconds()
+            );
+        }
+
+        /// Loads `test-agent` against an isolated skills directory. When `withAssignedSkill`
+        /// is false the directory is left empty, which is the only condition under which
+        /// `applySkills()` takes its early return — the two cases exercise different code paths
+        /// and must therefore both be covered.
+        private AgentConfig loadTestAgent(Path tempDir, int budget, boolean withAssignedSkill)
+                throws IOException {
+            Path agentsDir = tempDir.resolve("agents");
+            Files.createDirectories(agentsDir);
+            Files.writeString(agentsDir.resolve("test-agent.agent.md"), AGENT_CONTENT.stripIndent());
+
+            Path skillsDir = tempDir.resolve("skills");
+            if (withAssignedSkill) {
+                Path skillFile = skillsDir.resolve("assigned-skill").resolve("SKILL.md");
+                Files.createDirectories(skillFile.getParent());
+                Files.writeString(skillFile, """
+                    ---
+                    name: assigned-skill
+                    description: d
+                    metadata:
+                      agent: test-agent
+                    ---
+
+                    ASSIGNED PROMPT
+                    """);
+            }
+
+            return AgentConfigLoader.builder(List.of(agentsDir))
+                .skillConfig(skillConfigAt(skillsDir, budget))
+                .build()
+                .loadAllAgents()
+                .get("test-agent");
+        }
+
+        @Test
+        @DisplayName("設定されたmax-parameter-value-lengthがAgentConfigのSkillBudgetへ届く")
+        void configuredBudgetReachesLoadedAgentConfig(@TempDir Path tempDir) throws IOException {
+            AgentConfig agent = loadTestAgent(tempDir, CONFIGURED_BUDGET, true);
+
+            // This is the F4 fix end-to-end: the configured knob — not the ConfigDefaults
+            // constant — determines the ceiling AgentPromptBuilder will apply.
+            assertThat(agent.skills()).isNotEmpty();
+            assertThat(agent.skillBudget().renderedSkillSectionMaxChars()).isEqualTo(CONFIGURED_BUDGET);
+        }
+
+        @Test
+        @DisplayName("設定値を変えるとSkillBudgetも追随する")
+        void budgetTracksTheConfiguredValue(@TempDir Path tempDir) throws IOException {
+            assertThat(loadTestAgent(tempDir, 7_777, true).skillBudget().renderedSkillSectionMaxChars())
+                .isEqualTo(7_777)
+                .isNotEqualTo(ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH);
+        }
+
+        @Test
+        @DisplayName("割当SKILLを持たないエージェントにも予算が付与される")
+        void skilllessAgentsStillCarryTheBudget(@TempDir Path tempDir) throws IOException {
+            AgentConfig agent = loadTestAgent(tempDir, CONFIGURED_BUDGET, false);
+
+            // applySkills() returns early when no skills are discovered, so the budget must be
+            // attached outside that path — this test pins that down.
+            assertThat(agent.skills()).isEmpty();
+            assertThat(agent.skillBudget().renderedSkillSectionMaxChars())
+                .isEqualTo(CONFIGURED_BUDGET);
         }
     }
 }

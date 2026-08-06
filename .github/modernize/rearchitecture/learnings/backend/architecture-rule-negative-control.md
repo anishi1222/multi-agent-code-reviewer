@@ -41,6 +41,19 @@ control proving it fires.
 9. **Reaching the branch may require a specific shape, not just a big input.** t26's cumulative
    budget was mathematically unreachable with a single item, because an earlier per-item gate
    already bounded it. Prove reachability algebraically before assuming a test exercises the branch.
+10. **A mutant that kills *more* tests than its blast radius should reach signals a fixture defect,
+    not strong coverage** (t29). A mutant confined to one branch killed all three tests of a suite —
+    because all three fixtures happened to take the *same* path, leaving the other path untested.
+    Over-killing means the fixtures lack diversity. Split the fixture so the paths are parameterised,
+    then confirm the mutant and its inverse are killed by *disjoint* sets.
+11. **Pair each mutant with its inverse when guarding a two-path attach point** (t29). "Attach only
+    on path A" and "attach only on path B" must be killed by complementary test sets. Either mutant
+    alone can be killed by a suite that never exercises the other path.
+12. **Predict each mutant's kill set before running it, then compare.** t29 predicted algebraically
+    that the mutant re-introducing the original defect would *survive* the obvious regression test
+    (both the fixed and mutated code drop the same oversized input). Confirmed empirically. Where
+    prediction and result agree you have understood the control; where they disagree you have found
+    either a fixture defect or a misunderstanding — both worth more than a green suite.
 
 ## Example
 
@@ -58,3 +71,4 @@ control proving it fires.
 ## History
 - 2026-08-05 (multi-agent-code-reviewer/t13.1): initial — consolidates the t12.1 vacuous-pass finding with the t13 missing-rule finding.
 - 2026-08-06 (multi-agent-code-reviewer/t26): generalised from architecture rules to any control; added the disjoint kill-matrix requirement and the branch-reachability check (takeaways 7–9).
+- 2026-08-06 (multi-agent-code-reviewer/t29): added takeaways 10–12 — over-killing mutants as a fixture-defect signal, inverse-mutant pairing for two-path attach points, and predicting kill sets before running.

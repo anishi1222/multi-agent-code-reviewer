@@ -4,6 +4,7 @@ import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.instruction.CustomInstructionSafetyValidator;
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
 import dev.logicojp.reviewer.infrastructure.config.SkillConfig;
+import dev.logicojp.reviewer.shared.SkillBudget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,13 @@ public class AgentConfigLoader {
     /// through `metadata.agent`.
     private final int maxAssignedSkillTotalChars;
 
+    /// Maximum **character** length of the rendered "Assigned Review Skills" section that
+    /// `AgentPromptBuilder` appends to an agent's instruction.
+    ///
+    /// Unlike the three above, this budget is not enforced here — it is handed to `domain` as a
+    /// [SkillBudget] value, because the section it bounds only exists once the prompt is rendered.
+    private final int maxRenderedSkillSectionChars;
+
     public static Builder builder(List<Path> agentDirectories) {
         return new Builder(agentDirectories);
     }
@@ -90,15 +98,16 @@ public class AgentConfigLoader {
         this.markdownParser = new AgentMarkdownParser(defaultOutputFormat);
         this.skillParser = new SkillMarkdownParser(skillConfig.filename());
         this.skillsDirectory = skillConfig.directory();
-        // These three budgets are all sourced from the single
+        // These four budgets are all sourced from the single
         // `reviewer.skills.max-parameter-value-length` knob, but they are NOT interchangeable:
-        // they measure three different quantities, and the first is counted in bytes while the
-        // other two are counted in UTF-16 characters. They are kept as separate fields so that
+        // they measure four different quantities, and the first is counted in bytes while the
+        // others are counted in UTF-16 characters. They are kept as separate fields so that
         // each call site declares which budget it is applying instead of hiding behind one alias.
         int sharedSkillBudget = skillConfig.maxParameterValueLength();
         this.maxSkillFileBytes = sharedSkillBudget;
         this.maxSkillContentChars = sharedSkillBudget;
         this.maxAssignedSkillTotalChars = sharedSkillBudget;
+        this.maxRenderedSkillSectionChars = sharedSkillBudget;
     }
 
     /// Loads all agent configurations from all configured directories.
@@ -174,7 +183,10 @@ public class AgentConfigLoader {
                 suspiciousField.get(), file);
             return Optional.empty();
         }
-        AgentConfig withSkills = applySkills(config, globalSkills);
+        // Attached here rather than inside applySkills(), which returns early for agents that
+        // have no assigned skills — every loaded agent must carry the configured budget.
+        AgentConfig withSkills = applySkills(config, globalSkills)
+            .withSkillBudget(new SkillBudget(maxRenderedSkillSectionChars));
         withSkills.validateRequired();
         return Optional.of(withSkills);
     }

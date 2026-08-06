@@ -31,14 +31,14 @@ public final class ConfigDefaults {
     /// | `AgentConfigLoader` (file gate)      | one skill file on disk            | bytes | skip + warn |
     /// | `AgentConfigLoader` (content gate)   | one skill's injected content      | chars | skip + warn |
     /// | `AgentConfigLoader` (assigned total) | cumulative content per agent      | chars | skip + warn |
-    /// | `AgentPromptBuilder`                 | rendered "Assigned Review Skills" | chars | **throws**  |
+    /// | `AgentPromptBuilder` (via [SkillBudget]) | rendered "Assigned Review Skills" | chars | skip + warn |
     /// | `SkillDefinition#buildPrompt`        | one substituted parameter value   | chars | **throws**  |
     ///
-    /// Note that `AgentPromptBuilder` reads this constant *directly* and therefore ignores
-    /// any configured `reviewer.skills.max-parameter-value-length` override, while the
-    /// `AgentConfigLoader` gates honour it. Raising the configured value past this constant
-    /// makes the loader admit a skill set that the prompt builder then rejects by throwing.
-    /// See the t26 ruling for the recommended split.
+    /// `AgentPromptBuilder` no longer reads this constant directly: `AgentConfigLoader` maps the
+    /// configured `reviewer.skills.max-parameter-value-length` onto a [SkillBudget] value carried
+    /// by `AgentConfig`, so raising the configured value now moves that ceiling too, and a
+    /// breach drops the offending skill with a warning instead of aborting the agent's review.
+    /// This constant remains that budget's *default* (see [SkillBudget#DEFAULT_RENDERED_SKILL_SECTION_MAX_CHARS]).
     public static final int SKILL_MAX_PARAMETER_VALUE_LENGTH = 10_000;
 
     private ConfigDefaults() {

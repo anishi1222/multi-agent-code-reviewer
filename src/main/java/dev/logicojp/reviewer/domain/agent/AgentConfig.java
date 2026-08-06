@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.domain.agent;
 
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
+import dev.logicojp.reviewer.shared.SkillBudget;
 
 import java.util.List;
 
@@ -9,6 +10,12 @@ import java.util.List;
 ///
 /// This record is a pure data carrier. Prompt construction logic is
 /// in {@code AgentPromptBuilder}. No Micronaut, SLF4J, or SDK imports.
+///
+/// @param skillBudget budget governing how much of [#skills()] may be rendered into the
+///                    instruction prompt. Carried here — rather than read as a static constant
+///                    by `AgentPromptBuilder` — because the budget bounds exactly these skills,
+///                    and `domain` may not read the configured value itself (ADR-0006 Rule 1).
+///                    Never null; a null argument normalises to [SkillBudget#SkillBudget()].
 public record AgentConfig(
     String name,
     String displayName,
@@ -21,7 +28,8 @@ public record AgentConfig(
     String peerModel,
     boolean rubberDuckEnabled,
     int dialogueRounds,
-    String language
+    String language,
+    SkillBudget skillBudget
 ) {
 
     /// Hardcoded last-resort default model — mirrors {@code ModelConfig.DEFAULT_MODEL}.
@@ -40,7 +48,7 @@ public record AgentConfig(
         List<SkillDefinition> skills
     ) {
         this(name, displayName, model, systemPrompt, instruction, outputFormat,
-            focusAreas, skills, null, false, DEFAULT_DIALOGUE_ROUNDS, DEFAULT_LANGUAGE);
+            focusAreas, skills, null, false, DEFAULT_DIALOGUE_ROUNDS, DEFAULT_LANGUAGE, null);
     }
 
     public AgentConfig {
@@ -52,6 +60,7 @@ public record AgentConfig(
         skills = skills == null ? List.of() : List.copyOf(skills);
         peerModel = (peerModel != null && peerModel.isBlank()) ? null : peerModel;
         language = (language == null || language.isBlank()) ? DEFAULT_LANGUAGE : language;
+        skillBudget = skillBudget == null ? new SkillBudget() : skillBudget;
     }
 
     public AgentConfig withModel(String overrideModel) {
@@ -75,6 +84,15 @@ public record AgentConfig(
 
     public AgentConfig withSkills(List<SkillDefinition> newSkills) {
         return Builder.from(this).skills(newSkills).build();
+    }
+
+    /// Returns a copy carrying the given rendered-skill-section budget.
+    ///
+    /// Called by `infrastructure.parsing.AgentConfigLoader` so that the configured
+    /// `reviewer.skills.max-parameter-value-length` reaches `AgentPromptBuilder` as a value
+    /// rather than being read there as a compile-time constant (F4).
+    public AgentConfig withSkillBudget(SkillBudget newSkillBudget) {
+        return Builder.from(this).skillBudget(newSkillBudget).build();
     }
 
     public AgentConfig withPeerModel(String overridePeerModel) {
@@ -115,6 +133,7 @@ public record AgentConfig(
         private boolean rubberDuckEnabled;
         private int dialogueRounds;
         private String language = DEFAULT_LANGUAGE;
+        private SkillBudget skillBudget;
 
         private Builder() {
         }
@@ -132,7 +151,8 @@ public record AgentConfig(
                 .peerModel(source.peerModel)
                 .rubberDuckEnabled(source.rubberDuckEnabled)
                 .dialogueRounds(source.dialogueRounds)
-                .language(source.language);
+                .language(source.language)
+                .skillBudget(source.skillBudget);
         }
 
         public Builder name(String name) { this.name = name; return this; }
@@ -147,10 +167,11 @@ public record AgentConfig(
         public Builder rubberDuckEnabled(boolean rubberDuckEnabled) { this.rubberDuckEnabled = rubberDuckEnabled; return this; }
         public Builder dialogueRounds(int dialogueRounds) { this.dialogueRounds = dialogueRounds; return this; }
         public Builder language(String language) { this.language = language; return this; }
+        public Builder skillBudget(SkillBudget skillBudget) { this.skillBudget = skillBudget; return this; }
 
         public AgentConfig build() {
             return new AgentConfig(name, displayName, model, systemPrompt, instruction, outputFormat,
-                focusAreas, skills, peerModel, rubberDuckEnabled, dialogueRounds, language);
+                focusAreas, skills, peerModel, rubberDuckEnabled, dialogueRounds, language, skillBudget);
         }
     }
 

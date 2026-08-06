@@ -325,3 +325,43 @@
   had I trusted the "Java 26" line I'd have failed the build. Verify claims against build files.
 - No source changed in this addendum (docs/learnings only), so the 942/0 build result stands unchanged.
 - Learnings consumed: [same set as t26, plus reconciliation of clarification.md]
+
+## [t29] F4 closed — skill budget injected into AgentPromptBuilder as a pure value, drop-and-warn replaces throw
+
+- **Seam picked by measurement.** Before choosing where to thread the budget I scanned
+  `new AgentConfig(` arities: 70/71 call sites use the 8-arg convenience ctor, the only wide call is
+  inside `Builder.build()`. So a 13th record component + null-normalisation broke **zero** call
+  sites. The "obvious" fix (add a parameter to `AgentPromptBuilder`'s static methods) would have
+  broken ~18 call sites and forced `ReviewTargetInstructionResolver` and `ReviewPassRunner` to carry
+  a budget neither uses. **Count call sites before arguing about design.**
+- **Gotcha: `SkillConfig.defaults().directory()` points at the *real* project skills dir.** A loader
+  test that doesn't override it silently loads real global skills from disk, so
+  `assertThat(agent.skills()).isEmpty()` fails for reasons unrelated to the test. Cost one red run.
+  Always point loader fixtures at an isolated temp dir.
+- **Gotcha: `applySkills` early-returns** (`if (agentSkills.isEmpty()) return config;`). Attaching
+  the budget inside it would silently skip skill-less agents. Attached in `parseAgent` instead.
+  Related subtlety: `enforceAssignedSkillBudget` *passes through* skills whose `metadata.agent`
+  doesn't match, so global skills count toward non-emptiness — the early return fires only when the
+  skills dir yields literally zero skills.
+- **A mutant that kills too many tests is a defect signal, not a win.** M9 (move the attach point
+  past the early return) killed all three loader tests. That looked strong; it actually meant all
+  three fixtures took the *same* path and nothing covered the with-skills path. After
+  parameterising skill-presence, M9 kills exactly one test and its inverse M10 kills the other two —
+  complementary sets, which is the result that actually proves both paths are guarded.
+- **Predicting kill sets beforehand paid off.** I predicted algebraically that M2 (re-introduce F4:
+  ignore the injected budget, hardcode 10_000) would *survive* `dropsOversizedExpandedSkillInsteadOfThrowing`,
+  because 11,100 > 10,000 under both fixed and mutated code. Confirmed. That proves the intuitive
+  "drops instead of throws" test verifies only half the remedy and says nothing about configurability.
+- **Byte-identity pinned with a literal golden string**, written out in full rather than rebuilt from
+  production constants — so header drift fails the test instead of silently tracking it.
+  `ASSIGNED_SKILLS_HEADER` measures 71 chars (computed, not assumed).
+- **Concurrent worktree co-tenancy.** `RubberDuckPromptBuilderTest` and
+  `ReviewOverallSummaryAppenderTest` were modified inside my task window by another agent working in
+  the same worktree. I left them alone and raised it to the coordinator. Practical consequence: the
+  962-test total is not solely attributable to t29 (+15 is mine). If you see unexpected `git status`
+  entries, check mtimes against your own start time before assuming your tooling did it.
+- Build: `clean verify` → 962 tests, 0 failures/errors/skipped, `LayerDependencyRulesTest` 10/10, 0 cycles.
+- Learnings consumed: [backend/one-knob-many-budgets-erases-provenance, backend/domain-purification-patterns,
+  backend/architecture-rule-negative-control, backend/verify-clarification-against-the-repo,
+  backend/merging-upstream-into-restructured-tree, architect/pre-check-predicting-downstream-is-duplicated-invariant,
+  architect/purity-displaced-capabilities-become-ports]
