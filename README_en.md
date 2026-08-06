@@ -790,109 +790,143 @@ ls src/main/resources/META-INF/native-image/
 
 ## Architecture
 
+The application is structured as **Ports & Adapters (hexagonal) layering**. Dependencies point inward only —
+`presentation -> application -> domain` — and `infrastructure` attaches from the outside by implementing
+outbound ports. The full decision record is [ADR-0006](docs/adr/0006-ports-and-adapters-layering.md).
+
+| Layer | Responsibility | May depend on |
+|---|---|---|
+| `dev.logicojp.reviewer` (composition root) | Entry point and DI object-graph assembly only | every layer |
+| `presentation` | CLI parsing, commands, console output | `application`, `application.port.inbound`, `domain`, `shared` |
+| `application` | Use-case orchestration, adapter-agnostic | `application.port.*`, `domain`, `shared` |
+| `domain` | Business rules and models | `shared`, `java.*` |
+| `infrastructure` | Adapters: Copilot SDK, filesystem, config, logging | `application.port.outbound`, `domain`, `shared` |
+| `shared` | Pure cross-layer utilities and defaults | `java.*` only |
+
+Boundaries are enforced mechanically rather than by convention: `LayerDependencyRulesTest` inspects compiled
+bytecode through the JDK `java.lang.classfile` API and fails `mvn verify` on any violation.
+
+### Layer structure
+
 ```mermaid
 flowchart TB
-    %% ── CLI ──
+    Root["composition root
+    ReviewApp + DI factories"]
+
+    subgraph L1["presentation (CLI adapter)"]
+        direction LR
+        Cmd["command/
+        ReviewCommand / ListAgentsCommand
+        SkillCommand / DoctorCommand"]
+        Par["parser/
+        CliParsing / CliUsage / ExitCodes"]
+        Fmt["formatter/
+        CliOutput"]
+    end
+
+    In["application.port.inbound
+    RunReviewPort / LoadAgentPort
+    ExecuteSkillPort / GenerateReportPort
+    RunDiagnosticsPort"]
+
+    subgraph L2["application (use cases)"]
+        direction LR
+        Orc["review/
+        ReviewOrchestrator / AgentReviewExecutor"]
+        Rep["report/
+        GenerateReportUseCase / SummaryGenerator"]
+        Agt["agent/ + skill/
+        LoadAgentUseCase / ExecuteSkillUseCase"]
+    end
+
+    Out["application.port.outbound
+    RunCopilotSessionPort / LoadTemplatePort
+    WriteReportPort / CollectLocalSourcePort
+    GenerateAiSummaryPort"]
+
+    subgraph L3["infrastructure (adapters)"]
+        direction LR
+        Cop["copilot/
+        CopilotService / SkillExecutor"]
+        Auth["auth/
+        GitHubTokenResolver"]
+        Io["file/ parsing/ template/
+        config/ logging/"]
+    end
+
+    subgraph L4["domain (business rules, JDK only)"]
+        direction LR
+        Dom["agent/ report/ review/
+        skill/ instruction/ resilience/"]
+    end
+
+    Shared["shared
+    pure utilities (java.* only)"]
+
+    Ext["GitHub Copilot API / GitHub MCP Server"]
+
+    Root -.->|assembles| L1
+    Root -.->|assembles| L2
+    Root -.->|assembles| L3
+
+    L1 --> In
+    In --> L2
+    L2 --> Out
+    L3 -.->|implements| Out
+
+    L1 --> L4
+    L2 --> L4
+    L3 --> L4
+    L4 --> Shared
+    L3 --> Ext
+```
+
+### Review execution flow
+
+```mermaid
+flowchart TB
     ReviewApp["ReviewApp
-    (Entry Point)"]
-    ReviewApp --> ReviewCommand
-    ReviewApp --> ListAgentsCommand
-    ReviewApp --> SkillCommand
+    (composition root)"] --> ReviewCommand
+    ReviewCommand --> ReviewExecutionCoordinator
+    ReviewExecutionCoordinator --> ReviewRunExecutor
 
-    %% ── Review flow ──
-    subgraph ReviewFlow["Review Flow"]
+    ReviewRunExecutor -->|RunReviewPort| ReviewOrchestrator
+
+    subgraph APP["application.review"]
         direction TB
-        ReviewCommand --> ReviewExecutionCoordinator
-        ReviewExecutionCoordinator --> ReviewRunExecutor
-
-        ReviewRunExecutor --> ReviewService
-        ReviewService --> ReviewOrchestratorFactory
-        ReviewOrchestratorFactory --> ReviewOrchestrator
-
-        subgraph Orchestrator["ReviewOrchestrator"]
-            direction TB
-            LocalSourcePrecomputer["LocalSourcePrecomputer
-            Local source pre-collection"]
-            ReviewContextFactory["ReviewContextFactory
-            Shared context creation"]
-            ReviewExecutionModeRunner["ReviewExecutionModeRunner
-            Async / Structured Concurrency"]
-            AgentReviewExecutor["AgentReviewExecutor
-            Semaphore control + Timeout"]
-            ReviewResultPipeline["ReviewResultPipeline
-            Result collection"]
-
-            LocalSourcePrecomputer --> ReviewContextFactory
-            ReviewContextFactory --> ReviewExecutionModeRunner
-            ReviewExecutionModeRunner --> AgentReviewExecutor
-            AgentReviewExecutor --> ReviewAgent
-            ReviewAgent --> ContentSanitizer
-            ReviewExecutionModeRunner --> ReviewResultPipeline
-        end
-
-        ReviewRunExecutor --> ReviewOverallSummaryAppender["ReviewOverallSummaryAppender
-        Deterministic overall summary"]
-        ReviewRunExecutor --> ReportService
-        ReportService --> ReportGeneratorFactory["ReportGeneratorFactory
-        Report/summary generator factory"]
-        ReportGeneratorFactory --> ReportGenerator
-        ReportGeneratorFactory --> SummaryGenerator["SummaryGenerator
-        AI-powered summary"]
+        ReviewOrchestrator --> LocalSourcePrecomputer["LocalSourcePrecomputer
+        Local source pre-collection"]
+        LocalSourcePrecomputer --> ReviewExecutionModeRunner["ReviewExecutionModeRunner
+        Async / structured concurrency"]
+        ReviewExecutionModeRunner --> AgentReviewExecutor["AgentReviewExecutor
+        Semaphore control + timeout"]
+        AgentReviewExecutor --> ReviewPassRunner
+        ReviewExecutionModeRunner --> ReviewResultPipeline["ReviewResultPipeline
+        Result collection"]
     end
 
-    %% ── List flow ──
-    ListAgentsCommand --> AgentService
-
-    %% ── Skill flow ──
-    subgraph SkillFlow["Skill Flow"]
+    subgraph DOM["domain.report"]
         direction TB
-        SkillCommand --> SkillExecutionCoordinator
-        SkillExecutionCoordinator --> SkillService
-        SkillService --> SkillRegistry
-        SkillService --> SkillExecutor["SkillExecutor
-        Structured Concurrency"]
+        ReviewResultMerger["ReviewResultMerger
+        Multi-pass deduplication"]
+        ReviewOverallSummaryAppender["ReviewOverallSummaryAppender
+        Post-merge overall summary"]
+        ContentSanitizer
     end
 
-    %% ── Review Target ──
-    subgraph Target["Review Target (sealed)"]
-        direction LR
-        GitHubTarget
-        LocalTarget --> LocalFileProvider
-    end
-    ReviewService --> Target
+    ReviewPassRunner -->|RunCopilotSessionPort| ReviewSessionExecutor
+    ReviewPassRunner --> ContentSanitizer
+    ReviewResultPipeline --> ReviewResultMerger
+    ReviewResultMerger --> ReviewOverallSummaryAppender
 
-    %% ── Shared services ──
-    subgraph Shared["Shared Services"]
-        direction LR
-        CopilotService["CopilotService
-        SDK lifecycle management"]
-      CopilotClientStarter["CopilotClientStarter
-      SDK client bootstrap"]
-      CopilotHealthProbe["CopilotHealthProbe
-      SDK getStatus / getAuthStatus probe"]
-        TemplateService
-        SecurityAuditLogger["SecurityAuditLogger
-        Structured security audit logging"]
-    end
+    ReviewRunExecutor -->|GenerateReportPort| GenerateReportUseCase
+    GenerateReportUseCase --> SummaryGenerator
+    GenerateReportUseCase -->|WriteReportPort| ReportFileWriter
+    SummaryGenerator -->|GenerateAiSummaryPort| AiSummaryClient
 
-    ReviewExecutionCoordinator --> CopilotService
-    CopilotService --> CopilotClientStarter
-    CopilotService --> CopilotHealthProbe
-
-    %% ── External ──
-    subgraph External["External"]
-        direction LR
-        CopilotAPI["GitHub Copilot API
-        (LLM)"]
-        GitHubMCP["GitHub MCP Server"]
-    end
-
-    CopilotService --> CopilotAPI
-    ReviewAgent -.-> CopilotAPI
-    ReviewAgent -.-> GitHubMCP
-    SkillExecutor -.-> CopilotAPI
-    SkillExecutor -.-> GitHubMCP
-    SummaryGenerator -.-> CopilotAPI
+    ReviewSessionExecutor -.-> Ext["GitHub Copilot API
+    GitHub MCP Server"]
+    AiSummaryClient -.-> Ext
 ```
 
 ## Template Customization
@@ -960,7 +994,7 @@ Templates support `{{placeholder}}` format placeholders. See each template file 
 
 ## Project Structure
 
-The following tree is synchronized with the current source layout as of 2026-07-21.
+The following tree is synchronized with the current source layout as of 2026-08-05 (Ports & Adapters layering, see [ADR-0006](docs/adr/0006-ports-and-adapters-layering.md)).
 
 ```
 multi-agent-reviewer/
@@ -1011,18 +1045,35 @@ multi-agent-reviewer/
 │   ├── review-quality-constraints.md
 │   └── ...
 ├── src/main/java/dev/logicojp/reviewer/
-│   ├── ReviewApp.java                   # CLI entry point and command routing
-│   ├── LogbackLevelSwitcher.java        # Runtime log level switching
-│   ├── agent/                           # Agent parsing, single-review/session execution, SDK send flow, rubber-duck dialogue seams
-│   ├── cli/                             # Hand-rolled CLI parser, commands, review option model, coordinators, output formatters
-│   ├── config/                          # Micronaut @ConfigurationProperties records and secure MCP/Jackson-related settings
-│   ├── instruction/                     # Instruction frontmatter and safety validation helpers
-│   ├── orchestrator/                    # Virtual-thread parallel review orchestration, local source precompute, result pipeline
-│   ├── report/                          # Report generation, finding extraction, sanitization, summary AI/output seams, file utilities
-│   ├── service/                         # Copilot SDK lifecycle/health probe, template catalog/repository, agent, review, report, and skill services
-│   ├── skill/                           # SKILL.md parsing, registry, parameter model, execution, and results
-│   ├── target/                          # GitHub/local review target model and local file collection pipeline
-│   └── util/                            # Retry, structured concurrency, token input/gh auth, permissions, frontmatter, audit logging
+│   ├── ReviewApp.java                   # Composition root: CLI entry point and DI object-graph assembly
+│   ├── presentation/                    # CLI adapter layer (must not reference infrastructure)
+│   │   ├── command/                     # One class per command: review / list-agents / skill / doctor
+│   │   ├── parser/                      # Hand-rolled argument parsing, usage text, exit codes
+│   │   ├── formatter/                   # Console output formatting
+│   │   └── ...                          # Command coordinators, option models, target/agent resolution
+│   ├── application/                     # Use-case orchestration (no SDK types, no DI annotations)
+│   │   ├── port/inbound/                # Contracts driven by presentation (RunReviewPort, GenerateReportPort, ...)
+│   │   ├── port/outbound/               # Contracts driven onto infrastructure (RunCopilotSessionPort, WriteReportPort, ...)
+│   │   ├── review/                      # Virtual-thread orchestration, pass execution, retry, result pipeline
+│   │   ├── report/                      # Report generation use case and AI summary orchestration
+│   │   ├── agent/                       # Agent loading use case
+│   │   └── skill/                       # Skill execution use case
+│   ├── domain/                          # Business rules and models (shared + java.* only)
+│   │   ├── agent/                       # Agent config, prompt building, validation
+│   │   ├── report/                      # Review results, finding extraction/merge, sanitization
+│   │   ├── review/                      # Review context, review target, local file selection
+│   │   ├── skill/                       # Skill definition model
+│   │   ├── instruction/                 # Instruction frontmatter model and safety validation
+│   │   └── resilience/                  # Domain exceptions and retry semantics
+│   ├── infrastructure/                  # Adapters to the outside world (implement outbound ports)
+│   │   ├── copilot/                     # Copilot SDK lifecycle, session execution, health probe, DI factories
+│   │   ├── auth/                        # GitHub token resolution, gh CLI lookup, Copilot CLI path resolution
+│   │   ├── config/                      # Micronaut @ConfigurationProperties records
+│   │   ├── file/                        # Local source collection and secure report writing
+│   │   ├── parsing/                     # YAML / frontmatter / SKILL.md parsing and registries
+│   │   ├── template/                    # Template catalog loading
+│   │   └── logging/                     # Logback level switching, security audit logging
+│   └── shared/                          # Cross-layer pure utilities and defaults (java.* only)
 └── src/main/resources/
     ├── application.yml                  # Default Micronaut reviewer configuration
     ├── logback.xml / logback-json.xml   # Logging configuration

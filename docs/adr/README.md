@@ -10,9 +10,12 @@
 
 ## ドキュメント同期
 
-- 最終同期タグ: `v2026.06.24-refactor-seams-tests`
-- 関連更新: `README.md`, `README_en.md`, `README_ja.md`, `RELEASE_NOTES_en.md`, `RELEASE_NOTES_ja.md`
-- 同期内容: seam 抽出リファクタ、直接テスト追加、hybrid local-review source 伝播修正、`gh auth token` process handling 修正、現行 Java module tree
+- 最終同期タグ: `v2026.08.05-trust-model`
+- 関連更新: `README.md`, `README_en.md`, `README_ja.md`, `RELEASE_NOTES_en.md`, `RELEASE_NOTES_ja.md`,
+  `.github/copilot-instructions.md`
+- 同期内容: Ports & Adapters による 5 層 + コンポジションルートへの再構成（ADR-0006）、
+  層依存の自動検査（`LayerDependencyRulesTest`）、現行 Java package tree、
+  Agent 定義の信頼モデルと秘匿値の遮蔽境界（ADR-0007）
 
 ## 命名規則
 
@@ -39,3 +42,5 @@
 | 0003 | [Virtual Thread Orchestration](0003-virtual-thread-orchestration.md) | Accepted |
 | 0004 | [Release Channel Strategy](0004-release-channels.md) | Accepted |
 | 0005 | [Official Azure Skills and Microsoft Learn MCP for WAF Reviews](0005-azure-skills-and-microsoft-learn-mcp.md) | Accepted |
+| 0006 | [Adopt Ports & Adapters layering with an explicit composition root](0006-ports-and-adapters-layering.md) | Accepted |
+| 0007 | [Agent 定義の信頼モデルと、秘匿値の遮蔽境界](0007-agent-definition-trust-model-and-secret-sink-boundary.md) | Accepted |

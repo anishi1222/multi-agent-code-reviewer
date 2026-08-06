@@ -41,3 +41,4 @@
 
 - `src/main/java/dev/logicojp/reviewer/ReviewApp.java`
 - `pom.xml` (`micronaut-inject`, `micronaut-parent`)
+- [0006: Adopt Ports & Adapters layering with an explicit composition root](0006-ports-and-adapters-layering.md) — DI による配線はコンポジションルート（ルートパッケージ）に集約し、`domain` / `application` / `shared` では DI アノテーションを使用しません

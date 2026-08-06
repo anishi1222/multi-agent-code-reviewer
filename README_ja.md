@@ -790,109 +790,143 @@ ls src/main/resources/META-INF/native-image/
 
 ## アーキテクチャ
 
+本アプリケーションは **Ports & Adapters（ヘキサゴナル）による層構造**です。依存は内向き一方向
+（`presentation -> application -> domain`）であり、`infrastructure` は outbound ポートを実装する形で
+外側から接続します。決定の詳細は [ADR-0006](docs/adr/0006-ports-and-adapters-layering.md) を参照してください。
+
+| 層 | 責務 | 依存してよい先 |
+|---|---|---|
+| `dev.logicojp.reviewer`（コンポジションルート） | エントリポイントと DI オブジェクトグラフの組み立てのみ | すべての層 |
+| `presentation` | CLI 解析、コマンド、コンソール出力 | `application`, `application.port.inbound`, `domain`, `shared` |
+| `application` | ユースケース調整（アダプタ非依存） | `application.port.*`, `domain`, `shared` |
+| `domain` | 業務ルールとモデル | `shared`, `java.*` |
+| `infrastructure` | アダプタ: Copilot SDK、ファイル、設定、ログ | `application.port.outbound`, `domain`, `shared` |
+| `shared` | 層をまたぐ純粋ユーティリティと既定値 | `java.*` のみ |
+
+層境界は規約ではなく機械的に強制されます。`LayerDependencyRulesTest` が JDK の
+`java.lang.classfile` API でコンパイル済みバイトコードを検査し、違反があれば `mvn verify` が失敗します。
+
+### 層構造
+
 ```mermaid
 flowchart TB
-    %% ── CLI ──
+    Root["コンポジションルート
+    ReviewApp + DI factories"]
+
+    subgraph L1["presentation（CLI アダプタ）"]
+        direction LR
+        Cmd["command/
+        ReviewCommand / ListAgentsCommand
+        SkillCommand / DoctorCommand"]
+        Par["parser/
+        CliParsing / CliUsage / ExitCodes"]
+        Fmt["formatter/
+        CliOutput"]
+    end
+
+    In["application.port.inbound
+    RunReviewPort / LoadAgentPort
+    ExecuteSkillPort / GenerateReportPort
+    RunDiagnosticsPort"]
+
+    subgraph L2["application（ユースケース）"]
+        direction LR
+        Orc["review/
+        ReviewOrchestrator / AgentReviewExecutor"]
+        Rep["report/
+        GenerateReportUseCase / SummaryGenerator"]
+        Agt["agent/ + skill/
+        LoadAgentUseCase / ExecuteSkillUseCase"]
+    end
+
+    Out["application.port.outbound
+    RunCopilotSessionPort / LoadTemplatePort
+    WriteReportPort / CollectLocalSourcePort
+    GenerateAiSummaryPort"]
+
+    subgraph L3["infrastructure（アダプタ）"]
+        direction LR
+        Cop["copilot/
+        CopilotService / SkillExecutor"]
+        Auth["auth/
+        GitHubTokenResolver"]
+        Io["file/ parsing/ template/
+        config/ logging/"]
+    end
+
+    subgraph L4["domain（業務ルール、JDK のみ）"]
+        direction LR
+        Dom["agent/ report/ review/
+        skill/ instruction/ resilience/"]
+    end
+
+    Shared["shared
+    純粋ユーティリティ（java.* のみ）"]
+
+    Ext["GitHub Copilot API / GitHub MCP Server"]
+
+    Root -.->|組み立て| L1
+    Root -.->|組み立て| L2
+    Root -.->|組み立て| L3
+
+    L1 --> In
+    In --> L2
+    L2 --> Out
+    L3 -.->|実装| Out
+
+    L1 --> L4
+    L2 --> L4
+    L3 --> L4
+    L4 --> Shared
+    L3 --> Ext
+```
+
+### レビュー実行フロー
+
+```mermaid
+flowchart TB
     ReviewApp["ReviewApp
-    (エントリポイント)"]
-    ReviewApp --> ReviewCommand
-    ReviewApp --> ListAgentsCommand
-    ReviewApp --> SkillCommand
+    （コンポジションルート）"] --> ReviewCommand
+    ReviewCommand --> ReviewExecutionCoordinator
+    ReviewExecutionCoordinator --> ReviewRunExecutor
 
-    %% ── レビューフロー ──
-    subgraph ReviewFlow["レビューフロー"]
+    ReviewRunExecutor -->|RunReviewPort| ReviewOrchestrator
+
+    subgraph APP["application.review"]
         direction TB
-        ReviewCommand --> ReviewExecutionCoordinator
-        ReviewExecutionCoordinator --> ReviewRunExecutor
-
-        ReviewRunExecutor --> ReviewService
-        ReviewService --> ReviewOrchestratorFactory
-        ReviewOrchestratorFactory --> ReviewOrchestrator
-
-        subgraph Orchestrator["ReviewOrchestrator"]
-            direction TB
-            LocalSourcePrecomputer["LocalSourcePrecomputer
-            ローカルソース事前収集"]
-            ReviewContextFactory["ReviewContextFactory
-            共有コンテキスト生成"]
-            ReviewExecutionModeRunner["ReviewExecutionModeRunner
-            非同期 / Structured Concurrency"]
-            AgentReviewExecutor["AgentReviewExecutor
-            Semaphore制御 + タイムアウト"]
-            ReviewResultPipeline["ReviewResultPipeline
-            結果収集"]
-
-            LocalSourcePrecomputer --> ReviewContextFactory
-            ReviewContextFactory --> ReviewExecutionModeRunner
-            ReviewExecutionModeRunner --> AgentReviewExecutor
-            AgentReviewExecutor --> ReviewAgent
-            ReviewAgent --> ContentSanitizer
-            ReviewExecutionModeRunner --> ReviewResultPipeline
-        end
-
-        ReviewRunExecutor --> ReviewOverallSummaryAppender["ReviewOverallSummaryAppender
-        決定的な総評生成"]
-        ReviewRunExecutor --> ReportService
-        ReportService --> ReportGeneratorFactory["ReportGeneratorFactory
-        レポート/サマリー生成ファクトリ"]
-        ReportGeneratorFactory --> ReportGenerator
-        ReportGeneratorFactory --> SummaryGenerator["SummaryGenerator
-        AI要約生成"]
+        ReviewOrchestrator --> LocalSourcePrecomputer["LocalSourcePrecomputer
+        ローカルソース事前収集"]
+        LocalSourcePrecomputer --> ReviewExecutionModeRunner["ReviewExecutionModeRunner
+        Async / Structured Concurrency"]
+        ReviewExecutionModeRunner --> AgentReviewExecutor["AgentReviewExecutor
+        セマフォ制御 + タイムアウト"]
+        AgentReviewExecutor --> ReviewPassRunner
+        ReviewExecutionModeRunner --> ReviewResultPipeline["ReviewResultPipeline
+        結果収集"]
     end
 
-    %% ── 一覧フロー ──
-    ListAgentsCommand --> AgentService
-
-    %% ── スキルフロー ──
-    subgraph SkillFlow["スキルフロー"]
+    subgraph DOM["domain.report"]
         direction TB
-        SkillCommand --> SkillExecutionCoordinator
-        SkillExecutionCoordinator --> SkillService
-        SkillService --> SkillRegistry
-        SkillService --> SkillExecutor["SkillExecutor
-        Structured Concurrency"]
+        ReviewResultMerger["ReviewResultMerger
+        マルチパス重複排除"]
+        ReviewOverallSummaryAppender["ReviewOverallSummaryAppender
+        マージ後の総括生成"]
+        ContentSanitizer
     end
 
-    %% ── レビュー対象 ──
-    subgraph Target["レビュー対象 (sealed)"]
-        direction LR
-        GitHubTarget
-        LocalTarget --> LocalFileProvider
-    end
-    ReviewService --> Target
+    ReviewPassRunner -->|RunCopilotSessionPort| ReviewSessionExecutor
+    ReviewPassRunner --> ContentSanitizer
+    ReviewResultPipeline --> ReviewResultMerger
+    ReviewResultMerger --> ReviewOverallSummaryAppender
 
-    %% ── 共有サービス ──
-    subgraph Shared["共有サービス"]
-        direction LR
-        CopilotService["CopilotService
-        SDK ライフサイクル管理"]
-      CopilotClientStarter["CopilotClientStarter
-      SDK クライアント起動"]
-      CopilotHealthProbe["CopilotHealthProbe
-      SDK getStatus / getAuthStatus プローブ"]
-        TemplateService
-        SecurityAuditLogger["SecurityAuditLogger
-        構造化セキュリティ監査ログ"]
-    end
+    ReviewRunExecutor -->|GenerateReportPort| GenerateReportUseCase
+    GenerateReportUseCase --> SummaryGenerator
+    GenerateReportUseCase -->|WriteReportPort| ReportFileWriter
+    SummaryGenerator -->|GenerateAiSummaryPort| AiSummaryClient
 
-    ReviewExecutionCoordinator --> CopilotService
-    CopilotService --> CopilotClientStarter
-    CopilotService --> CopilotHealthProbe
-
-    %% ── 外部サービス ──
-    subgraph External["外部サービス"]
-        direction LR
-        CopilotAPI["GitHub Copilot API
-        (LLM)"]
-        GitHubMCP["GitHub MCP Server"]
-    end
-
-    CopilotService --> CopilotAPI
-    ReviewAgent -.-> CopilotAPI
-    ReviewAgent -.-> GitHubMCP
-    SkillExecutor -.-> CopilotAPI
-    SkillExecutor -.-> GitHubMCP
-    SummaryGenerator -.-> CopilotAPI
+    ReviewSessionExecutor -.-> Ext["GitHub Copilot API
+    GitHub MCP Server"]
+    AiSummaryClient -.-> Ext
 ```
 
 ## テンプレートのカスタマイズ
@@ -960,7 +994,7 @@ reviewer:
 
 ## プロジェクト構造
 
-以下のツリーは 2026-07-21 時点の現行ソース構成に同期済みです。
+以下のツリーは 2026-08-05 時点の現行ソース構成に同期済みです（Ports & Adapters による層構成 — [ADR-0006](docs/adr/0006-ports-and-adapters-layering.md)）。
 
 ```
 multi-agent-reviewer/
@@ -1011,18 +1045,35 @@ multi-agent-reviewer/
 │   ├── review-quality-constraints.md
 │   └── ...
 ├── src/main/java/dev/logicojp/reviewer/
-│   ├── ReviewApp.java                   # CLI エントリポイントとコマンドルーティング
-│   ├── LogbackLevelSwitcher.java        # ログレベル動的切替
-│   ├── agent/                           # エージェント解析、単一review/session実行、SDK送信、rubber-duck対話seam
-│   ├── cli/                             # 手書き CLI parser、commands、review option model、coordinators、output formatter
-│   ├── config/                          # Micronaut @ConfigurationProperties records と安全な MCP/Jackson 関連設定
-│   ├── instruction/                     # instruction frontmatter と安全性検証 helper
-│   ├── orchestrator/                    # virtual thread 並列レビュー、local source 事前計算、result pipeline
-│   ├── report/                          # レポート生成、指摘抽出、サニタイズ、summary AI/output seam、ファイル utility
-│   ├── service/                         # Copilot SDK lifecycle/health probe、template catalog/repository、agent、review、report、skill services
-│   ├── skill/                           # SKILL.md 解析、registry、parameter model、実行、結果
-│   ├── target/                          # GitHub/local review target model と local file collection pipeline
-│   └── util/                            # retry、structured concurrency、token input/gh auth、permissions、frontmatter、audit logging
+│   ├── ReviewApp.java                   # コンポジションルート: CLI エントリポイントと DI グラフ組み立て
+│   ├── presentation/                    # CLI アダプタ層（infrastructure を参照してはならない）
+│   │   ├── command/                     # コマンド 1 つにつき 1 クラス: review / list-agents / skill / doctor
+│   │   ├── parser/                      # 手書き引数パーサ、usage 表示、終了コード
+│   │   ├── formatter/                   # コンソール出力整形
+│   │   └── ...                          # コマンド coordinator、option model、対象/エージェント解決
+│   ├── application/                     # ユースケース調整（SDK 型・DI アノテーションを持たない）
+│   │   ├── port/inbound/                # presentation から駆動される契約（RunReviewPort, GenerateReportPort など）
+│   │   ├── port/outbound/               # infrastructure を駆動する契約（RunCopilotSessionPort, WriteReportPort など）
+│   │   ├── review/                      # 仮想スレッド調整、パス実行、リトライ、result pipeline
+│   │   ├── report/                      # レポート生成ユースケースと AI サマリ調整
+│   │   ├── agent/                       # エージェント読込ユースケース
+│   │   └── skill/                       # スキル実行ユースケース
+│   ├── domain/                          # 業務ルールとモデル（shared と java.* のみ）
+│   │   ├── agent/                       # エージェント設定、プロンプト構築、検証
+│   │   ├── report/                      # レビュー結果、指摘抽出/マージ、サニタイズ
+│   │   ├── review/                      # レビューコンテキスト、レビュー対象、ローカルファイル選択
+│   │   ├── skill/                       # スキル定義モデル
+│   │   ├── instruction/                 # instruction frontmatter モデルと安全性検証
+│   │   └── resilience/                  # ドメイン例外とリトライ意味論
+│   ├── infrastructure/                  # 外部世界へのアダプタ（outbound ポートを実装）
+│   │   ├── copilot/                     # Copilot SDK ライフサイクル、セッション実行、health probe、DI factory
+│   │   ├── auth/                        # GitHub トークン解決、gh CLI 検出、Copilot CLI パス解決
+│   │   ├── config/                      # Micronaut @ConfigurationProperties レコード
+│   │   ├── file/                        # ローカルソース収集と安全なレポート書き込み
+│   │   ├── parsing/                     # YAML / frontmatter / SKILL.md 解析とレジストリ
+│   │   ├── template/                    # テンプレートカタログ読み込み
+│   │   └── logging/                     # Logback レベル切替、セキュリティ監査ログ
+│   └── shared/                          # 層をまたぐ純粋ユーティリティと既定値（java.* のみ）
 └── src/main/resources/
     ├── application.yml                  # Micronaut reviewer 既定設定
     ├── logback.xml / logback-json.xml   # ログ設定

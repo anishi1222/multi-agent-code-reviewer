@@ -1,8 +1,8 @@
 package dev.logicojp.reviewer;
 
-import dev.logicojp.reviewer.cli.CliCommand;
-import dev.logicojp.reviewer.cli.CliOutput;
-import dev.logicojp.reviewer.cli.ExitCodes;
+import dev.logicojp.reviewer.presentation.CliCommand;
+import dev.logicojp.reviewer.presentation.CliOutput;
+import dev.logicojp.reviewer.presentation.ExitCodes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

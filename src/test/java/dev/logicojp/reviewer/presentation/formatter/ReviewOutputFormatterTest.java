@@ -1,0 +1,66 @@
+package dev.logicojp.reviewer.presentation.formatter;
+
+import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.report.ReviewResult;
+import dev.logicojp.reviewer.domain.review.ReviewTarget;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+
+import dev.logicojp.reviewer.presentation.CliOutput;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DisplayName("ReviewOutputFormatter")
+class ReviewOutputFormatterTest {
+
+    @Test
+    @DisplayName("バナー出力に主要情報が含まれる")
+    void printBannerIncludesTargetAgentsAndModels() {
+        var outBuffer = new ByteArrayOutputStream();
+        var errBuffer = new ByteArrayOutputStream();
+        CliOutput output = new CliOutput(new PrintStream(outBuffer), new PrintStream(errBuffer));
+        var formatter = new ReviewOutputFormatter(output, 1);
+
+        AgentConfig config = new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
+        formatter.printBanner(
+            Map.of("security", config),
+            List.of(),
+            "summary-model",
+            ReviewTarget.gitHub("owner/repo"),
+            java.nio.file.Path.of("reports/owner/repo"),
+            "review-model"
+        );
+
+        String outputText = outBuffer.toString();
+        assertThat(outputText).contains("Multi-Agent Code Reviewer");
+        assertThat(outputText).contains("owner/repo");
+        assertThat(outputText).contains("review-model");
+    }
+
+    @Test
+    @DisplayName("完了サマリに成功件数と失敗件数を表示する")
+    void printCompletionSummaryShowsSuccessAndFailureCounts() {
+        var outBuffer = new ByteArrayOutputStream();
+        var errBuffer = new ByteArrayOutputStream();
+        CliOutput output = new CliOutput(new PrintStream(outBuffer), new PrintStream(errBuffer));
+        var formatter = new ReviewOutputFormatter(output, 1);
+
+        AgentConfig config = new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
+        List<ReviewResult> results = List.of(
+            ReviewResult.builder().agentConfig(config).repository("owner/repo").content("ok").success(true).timestamp(Instant.now()).build(),
+            ReviewResult.builder().agentConfig(config).repository("owner/repo").success(false).errorMessage("failed").timestamp(Instant.now()).build()
+        );
+
+        formatter.printCompletionSummary(results, java.nio.file.Path.of("reports/owner/repo"));
+
+        String outputText = outBuffer.toString();
+        assertThat(outputText).contains("Successful: 1");
+        assertThat(outputText).contains("Failed: 1");
+    }
+}

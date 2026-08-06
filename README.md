@@ -40,25 +40,39 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar run --
 
 ## Architecture
 
+The application is structured as **Ports & Adapters (hexagonal) layering**. Dependencies point inward only —
+`presentation → application → domain` — and `infrastructure` attaches from the outside by implementing
+outbound ports. The decision record is [ADR-0006](docs/adr/0006-ports-and-adapters-layering.md); the full
+diagrams are in [README_en.md](./README_en.md#architecture) / [README_ja.md](./README_ja.md#アーキテクチャ).
+
+Layers, under `src/main/java/dev/logicojp/reviewer/`:
+
+- `ReviewApp.java` — composition root: CLI entry point and DI object-graph assembly. The only place allowed to reference every layer.
+- `presentation/` — CLI adapter: argument parsing (`parser/`), commands (`command/`), console output (`formatter/`). Must not reference `infrastructure`.
+- `application/` — use-case orchestration: parallel review (`review/`), report generation (`report/`), agent and skill use cases. Free of SDK types and DI annotations.
+- `application/port/inbound/` — contracts driven by `presentation`: `RunReviewPort`, `LoadAgentPort`, `ExecuteSkillPort`, `GenerateReportPort`, `RunDiagnosticsPort`.
+- `application/port/outbound/` — contracts driven onto `infrastructure`: `RunCopilotSessionPort`, `LoadTemplatePort`, `WriteReportPort`, `CollectLocalSourcePort`, `GenerateAiSummaryPort`, and others.
+- `domain/` — business rules and models. Depends on the JDK and `shared` only: no Micronaut, Jakarta, SLF4J, Copilot SDK, or SnakeYAML.
+- `infrastructure/` — adapters implementing the outbound ports: Copilot SDK lifecycle and sessions (`copilot/`), token and CLI resolution (`auth/`), configuration (`config/`), files (`file/`), parsing (`parsing/`), templates (`template/`), logging (`logging/`).
+- `shared/` — pure cross-layer utilities and defaults, restricted to `java.*`.
+
+Layer boundaries are enforced mechanically rather than by convention: `LayerDependencyRulesTest` inspects
+compiled bytecode through the JDK `java.lang.classfile` API and fails `mvn verify` on any violation.
+
 Execution flow:
 
-1. `ReviewApp` parses CLI arguments and dispatches commands.
-2. `ReviewCommand` resolves target/agents/models/options.
-3. `ReviewOrchestrator` runs each agent in parallel (virtual threads + structured concurrency).
-4. `ReviewAgent` performs one standard review or a per-agent rubber-duck dialogue, applying explicitly assigned SKILL criteria.
+1. `ReviewApp` assembles the object graph and dispatches to a `presentation/command` class.
+2. `ReviewCommand` resolves target, agents, models, and options, then calls `RunReviewPort`.
+3. `ReviewOrchestrator` (`application/review`) runs each agent in parallel using virtual threads and structured concurrency.
+4. `ReviewPassRunner` invokes the Copilot SDK through `RunCopilotSessionPort` (implemented by `infrastructure/copilot`), performing one standard review or a per-agent rubber-duck dialogue and applying explicitly assigned SKILL criteria.
 5. Each agent emits evidence-based Good Points and improvement findings in one synthesized `ReviewResult`.
-6. `SummaryGenerator` receives all agent results plus a deterministic cross-agent deduplicated finding list and creates the Executive Summary.
+6. `GenerateReportUseCase` builds markdown through `WriteReportPort` and `GenerateAiSummaryPort`, combining all agent results with a deterministic cross-agent deduplicated finding list to create the Executive Summary.
 
-Main directories:
+Other directories:
 
-- `src/main/java/dev/logicojp/reviewer/cli`: command parsing, command handlers, and review option model
-- `src/main/java/dev/logicojp/reviewer/orchestrator`: parallel execution pipeline
-- `src/main/java/dev/logicojp/reviewer/agent`: agent loading, SKILL-scoped prompt construction, single-review/session execution, rubber-duck dialogue
-- `src/main/java/dev/logicojp/reviewer/report/summary`: summary prompt, AI transport, fallback, and secure summary writing
-- `src/main/java/dev/logicojp/reviewer/service`: template catalog and repository loading
-- `src/main/java/dev/logicojp/reviewer/util`: token input, gh CLI lookup/auth, retry, permissions, and security helpers
-- `templates/`: markdown templates used for report and summary generation
-- `agents/`: built-in `.agent.md` definitions
+- `templates/` — markdown templates used for report and summary generation
+- `agents/` — built-in `.agent.md` definitions
+- `docs/adr/` — architecture decision records
 
 ## Configuration
 

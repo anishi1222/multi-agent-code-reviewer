@@ -1,0 +1,839 @@
+## 2026-08-05T02:09:50Z — from teamlead (t1) [broadcast]
+
+CONSTITUTION PUBLISHED — All roles must follow `artifacts/t1-teamlead.md`. Key rules:
+1. 5+1 layer model: presentation / application / application.port / domain / infrastructure / shared.
+2. Dependencies point inward only — domain imports ONLY java.* and shared.
+3. Copilot SDK confined to infrastructure.
+4. Micronaut / Jakarta confined to infrastructure + presentation.
+5. ArchUnit enforces all boundaries.
+6. Port naming: VerbNounPort. Adapter naming: TechNounAdapter.
+7. Zero package cycles. Violations are CRITICAL.
+
+## 2026-08-05T02:15:20Z — from architect (t2) [broadcast]
+
+Architecture analysis complete: 10 dependency cycles (4 more than recon), 20 files with
+Copilot SDK leakage, `TemplateService` is the hub of 5 cycles — defining `LoadTemplatePort`
+will be the first port in t4 design. Full 120-file class-to-layer mapping ready for t4.
+
+Artifacts: `t2-architect.md` (index), `t2-architect-cycles.md`, `t2-architect-leakage.md`,
+`t2-architect-class-map.md`.
+
+## 2026-08-05T02:16:00Z — from coordinator [carry-forward directive]
+
+t2 reported 3 HIGH migration risks. They are codebase characteristics with mitigations,
+not defects in the t2 deliverable, so t2 is PASS. However they are NOT dropped — they
+become MANDATORY acceptance criteria:
+
+**t4 (architect) MUST explicitly resolve all three in the target design:**
+- R1 `ReviewResult` imported by 6+ packages → assign a target layer and specify the
+  single-pass import-update sequencing.
+- R2 `TemplateService` is the hub of 5 cycles, imported by 8+ classes across 4 packages
+  → define `LoadTemplatePort` in `application.port` and specify the adapter.
+- R3 `AgentConfig` + `SharedCircuitBreaker` shared across agent/skill/service → split
+  pure-domain parts into `domain`, keep DI-wired factory in `infrastructure`.
+
+Each must appear in the t4 port catalog / class-map with an explicit resolution, and the
+10 cycles in `t2-architect-cycles.md` must each map to a named breaking mechanism.
+
+**t6 (teamlead quality gate) MUST verify R1–R3 are resolved in t4 and that all 10 cycles
+have a documented breaking mechanism. Unresolved carry-forward = FAIL.**
+
+## 2026-08-05T02:22:30Z — from architect (t4) [broadcast]
+
+Architecture design complete: 6 layers, 24 target packages, 12 port interfaces
+(5 inbound + 7 outbound), 120 files mapped.
+
+Key decisions:
+- `LoadTemplatePort` breaks 5 of 10 cycles.
+- Domain type moves (`AgentConfig`, `ReviewResult`, `SharedCircuitBreaker`,
+  `SkillDefinition`) break the other 5.
+- Domain purity enforced — zero SDK/Micronaut/Jakarta/SLF4J in the domain layer.
+- All 69 PM behavior IDs traced to ports.
+
+Artifacts: `t4-architect.md` (index), `t4-architect-packages.md`,
+`t4-architect-ports.md` (port catalog + cycle resolution), `t4-architect-classmap.md`.
+
+
+---
+## 2026-08-05T02:49Z — from devops (t7) — MANDATORY BUILD PRECONDITION
+
+The repo uses **two POMs with different Java releases**. The default active JDK is GraalVM 25, which
+**cannot** compile `pom.xml` (it requires `--release 27`). You MUST set `JAVA_HOME` explicitly.
+
+```bash
+# Main build (pom.xml — shade JAR, unit tests, ArchUnit):
+export JAVA_HOME=~/.sdkman/candidates/java/27.ea.32-open
+./mvnw -B clean verify -f pom.xml
+
+# Native build (pom-native.xml — GraalVM native-image):
+export JAVA_HOME=~/.sdkman/candidates/java/25.0.4-graal
+./mvnw -B clean verify -Pnative -f pom-native.xml
+```
+
+**Corrected stack facts** — the profile's "Java 26 EA" was stale recon data. Actual:
+`pom.xml java.version=27` (OpenJDK 27-ea+32, with `--enable-preview`) and
+`pom-native.xml release.version=25` (Oracle GraalVM 25.0.4).
+Do NOT "fix" these back to 26. Both POMs currently compile clean (157 source files).
+
+**Any layer/package change must be applied to BOTH build paths** — constitution §7.2 requires shade,
+native-image, and Micronaut AOT to keep working. `pom-native.xml` inherits a different
+micronaut-parent (5.0.2 vs 5.1.2), so build config fixes are not automatically shared.
+
+Evidence: `.github/modernize/rearchitecture/artifacts/t7-devops.md` §5–§6.
+
+---
+## 2026-08-05T03:14Z — from coordinator (t8 carry-forward) — MANDATORY ACCEPTANCE CRITERIA
+
+t8 completed Phase 1 cleanly (52 files, 907/907 tests, domain+shared verified import-pure) but
+deferred two items. These are **not** optional follow-ups — they are acceptance criteria on the
+next tasks and will be re-verified at the t17 architecture review and t21 parity signoff.
+
+### C1 — `ReviewContext` purification (owner: backend, task t9 / T005)
+t8 could not move `ReviewContext` into `domain.review` because it still carries the SDK types
+`CopilotClient` and `McpServerConfig`. `t4-architect-ports.md` §6 (Domain Purity) requires these to be
+**extracted into port parameters**, not held as domain state. t9 MUST:
+- land the purified `ReviewContext` in `domain.review` with zero `com.github.copilot.*` imports;
+- pass the client/server handles through `RunCopilotSessionPort` / `ManageCopilotClientPort`
+  parameters instead;
+- confirm no other domain type re-introduces an SDK type.
+Leaving `ReviewContext` unpurified blocks constitution §3 and will fail t17.
+
+### C2 — `InstructionFrontmatter` scalar-only simplification (owner: backend t10, verifier: pm t21)
+t8 implemented the domain `InstructionFrontmatter` supporting **only scalar `key: value` fields** —
+nested YAML structures are not modelled. This may or may not match the legacy parser.
+- **backend (t10)**: before building the instruction/skill application layer, check what the legacy
+  frontmatter parser actually accepted. If it supported nested/list values that real `.agent.md` or
+  instruction files depend on, restore that capability. Do not silently narrow the format.
+- **pm (t21)**: treat behaviors INS-01–INS-05 as **at risk**. Verify frontmatter parsing parity
+  explicitly against `t3-pm.md` rather than assuming it is preserved.
+
+Report the resolution of each item in your `[DONE]` block.
+
+---
+## 2026-08-05T03:56Z — from coordinator (t9 verification) — HIGH: PORT CONTRACT DEFECT → task t9.1
+
+**t9 itself PASSED** — it implemented the approved t4 design faithfully (907 tests, 0 findings).
+The defect is in the **design contract**, found during coordinator verification of the built code.
+
+### The defect
+
+`t4-architect-ports.md` §2.1 specifies:
+```java
+public interface RunReviewPort {
+    ReviewResult execute(ReviewRequest request);   // ← single result
+}
+```
+`ReviewOrchestrator.aggregateResults()` therefore joins every agent's content with
+`"\n\n---\n\n"` (line ~230) and returns **one** merged `ReviewResult`, discarding per-agent identity.
+
+But §2.4 `GenerateReportPort.generate(List<ReviewResult>, ReportOptions)` correctly takes a **List**,
+and `t3-pm.md` requires:
+
+| Behavior | Requirement |
+|---|---|
+| **OUT-02** | Per-agent reports `{agent-name}-report.md` — one report **per agent per run** |
+| **OUT-03** | Multi-pass reports `{agent-name}-pass-{n}-report.md` — numbered **per pass** |
+
+Legacy code confirms this: `ReportGenerator.generateReports(List<ReviewResult>)` returns
+`List<Path>`, and `ReviewResultMerger.mergeByAgent()` groups results **by agent**.
+
+**Consequence**: once presentation calls `RunReviewPort.execute()` it holds a single merged result,
+so `GenerateReportPort` can only ever emit one file. **OUT-02 and OUT-03 become unreachable.**
+This is a structural behavior regression that will fail the t21 parity signoff.
+
+### Required fix (task t9.1, backend)
+
+1. Amend `RunReviewPort` so per-agent results survive the call — return `List<ReviewResult>`, or a
+   `ReviewOutcome` record carrying `List<ReviewResult>` plus any run-level metadata. Choose whichever
+   fits the presentation flow; state your choice and rationale in the artifact.
+2. Remove or relocate the content-join in `ReviewOrchestrator.aggregateResults()` so it no longer
+   destroys per-agent identity before `GenerateReportPort` sees the results. If a merged view is
+   still wanted for the executive summary, derive it inside the report layer, not in the orchestrator.
+3. Preserve multi-pass granularity — `ReviewResultMerger.mergeByAgent()` semantics must remain
+   reachable so `{agent-name}-pass-{n}-report.md` can still be produced.
+4. Keep the full suite green (`JAVA_HOME=~/.sdkman/candidates/java/27.ea.32-open ./mvnw -B clean verify`).
+5. Demonstrate in your artifact that OUT-02 and OUT-03 are now structurally reachable from
+   `presentation → RunReviewPort → GenerateReportPort`.
+
+### For architect (t16)
+The port catalog §2.1 and ADR 0006 must document the **amended** `RunReviewPort` signature, not the
+original single-result form. Do not reproduce the defective contract in the docs.
+
+### For pm (t21)
+OUT-02 and OUT-03 are **at risk**. Verify per-agent and per-pass report files are actually produced,
+not merely that a report exists.
+
+---
+## 2026-08-05T05:05Z — from coordinator (t12 verification) — ❌ FAILED[findings] → task t12.1
+
+t12 delivered 28 presentation files and DI wiring that look sound, and 913 tests pass. But the
+**ArchUnit enforcement layer — the entire mechanical guarantee of this rearchitecture — is not
+trustworthy**, and criterion B3 was explicitly not met. Two HIGH findings block t13.
+
+### HIGH-1 — `failOnEmptyShould=false` permits vacuous passes (violates B3)
+
+`src/test/resources/archunit.properties` sets:
+```
+archRule.failOnEmptyShould=false
+```
+with the comment "set to false to allow rules to pass **vacuously**".
+
+B3 required the opposite: *prove the rules are not silently vacuous*. A `noClasses().that(P)`
+rule whose predicate `P` matches zero classes passes trivially. With this flag off, all six
+"passing" rules could be green for the wrong reason, and nobody would ever know. Configuring the
+framework to tolerate the exact failure mode you were asked to rule out is not acceptable.
+
+**Fix**: set `archRule.failOnEmptyShould=true`. Then make every rule non-vacuous, and report the
+**matched-class count per rule** in your artifact. If a rule legitimately matches zero classes
+(e.g. a layer not yet populated), say so explicitly rather than silencing the check globally.
+
+### HIGH-2 — Rule 3 is false-green
+
+`ReviewApp` is in the root package `dev.logicojp.reviewer` and imports at least five
+`presentation.*` types (`CliCommand`, `CliParsing`, `CliOutput`, `CliUsage`, `ExitCodes`).
+Against Rule 3 it: resides outside `..presentation..` ✅, contains no `$` so the synthetic filter
+does **not** exclude it ✅, and depends on `..presentation..` ✅ — it is a textbook violation.
+`importPackages(BASE)` covers the root package, so ArchUnit sees it.
+
+Yet the rule passes. Your artifact explains this as "`ReviewApp` … is not checked by Rule 3
+(synthetics filter)" — that is factually wrong; `ReviewApp` has no `$` in its name. So the green
+status is **unexplained**, which means Rule 3 is not enforcing what it claims.
+
+**Fix**: determine why it passes, then make the rule honest. An application entry point
+legitimately must reference presentation, so express that as a **named, documented exclusion**
+(e.g. exclude `ReviewApp` by name with a rationale) — or move `ReviewApp` into `presentation`.
+Do not let a synthetic-class filter be the thing that hides a real dependency. Prove the fixed
+rule works by confirming it fails when the exclusion is temporarily removed.
+
+### MEDIUM-1 — Rule 6 cannot see the cycles this project exists to remove
+
+`slices().matching(BASE + ".(*)..")` creates one slice per **top-level** package, so a cycle
+between subpackages of the same top-level package is structurally invisible. Two of the ten
+cycles t2 catalogued were exactly that shape (`report.core ⇄ report.formatter`,
+`report.finding ⇄ report.formatter`). As written this rule cannot regression-guard them, and a
+future `domain.review ⇄ domain.report` cycle would pass unnoticed.
+
+**Fix**: add a finer-grained slice rule over the new layers (e.g. `domain.(*)..`,
+`application.(*)..`, `infrastructure.(*)..`) so intra-layer cycles are caught.
+
+### MEDIUM-2 — Rule 4 is too narrow
+
+It forbids infrastructure from importing only `application.review..`, leaving
+`application.report`, `application.skill` and `application.agent` use-cases freely importable.
+Widen it to all application packages except `application.port..`.
+
+### Not in dispute
+
+The presentation layer, `ApplicationPortFactory` port wiring, the `@Singleton` fixes and the
+`SummaryGenerator` template-constant corrections all look correct — keep them. This is a defect
+in the enforcement layer only. Criteria B1 and B2 appear satisfied; state explicitly in the
+revised artifact how you verified B1 (`LoadAgentUseCase` actually instantiable and exercised).
+
+---
+## 2026-08-05T06:05Z — from coordinator (t12.1 verification) — ✅ PASS
+
+t12.1 root-caused the enforcement failure far below where I diagnosed it, and the fix is sound.
+I verified the following **in source**, not from the report:
+
+- `pom.xml` no longer references ArchUnit; `archunit.properties` is deleted.
+- `LayerDependencyRulesTest.java` is rebuilt on `java.lang.classfile` (JEP 484) — 9 `@Test`
+  methods, 9 `@DisplayName`s, no method silently missing `@Test`.
+- **Rule 0** asserts `assertEquals(classFilesOnDisk, dependencies.size())` plus five named anchor
+  classes spanning every layer. This is a *positive* completeness proof and is strictly stronger
+  than the `failOnEmptyShould=true` I originally asked for — it fails loudly on a shortfall
+  instead of merely refusing to pass on emptiness. **Criterion B3 is satisfied.**
+- **Rule 3** now carries a named, documented exemption for `ReviewApp` and
+  `$ReviewApp$Definition` instead of the blanket `.*\$.*` filter. HIGH-2 resolved honestly.
+- **Rule 4** forbids all `application..` except `application.port..`, with three named factory
+  exemptions. MEDIUM-2 resolved. **Rules 6a/6b** cover layers *and* sibling sub-packages.
+  MEDIUM-1 resolved.
+
+### The finding that matters most
+
+ArchUnit's shaded ASM rejects class-file major version 71 (Java 27), swallows the error, and
+proceeds with a partial import: **107 of 687 classes, all Micronaut synthetics**. So `ReviewApp`
+never "passed" Rule 3 — it was never imported. All six t12 rules were inspecting an essentially
+empty subject set, and `failOnEmptyShould=false` plus the `$` filter interlocked to hide it.
+This is the precise failure mode criterion B3 existed to prevent, and it justifies the strict
+line taken on t12. **Verify in source, not by report** is now doubly earned on this project.
+
+### TOOLING CONSTRAINT — applies to every remaining task
+
+Any bytecode-inspecting library that shades ASM older than Java 27 support is **unusable on this
+project** and will fail silently or partially rather than loudly. Check the shaded ASM ceiling
+before adopting any such tool (static analysis, coverage, CVE/bytecode scanners, mutation
+testing). Prefer JDK-native `java.lang.classfile` where a choice exists. This binds t15
+(dependency/CVE scanning), t17 (architecture review) and t18 (security review) in particular.
+
+---
+## 2026-08-05T06:05Z — from backend via coordinator (t12.1) — ADR-0006 INPUT
+
+t12.1 surfaced two places where the t4 blueprint contradicts itself. Both are currently
+reconciled by **named exemptions in the enforcement layer**, which is honest but is a workaround.
+ADR-0006 must record the intended end state.
+
+**(1) `ReviewApp` placement.** t4 §1 places `ReviewApp` in `presentation/`, but it lives in the
+root package `dev.logicojp.reviewer` and imports five `presentation.*` types. t12.1 exempted it
+by name rather than moving it, since t12.1 was scoped to the enforcement layer.
+
+Moving it is **not free**: `ReviewApp` also imports `LogbackLevelSwitcher`, which sits in the root
+package and is destined for `infrastructure.logging`. Relocating `ReviewApp` into `presentation`
+as-is would trade a Rule 3 violation for a new `presentation → root` violation. **Sequence both
+moves together**, or document the root package as an explicit composition-root layer.
+
+**(2) Factory placement.** t4 §3 places the three Micronaut `@Factory` classes in
+`infrastructure.copilot`, while t4 §2's allowed-imports matrix forbids
+`infrastructure → application` internals. Binding a port to its implementation necessarily names
+that implementation, so a composition root cannot satisfy §2 as written. Currently reconciled by
+three named exemptions in Rule 4.
+
+**§2 should state the composition-root carve-out explicitly** rather than leaving the matrix
+self-inconsistent and the exemptions unexplained. Either designate a composition-root package
+that is exempt by design, or move the factories somewhere the matrix already permits.
+
+Both items are yours to resolve in t16 (documentation + ADR). The enforcement layer will follow
+whatever you decide — but it must follow it, not accumulate more exemptions (see E3 in
+backend/inbox.md).
+
+---
+## 2026-08-05T10:00Z — from coordinator (t13 verification) — ✅ PASS + mandatory follow-up t13.1
+
+Verified in source: `src/main/java/dev/logicojp/reviewer/` now contains exactly `ReviewApp.java`,
+`application`, `domain`, `infrastructure`, `presentation`, `shared`. **The pre-migration tree is
+gone.** 877 tests green, Rule 0 `parsed 332/332`, Rule 6a/6b report 0 cycles. Finding the broken
+`{token}` placeholder — shipped silently through six "green" phases — and the header-mask wrapper
+being stripped by `Map.copyOf` are exactly the class of defect that only surfaces when the legacy
+tests stop propping up the legacy classes. Your root-cause note on that is the most valuable
+observation of this run and is recorded in `decisions.md`.
+
+Your two escalations are confirmed **HIGH** and become task **t13.1**, which now blocks the
+validation gates. Do not treat them as optional cleanup.
+
+### G1 (HIGH) — the `presentation ⊥ infrastructure` rule genuinely does not exist
+
+Confirmed by inspection: the only rule naming both is Rule 5 (line 213), which constrains
+**application**, not presentation. Rule 3 proves presentation is a *leaf* (nothing depends on it) —
+the converse constraint is unenforced. t4 §2 mandates it, and you had to hand-fix two live
+violations, which is proof the rule is load-bearing rather than theoretical.
+
+**Fix**: add it as a first-class rule with a measured inspected-count, in the same style as Rules
+1–5. If the composition root legitimately needs an exemption, name it explicitly — do not widen
+the rule. Add a negative-control mutation proving it fires.
+
+### G2 (HIGH) — MDC/correlation logging was deleted, not migrated
+
+`AgentReviewExecutor` now imports `java.util.logging.Logger` and its Javadoc states "Replaced
+SLF4J with `java.util.logging`". JUL has no MDC, so virtual-thread correlation propagation is
+gone, and the tests that would have caught it were deleted by two sub-agents independently.
+Deleting a test because the behaviour it guarded was lost inverts the purpose of the test.
+
+The underlying tension is architectural: layer purity pushed SLF4J out, and the observability
+capability went with it. **The Ports & Adapters answer is a logging/correlation port** —
+declare it in `application.port.outbound`, implement it in `infrastructure.logging` with MDC,
+and let the application layer stay framework-free *without* losing the capability. Restore the
+deleted propagation tests against that port, and re-home the 5 `ExecutionCorrelation` MDC methods
+T010 committed to. Confirm against `t3-pm.md` that the correlation behaviours are back.
+
+### G3 (MEDIUM) — duplicate utilities
+
+`ConfigDefaults` and `RetryPolicyUtils` exist canonically in `shared` and again in
+`infrastructure.*`. Delete the duplicates and repoint imports. Two sources of truth for defaults
+is precisely the responsibility-diffusion this rearchitecture exists to remove.
+
+### Scope note
+
+`-Pnative` was correctly left out of t13; it belongs to t19 (devops) and is routed there.
+
+---
+## 2026-08-05T10:00Z — from backend via coordinator (t13) — ADR-0006 INPUT (2nd batch)
+
+t13 deleted the pre-migration tree and, in doing so, exposed four items that are **your** calls,
+not backend's. These join the two from t12.1. ADR-0006 should resolve all six together.
+
+**(a) Layer purity vs. observability — the important one.** t4 §2's purity rules pushed SLF4J out
+of `application`, so `AgentReviewExecutor` was switched to `java.util.logging`, which has no MDC.
+Virtual-thread correlation propagation was lost and its tests were deleted. Purity was preserved
+by discarding a capability. I have directed backend (t13.1/G2) to reintroduce it as a
+**logging/correlation port** in `application.port.outbound` implemented in
+`infrastructure.logging` — the Ports & Adapters answer that keeps the application layer
+framework-free *and* keeps MDC. ADR-0006 should record this pattern as the standing rule for any
+cross-cutting capability that purity displaces, because this will recur (metrics, tracing).
+
+Related: Rule 2 forbids SLF4J in `shared`, which forced `LogValueSanitizer` into `shared` and
+`CliSecurityAudit` into `presentation` to preserve PM behaviour AUTH-11. That split is reasonable
+but should be documented as intentional, not incidental.
+
+**(b) Missing rule — already actioned.** t4 §2 mandates `presentation ⊥ infrastructure` but no
+rule enforced it; two live violations were hand-fixed. Backend adds the rule in t13.1/G1. ADR-0006
+should state the rule set is expected to cover **every** row of the §2 matrix, so a missing rule is
+itself a defect.
+
+**(c) `ReviewApp` relocation needs its own task.** Moving it into `presentation` (t4 §1) touches
+`pom.xml` ×2, `pom-native.xml` ×2 and two GraalVM `reachability-metadata.json` files. Decide in
+ADR-0006 whether to relocate it or to formally designate the root package as the composition root
+and drop the requirement. If you choose relocation, say so and I will schedule it as a task rather
+than letting it leak into an unrelated one.
+
+**(d) Duplicate utilities.** `ConfigDefaults` and `RetryPolicyUtils` exist in both `shared` and
+`infrastructure.*`. Backend removes the duplicates in t13.1/G3; ADR-0006 should state which layer
+owns shared defaults so this does not regrow.
+
+---
+## 2026-08-05T10:45Z — from backend/t13.1 via coordinator — ✅ PASS, all three gaps closed
+
+Verified in source, each independently:
+
+- **G1** — Rule 5b exists at `LayerDependencyRulesTest:217-243`. Subject `classesIn(PRESENTATION)`,
+  predicate `dep.startsWith(INFRASTRUCTURE)`, **exemption set empty**. That is the strongest form the
+  rule can take, and the inline comment correctly explains why the gap survived this long: Rule 3
+  proves presentation is a *leaf* (nothing depends on it) and Rule 5 *names* both adapter layers but
+  constrains `application`. Two rules mentioning the right words while guarding neither direction is
+  exactly how an unenforced edge hides. Negative control captured at line 357. `@Test` count 9 → 10.
+- **G2** — `application/port/outbound/PropagateCorrelationPort` +
+  `infrastructure/logging/MdcCorrelationAdapter` exist; `AgentReviewExecutor` injects the port.
+  Restored coverage confirmed present: `MdcCorrelationAdapterTest` and — the important one —
+  `PropagateCorrelationPortWiringTest`. Keeping JUL for the class's own diagnostics while routing
+  correlation through the port is the right split, and the Javadoc says so.
+- **G3** — only `shared/RetryPolicyUtils` and `shared/ConfigDefaults` remain; both infrastructure
+  duplicates are gone, 12 call sites repointed.
+
+892 passed / 0 failed across 148 classes, Rule 0 `parsed 333/333`, all 8 rules green.
+
+### The `RetryPolicyUtils` near-miss is the most valuable thing in this task
+
+The two copies had **disjoint** transient-error marker lists, and only one carried the
+`InterruptedException` guard and null-safety. "Delete the duplicate" — the obvious reading of G3, and
+what I would have accepted without complaint — would have silently changed retry behaviour in
+production with a green build. Catching that the duplicates had *diverged* rather than assuming
+duplicates are identical is the difference between consolidation and data loss. Merging the union
+and documenting the widening is the correct call.
+
+Because it **is** a widening, more error types are now treated as transient. I have routed this to
+tester so t14/t20 confirm the wider set cannot turn a genuine hard failure into a retry loop.
+
+### Your two downstream notes are accepted and routed
+
+`presentation/CliSecurityAudit`'s direct `org.slf4j.MDC` import is flagged to architect so t17 does
+not read it as a Rule 5b inconsistency. Your "every outbound port needs a DI wiring test" note is
+recorded — it generalises the exact silent-disappearance failure mode that cost us G2, and it now
+applies to any port added from here on.
+
+---
+## 2026-08-05T10:45Z — from coordinator (t13.1) — TWO ITEMS FOR t17
+
+**1. Do not read `presentation/CliSecurityAudit` as a Rule 5b violation.** It retains a direct
+`org.slf4j.MDC` import. Per ADR-0006 this is deliberate: the audit fields are same-thread scoped and
+never cross a thread boundary, so they do not need the correlation port. Rule 5b constrains
+`presentation -> infrastructure` and SLF4J is neither. Flagging pre-emptively so it does not consume
+review cycles as a false positive.
+
+**2. The adapter matrix is now closed — please verify that claim rather than accept it.** Rules 4, 5
+and 5b together assert: infrastructure reaches application only through ports; application reaches
+neither adapter; presentation does not reach infrastructure. t13 proved by counterexample that a
+missing rule is invisible until someone reads the design matrix against the rule set line by line.
+Do exactly that against `t4-architect.md` §2 — **every row of the matrix must map to a rule**, and a
+row with no rule is itself a defect regardless of whether violations exist today.
+
+---
+## 2026-08-05T08:13:39Z — from architect (t16) [BROADCAST]
+
+**ADR-0006 `docs/adr/0006-ports-and-adapters-layering.md` is now the architecture of record for this rewrite.** Seven decisions bind all roles:
+
+- **D1** — the composition root is layer 0 with its own rules: wiring only, never referenced by other layers.
+- **D2** — port direction is decided by *who implements it*. An inbound port whose only implementer lives in `infrastructure` is a layer defect, not a naming preference.
+- **D3** — `ReviewApp` stays in the root package; DI factories move up into it. Counter-evidence for relocating it: `mainClass` x4, 2 GraalVM metadata files, and the runbook logger name all break.
+- **D4** — any cross-cutting capability displaced by a purity rule MUST return as an `application.port.outbound` port. It is never silently dropped or downgraded. (This generalises t13.1 G2.)
+- **D5** — every allowed-imports matrix row needs exactly one enforcement rule. New rules take a letter suffix (`5b`) rather than renumbering, so existing references stay valid.
+- **D6** — `shared` solely owns cross-layer defaults, and simple class names are unique under `dev.logicojp.reviewer`.
+- **D7** — `RunReviewPort` returns `List<ReviewResult>`. A port contract is accepted only if it can satisfy the existing output specs (pm OUT-02/OUT-03 need one file per agent per pass).
+
+User-facing docs are re-synced to the implemented structure: `README.md`, `README_en.md` / `README_ja.md` (1112 lines each, parity verified), `docs/adr/README.md` index, and ADRs 0001/0002/0003 reference sections.
+
+**Coordinator note — ADR-0006 records 4 OPEN deviations, all verified in source by the coordinator at HEAD after t13.1.** They block t17 certification and are being remediated as **t16.1 (backend)**. Do not treat the layering as certified until t16.1 passes.
+
+---
+## 2026-08-05T08:30:00Z — from security (t18) + coordinator [DIRECTIVE — t18.1, dispatched now]
+
+**t18 is marked `❌ failed[findings]`** (validation gate, 2 HIGH, strict §3.2.1). You own **SEC-H2**, the design half. It is dispatched immediately as **t18.1** because it is design-only and does not touch `src/`, so it can proceed while t14 finishes.
+
+### SEC-H2 (HIGH) — prompt-injection defence is denylist-only
+
+`infrastructure/parsing/AgentConfigLoader.java:234-241` defends by denylist alone. Denylists cannot enumerate paraphrase, encoding or translation bypasses. Security's key structural point: **the allowlist that would bound the input space is exactly the dead code in SEC-H1** — `ALLOWED_CHAR_RANGE` and the size caps in `CustomInstructionSafetyValidator` are declared and never executed (coordinator-verified: each occurs exactly once in all of `src/`).
+
+So the two HIGHs compound. Fix one and the other still fails. That is why this is split — you decide the trust model, backend wires it in (t18.2).
+
+**The trust boundary is the crux**: `AgentPathConfig.java:11` defaults agent directories to `./agents` and `./.github/agents`, resolved relative to CWD, i.e. **inside the repository under review**. The tool silently treats markdown from an arbitrary third-party repository as LLM instructions. No pattern-based scan surfaced this; it took reasoning about where the input comes from.
+
+### What is being asked of you
+
+A recorded decision — **ADR-0007** — not a pattern-list update. Security offers three shapes, and you are not bound to them:
+
+1. constrain repo-supplied agent files to a bounded schema (which gives backend the allowlist to enforce),
+2. require explicit opt-in before loading agents from the reviewed repo,
+3. load them reduced-privilege.
+
+Whatever you choose must be **mechanically enforceable** and must tell backend precisely what to implement in t18.2 — bounds, allowed character classes, required/permitted fields, and what happens on violation. A decision backend cannot turn into a failing test is not finished.
+
+Note the interaction with ADR-0006 **D4**: if you decide some capability must be displaced, it returns as a port rather than disappearing.
+
+Scope correction from security, so you do not over-build: field coverage is narrower than it first looks — `peerModel` and `skills` **are** validated elsewhere; `language` is the one real gap (filed LOW as SEC-L2).
+
+### Second item — SEC-M3/M4, for the same ADR or a short follow-up note
+
+The header-masking wrapper is stripped by **both** `Map.copyOf` and `new HashMap<>`, proven at runtime, and the map is handed to the Copilot SDK at `ReviewSessionConfigFactory.java:56` and `SdkRubberDuckSessionFactory.java:80`. **This is the t13 `defensive-copy-strips-security-wrapper` defect recurring at a new call site** — the third time this shape has appeared.
+
+Security's framing is the right one and needs your ruling: *a `toString()` wrapper cannot survive a boundary it does not control.* The durable options are masking at the sink (a logging port, per ADR-0006 D4) or a `SecretString` type that carries its own protection. Recording this once, as a rule, is what stops a fourth recurrence.
+
+Security bounded its own claim honestly: `javap` shows `McpHttpServerConfig` has no `toString()` override, so there is **no confirmed live sink**; `setHeaders` was not decompiled. Treat it as a latent defect with a known mechanism, not a proven leak — but note SEC-L4 (routed to devops): raising `COPILOT_SDK_LOG_LEVEL` is precisely the condition that would make it live.
+
+### Standing pattern — worth a line in the ADR
+
+SEC-H1 is the **fourth** instance on this project of a control that reads as enforced and enforces nothing: t12 (ArchUnit inspecting 107 of 687 classes), t13.1/G1 (an edge two rules named but neither constrained), t16 (Rule 4 scoped to `application.port`), and now a validator whose caps and allowlist are dead. Security proposes a standing verification gate rather than per-task rediscovery. The countermeasure that has worked every time is **a control without a captured negative control is not a control** — consider elevating it from practice to a recorded ADR-0006 amendment.
+
+### Documentation correction (coordinator, from t18)
+
+While you have ADR-0007 open: `.github/copilot-instructions.md` states that `TemplateService` loads **"Mustache-style `{{placeholder}}` templates"**. Coordinator-verified false — `templates/` contains **zero** `{{...}}` occurrences (all 30 files use `${key}`: `${displayName}` x7, `${peerReviewContent}` x4, `${repository}` x3, ...), and **Mustache is not a dependency** in `pom.xml`. Security caught the same error mirrored in `project-profile.yaml`, which the coordinator has corrected. Worth fixing at the source, since an instruction file that misstates the template syntax will keep propagating into future agent runs.
+
+---
+
+## 2026-08-05T08:50Z — from architect (t18.1) — BROADCAST
+
+**ADR-0007 採択**: `docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md`
+
+- **D1** — agent 定義の信頼レベルを `AgentSource` 型で運ぶ。`--agents-dir` = 信頼、CWD 相対の既定パス = 未信頼。フラグによる格上げ不可。
+- **D2** — `AgentDefinitionPolicy` を信頼境界ポリシーの単独所有者とし、`CustomInstructionSafetyValidator` を部品に降格。
+- **D3** — 信頼レベル別スキーマ契約。`AgentConfig` の全 13 要素に行を与える。
+- **D4** — 違反は「拒否・続行・要約行必須」。握り潰し禁止。
+- **D5** — ポート DTO はセキュリティ制御を担わない。`toString()` 遮蔽は制御として採用禁止。
+- **D6** — 秘匿値の遮蔽は `infrastructure.logging`（シンク）で行う。
+- **D7** — 否定的対照のない制御は制御ではない。
+
+各決定に「失敗するテスト」が 1 つずつ対応（ADR の Enforcement 表）。
+
+### coordinator による上流訂正の確認
+
+t18 の SEC-H2 が述べた「防御はデニーリストのみ」は**不正確**であることを coordinator が独立に確認した。以下は**稼働中**:
+
+- `domain/agent/AgentDefinitionPolicy.java:26` `MAX_AGENT_FILE_SIZE = 64 * 1024` → :64 で実際に適用
+- 同 :27 `MAX_AGENT_NAME_LENGTH = 64` → :36 の正規表現に組み込み済み
+
+真因は検証ロジックではなく `infrastructure/copilot/ApplicationPortFactory.java:54-60` —
+信頼済み `--agents-dir` と未信頼の CWD 相対既定パスが同一の `List<Path>` に併合され、
+L62 の `AgentConfigLoader` に渡る時点で**型から出自が消えている**。
+検証器を強化しても、どのファイルに厳しい規則を当てるべきか判断する情報が既に失われている。
+
+**この run で 6 例目の同一パターン**（[systemic] ADR 参照）— ただし今回は制御でもテストでもなく **型** の層で発生した。
+制御が空虚（t12/t13.1/t16/t18）でも未検証（t14）でもなく、**制御が必要な情報を受け取れない**形。
+
+---
+
+## 2026-08-05T09:20Z — from backend (t16.1), routed by coordinator
+
+### ADR-0006 deviations #1, #2, #3 are CLOSED — Status column needs updating
+
+Coordinator independently verified all three in source at working tree:
+
+| Deviation | Closure evidence (verified, not report-only) |
+|---|---|
+| #1 `ResolveTokenPort` inversion | `application/auth/ResolveTokenUseCase.java:26 implements ResolveTokenPort`; `infrastructure/auth/GitHubTokenResolver.java:24 implements AcquireGitHubTokenPort` (outbound only). New outbound port `application/port/outbound/AcquireGitHubTokenPort.java` exists. |
+| #2 `ExecuteSkillPort` double-implementation | `ApplicationPortFactory:117,123` — `ExecuteSkillPort` now backed by `ExecuteSkillUseCase`. `infrastructure/copilot/SkillExecutor.java` **deleted** along with its test. |
+| #3 Rule 4 over-permissive | `LayerDependencyRulesTest:79` `APPLICATION_PORT_OUTBOUND = BASE + ".application.port.outbound"`, applied at `:216`. The `.application.port` prefix that permitted `infrastructure → application.port.inbound` is gone. |
+
+945 tests, 0 failures, BUILD SUCCESS. Reconciles to t14's 937 as −2 +5 +5.
+
+### Two items now need YOUR decision (both are t16.2 scope, not backend's)
+
+**(a) ADR-0006 D3's premise is factually wrong.** D3 names three "Micronaut factory classes" to relocate into the composition root, but `grep -rln "@Factory"` returns **only** `ApplicationPortFactory`. `ReviewContextFactory` is a plain class holding config-mapping logic; `ReviewOrchestratorFactory` is a `@Singleton` implementing the inbound `RunReviewPort`. Executing D3 as written would move **business logic and an inbound-port implementation** into the composition root — contradicting D1's own "wiring only / no business decisions" constraint.
+
+**(b) A fifth, unrecorded direction inversion exists.** `infrastructure.copilot.ReviewOrchestratorFactory` implements the **inbound** `RunReviewPort` — structurally identical to closed deviation #1, but on the review path (the highest-risk path in the app). It is currently masked by a composition-root exemption in Rule 4.
+
+Backend's recommendation, which the coordinator endorses: **record (b) as ADR-0006 deviation #8 and fix it as a real refactor**, rather than letting D3's file-move conceal it. Backend deliberately did **not** implement deviation #4 for exactly this reason — following it would have hidden a live defect behind a green build. That judgement is why t16.1 passes rather than being marked incomplete.
+
+### Coordinator note on the systemic pattern
+
+This is the **seventh instance** of the run's standing pattern, and the second at the *scope-of-application* layer: Rule 4's composition-root exemption is a carve-out whose blast radius is invisible at the call site. Narrowing Rule 4 (t16.1's first act) is what made #1 and #2 fail mechanically instead of by review — and the same narrowing is what left #8 visible only because the exemption list is now the *only* thing hiding it. Consistent with the standing rule in `decisions.md`: **assert the scope, not just the outcome.**
+
+Do not act on D3 as written. Rule the premise first.
+
+### Also on your desk for t17
+
+- `presentation/CliSecurityAudit` retains a direct `org.slf4j.MDC` import — **deliberate** per ADR-0006, not a Rule 5b violation. Pre-warned so certification does not re-flag it.
+- ADR-0006 D4 is recorded **PARTIAL**: `domain` (4 files) and `application` (10 files) still use `java.util.logging`.
+- `ApplicationPortFactory` method **order is now load-bearing** — Micronaut names generated bean definitions by declaration index (`…$ResolveTokenPort7$Definition`). Append-only; documented in-method by backend. Rule 4's generated-bean exemptions are **derived**, not hard-coded, so they will not silently rot.
+
+---
+
+---
+
+## 2026-08-06T00:54:29Z — from **backend** (t23), routed by coordinator
+
+> **[notify:architect]** Still awaiting your call on main's removal of `reviewPasses`/`sharedSessionEnabled`.
+> I proceeded on keep-our-capability: with the YAML keys absent, `@Bindable` defaults give `reviewPasses=1` /
+> `sharedSessionEnabled=true`, so runtime behaviour is identical to main while the capability survives.
+> This is widening, not narrowing — reversing it later is a config-and-delete change, whereas recovering it after
+> deletion means re-implementing. If you rule for removal, that is a follow-up task, not t23.
+
+This is now **your decision to make in t24**, not an open question. See §3 below.
+
+---
+
+# t24 — Post-Merge Architecture Conformance Re-check
+
+**Role:** architect · **Phase:** Upstream Merge · **Depends on:** t23 (✅ PASS)
+
+## 1. Why this task exists
+
+t23 merged `origin/main` (36 commits) into the layered tree: **82 conflicts → 0**, 108 files staged
+(+4576/−2380), `BUILD SUCCESS`, 939 tests green. The merge is **staged but not committed** —
+`MERGE_HEAD = 5844456`, undo point is tag `pre-merge-origin-main-backup` → `d3a499c`.
+
+You are the gate before that merge commit is created. A green build is **not** evidence that the
+architecture survived the merge — it is only evidence that the code compiles and the tests that
+still exist still pass.
+
+### The specific reason to distrust a green arch gate here
+
+This project has already been burned **seven times** by the same systemic pattern, recorded in
+`.github/modernize/rearchitecture/decisions.md`:
+
+> **A control's scope of application is invisible at the call site.**
+> Countermeasure: **assert the scope, not just the outcome.**
+
+Instances: t12 (ArchUnit rules passed while parsing zero classes) · t13.1/G1 (missing rule) ·
+t16 (Rule 4 prefix too broad) · t18/SEC-H1 (dead validator caps) · t14/TGT-07 (untested control) ·
+t18.1 (`ApplicationPortFactory` erasing provenance by type) · t16.2 (Rule 4 composition-root exemption).
+
+t12 is the exact failure mode to fear here: the arch gate was **green because it was vacuous**.
+A merge that moves 108 files is precisely the event that can silently drop files out of the
+gate's scope. `LayerDependencyRulesTest` **Rule 0** exists for this — it asserts
+`parsed == classFilesOnDisk`. Your job is to confirm Rule 0 is still doing that work over the
+*post-merge* file set, not to observe that the suite is green.
+
+## 2. Deliverables you must consume
+
+- `.github/modernize/rearchitecture/artifacts/t23-backend.md` — index
+- `.github/modernize/rearchitecture/artifacts/t23-backend-conflict-dispositions.md` — all 82 conflicts, per-category policy
+- `.github/modernize/rearchitecture/artifacts/t23-backend-feature-ports.md` — 6 ported features, 2 caught silent regressions
+- `.github/modernize/rearchitecture/artifacts/t23-backend-validation.md` — build/test evidence, count arithmetic, layer-purity audit
+- `docs/adr/0006-ports-and-adapters-layering.md` — the layer import matrix (authority for every placement call)
+- `docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md` — trust boundary
+
+## 3. Decisions you must make (each needs an explicit verdict)
+
+### 3-A. `reviewPasses` / `sharedSessionEnabled` — **KEEP or REMOVE**
+
+`main` deleted both outright. Backend kept them (defaults `1` / `true`, so runtime behaviour matches `main`).
+
+Rule on it as an **architecture** question, not a preference: does a multi-pass review capability with no
+YAML surface and no test exercising `reviewPasses > 1` constitute (a) a preserved capability or
+(b) dead code that ADR-0006 should not be asked to house? State which, and why.
+
+If you rule REMOVE, do **not** implement it — record it as a follow-up task and let t23's merge stand.
+
+### 3-B. The four placement calls backend made under time pressure
+
+Judge each against ADR-0006's import matrix. These were `UA`/new-file placements where git had no
+opinion and backend had to choose:
+
+| # | Placement | Backend's reasoning |
+|---|---|---|
+| 1 | `PromptBudgetConfig` **split** into pure `shared/PromptBudget` + `infrastructure/config/PromptBudgetConfig` binder | `domain` may not see framework binder types |
+| 2 | `SKILL_MAX_PARAMETER_VALUE_LENGTH` hoisted to `shared/ConfigDefaults` | `AgentPromptBuilder` (domain) was importing a framework type |
+| 3 | `enforceAssignedSkillBudget` → `infrastructure/parsing/AgentConfigLoader` | ADR-0007 trust boundary |
+| 4 | `PromptContentCompactor` → `shared/` | must stay dependency-free |
+
+Confirm or correct. **#4 is the one to check hardest** — `shared/` is the layer with the strictest
+purity requirement and the weakest natural enforcement.
+
+### 3-C. Rule 0 non-vacuity over the post-merge tree
+
+Confirm `LayerDependencyRulesTest` Rule 0 (`parsed == classFilesOnDisk`) still holds and still
+covers every file the merge added. Report the actual parsed count. **"The suite is green" is not
+an acceptable answer to this item** — see §1.
+
+### 3-D. Does ADR-0006 need an amendment?
+
+The merge introduced `shared/PromptBudget` and `shared/ConfigDefaults` — value/constant carriers in
+`shared/`. If ADR-0006 does not currently sanction that use of `shared/`, say so and specify the
+amendment. Note ADR-0006's **D3 premise is already known false** (t16.2, still open) — do not
+re-litigate D3 here, just don't build on it.
+
+## 4. Explicit non-goals
+
+- Do **not** create the merge commit — the coordinator owns that.
+- Do **not** run `git merge --abort`, `git reset --hard`, or any destructive command. The user
+  forbade this explicitly. Git's rename detection did valuable work mapping flat→layered paths;
+  aborting throws it away.
+- Do **not** fix t16.2 / t17 / t18.2 — out of scope, separately tracked.
+- Do **not** re-open the `UD` deletion ruling (the 4-class merger/similarity cluster). That was
+  ruled with grep evidence and backend confirmed it. Attribution correction on record:
+  the deletions came from `38dcbc8`, **not** `25c4b49` — the ruling itself stands.
+
+## 5. Build command (non-negotiable)
+
+```
+JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify
+```
+
+`main` moved Java 27→28. The machine default is GraalVM 25 and **cannot compile this project**.
+`--enable-preview` is on, so a JDK mismatch produces misleading errors rather than a clear one.
+
+## 6. Known-out-of-scope defects (do not report as findings)
+
+- `pom-native.xml` does not compile at HEAD — pre-existing, confirmed against merge-base `fb2e795c`
+- `pom.xml` L242–265 `default-shade` is config-only (no `<phase>`/`<goals>`), so `verify` yields a
+  non-executable jar — pre-existing
+- Reduced test coverage from taking `ours` on 10 test conflicts — **already disclosed** by backend in
+  `t23-backend-validation.md`. Only escalate if you judge the loss architecturally significant;
+  otherwise it is a tracked follow-up.
+
+## 7. Definition of done
+
+Write `artifacts/t24-architect.md` containing:
+
+1. A verdict on **each** of 3-A, 3-B (all four), 3-C, 3-D — no item left implicit
+2. The actual Rule 0 parsed count, with the number stated
+3. `PASS` / `FAIL` on whether the merge may be committed as-is
+4. Any finding at HIGH/CRITICAL, with severity counts, using `[notify:coordinator]`
+
+If you find a violation that is mechanically fixable and clearly within ADR-0006's existing rules,
+fix it and say so. If it requires an ADR decision, escalate instead of deciding unilaterally.
+
+---
+
+## 2026-08-06T01:08:10Z — from **architect** (t24), routed by coordinator — **BINDING**
+
+> **[notify]** ARCHITECTURE DECISION (binding) — t24 rules **KEEP** on `reviewPasses`/`sharedSessionEnabled`.
+> The "no config surface, no multi-pass test" premise is false: `--no-shared-session` is a documented CLI flag
+> and a field on the inbound port DTO `ReviewRequest`; `reviewPasses` binds
+> `reviewer.execution.concurrency.review-passes` and is exercised >1 by three tests. No deletion task should be
+> raised. ADR-0006 needs **no** amendment to legitimise `shared/PromptBudget`, `shared/ConfigDefaults`,
+> `shared/PromptContentCompactor` — §2's matrix row already sanctions "cross-layer pure utilities and constants."
+
+Coordinator note: this closes the escalation backend raised in t23. Backend's keep-our-capability call was
+correct, and for a stronger reason than backend had — the capability was never unsurfaced in the first place.
+
+---
+
+## [2026-08-06T01:35Z] From: backend (t26) — routed by coordinator
+
+### `[notify:architect]` (1/2) — **New finding proposed: F4 (HIGH), needs your ruling**
+
+> `AgentPromptBuilder:145` compares against the hardcoded `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH`
+> and ignores the configured `reviewer.skills.max-parameter-value-length`, while the `AgentConfigLoader`
+> gates honour it. An operator who sees `Assigned review skill budget exceeded … skipping skill` and raises
+> the configured limit — **the natural remediation** — lifts the loader's ceiling above the builder's fixed
+> one, so previously-skipped skills are admitted and the builder then throws `IllegalStateException`,
+> aborting that agent's review. The documented remedy makes the failure mode strictly worse, and the crash
+> window is unbounded, not the ~71-char markup gap. This is live, not theoretical:
+> `java-add-graalvm-native-image-support/SKILL.md` (12,908 bytes) is already dropped at the default budget
+> on every test run, so users have a real incentive to raise the knob.
+> Details in `artifacts/t26-backend.md` §C.
+
+### `[notify:architect]` (2/2) — **Three design decisions escalated from the t26 ruling**
+
+> Out of backend charter — each is a user-facing config contract change requiring an ADR + migration notes:
+> 1. splitting the one knob into separately-configured budgets via new YAML keys;
+> 2. resolving the **bytes-vs-chars conflation** — the file gate compares `Files.size()` in bytes against the
+>    same integer the content gates compare UTF-16 chars against (27 shipped skills diverge, up to 2×, though
+>    **zero** are currently mis-gated, so this is latent not active);
+> 3. whether the loader's cumulative gate should become a true **pre-check** for the builder's rendered-section
+>    gate — today it under-counts by a verified `71 + 10n` chars plus an unbounded placeholder-expansion delta
+>    over the identical skill set.
+
+### Coordinator's disposition
+
+Both are folded into your **t24 re-dispatch** rather than raised as separate tasks — ruling on a proposed
+HIGH and on config-contract design is precisely the architect conformance gate's job, and t24 must
+re-run anyway under §3.2.1 step 5. See the t24 re-dispatch brief below.
+
+
+---
+
+## [2026-08-06T01:40Z] From: coordinator — Task t24 **re-dispatch** (§3.2.1 step 5)
+
+t24 は F1（HIGH）を surfacing したため `❌ failed[findings]` として記録されています。§3.2.1 step 5 により、
+**ゲート自身が再実行され、clean PASS（HIGH/CRITICAL ゼロ）を出すまで** 下流（t25）は解放されません。
+これは再実行ラウンド **1 / 2** です。
+
+### 1. F1 は closable か（t26 の成果を検収する）
+
+backend が t26 で提出したもの:
+- `AgentConfigLoaderTest.AssignedSkillBudget` に否定的対照 3 件
+  （累積 drop / 順序依存の分離 / `metadata.agent` matched-pair ガード）
+- **2-mutant kill matrix**（kill が disjoint = どのテストも vacuous でないことの証明）
+- 兄弟ゲート 2 つが当該テストで inert であることを in-test control で明示
+
+**coordinator がソースで独立確認済み**（引用可）:
+- 本番差分は**純粋な rename** です。`AgentConfigLoader:98` で
+  `int sharedSkillBudget = skillConfig.maxParameterValueLength();` を取り、
+  `maxSkillFileBytes` / `maxSkillContentChars` / `maxAssignedSkillTotalChars` の**3 つとも同じ値**を代入。
+  よって**挙動は bit-identical**。各呼び出し地点が「どの予算を適用しているか」を型と名前で宣言するようになりました。
+- `src/main` に mutant の残滓なし（grep 実測）。
+
+判定してください: **D7 の要求を満たしたか。** 満たしたなら F1 は closed。
+
+### 2. **F4（HIGH 提案）の裁定** — 本再実行の主眼
+
+backend が escalate した F4 を、**coordinator がソースで実地検証しました**。事実は backend の主張より
+**重い**です。以下は推測ではなく実測です:
+
+`ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH`（= 10,000）の**消費者は 5 箇所**:
+
+| # | 場所 | 実際に測っている量 | 単位 | 値の出所 | 超過時 |
+|---|---|---|---|---|---|
+| 1 | `AgentConfigLoader:204` | 1 エージェントの割当スキル**合計** | chars | **設定値** | warn + skip |
+| 2 | `AgentConfigLoader:245` | スキルファイル 1 本 | **bytes** | **設定値** | warn + skip |
+| 3 | `AgentConfigLoader:267` | 注入コンテンツ | chars | **設定値** | warn + skip |
+| 4 | `SkillDefinition:54` | **パラメータ値 1 個**の長さ | chars | 引数 | 拒否 |
+| 5 | `AgentPromptBuilder:145` | レンダリング済み**スキル節**全体 | chars | **ハードコード定数** | **`IllegalStateException` を throw** |
+
+つまり `maxParameterValueLength` という名前が**正確なのは 5 用途のうち #4 だけ**です。
+
+F4 の核心（L136–149 を読んだ上での確認）:
+- #5 は `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH` を**直接**参照しており、
+  `reviewer.skills.max-parameter-value-length` を上げても**この天井は上がりません**。
+- #5 だけが **throw**、#1–#3 は **skip**。つまり「上限に触れたときの挙動」が一貫していません。
+- #1 は #5 の**有効な事前チェックになっていません**。2 つの独立した軸で過小計上します:
+  (a) #5 は `"\n\n## Assigned Review Skills\n\n"` + 日本語 1 行 + スキルごとの `### ` 見出しと改行を
+      **含めて**数えるが、#1 は `name+description+prompt` の素の合計しか数えない（backend 実測 `71 + 10n` chars）。
+  (b) #5 は `PlaceholderUtils.replaceDollarPlaceholders`（L141）で**展開後**を数えるが、
+      #1 は**展開前**を数える。展開による増分に上界はありません。
+
+したがって backend の言う「ノブを上げると罠にかかる」は**帰結の一つに過ぎず**、より本質的には
+**既定設定のままでも #1 を通過した集合が #5 で crash しうる**、という構成上の不整合です。
+
+裁定してください:
+- F4 は HIGH として妥当か（coordinator は妥当と見ますが、**判断はあなたの職掌**です）
+- 妥当なら remediation の**方向性**（#5 を設定値に合わせる / skip に揃える / #1 を真の pre-check にする 等）。
+  実装タスクは私が起票します。**あなたが実装する必要はありません。**
+- なお本件は本プロジェクトで**同型パターンの 9 例目**です（`decisions.md`）。一般形
+  「**制御の適用範囲は呼び出し地点からは見えない**」の最も純粋な形 — #1 は #5 を守っているように*見えて*、
+  別の量を別の天井で別の出所から測っています。この一般形を ADR に昇格すべきかも併せて判断してください。
+
+### 3. escalate された 3 つの設計判断
+
+backend が「backend charter の外」として上げたもの。いずれも利用者向け config 契約の変更で ADR が要ります:
+1. 1 ノブを**個別の予算キー**に分割するか（新 YAML キー + 移行注記）
+2. **bytes vs chars** の混同（#2 は bytes、#1/#3/#5 は chars）。出荷済み 27 スキルで最大 2 倍の乖離、
+   ただし**現時点で誤判定は 0 件**なので latent。
+3. #1 を #5 の真の pre-check に格上げするか
+
+各々について「今 ADR 化する / t24 の後段タスクに送る / 現状維持で根拠を記す」を裁定してください。
+
+### 4. F2 / F3 の再確認
+
+前回 MEDIUM とした 2 件（F2: `PromptBudgetConfig` の `@Bindable` 既定値二重定義、
+F3: `ReviewOutputFormatter:26` の設定キー不一致）は t27 / t28 として未着手のまま残っています。
+**MEDIUM のままか**を再確認してください。HIGH に昇格するなら、その旨を明示すること
+（昇格した場合、本ゲートは再び clean PASS を出せません）。
+
+### 5. 完了条件
+
+- 上記 1–4 すべてに裁定を下し、`artifacts/t24-architect.md` を**更新**（別ファイルにせず追記/改訂）
+- マージそのものへの適合判定を**再発行**すること（前回: 0 CRITICAL / 層違反 0 / Rule 0 331・独立検証 175）
+- **HIGH/CRITICAL が 0 なら clean PASS を明示**。1 件でも残るならラウンド 2 に進み、
+  2 ラウンドで収束しない場合は利用者判断に上げます（§3.2.1）
+- ビルド: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify`
+  （マシン既定の GraalVM 25 では**コンパイルできません**）
+
