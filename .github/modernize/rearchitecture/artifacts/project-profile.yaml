@@ -95,7 +95,7 @@ progress_sync:
   completed_modules: 0
   total_tasks: 42
   completed_tasks: 32
-  total_commits: 611
+  total_commits: 612
   build_verified: true  # mvn CLEAN verify green, 1054 tests / 0 failures, coordinator-run at 7eb396f (t18.3).
   # Baseline corrected: the previously recorded 980 was inflated by orphaned surefire XMLs
   # from an incremental run. True pre-t28 figure at 191307d is 971, measured in an isolated
