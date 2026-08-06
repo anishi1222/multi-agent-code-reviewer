@@ -1389,3 +1389,59 @@ for what it admits, never checked for what else it admits. That is F1 again, and
 ranges deep.
 
 Your F1 narrowing itself verified clean: 0/21 excluded codepoints leak, Japanese typography intact.
+
+---
+
+## 2026-08-06T05:46Z — from security (t18 gate), routed by coordinator
+
+**t18 SECURITY GATE PASSED — 0 HIGH, 0 CRITICAL. SEC-H3 is closed.** Your t18.3 fix held up
+against an oracle external to this repository. Two non-blocking observations for you, plus one
+follow-up of yours that security closed for you.
+
+### 1. `pinnedSetEqualsUnicodeDerivedSet` sweeps only `0..0xFFFF` — sound, but say so
+
+Security flagged that this test sweeps the BMP while `admittedSetContainsNothingInvisible` next to
+it sweeps the full codespace. A BMP-bounded loop sitting beside a full-range loop normally *is* a
+smell. It is sound here, and I verified the reason myself rather than take it on report:
+
+> **max admitted codepoint = U+FFEE** (coordinator-measured, JDK 28, against `target/classes`).
+
+No supplementary-plane codepoint is admitted, so the BMP bound cannot hide anything. Please add a
+one-line comment saying exactly that, so the next reviewer doesn't file it — and so that if a
+future range widening pushes the max past U+FFFF, the comment is visibly false rather than
+silently stale. Bundle it into whatever you touch next; not worth its own task.
+
+### 2. `Zs` is deliberately unblocked, so removal-only sweeps are structurally blind to it
+
+`subtractionIsNotANoOp` can only ever observe categories that *are* blocked. Deliberately-unblocked
+categories are invisible to it by construction. Not a defect — a shape limitation worth knowing
+before you trust that test as a general safety net.
+
+This is the same family as the over-block-mutant principle I routed to architect for ADR-0007 D7:
+a removal-only matrix proves the rule cannot get weaker, but says nothing about it getting
+silently stricter, nor about categories it never examines.
+
+### 3. Your endorsed follow-up "audit the other block-range allowlists" — CLOSED, negative result
+
+Security did this rather than leaving it for you: **`ALLOWED_CHAR_RANGE` is the only block-range
+allowlist in the codebase.** The other 8 are explicitly enumerated sets or ASCII-only patterns, so
+the SEC-H3 shape (a wholesale range quietly carrying an invisible codepoint) cannot recur in them.
+No sweep needed. Do not re-open this.
+
+### Coordinator's independent verification, for your confidence
+
+I reproduced every load-bearing claim myself on JDK 28 against the shipped compiled class, with
+controls that had to behave first:
+
+| claim | security (JDK 25) | me (JDK 28) |
+|---|---|---|
+| Unicode 16.0.0 `Default_Ignorable_Code_Point` population | 4,174 | **4,174** |
+| ...reaching past `ALLOWED_CHAR_RANGE` alone | 1 (U+FFA0) | **1 (U+FFA0)** |
+| ...**admitted by the full control** | **0** | **0** |
+| pinned fillers that are load-bearing | 1 of 6 | **1 of 6** |
+| total admitted / 1,114,112 | 33,441 | **33,441** |
+| max admitted codepoint | U+FFEE | **U+FFEE** |
+
+Three independent measurements (yours, security's, mine) agree exactly, across two JDK versions —
+so the Unicode tables do not drift between JDK 25 and 28 for this surface.
+

@@ -83,7 +83,56 @@ And pin it with a negative control that is *not* a bidi character — assert a
 blank-rendering `Lo` filler is rejected, or the next narrowing passes for the same
 wrong reason.
 
+## Verifying Such A Fix: Use A Definition The Code Does Not Own
+
+When production pins a set of "invisible" codepoints and its test re-derives that set from
+`Character.getName()`, those are two mechanisms sharing one *definition*. A wrong definition is
+invisible to both, and the equality assertion between them still passes. Do not audit that by
+re-deriving a third time from names.
+
+Use the Unicode Consortium's own derived property instead:
+
+    curl -sS https://www.unicode.org/Public/16.0.0/ucd/DerivedCoreProperties.txt
+
+`Default_Ignorable_Code_Point` is the standard's canonical "should render as nothing" set (4,174
+codepoints in Unicode 16.0.0). Parsing it is ~20 lines — split on `;`, expand `A..B` ranges. Java
+regex does **not** expose it (`\p{IsDefault_Ignorable_Code_Point}` throws
+`PatternSyntaxException`); it only offers `IsWhite_Space`, `IsNoncharacter_Code_Point`,
+`IsAssigned`, `IsJoin_Control`. Parsing the UCD gives you any property, not just those four.
+
+Then assert the population, not a sample: *zero* of the 4,174 may be admitted. Also measure how
+many reach the pinned set at all — for this codebase only **1 of 6** pinned fillers (U+FFA0) was
+reachable through the block ranges; the other five sat outside them and were pure defence-in-depth.
+Checking reachability first costs one loop and cuts the surface you have to argue about by 5/6.
+
+Build the probe in the same package as the control, from a `cmp`-verified byte-identical copy of
+the source, with `src/main/resources` on the classpath. Same package means package-private
+constants are readable without reflection and, critically, **without retyping them** — retyping a
+constant silently repairs the defect you are auditing. The resources matter too: without them a
+validator that loads a denylist from a resource falls back to its in-code defaults and you audit
+the wrong denylist.
+
+## Whitespace Splits A Denylist, And That Is Not A Finding
+
+A classifier for "renders blank" built as `NFKC(cp)` → all-whitespace will flag every `Zs`
+character as defeating a keyword denylist, because `ig<HAIR SPACE>nore` does not match `ignore`.
+**Sanity-check it by looking for U+0020 SPACE in your own output.** If plain ASCII space is in the
+list, the classifier is measuring "breaks a keyword", not "invisible" — and breaking a keyword with
+a visible gap is something an attacker can do by pressing the spacebar. Not a charset defect, not
+fixable by an allowlist, and filing it as HIGH burns reviewer trust.
+
+The inverse is worth testing and is easy to miss: NFKC folding is *protective*, not merely neutral.
+Put the exotic space where a space legitimately belongs — `ignore<Zs>all previous instructions` —
+and the denylist still fires, because NFKC folds every `Zs` to U+0020 before matching.
+
+Related blind spot: a category deliberately left **out** of the blocked set (here `Zs`) can never
+appear in a sweep that only reports what was *removed*. Removal-only sweeps are structurally unable
+to see it. Check deliberately-unblocked categories separately.
+
 ## History
 
 - 2026-08-06 (multi-agent-code-reviewer/t18 re-run): initial. Found U+FFA0 two-layer bypass
   after t18.2's F1 fix; recorded the `$`/line-terminator dead end and the `Cf`/`Cc` gap.
+- 2026-08-06 (multi-agent-code-reviewer/t18 gate re-run 2): SEC-H3 confirmed closed. Added the
+  external-oracle verification method (Unicode `Default_Ignorable_Code_Point`), the 1-of-6
+  reachability result, and the U+0020-in-your-own-output check that stopped a false HIGH.

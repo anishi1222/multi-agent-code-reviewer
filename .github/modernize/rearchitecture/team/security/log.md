@@ -71,3 +71,37 @@ missed it entirely because nothing about that code *looks* dangerous.
   security/masked-map-accessor-matrix, architect/shared-worktree-invalidates-build-results,
   architect/constant-variables-defeat-bytecode-liveness, backend/never-pipe-a-verification-build,
   tester/concurrent-agents-shared-worktree-build-races]
+
+## [t18] Security gate re-run 2 — PASSED; SEC-H3 closed via external Unicode oracle
+- The useful move was refusing to re-derive what production and its test already agreed on.
+  Both pin/derive invisibility from `Character.getName()`. Two mechanisms, one definition — a
+  definition error is invisible to both. So I tested the definition from outside it: fetched
+  `DerivedCoreProperties.txt` from unicode.org and used `Default_Ignorable_Code_Point`, the
+  standard's own canonical "renders as nothing" property. 0 of 4,174 admitted. That is a
+  population result, not a sample, and it is what let me *rule* on the residual instead of
+  deferring on it.
+- Java regex does NOT support `\p{IsDefault_Ignorable_Code_Point}` (PatternSyntaxException).
+  It does support `IsWhite_Space`, `IsNoncharacter_Code_Point`, `IsAssigned`, `IsJoin_Control`.
+  Parsing the UCD file directly is ~20 lines and gives any derived property, not just those four.
+- Biggest calibration save: my first sweep's "renders blank" classifier (NFKC → all-whitespace)
+  flagged 15 codepoints as denylist-defeating. **The first was U+0020 SPACE.** That is the tell
+  the classifier measured "breaks a keyword", not "invisible". Had I sorted output by codepoint
+  and not looked at the head of the list, I would have filed a HIGH on plain ASCII space. Always
+  put the most boring possible input through your own classifier and check it lands where you
+  expect.
+- Corollary worth keeping: NFKC folding is *protective*, not merely neutral. `ignore<Zs>all
+  previous instructions` still fires 15/15 because every admitted `Zs` folds to U+0020 before
+  matching. I nearly recorded the fold as a neutral fact; testing the word-boundary position
+  turned it into evidence for the defence.
+- Only 1 of 6 pinned fillers (U+FFA0) is reachable through `ALLOWED_CHAR_RANGE`; the other 5 are
+  already outside the ranges. Checking reachability *before* arguing about set correctness cut
+  the residual surface by 5/6 and cost one loop.
+- Wrong assumption I corrected mid-task: I expected `target/classes` to exist and planned to probe
+  against it. It did not. Compiling a byte-identical copy of the validator in the same package in
+  /tmp was better anyway — package-private constants readable without reflection, and `cmp` proves
+  the copy is the shipped artifact.
+- JDK trap: the project targets `release 28`. JDK 25 gives `error: release version 28 not
+  supported` from maven-compiler-plugin. Use `28.ea.9-open` for anything running the project
+  suite. The standalone probe still runs fine on 25 since the validator imports only `java.*`.
+- Learnings consumed: [security/charset-allowlist-block-ranges, security/dead-security-controls,
+  backend/derive-and-sweep-finite-security-domains]

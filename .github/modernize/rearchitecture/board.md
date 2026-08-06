@@ -96,16 +96,25 @@ any new appender must carry both `%replace` passes.
 Authoritative build on the settled tree: **980 tests, 0 failures, 0 errors, BUILD SUCCESS**
 (969 + 11 = 2 rule + 9 canary).
 
-### Critical path to completion — recomputed 2026-08-06T12:45Z
+### Critical path to completion — recomputed 2026-08-06T05:46Z
 
-**t18 is `❌ failed[findings]` (2 HIGH) and §3.7 forbids closing on it.** A remediation task's own
-`[DONE]` does not close the original finding — t18 must be reset to pending, re-dispatched, and
-return a *fresh clean pass* before t20 runs.
+**t18 has PASSED (0 HIGH, 0 CRITICAL) and the security remediation arc is closed.** Rounds 1 and 2
+of the §3.2.1 budget were both spent, but the second returned clean, so no escalation is needed.
 
-**t18.2's hold is now released.** It was queued behind t16.1 (both touch `src/`, and two backend
-workers on one tree produce merge damage that presents as a test failure); t16.1 is ✅. Its
-dependencies t18.1 ✅ and t16.1 ✅ are both satisfied. t28 has now closed, freeing the single backend
-slot, so **t18.2 is the next dispatch**.
+With t18 ✅ and t13.1/t14/t15/t16/t16.1/t28/t18.2/t18.3 all ✅, **six tasks are simultaneously
+ready**: t14.1, t16.2, t19, t32, t33, t34. They are **not** dispatched together — every one of them
+runs Maven, and concurrent builds clobber the shared `target/` (this has bitten the run before).
+Dispatch is serial, longest-chain-first:
+
+| remaining chain | length |
+|---|---|
+| **t16.2 → t17 → t20 → t21 → t22** | **5** ← longest, dispatch first |
+| t19 → t20 → t21 → t22 | 4 |
+| t14.1 → (feeds t20's regression evidence) | 2 |
+| t32, t33, t34 | 1 each, off the critical path |
+
+So the order is **t16.2, then t19, then t17**, with t32/t33/t34/t14.1 slotted into any gap where the
+critical-path task is architecture- or docs-only and provably not building.
 
 Blocking chain: **t18.2 → t18 (re-dispatch, must return 0 HIGH) → t20 → t22**.
 
@@ -225,6 +234,68 @@ defect being closed.
 name heuristic that production and its test **share**, so a blank-rendering codepoint named unusually
 would be missed by both while the equality test still passes. Disclosed by the implementer unprompted.
 
+
+### Coordinator verification of the t18 security gate — PASS confirmed independently
+
+The gate reported PASS. I did not accept it on report. Because a PASS is the verdict a worker is
+most motivated to reach, I re-measured every load-bearing claim myself, on **JDK 28** (production's
+JDK — security probed on JDK 25, so this also tests whether the Unicode tables drift between
+versions), against the **shipped compiled class** in `target/classes`, with controls placed first so
+the probe was capable of failing.
+
+I fetched the Unicode oracle myself from unicode.org rather than reuse security's copy.
+
+| claim | security (JDK 25) | coordinator (JDK 28) | verdict |
+|---|---|---|---|
+| `Default_Ignorable_Code_Point` population, Unicode 16.0.0 | 4,174 | **4,174** | exact |
+| ...reaching past `ALLOWED_CHAR_RANGE` alone | 1 — U+FFA0 | **1 — U+FFA0** | exact |
+| **...admitted by the full control** | **0** | **0** | **exact — SEC-H3 closed** |
+| pinned fillers that are load-bearing | 1 of 6 | **1 of 6** | exact |
+| total admitted of 1,114,112 | 33,441 | **33,441** | exact |
+| max admitted codepoint | U+FFEE | **U+FFEE** | exact |
+
+Controls (all required to behave before any measurement was believed): admits `A` / hiragana /
+fullwidth `A` = true; rejects U+FFA0, U+202E, U+200B = true; `ALLOWED_CHAR_RANGE` **alone** admits
+U+FFA0 = true — that last one is what proves the subtraction, not the range, is doing the work.
+
+**Three independent implementations now agree on 33,441** (backend's, security's, mine), across two
+JDK versions. `max admitted = U+FFEE` also independently validates security's argument that
+`pinnedSetEqualsUnicodeDerivedSet` sweeping only the BMP is sound rather than a gap.
+
+#### I separately verified the claim that justified *not* filing a finding
+
+Security flagged 15 admitted `Zs` codepoints that split denylist keywords, then declined to file
+them — reporting that its own classifier was wrong because **U+0020 SPACE was the first entry**. A
+declined finding deserves more scrutiny than a filed one, so I measured it:
+
+| measurement | result |
+|---|---|
+| admitted `Zs` codepoints | 15 — matches |
+| denylist fires with `Zs` at a word boundary | **15/15** — NFKC folding is protective, as claimed |
+| denylist fires with `Zs` mid-keyword | 0/15 |
+| **same test with plain ASCII space** | **also fails** |
+
+The ASCII control is the whole argument: exotic spaces are *no worse than pressing the spacebar*, so
+this is an inherent property of keyword denylists, not a charset-allowlist defect. **Declining to
+file it was correct.** Catching one's own false positive by reading the head of one's own output is
+the behaviour this run has been trying to instil since the first vacuity trap.
+
+#### Residual: accepted as LOW, on stronger evidence than was asked for
+
+I had asked security to *rule* on the name-heuristic residual rather than rediscover it. It ruled
+LOW and narrowed it two ways I had not: the population result (0 of 4,174, not a sample), and the
+finding that **only 1 of the 6 pinned fillers is reachable at all** — so the shared heuristic only
+has to be right about codepoints *inside* the 15 allowed ranges; everywhere else the range check has
+already decided. Accepted.
+
+#### Hand-enumeration's record in this arc: 0 for 4, and the fix is now measured
+
+Every hand-written list in this arc was wrong (the original range, security's `Mn` audit, the filler
+list, and **my own** extension of the mask). The closing fix is derived by sweep and asserted
+*exactly equal*, and the gate that certified it used a third, external definition. That is the
+durable outcome here — not the specific codepoint.
+
+
 ## Tasks
 
 ### Phase: Foundation 📌 4a5a420
@@ -268,7 +339,7 @@ would be missed by both while the equality test still passes. Disclosed by the i
 
 ### Phase: Review
 - ⏳ t17 [architect] Architecture review — verify layered structure matches design [deps: t13.1, t16, t16.1, t16.2] — repointed three times: the `presentation ⊥ infrastructure` rule (t13.1/G1) must exist before the layered structure can be certified, and t16 found 4 open layer defects (t16.1) that make certification impossible until fixed
-- 🔄 t18 [security] **re-dispatched 2026-08-06T05:25Z — round 2 of 2** (was `❌ failed[findings]` on SEC-H3, now remediated by t18.3 and coordinator-verified). Prior record: re-run 2026-08-06T04:42Z→04:57Z confirmed SEC-H1, SEC-H2 and F1 all genuinely closed, but auditing the remaining block ranges (backend's own suggestion, routed by me) surfaced **SEC-H3, a new HIGH**: `ALLOWED_CHAR_RANGE` admits U+FFA0 HALFWIDTH HANGUL FILLER via `\uFF00-\uFFEF`, which bypasses **both** defence layers. Also 1 MEDIUM (SEC-M7, 30 unassigned `Cn` codepoints), 2 LOW (SEC-L10 unguarded constants, SEC-L11 D4 vacuous). Four sub-agent CRITICAL/HIGH candidates were verified and correctly downgraded to non-findings. **This is remediation round 2 of the 2 allowed by §3.2.1** — if t18 fails again, escalate to the user rather than loop. Remediation: **t18.3**.
+- ✅ t18 [security] Security gate — **PASSED on re-run, round 2 of 2** (05:29Z→05:41Z, ~12m). **0 HIGH, 0 CRITICAL.** (was `❌ failed[findings]` on SEC-H3, now remediated by t18.3 and coordinator-verified). Prior record: re-run 2026-08-06T04:42Z→04:57Z confirmed SEC-H1, SEC-H2 and F1 all genuinely closed, but auditing the remaining block ranges (backend's own suggestion, routed by me) surfaced **SEC-H3, a new HIGH**: `ALLOWED_CHAR_RANGE` admits U+FFA0 HALFWIDTH HANGUL FILLER via `\uFF00-\uFFEF`, which bypasses **both** defence layers. Also 1 MEDIUM (SEC-M7, 30 unassigned `Cn` codepoints), 2 LOW (SEC-L10 unguarded constants, SEC-L11 D4 vacuous). Four sub-agent CRITICAL/HIGH candidates were verified and correctly downgraded to non-findings. **This is remediation round 2 of the 2 allowed by §3.2.1** — if t18 fails again, escalate to the user rather than loop. Remediation: **t18.3**.
 - ✅ t18.1 [architect] **Follow-up** — ADR-0007: trust model for repo-supplied agent files (SEC-H2) + secret-wrapper boundary ruling (SEC-M3/M4) (08:32:11Z→08:47:15Z, 15m 4s) [deps: t18] — **PASS. Delivered ADR-0007 (336 lines, D1–D7, each decision mapped to one failing test in an Enforcement table), `t18.1-architect.md`, `docs/adr/README.md` index sync, and 3 learnings.** The decisive contribution was not the ADR but a **corrected root cause for SEC-H2**, which I independently confirmed in source on all three points: (a) security's claim that "the defence is denylist-only" is **wrong** — `domain/agent/AgentDefinitionPolicy.java:26` `MAX_AGENT_FILE_SIZE = 64 * 1024` is applied at :64 and `:27` `MAX_AGENT_NAME_LENGTH` is compiled into the :36 regex, both live; (b) the real defect is `infrastructure/copilot/ApplicationPortFactory.java:54-60`, where the trusted `--agents-dir` paths and the untrusted CWD-relative defaults are merged into one `List<Path>`, so **provenance is erased by the type** before `AgentConfigLoader` sees it at :62 — hardening the validator could never have fixed this, because the information needed to apply a differentiated policy is already gone; (c) `AgentDefinitionPolicy:64` compares `content.length()` (UTF-16 chars) while :66 reports "bytes" — a 3× discrepancy for the CJK agent definitions this project actually ships. This is the **sixth instance** of the run's systemic pattern, and the first at the *type* layer: not a vacuous control (t12/t13.1/t16/t18) nor an untested one (t14), but a control that **cannot receive the input it needs to decide**. Its 1 HIGH is prospective, not live — reversing the D6→D5 migration order would drop a weak-but-working mask with no replacement — and is recorded in the ADR and routed to backend as point (1) of the t18.2 contract, so it is a carry-forward under the t2/t13/t16 precedent rather than a §3.2.1 trigger. Also repaired `.github/copilot-instructions.md`, which still described the **nine packages t13 deleted** (`cli/ agent/ orchestrator/ service/ skill/ config/ report/ util/ target/`) as the current architecture; verified by diffing HEAD against the working tree. That file is auto-injected into every agent's context, so from t13 onward **every worker in this run — and this coordinator — has been carrying a description of an architecture that no longer exists**; it is where my own "Mustache templates" error in the initial recon came from. — **dispatched immediately because it is design-only and touches no `src/`**, so it proceeds while t14 finishes and unblocks t18.2. Must produce a *mechanically enforceable* decision: bounds, allowed character classes, permitted fields, and behaviour on violation — a decision backend cannot turn into a failing test is not finished. Second ruling: the header-masking wrapper is stripped by **both** `Map.copyOf` and `new HashMap<>` (proven at runtime) and handed to the SDK at `ReviewSessionConfigFactory:56` / `SdkRubberDuckSessionFactory:80` — **the t13 `defensive-copy-strips-security-wrapper` defect recurring at a new call site, third occurrence**. Security's framing needs a ruling: a `toString()` wrapper cannot survive a boundary it does not control → mask at the sink (logging port, ADR-0006 D4) or introduce `SecretString`. Claim honestly bounded by security: `javap` shows `McpHttpServerConfig` has no `toString()` override, so no confirmed live sink — latent with a known mechanism, and SEC-L4 (raising `COPILOT_SDK_LOG_LEVEL`) is what would make it live.
 - ✅ t18.2 [backend] **Follow-up** — close SEC-H1/SEC-H2 at the root: implement ADR-0007 **D1–D4** (13:40Z→14:22Z, 42m) [deps: t18.1, t16.1] — **PASS, coordinator-verified in source and by mutation.** `mvn clean verify` **BUILD SUCCESS, 1041 tests, 0 failures/errors/skipped** (163 report files). **Root cause closed**: `ApplicationPortFactory.loadAgentPort` no longer flattens into `List<Path>` — it builds `List<AgentSourceDirectory>`, tagging config-derived dirs `repositorySupplied(...)` while `--agents-dir` arrives pre-tagged, so provenance is assigned once at the composition root (D1) and nothing downstream re-derives trust. **SEC-H1 closed**: the five formerly declaration-only constants now carry 4/4/5/2 `src/main` references. **Charset control**: `ALLOWED_CHAR_RANGE` narrowed to `\u2000-\u200A`,`\u2010-\u2027`,`\u202F-\u205F`, excluding U+200B–U+200F, U+202A–U+202E, U+2060–U+2064, U+2066–U+2069 while retaining JA typography (U+203B ※, dashes, quotes, U+2026). **Non-vacuity proven by coordinator**: collapsing `AgentTrustProfile.forSource` to return one profile for both sources turned the suite **RED — 10 failures / 28**, including **3 of 3** in `AgentTrustLevelDifferentialTest`; file restored byte-identical (`cmp -s`). `AgentConfig` is 14 components and `AgentSchemaCoverageTest` derives that count reflectively, so it is immune to F6's stale ADR text. **Three findings were found *and fixed within the task*** (details in `t18.2-backend-findings.md`) — this is an implementer disclosing and closing defects, not a gate reporting open ones, so §3.2.1's `failed[findings]` does not apply; penalising transparent self-reporting would incentivise hiding. F2 is the notable one: the worker **recreated SEC-H1 inside the task fixing it** by restating limits as literals, and its own new `AgentPolicyConstantsAreLiveTest` caught it (6 of 8 failing, each named).
 - ✅ t18.3 [backend] Fix SEC-H3 by subtracting invisible codepoints from `ALLOWED_CHAR_RANGE` by category, derived from an exhaustive sweep (05:02Z→05:20Z, ~18m) — **SEC-H3 closed**. Nine categories (`Cf Cc Cn Co Cs Zl Zp Mn Me`) plus a 6-member JDK-derived invisible set, applied as an AND-narrowing after the existing regex so it can only ever reject more. Sweep of all 1,114,112 codepoints: **37 offenders → 0**. 1041→1054 tests, 0 failures. [deps: t18.2]
@@ -285,10 +356,9 @@ would be missed by both while the equality test still passes. Disclosed by the i
 - ✅ t28 [backend] F3: reviewPasses banner reads the wrong config key (12:38Z→13:05Z, 27m)
 - ⏳ t32 [architect] Mechanize the ADR-D-item-names-a-nonexistent-rule guard [deps: t28]
 - ⏳ t33 [devops] **Native-image metadata + user-facing docs still describe the pre-rebuild world** *(raised 13:05Z from t28's `[notify:coordinator]`; worker labelled both LOW, coordinator **re-rated the metadata item MEDIUM**)* — two distinct drifts:
-- ⏳ t34 [tester] Close the second half of **SEC-L10**: `ALLOWED_MODEL_PREFIXES` has zero `src/test` references and is absent from the liveness enumeration — the same shape as SEC-H1, where a constant existed only as text. t18.3 closed the `ALLOWED_CHAR_RANGE` half behaviourally (7→9 constants enumerated) and deliberately did **not** widen scope to a different constant in a different class. Needs a behavioural test that measures what the prefix list admits and rejects, not merely a reference to it. [deps: t18.3]
   1. **Stale native-image reachability metadata (18 refs × 2 files = 36).** Both `src/main/resources/META-INF/native-image/reachability-metadata.json` and `.../dev.logicojp/multi-agent-reviewer/reachability-metadata.json` still register `dev.logicojp.reviewer.cli.$…$Definition` entries. **That package no longer exists** — our own rebuild renamed `cli` → `presentation`. Re-rated MEDIUM because this is **fallout from this project's own work**, not inherited, and it is invisible to `mvn verify`: the entries only matter on the `-Pnative` path, where missing DI bean registrations surface as *runtime* failures in the produced binary rather than build errors. Native image is a documented deliverable (§9 completion condition), so this sits directly on our own acceptance criteria. Note `pom-native.xml` does **not** compile at HEAD (known, pre-existing) — t33 must say plainly whether it fixed that too or only the metadata, and must not report success on a build it never actually ran.
   2. **`RELEASE_NOTES_{en,ja}.md` instruct users to set a key that never worked.** `RELEASE_NOTES_en.md:1276` / `RELEASE_NOTES_ja.md:1227` say multi-pass is “Configurable via `reviewer.execution.review-passes`”. Per t28 that key only ever moved the **banner**; the executor always read `reviewer.execution.concurrency.review-passes`. So this was **wrong when written**, not merely stale — anyone following it changed a number on screen and nothing else. This is the **F5 pattern** (a canonical record that outlives its context becomes an instruction to regress) and is user-facing, so it needs an explicit correction rather than silent deletion of history.
-- ⏳ t33 [devops] Re-point native-image metadata + user-facing docs at the post-rebuild world
+- ⏳ t34 [tester] Close the second half of **SEC-L10**: `ALLOWED_MODEL_PREFIXES` has zero `src/test` references and is absent from the liveness enumeration — the same shape as SEC-H1, where a constant existed only as text. t18.3 closed the `ALLOWED_CHAR_RANGE` half behaviourally (7→9 constants enumerated) and deliberately did **not** widen scope to a different constant in a different class. Needs a behavioural test that measures what the prefix list admits and rejects, not merely a reference to it. [deps: t18.3]
 > `origin/main` advanced 36 commits past merge-base `fb2e795c` (Java 27->28, micronaut-parent 5.1.0,
 > copilot-sdk 1.0.8, prompt-budget/compaction + Good Points features, removal of the merger/similarity
 > cluster). Merge attempted -> **82 unmerged paths**. Conflicts are structural, not textual: main added

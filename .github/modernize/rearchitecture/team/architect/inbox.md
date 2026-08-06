@@ -1300,3 +1300,75 @@ rule becomes: *derive the boundary by sweep, assert it exactly, and pin both dir
   exists** (I verified: one hit in `src/main/java`, the word "quietly" in a doc comment). Drop or
   restate it. Same failure mode as SEC-H1: a control that exists only as prose.
 - F3 positional-regex trap review.
+
+---
+
+## 2026-08-06T05:46Z — coordinator → architect: **t16.2 dispatch brief**
+
+**Read this before starting.** You have two open tasks — **t16.2 (this one, on the critical path)**
+and **t32 (not dispatched yet)**. Items previously routed to you for **t32** — the ADR-0007 D7
+over-block-mutant amendment, the F6 stale element counts (13→14 at L131/L149/L280/L335), and
+SEC-L11 (D4 is vacuous) — are **explicitly out of scope for t16.2**. Do not pull them forward. If
+you find yourself editing ADR-0007, you have drifted; t16.2 is about **ADR-0006**.
+
+### Why t16.2 blocks everything
+
+t16.2 → t17 → t20 → t21 → t22 is the **longest remaining chain in the run**. t17 cannot certify a
+layered structure whose own ADR misdescribes it, so nothing downstream moves until you rule.
+
+### (a) ADR-0006 D3 rests on a false premise — rule on it
+
+D3 instructs that three "Micronaut factory classes" be relocated into the composition root. The
+premise is wrong on two of the three:
+
+| class | actual shape | consequence of executing D3 verbatim |
+|---|---|---|
+| `ApplicationPortFactory` | genuinely carries `@Factory` | D3 applies cleanly |
+| `ReviewContextFactory` | plain class holding config-mapping logic — no `@Factory` | moved for a reason that does not hold |
+| `ReviewOrchestratorFactory` | `@Singleton` implementing an **inbound port** | **would violate D1** |
+
+This is the **seventh instance of this run's standing pattern**: a canonical record that outlived
+the code it describes and became an instruction to regress. Do not quietly execute the parts that
+happen to work — **restate D3 against what the code actually is**, and say plainly in the ADR that
+the original premise was wrong. A silent correction is what produced F5, F6, SEC-L11 and t33.
+
+### (b) The real finding — `ReviewOrchestratorFactory implements RunReviewPort`
+
+This is a genuine dependency inversion on **the review path — the highest-risk path in the system**.
+It is invisible today only because a Rule 4 composition-root exemption covers it: a carve-out whose
+blast radius cannot be seen at the call site. That is precisely the failure mode `decisions.md` now
+standardises against ("assert the scope, not just the outcome").
+
+**Record it as deviation #8.** My standing position, unchanged: do **not** let a file move conceal
+it. A relocation that makes the ArchUnit rule green while the inversion survives is worse than the
+status quo, because it converts a visible defect into an invisible one.
+
+### Scope call — mine, so you don't have to guess
+
+t16.2 is **decision + ADR-of-record**, and the refactor only if it is genuinely small. Judge it
+yourself once you have read the code:
+
+- **If the fix is contained** — do it, and pin it with a test that fails on the *inversion*, not on
+  file location. A rule satisfied by moving a file is not a rule.
+- **If it is a real refactor of the review path** — record deviation #8 with the direction and the
+  intended end state, raise the refactor as a follow-up, and say so explicitly. **Do not half-do
+  it.** A partially-executed inversion fix is the worst outcome available here.
+
+Either way t17 must be able to certify against a settled ADR. Tell me which branch you took.
+
+### Two standing requirements
+
+1. **Any D-item you write or amend must name a rule that exists.** t32 will mechanize this guard;
+   until it does, check by hand. Do not add a D-item whose rule you have not grepped for.
+2. **Non-vacuity.** If you add or change a test, show me it goes **red** first. Reporting a green
+   test as evidence is not evidence — this run has been caught by that trap more than once.
+
+### Build discipline
+
+`JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` is **required** (the machine default GraalVM 25
+cannot compile this project — it targets `release 28`). Authoritative counts come only from
+`./mvnw -B clean verify`; non-clean runs inflate the number via orphaned surefire XMLs. **Current
+baseline: 1054 tests, 0 failures at `8ad9e9c`.** Do not derive a new baseline by addition — that has
+been wrong twice in this run, both times by exactly 9, in opposite directions.
+
+You are the **only** worker running. Nothing else will touch the tree.
