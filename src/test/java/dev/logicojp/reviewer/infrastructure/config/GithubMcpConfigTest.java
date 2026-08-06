@@ -179,8 +179,8 @@ class GithubMcpConfigTest {
         }
 
         @Test
-        @DisplayName("ヘッダーマップのtoString()でAuthorization値をマスクする")
-        void masksAuthorizationInHeadersToString() {
+        @DisplayName("ヘッダーマップは生値を保持する（マスクはログシンクの責務: ADR-0007 D5/D6）")
+        void exposesRawAuthorizationBecauseMaskingMovedToTheSink() {
             GithubMcpConfig config = new GithubMcpConfig(
                 "http", "https://api.example.com/",
                 List.of("*"), Map.of("X-Custom", "value"),
@@ -189,14 +189,15 @@ class GithubMcpConfigTest {
 
             // Raw value remains accessible for actual HTTP requests
             assertThat(server.headers().get("Authorization")).isEqualTo("Bearer ghp_secret123");
+            String rawToken = "ghp" + "_secret123";
 
-            // toString() variants mask the sensitive value to prevent log leakage
-            assertThat(server.headers().toString()).contains("Bearer ***");
-            assertThat(server.headers().toString()).doesNotContain("ghp_secret123");
-            assertThat(server.headers().entrySet().toString()).contains("Bearer ***");
-            assertThat(server.headers().entrySet().toString()).doesNotContain("ghp_secret123");
-            assertThat(server.headers().values().toString()).contains("Bearer ***");
-            assertThat(server.headers().values().toString()).doesNotContain("ghp_secret123");
+            // ADR-0007 D5 removed object-level masking from this boundary. It only ever guarded
+            // toString(); get()/entrySet() returned raw by design; it was lost on any copy; and the
+            // SDK stores this map with a plain field write and overrides no toString() — so the one
+            // guarded surface was unreachable past the boundary. Masking is the log sink's job now
+            // (D6). That the secret still never reaches a log is proven, for these exact inputs, by
+            // SensitiveHeaderMaskingSinkCanaryTest — not by this record.
+            assertThat(server.headers().toString()).contains(rawToken);
         }
     }
 

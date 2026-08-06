@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <!--
+        Sink-side secret masking (ADR-0007 D6). Kept byte-identical to logback.xml so the two
+        profiles cannot drift apart; SensitiveHeaderMaskingSinkCanaryTest asserts that equality.
+
+        MASK_PATTERN masks by value shape, HEADER_MASK_PATTERN by header name. Both must stay
+        *inside* the two JSON-escaping %replace layers below: escaping is a rendering concern and
+        must run last, on already-masked text.
+    -->
     <property name="MASK_PATTERN" value="(?i)(Bearer\s+|token\s+|ghp_|gho_|ghs_|ghu_|ghr_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9._\-]+"/>
+    <property name="HEADER_MASK_PATTERN" value="(?i)([\w-]*(?:authorization|api-?key|secret|password|credential|cookie|token)[\w-]*\s*[=:]\s*)[^,\s}\]&quot;]+"/>
 
     <!--
       Optional structured logging profile.
@@ -12,7 +21,7 @@
         <target>System.err</target>
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <layout class="ch.qos.logback.classic.PatternLayout">
-                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger":"%logger{36}","thread":"%thread","execution.id":"%X{execution.id}","event.category":"%X{event.category}","event.action":"%X{event.action}","message":"%replace(%replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'\\','\\\\'}){'\"','\\\"'}"}%n</pattern>
+                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger":"%logger{36}","thread":"%thread","execution.id":"%X{execution.id}","event.category":"%X{event.category}","event.action":"%X{event.action}","message":"%replace(%replace(%replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'${HEADER_MASK_PATTERN}','$1***'}){'\\','\\\\'}){'\"','\\\"'}"}%n</pattern>
             </layout>
         </encoder>
     </appender>
@@ -26,7 +35,7 @@
         </rollingPolicy>
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <layout class="ch.qos.logback.classic.PatternLayout">
-                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger":"%logger{36}","thread":"%thread","execution.id":"%X{execution.id}","event.category":"%X{event.category}","event.action":"%X{event.action}","message":"%replace(%replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'\\','\\\\'}){'\"','\\\"'}"}%n</pattern>
+                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger":"%logger{36}","thread":"%thread","execution.id":"%X{execution.id}","event.category":"%X{event.category}","event.action":"%X{event.action}","message":"%replace(%replace(%replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'${HEADER_MASK_PATTERN}','$1***'}){'\\','\\\\'}){'\"','\\\"'}"}%n</pattern>
             </layout>
         </encoder>
     </appender>

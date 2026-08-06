@@ -1,7 +1,5 @@
 package dev.logicojp.reviewer.application.port.outbound;
 
-import dev.logicojp.reviewer.shared.SensitiveHeaderMasking;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -11,10 +9,26 @@ import java.util.Objects;
 /// This is a pure domain DTO — the infrastructure adapter translates it to the
 /// SDK type ({@code McpHttpServerConfig}) when making actual Copilot calls.
 ///
+/// ## Headers are carried in the clear, deliberately (ADR-0007 D5)
+///
+/// This record used to wrap [#headers] in a map whose `toString()` masked auth values. That was
+/// removed because it could not do the job it appeared to do:
+///
+///   - it guarded `toString()` only — `get()`, `entrySet()` and any serializer saw the raw value;
+///   - it was object-identity bound, so a copy, a stream or a rebuild dropped it silently;
+///   - measured on `copilot-sdk-java`, `McpHttpServerConfig` stores the map without a defensive
+///     copy and overrides no `toString()`, so the wrapper protected nothing past that boundary;
+///   - it made a port declaration depend on a security helper in `shared`.
+///
+/// Masking is the responsibility of the **sink**: `logback.xml` / `logback-json.xml` mask on every
+/// appender, by value shape and by header name, whatever object produced the text. Do not
+/// re-introduce masking here — `LayerDependencyRulesTest` Rule 4b forbids the dependency and
+/// `SensitiveHeaderMaskingSinkCanaryTest` pins the behaviour on both sides.
+///
 /// @param name    logical server name (e.g. "github")
 /// @param url     HTTP endpoint URL for this server
-/// @param headers HTTP headers to send with every request. Auth values are masked in
-///                {@code toString()} automatically; {@code get()} still returns the raw value.
+/// @param headers HTTP headers to send with every request. Values are held **unmasked**;
+///                anything that renders them is responsible for going through the log sink.
 /// @param tools   list of tool names exposed by this MCP server (empty = all tools available)
 public record McpServerSpec(
     String name,
@@ -26,12 +40,7 @@ public record McpServerSpec(
     public McpServerSpec {
         Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(url, "url must not be null");
-        // T013: wrap rather than Map.copyOf(...). A plain defensive copy strips any masking
-        // wrapper the caller supplied, so toString() emitted the raw Authorization token into
-        // SDK debug logs. Masking is now an invariant of this DTO on every construction path:
-        // toString() shows "Bearer ***" while get("Authorization") still returns the real value.
-        // MaskedHeadersMap copies defensively itself, so immutability is preserved.
-        headers = headers != null ? SensitiveHeaderMasking.wrapHeaders(headers) : Map.of();
+        headers = headers != null ? Map.copyOf(headers) : Map.of();
         tools = tools != null ? List.copyOf(tools) : List.of();
     }
 

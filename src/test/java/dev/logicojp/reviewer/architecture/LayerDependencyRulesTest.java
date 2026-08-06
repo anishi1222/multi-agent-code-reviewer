@@ -83,8 +83,16 @@ class LayerDependencyRulesTest {
     private static final String PRESENTATION = BASE + ".presentation";
     private static final String SHARED = BASE + ".shared";
 
+    /// The whole port set — both directions. Rule 4b constrains this, not just the outbound half:
+    /// ADR-0007 D5 is about what a *port declaration* may depend on, and an inbound port carrying a
+    /// masking dependency would be the same defect.
+    private static final String APPLICATION_PORT = BASE + ".application.port";
+
     /// The configuration-defaults holder guarded by Rule 8 (ADR-0008).
     private static final String CONFIG_DEFAULTS = SHARED + ".ConfigDefaults";
+
+    /// The masking helper guarded by Rule 4b (ADR-0007 D5).
+    private static final String SENSITIVE_HEADER_MASKING = SHARED + ".SensitiveHeaderMasking";
 
     /// The five layers introduced by the rearchitecture. Everything else under [#BASE] is
     /// pre-migration code scheduled for deletion in t13.
@@ -234,6 +242,101 @@ class LayerDependencyRulesTest {
             classesIn(INFRASTRUCTURE),
             reachesApplicationOffPort,
             withGeneratedBeanDefinitions(compositionRoot, reachesApplicationOffPort));
+    }
+
+    @Test
+    @DisplayName("Rule 4b: no port declaration depends on shared.SensitiveHeaderMasking")
+    void portsDoNotDependOnSensitiveHeaderMasking() {
+        // ADR-0007 D5. A port is a *declaration of intent* — it says what the application needs from
+        // the outside world. Masking is a property of a **sink** (a log line, a diagnostic dump), not
+        // a property of the data. When a port type masks its own fields it makes three promises it
+        // cannot keep:
+        //
+        //   1. It only guards `toString()`. Any consumer that reads the map — `get()`, `entrySet()`,
+        //      a JSON serializer, a debugger — sees the raw value. Measured on this tree: the SDK's
+        //      `McpHttpServerConfig.setHeaders` stores the map by `putfield` with no defensive copy,
+        //      and neither `McpHttpServerConfig` nor `McpServerConfig` overrides `toString()`. The
+        //      wrapper therefore protected *nothing* once the value crossed into the SDK.
+        //   2. It is object-identity bound. Copy the map, stream it, rebuild it, and the guard is
+        //      gone silently — no compiler or test notices.
+        //   3. It makes the port's compile-time surface depend on a security helper, so the port can
+        //      no longer be read as a pure contract.
+        //
+        // The sink owns masking instead: `logback.xml` / `logback-json.xml` mask on every appender,
+        // by value shape (`MASK_PATTERN`) and by header name (`HEADER_MASK_PATTERN`), regardless of
+        // which object produced the text. `SensitiveHeaderMaskingSinkCanaryTest` is the control.
+        assertNoViolations("Rule 4b (application.port ⊥ shared.SensitiveHeaderMasking)",
+            classesIn(APPLICATION_PORT),
+            dep -> dep.equals(SENSITIVE_HEADER_MASKING)
+                || dep.startsWith(SENSITIVE_HEADER_MASKING + "$"),
+            Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 4b control: the rule has subjects and can see a masking reference")
+    void rule4bCanSeeAMaskingReference() throws IOException {
+        // Once `McpServerSpec` was fixed, Rule 4b sits at 0 violators *and* 0 exemptions — the same
+        // vacuity trap Rule 8 fell into. At that point its exact-match assertion observes nothing:
+        // it would pass identically if `SENSITIVE_HEADER_MASKING` were misspelled, if
+        // `APPLICATION_PORT` pointed at a package that does not exist, or if `referencedTypes` never
+        // reported the dependency at all. This control pins both halves.
+        //
+        // Half 1 — the rule has subjects. `classesIn` returns the empty set for a prefix that
+        // matches nothing, and `assertNoViolations` is perfectly happy inspecting zero classes.
+        // Rule 0 guards *parsing*, not this prefix.
+        Set<String> subjects = classesIn(APPLICATION_PORT);
+        assertFalse(subjects.isEmpty(), () -> """
+            Rule 4b inspected zero classes: nothing under `%s` was found in %s.
+
+            The rule is vacuous — it cannot fail. Either the package was renamed and the constant \
+            was not updated, or the ports moved. Fix the prefix; do not delete this control.
+            """.formatted(APPLICATION_PORT, CLASSES));
+
+        // Half 2 — a masking reference is actually detectable. The fixture calls a surviving
+        // `SensitiveHeaderMasking` method and nothing else from that class, reproducing the exact
+        // shape of the violation ADR-0007 D5 removed (`McpServerSpec` called `wrapHeaders`).
+        String fixture = "LayerDependencyRulesTest$MaskingReferenceProbe.class";
+        byte[] bytes;
+        try (InputStream in = LayerDependencyRulesTest.class.getResourceAsStream(fixture)) {
+            assertNotNull(in, "Rule 4b control fixture not found on the test classpath: " + fixture);
+            bytes = in.readAllBytes();
+        }
+
+        Set<String> references = referencedTypes(ClassFile.of().parse(bytes));
+
+        System.out.printf("[arch] %-48s %d subject(s), fixture references %s%n",
+            "Rule 4b control (masking reference is detectable)", subjects.size(),
+            references.contains(SENSITIVE_HEADER_MASKING)
+                ? SENSITIVE_HEADER_MASKING : "NOTHING — Rule 4b IS BLIND");
+
+        assertTrue(MaskingReferenceProbe.probe("Authorization"),
+            "Fixture must genuinely call the helper, not merely mention it.");
+        assertTrue(references.contains(SENSITIVE_HEADER_MASKING), () -> """
+            Rule 4b cannot detect a call to `%s`.
+
+            The fixture calls it and nothing else from that class, yet the type does not appear in \
+            its constant pool. Rule 4b is therefore vacuous: it would pass even with a live \
+            violator under `application.port`.
+
+            Fixture references: %s
+            """.formatted(SENSITIVE_HEADER_MASKING, references));
+    }
+
+    /// Fixture for [#rule4bCanSeeAMaskingReference]. Reproduces the shape of the ADR-0007 D5
+    /// violation: a class calling [dev.logicojp.reviewer.shared.SensitiveHeaderMasking] with no
+    /// other reference to it, so the only thing that can put `shared.SensitiveHeaderMasking` in
+    /// this class's constant pool is that call.
+    ///
+    /// It lives in the test tree, so it is never a Rule 4b subject: the analyzer walks
+    /// `target/classes` only.
+    static final class MaskingReferenceProbe {
+
+        private MaskingReferenceProbe() {
+        }
+
+        static boolean probe(String headerName) {
+            return dev.logicojp.reviewer.shared.SensitiveHeaderMasking.isSensitiveHeaderName(headerName);
+        }
     }
 
     @Test
