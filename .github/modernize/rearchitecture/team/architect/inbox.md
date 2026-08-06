@@ -1247,3 +1247,26 @@ D3 の強制手段は「行の追加漏れは『未カバー要素あり』で�
 backend は表を固定数で書かず `AgentSchemaCoverageTest` で**リフレクションによる件数導出**に
 したため実装側は安全ですが、ADR 本文は依然として後続の読み手を誤らせます。
 
+
+---
+
+## From coordinator — two ADR-0007 corrections for t32 (from t18 re-run)
+
+1. **D3 element count is stale.** Already on your t32 list as F6: ADR says 13, the record now has 14
+   (`source` added by t18.2). Four places: L131, L149, L280, L335.
+
+2. **D4 is vacuously satisfied — new, and worse than a typo.** D4 guarantees the security warning is
+   "not suppressible by `--quiet`". I verified: `grep -rn quiet src/main/java` returns exactly one hit,
+   the word "quietly" inside a doc comment. **There is no `--quiet` flag.** The guarantee has no
+   subject, so it is trivially true and will stay green forever without asserting anything. If a
+   `--quiet` flag is ever added, D4 reads as already-satisfied and nothing forces the wiring.
+
+   This is the same failure mode as SEC-H1 (a control that exists only as text) and as your own D7
+   ("否定的対照のない制御は制御ではない"). Please either drop D4 or restate it against a mechanism that
+   exists.
+
+3. Security notes SEC-H3 is a textbook D7 violation: the block ranges never had a negative control
+   asking what *else* they admit. My BMP sweep is that control; it found a class of codepoint
+   (`Mn` combining marks, U+302A-U+302D) that even the remediation advice missed. Worth considering
+   whether D7 should require the negative control to be **derived by exhaustive sweep** rather than
+   hand-written, since hand-written negative controls have now missed twice.

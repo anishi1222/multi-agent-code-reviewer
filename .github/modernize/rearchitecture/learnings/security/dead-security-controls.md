@@ -45,3 +45,12 @@ grep -rn "CustomInstructionSafetyValidator\." src/main/
 ## History
 
 - 2026-08-05 (multi-agent-code-reviewer/t18): initial — found via SEC-H1; generalises the t12.1 vacuous-ArchUnit and t13.1 deleted-MDC incidents into a repeatable detection technique.
+- 2026-08-06 (multi-agent-code-reviewer/t18 re-run): a control can be **live and still
+  unguarded**. `ALLOWED_CHAR_RANGE` and `ALLOWED_MODEL_PREFIXES` both have 2 `src/main`
+  refs (so they pass the `count == 1` dead-symbol test) but **0** `src/test` refs. The
+  project's `AgentPolicyConstantsAreLiveTest` asserts both `main > 0` **and** `tests > 0`,
+  which is the right shape — but neither constant is in its enumeration, and they cannot
+  simply be appended: the second assertion would go red. Closing that kind of gap means
+  writing a test that *names* the constant first. Note also that a purely behavioural pin
+  (here `bidiOverrideRejectedFromRepository`) does not satisfy a name-based liveness scan
+  and can be deleted without the scan noticing.

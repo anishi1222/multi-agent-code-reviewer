@@ -33,3 +33,41 @@ missed it entirely because nothing about that code *looks* dangerous.
   syntax is `${key}` and no Mustache engine is on the classpath.
 - Large sub-agent output spills to `/var/folders/.../T/*.txt`; read it with `view` + `view_range`.
   `cat` re-spills it into a *new* temp file and wastes a round-trip.
+
+## [t18 re-run] Verified F1 closed, found the same defect class alive in a different range of the same constant
+
+- **The re-run's value was not in re-reading F1's fix — it was in asking F1's *question*
+  of the other 14 ranges.** F1 narrowed `\u2000-\u206F` by hand and got it exactly right
+  (0 leaks of 21 target codepoints). But `\uFF00-\uFFEF` admits U+FFA0 HALFWIDTH HANGUL
+  FILLER, which is blank-rendering *and* invisible to the denylist. A hand-fix to one range
+  left the identical hole one block over.
+- **Copy the constant verbatim into the probe, never re-describe it.** I pasted the regex
+  byte-for-byte from source. Had I retyped it from the intent, I would have "fixed" the
+  range boundaries while transcribing and proved nothing about what ships.
+- **Exhaustive beats clever.** I first tried to reason about which blocks were risky and
+  had a nice hypothesis about Java's `$` and line terminators (see below). Sweeping all
+  65,536 BMP codepoints and classifying by Unicode category took one probe and found the
+  real thing immediately. For a finite input domain, enumerate it.
+- **Dead end worth recording: the `$`/line-terminator hypothesis was wrong.** `^[...]*$`
+  with `DOTALL` but not `MULTILINE` — Java's `$` matches before a *final* line terminator,
+  and U+2028/U+2029/U+0085 are Java line terminators excluded from the allowlist. Looked
+  like a clean trailing-position bypass. It is not: `Matcher.matches()` requires full-region
+  consumption, so `$` never gets to be lenient. Plausible mechanism, false conclusion —
+  settled in one probe. Do not re-derive it.
+- **`\p{Cf}\p{Cc}` is not "the invisible characters".** The nastiest blank-rendering
+  codepoints (U+115F, U+1160, U+3164, U+FFA0, U+2800) are category `Lo` — *letters*. Any
+  strip built on `Cf`/`Cc` misses them by construction. Worse, NFKC maps U+FFA0 → U+1160,
+  i.e. one invisible `Lo` filler to another, so normalisation does not help either.
+- **The green suite was load-bearing in the wrong direction.** `ALLOWED_CHAR_RANGE`'s only
+  pin asserts a single codepoint (`U+202E`). A one-codepoint test on a 33,478-codepoint
+  allowlist reads as coverage and is not. Check what a passing test actually ranges over.
+- **Sub-agent severities were inverted and unusable.** Its CRITICAL was a non-issue
+  (model-name prefixes) and its one real item was rated equal to three false ones. Verified
+  every candidate myself and downgraded 4 of 5. Delegate the *search*, never the *rating*.
+- **Do not overwrite an artifact that upstream cites by name.** `t18-security.md` is
+  referenced by `t18.1-architect.md` and ADR-0007; the re-run went to a new file.
+- Learnings consumed: [security/trust-boundary-severity-calibration,
+  security/dead-security-controls, security/cve-scan-non-vacuity-controls,
+  security/masked-map-accessor-matrix, architect/shared-worktree-invalidates-build-results,
+  architect/constant-variables-defeat-bytecode-liveness, backend/never-pipe-a-verification-build,
+  tester/concurrent-agents-shared-worktree-build-races]

@@ -93,7 +93,7 @@ progress_sync:
   completed_phases: 9
   total_modules: 11
   completed_modules: 0
-  total_tasks: 40
+  total_tasks: 41
   completed_tasks: 31
   total_commits: 608
   build_verified: true  # mvn CLEAN verify green, 1041 tests, as of t18.2. HEAD baseline was 990 (not 981).

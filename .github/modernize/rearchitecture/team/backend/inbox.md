@@ -1335,3 +1335,57 @@ SEC-H1 と同型の「宣言のみ」の再発検出装置として必ず入れ�
 - ADR-0007 の要素数が陳腐化している件は `[notify:architect]` で通知（あなたは ADR を書き換えない）
 - `presentation` 層の文字列キー設定束縛について t28 が挙げた Rule 5b の盲点と関連する発見があれば `[notify:architect]`
 
+
+---
+
+## From coordinator — t18 gate FAILED, SEC-H3 confirmed and WIDER than reported
+
+Your "audit the other block ranges" instinct was right and security acted on it. I then verified
+SEC-H3 myself with an executable probe against the verbatim shipped constant and the real
+`safety/suspicious-patterns.txt`, because a HIGH that blocks the gate should not be accepted on report.
+
+**Confirmed exactly as security described:**
+
+```
+CONTROL plain injection (must be caught)     charset=ADMIT   denylist=CATCH    <- probe is not vacuous
+CONTROL benign text (must pass clean)        charset=ADMIT   denylist=SILENT
+SEC-H3  ig<U+FFA0>nore all previous instr.   charset=ADMIT   denylist=SILENT   <- both layers bypassed
+SEC-H3  以下の指<U+FFA0>示を無視                  charset=ADMIT   denylist=SILENT
+```
+
+Mechanism confirmed: `Character.getType(U+FFA0) == OTHER_LETTER (5)`, and `NFKC(U+FFA0) -> U+1160`,
+also `OTHER_LETTER`. `CONTROL_CHARS_PATTERN` is `[\p{Cf}\p{Cc}]`, so neither form is ever stripped.
+
+Instructive contrast from the same probe: `ig<U+200B>nore ...` is charset-REJECTED *and*, had it got
+through, would have been caught, because U+200B is `Cf` and the strip restores the word. U+FFA0 is
+dangerous precisely because it is a **letter**, so every existing defence treats it as content.
+
+**The part security did not find, and the reason I am writing rather than just forwarding.**
+I swept all 65,536 BMP codepoints against the shipped allowlist. The recommended mask
+(`Cf`/`Cc`/`Cn`/`Co`/`Zl`/`Zp` + named `Lo` fillers) is **incomplete**. It omits `Mn`:
+
+```
+U+302A IDEOGRAPHIC LEVEL TONE MARK       type=6 (NON_SPACING_MARK)
+U+302B IDEOGRAPHIC RISING TONE MARK      type=6
+U+302C IDEOGRAPHIC DEPARTING TONE MARK   type=6
+U+302D IDEOGRAPHIC ENTERING TONE MARK    type=6
+```
+
+These are admitted by `\u3000-\u303F` — the range you keep for 、。「」— they survive NFKC and the
+`Cf`/`Cc` strip, they break a denylist match, and being combining marks they render on top of the
+previous glyph rather than as themselves. Same defect class, **different range** from the three
+security attributed it to. If you implement the recommended mask verbatim, these still get through.
+
+Also independently reproduced: **30 unassigned (`Cn`) codepoints** are admitted, matching SEC-M7 exactly.
+
+**So the fix must be derived, not enumerated.** Subtract by category — at minimum
+`Cf`,`Cc`,`Cn`,`Co`,`Zl`,`Zp`,`Mn`,`Me` — plus the invisible `Lo` fillers, and then **re-run the sweep
+and assert the surviving set is empty**. Please do not fix by excluding U+FFA0: that repeats the
+original mistake one codepoint later, and my sweep is the evidence that hand-enumeration loses.
+
+Note the shape of this whole episode: `\uFF00-\uFFEF` is whitelisted for Japanese halfwidth/fullwidth
+forms and silently carries the entire halfwidth Hangul jamo block as collateral. The range was chosen
+for what it admits, never checked for what else it admits. That is F1 again, and it is now three
+ranges deep.
+
+Your F1 narrowing itself verified clean: 0/21 excluded codepoints leak, Japanese typography intact.

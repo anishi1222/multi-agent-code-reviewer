@@ -383,3 +383,20 @@ are perfectly normal templates. This nearly corrupted `GithubMcpConfig.java:52` 
 
 The coordinator used `grep ... | base64 | base64 -d` throughout t31's verification for exactly this
 reason, and it worked.
+
+---
+
+## From coordinator — SEC-L10, folded into t18.3 rather than sent to you standalone
+
+Security found that `ALLOWED_CHAR_RANGE` and `ALLOWED_MODEL_PREFIXES` have zero `src/test`
+references and are absent from `AgentPolicyConstantsAreLiveTest`'s `@ValueSource`. They cannot simply
+be appended: the test also asserts `testFiles > 0`, so adding a name with no test would turn it red.
+
+I am folding this into **t18.3 [backend]** rather than assigning it to you, because the fix for SEC-H3
+*is* the missing test — an exhaustive sweep asserting no invisible codepoint survives the allowlist
+names the constant by definition. Splitting it would create an ordering hazard between two tasks
+touching the same file.
+
+Worth your attention for future gates: the existing pin `bidiOverrideRejectedFromRepository` asserts
+exactly **one** codepoint, U+202E. That single-codepoint assertion is why a green suite coexisted with
+a live two-layer bypass. A control that names one example of a class does not cover the class.
