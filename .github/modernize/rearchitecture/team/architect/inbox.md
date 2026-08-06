@@ -998,3 +998,68 @@ ADR-0006 D5 makes a ruleless ADR a defect by definition, and that test is the ex
 ADR-0006 — authoring the rule *is* architecture work, not source-code work. Future ADR-mechanizing
 tasks may edit that file without re-asking. Your Rule 7 handling (reserve, don't renumber) is
 exactly right and preserves the published "Rule 8" citations.
+
+---
+
+## [coordinator → architect] t31 — ADR-0007 D5 declares an enforcement that does not exist (HIGH)
+
+**Raised by**: t30 (architect), during ADR-0008 work. **Independently verified by coordinator in source before dispatch.**
+
+### The finding
+
+`docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md` **L240** (restated L247)
+mandates adding **Rule 4b** to `LayerDependencyRulesTest`: no class under `application.port` may
+reference `shared.SensitiveHeaderMasking`.
+
+Verified, not taken on report:
+
+- `grep -rn "Rule 4b" src/test/` → **0 matches.** It was never implemented.
+- `src/main/java/dev/logicojp/reviewer/application/port/outbound/McpServerSpec.java`
+  **L3** imports `SensitiveHeaderMasking`; **L34** calls `SensitiveHeaderMasking.wrapHeaders(headers)`.
+  Real import and real call — not a javadoc mention.
+
+So an **Accepted** ADR has been declaring an enforcement that does not exist, while the exact thing
+it forbids ships in the tree. This is the same defect shape as ADR-0006 D5 — *"a matrix row with no
+enforcement rule is itself a defect"* — which is how you found it.
+
+### Why this is its own task and not part of t30
+
+Rule 4b goes **red on arrival**. Bundling it into t30 would have made Rule 8's green
+unattributable — you could not have told which rule the suite was reporting on. Your call to split
+it out was right; this task is that split.
+
+### Scope
+
+1. Implement **Rule 4b** as ADR-0007 D5 specifies.
+2. Resolve the `McpServerSpec` violation. The rule going red is the *starting* state, not the
+   deliverable — a design decision is required about where masking belongs once the port may not
+   reach `shared.SensitiveHeaderMasking`.
+3. **Ship a control proving masking still occurs for the same inputs.** This is mandatory, not
+   optional polish. The fix relocates where masking happens; getting it wrong **silently unmasks
+   headers** and no existing test would notice. A rule that is green because the call moved, while
+   masking no longer actually happens, is worse than the defect.
+4. Update ADR-0007 so its D5 text and the implemented rule agree.
+
+### Reviewer of record
+
+**security owns the semantics.** They have been briefed and expect this. Route the masking-behaviour
+question to them via `[notify:security]` before you finalise the structural fix — not after.
+
+### Two traps that have already bitten this project
+
+- **Vacuity.** Your own Rule 8 arrived at 0 violators *and* 0 exemptions and would have passed with a
+  broken predicate. Rule 4b starts with a real violator, so watch it **fail first**, then fix, then
+  watch it pass. Do not accept a green you never saw red.
+- **Shared `target/`.** t27 and t30 ran concurrently and both got contaminated builds
+  (`NoSuchFileException`, phantom failures, totals *below* baseline). **You are dispatched alone for
+  this reason** — the 2-concurrent ceiling is disproven. If you still see a total below 969, suspect
+  the build before the code.
+
+### Tree state
+
+`origin/main` was merged as `dd10b3d` and pushed; branch is 0 behind. Baseline on the merged tree,
+verified by the coordinator: **969 tests, 0 failures, 0 errors, BUILD SUCCESS.** Any total below 969
+is a contaminated run, not a regression you caused.
+
+`JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` is **required** — the machine default is GraalVM 25
+and cannot compile this project.
