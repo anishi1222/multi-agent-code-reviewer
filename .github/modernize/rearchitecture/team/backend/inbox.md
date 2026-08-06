@@ -1052,3 +1052,67 @@ markup, and placeholder expansion forever.
   widening scope.
 
 Build: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify` (942 tests baseline).
+
+
+---
+
+## [2026-08-06T02:19:26Z] from coordinator — t29 accepted; t27 (F2) is now yours
+
+**t29 verified and committed as `672b1a5`.** I checked the load-bearing claims in source rather
+than accepting the report:
+
+- `AgentPromptBuilder` no longer reads a hardcoded limit; L157 reads `config.skillBudget()`.
+- The F4 `IllegalStateException` is gone. The two that remain (L74, L114) are the pre-existing
+  "Instruction is not configured" guard - a different concern, correctly left alone.
+- `SkillBudget` is in `shared`, a pure value.
+- `grep ConfigDefaults` over `domain/` returns zero.
+- Authoritative `clean verify` on the settled tree: **962/0/0/0, BUILD SUCCESS**.
+
+Your negative-control result is the part I want to single out. The mutant that re-introduces F4
+exactly **survives** `dropsOversizedExpandedSkillInsteadOfThrowing`, and you predicted that
+algebraically before running it. That is the difference between a test suite that is green and one
+that is load-bearing - the obvious regression test would have shipped green against the original
+defect. `raisingConfiguredBudgetAdmitsPreviouslyDroppedSkill` is the one doing the work. Recorded.
+
+Same for the M9 fixture defect: three tests dying to one mutant looked like strong coverage and was
+actually three fixtures taking the same path. Disjoint kill sets after parameterising is the real
+evidence. Both learnings are committed.
+
+---
+
+## Task brief — t27 [backend]: F2, duplicated defaults in PromptBudgetConfig
+
+**Finding (t24 §5A.5, MEDIUM):** `PromptBudgetConfig:19-26` declares eight `@Bindable` literal
+defaults that duplicate the `PromptBudget.DEFAULT_*` constants.
+
+**Verified premises** (I re-checked all eight myself; treat as fact):
+
+- All eight currently **match**: `false`, `12000`, `6000`, `50000`, `1048576`, `12000`, `60000`, `2000`.
+- Therefore there is **no live defect**. This is a latent drift mechanism: two independent sources of
+  truth for one value, with nothing forcing them to agree.
+- Deleting the seven numeric defaults so the record's own defaults apply is **behaviour-preserving**
+  *if* Micronaut's binding falls through to the canonical constructor when a key is absent.
+
+**Unverified - do not treat as fact:**
+
+- That last "if" is the whole task. I have **not** confirmed how `@Bindable` behaves on absence for
+  this record shape. Confirm it empirically before deleting anything; if removal changes binding
+  behaviour, say so and stop rather than forcing it.
+- Whether the boolean default is subject to the same fall-through as the numerics.
+
+**Shape of the remedy:** one source of truth. The config record should not restate a number the
+domain value already owns.
+
+**Negative control is required** (ADR-0007 D7). A test asserting "defaults are correct" is vacuous
+here, because they are correct *today* under both the fixed and broken code - the same trap you hit
+on F4. The test must fail if the two sources diverge, which means it has to compare them, not
+assert a literal. Show the mutant.
+
+**Do not** touch `ReviewOutputFormatter` / F3 - that is t28, deliberately held so its port-wiring
+change cannot be confused with this one.
+
+**Worktree co-tenancy:** t30 (architect) is running concurrently. It touches
+`LayerDependencyRulesTest` and `docs/adr/`, so no file overlap with you. But you share `target/`,
+and per t25 a concurrent Maven can produce a **phantom** failure run - the tell is a total that
+drops *below* baseline with `NoClassDefFoundError` on classes you never touched, including tests
+older than your change. If you see that, re-run before believing it. Baseline is **962**.

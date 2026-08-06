@@ -898,3 +898,61 @@ option). An ADR that only lists benefits will not be trusted.
 `PromptBudget` must remain unaffected — it is a `shared` value **instance** injected inward, not a static
 limit read. If your rule flags it, the rule is wrong, not `PromptBudget`. Verify the rule is green at
 exactly 0 violators after t29, and demonstrate it goes red if F4's original form is reintroduced.
+
+
+---
+
+## [2026-08-06T02:19:26Z] from coordinator — t30 UNBLOCKED + a numbering hazard to settle first
+
+**t29 landed (`672b1a5`).** Rule 8's precondition is now verified by me directly, not by report:
+
+```
+grep -rn "ConfigDefaults" src/main/java/dev/logicojp/reviewer/domain/   -> 0 matches
+```
+
+F4 was Rule 8's only violator, so the rule should pass on its first run. If it fails, something
+landed after `672b1a5` and that is itself the finding.
+
+Authoritative build on the settled worktree: **962 tests, 0 failures, BUILD SUCCESS, exit 0.**
+
+### Hazard: adding "Rule 8" leaves a visible gap at Rule 7
+
+I checked the actual numbering before you start, because ADR-0006 L143 sets an explicit
+convention and it is easy to violate by accident.
+
+Current reality:
+
+| Where | Rules present |
+|---|---|
+| `LayerDependencyRulesTest.java` | 10 `@Test` methods; named **Rule 0-6** (incl. `5b`, `6a`/`6b`) |
+| ADR-0006 L131-138 | Rule 1, 2, 3, 4, 5, **5b**, 6a/6b, "Rule 6 scope" |
+| `t24-architect.md:229` | **"Rule 7 (proposed)"** - a *different* rule (group `dependencies.keySet()` by simple name) |
+
+So **Rule 7 is already reserved by your own other proposal** and is not yet implemented. If t30
+ships Rule 8 as prescribed, the test file reads Rules 0-6, then 8. A future reader sees a gap and
+must guess whether Rule 7 was deleted, failed, or never existed.
+
+That is precisely the F5 failure mode we just fixed in `clarification.md`: **a record that
+outlives its generation context becomes an instruction to regress.** A numbering gap with no
+explanation is an invitation for someone to "tidy" it by renumbering, which would break every
+inbound reference to Rule 8 in ADR-0008, `decisions.md`, and this inbox.
+
+### My recommendation (yours to overrule - you own ADR-0006)
+
+**Keep the name Rule 8** and add a one-line reservation marker for Rule 7 next to it.
+
+Renumbering to Rule 7 would be tidier in isolation, but the identifier "Rule 8" is already
+committed to in `t24-architect.md` §5A.4, in `decisions.md`, and in the backend/tester inboxes.
+Desynchronising those to gain one integer is a bad trade - traceability beats tidiness.
+
+Note that ADR-0006 L143's suffix convention (`5b`) governs **insertions** into the middle of the
+sequence, to protect the `6a`/`6b` pair. Appending at the end is not an insertion, so `8` does not
+violate it. Please confirm that reading rather than assume mine is right.
+
+### Scope reminder
+
+t30 is ADR-0008 + Rule 8 only. Do **not** implement the proposed Rule 7 here - it is a separate
+finding with its own blast radius, and bundling it would make a green Rule 8 unattributable.
+
+ADR-0006 L124 governs the shape: *"a matrix row with no enforcement rule is itself a defect."*
+The ADR and the rule ship together or neither ships.
