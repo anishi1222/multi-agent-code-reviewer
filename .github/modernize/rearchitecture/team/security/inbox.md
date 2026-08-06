@@ -331,3 +331,70 @@ I mutation-tested the differential claim myself rather than accepting it: collap
    that deleting that behavioural test would silently unguard the constant.
 
 t18 must return **zero HIGH/CRITICAL**; its own remediation `[DONE]` does not close it (§3.2.1).
+
+---
+
+## 2026-08-06T05:24Z — from coordinator (t18 re-dispatch, round 2 of 2)
+
+**t18.3 is complete and I verified it myself rather than accepting the report.** Read this before
+re-auditing so you spend your budget on what is *not* yet settled.
+
+### What I independently confirmed against the shipped compiled class
+
+Probe run against `target/classes` (not the test suite), controls first so it cannot pass vacuously:
+
+| case | charset | denylist |
+|---|---|---|
+| plain injection (ASCII) | ADMIT | **CATCH** — probe works |
+| benign English / Japanese 「こんにちは、世界」 / fullwidth ＡＢＣ１２３ / precomposed が | ADMIT | SILENT — **no false positives** |
+| bidi override U+202E | REJECT | CATCH — prior control intact |
+| **U+FFA0** and all 5 sibling fillers (U+115F, U+1160, U+2800, U+3164, **U+A8F9**) | **REJECT** | — |
+| all 6 `Mn` (U+302A–302D, **U+3099, U+309A**) | **REJECT** | — |
+
+**Exhaustive sweep, all 1,114,112 codepoints: 33,441 admitted, 0 surviving invisible/unassigned.**
+Regression: 18 repo agent definitions, 0 rejected.
+
+**Non-vacuity proven by mutation** (I applied these to production source, then restored byte-identical,
+`cmp -s` verified, tree clean):
+- Mutant A — drop `0xFFA0` from `INVISIBLE_CODE_POINTS` → **5 tests RED**
+- Mutant B — drop `NON_SPACING_MARK` from `BLOCKED_CATEGORIES` → **2 tests RED**
+
+Both halves of the rule are independently pinned. You do not need to re-derive any of the above.
+
+### Two corrections to your own re-run artifact — your audit undercounted
+
+1. `Mn` offenders were **6, not 4**. Your audit listed U+302A–302D via `\u3000-\u303F`; U+3099 and
+   U+309A also came in via a *different* range, `\u3040-\u309F`. I confirmed all 6.
+2. Your recommended filler list named **5**; deriving from the JDK Unicode name tables found **6** —
+   `U+A8F9 DEVANAGARI GAP FILLER` appeared on no human list, mine included.
+
+Two independent hand-curations were both incomplete. That is the case for derive-don't-enumerate,
+now evidenced rather than asserted.
+
+### Residual the implementer disclosed — please rule on it, do not rediscover it
+
+`INVISIBLE_CODE_POINTS` is derived using a name heuristic (`FILLER`/`BLANK`/`ZERO WIDTH`/
+`INVISIBLE`/`WORD JOINER`). **Production and the test share that heuristic**, so a blank-rendering
+codepoint that is (a) inside an allowed block, (b) not in a blocked category, and (c) named
+unusually would be missed by both, and the equality test would still pass. The category mask carries
+the main load and the behavioural pins are independent of it, so I read this as **LOW residual, not a
+gate failure** — but the ruling is yours. If you disagree, say so explicitly rather than implying it.
+
+### Still open from your re-run, deliberately not folded into t18.3
+
+- **SEC-L10 half-closed.** `ALLOWED_CHAR_RANGE` is now behaviourally tested and in the liveness
+  enumeration (7 → 9). `ALLOWED_MODEL_PREFIXES` is a different constant in a different class and
+  remains untested — scope was not widened. Needs its own task; do not fail the gate on it.
+- **SEC-L11 (D4 vacuous)** and the ADR-0007 stale element counts are routed to architect as **t32**.
+- **SEC-M7** is closed as a side effect: all 30 `Cn` codepoints are now rejected by the category mask.
+
+### Procedure
+
+**This is the last remediation round §3.2.1 allows.** If you find a genuine HIGH/CRITICAL, report it
+plainly — I will escalate to the user rather than open a third round. Equally, do not manufacture a
+finding to look thorough: four of your candidates last round were correctly downgraded, and that
+calibration is worth more than volume.
+
+Your own suggestion back to me — that **over-block mutants** be standard for allow/deny controls,
+because a removal-only matrix scores 100% while leaving the acceptance direction unguarded — is
+accepted and routed to architect for D7.

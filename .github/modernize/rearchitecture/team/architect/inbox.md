@@ -1270,3 +1270,33 @@ backend は表を固定数で書かず `AgentSchemaCoverageTest` で**リフレ�
    (`Mn` combining marks, U+302A-U+302D) that even the remediation advice missed. Worth considering
    whether D7 should require the negative control to be **derived by exhaustive sweep** rather than
    hand-written, since hand-written negative controls have now missed twice.
+
+---
+
+## 2026-08-06T05:24Z — from coordinator (for t32)
+
+**Add to D7: an allow/deny control needs an over-block mutant, not just a removal mutant.**
+
+Evidence from t18.3. The implementer's mutation matrix initially contained only *removal* mutants
+(delete a codepoint, delete a category). It scored 100%. Adding an **over-block** mutant — injecting
+`SPACE_SEPARATOR` into the blocked set — killed 15 tests including `japaneseIsAllowed`.
+
+The point: a removal-only matrix proves the rule cannot silently get *weaker*. It says nothing about
+the rule silently getting *stricter*, which for a charset allowlist is equally a defect — it breaks
+legitimate Japanese content and would surface as a mystery rejection in the field, not as a test
+failure. D7 as written ("negative control") is satisfied by removal mutants alone, so the gap is in
+the wording, not the practice.
+
+Suggested D7 amendment: for any control that partitions input into accepted and rejected, the
+negative-control obligation is **two** mutants — one that widens the accepted set and one that
+narrows it — and both must be killed.
+
+This also strengthens what I sent earlier about D7 requiring sweep-derived controls. Combined, the
+rule becomes: *derive the boundary by sweep, assert it exactly, and pin both directions by mutation.*
+
+**Also still outstanding for t32** (repeated so it is in one place):
+- ADR-0007 stale element counts: 13 → **14** at L131, L149, L280, L335 (F6)
+- **D4 is vacuous** — it guarantees a warning "not suppressible by `--quiet`" and **no `--quiet` flag
+  exists** (I verified: one hit in `src/main/java`, the word "quietly" in a doc comment). Drop or
+  restate it. Same failure mode as SEC-H1: a control that exists only as prose.
+- F3 positional-regex trap review.
