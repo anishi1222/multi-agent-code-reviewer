@@ -44,5 +44,32 @@ Same principle as the architecture-rule negative control in
 `backend/architecture-rule-negative-control` — a rule that has never been observed to fail is
 indistinguishable from a rule that cannot fail.
 
+## Corollary: test the *wiring*, not just the logic (t25)
+
+A green unit test for a helper proves the helper works. It proves **nothing** about whether any
+caller invokes it. `PromptContentCompactorTest` had 6 passing tests while
+`RubberDuckPromptBuilder`'s call into the compactor was entirely uncovered — a merge could have
+deleted the call and the suite would have stayed green.
+
+Apply the same matched-pair shape one level up, at the caller:
+
+```java
+// control: flag off  -> full content survives
+assertThat(peerPrompt(budget(false, 12))).isEqualTo("PEER:" + FULL);
+// under test: flag on -> compacted
+assertThat(peerPrompt(budget(true,  12))).isEqualTo("PEER:" + TAIL);
+```
+
+Two refinements that made this sharper:
+
+- **Assert the exact expected string, not "it got shorter".** `"PEER:" + TAIL` vs `"PEER:" + HEAD`
+  distinguishes `compactKeepingTail()` from `compact()`. "Shorter" would accept either, so a
+  caller swapping one for the other would go unnoticed.
+- **Add a second pair on the configuration dimension.** Holding the flag `true` and varying only
+  the budget (small vs default) proves the value is *read from config*, not hardcoded. One pair
+  guards the branch; the other guards its provenance.
+
 ## History
 - 2026-08-05 (multi-agent-code-reviewer/t14): initial
+- 2026-08-06 (multi-agent-code-reviewer/t25): added the caller-side/wiring corollary — helper tests
+  don't cover the call site; assert exact strings and add a config-provenance pair.

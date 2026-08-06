@@ -61,3 +61,52 @@
   against the total. This is the guard against the ArchUnit false-green class of bug.
 
 **Learnings consumed:** devops/dual-jdk-build-activation, backend/duplicate-utility-consolidation-semantic-drift, backend/architecture-rule-negative-control, backend/archunit-java27-bytecode-ceiling, backend/correlation-logging-port
+
+## [t25] Restored 2 merge-dropped assertions as mutant-proven negative controls (+5 tests, 942→962)
+
+**Discoveries**
+
+- `PromptContentCompactor.compactKeepingTail(s, max)` emits **no** omission marker when
+  `max <= ~43`, because the marker string itself (`"\n\n... (N chars omitted for token budget)\n\n"`)
+  is ~43 chars, so `available = max - marker.length()` goes non-positive and it returns a bare tail
+  slice. Any test picking a small budget must assert the bare slice, not a marker. Budget must
+  exceed ~43 + head + tail before the marker appears at all.
+- `ReviewFindingParser.extractFindingBlocks` uses only `matcher.group(2)`; `group(1)` (the finding
+  number) is captured but never read. That means a regex mutant making the number optional does
+  **not** blow up on `parseInt` — it silently mis-counts. Worth knowing before designing mutants.
+- `extractFindingBlocks` discards blocks whose body is empty. A fixture section with a header but no
+  body is invisible even to a loosened regex — so an "extra section" negative control needs a body
+  line or the control is weaker than it looks. Caught this only because M3's first design would have
+  produced 3件 instead of the intended 4件.
+
+**Wrong assumptions, corrected**
+
+- I assumed a clean worktree for the whole task because it was clean at start. It was not: a
+  concurrent agent wrote production source throughout. **Re-check `git status` immediately before
+  any mutate/restore step**, not just at preflight — I nearly ran `git checkout --` on a file in a
+  tree holding someone else's uncommitted work.
+- I read `Tests run: 8` against the nested class display name and briefly thought I'd added 8 tests.
+  Surefire attributes the outer class's tests to the `@Nested` display name and reports the outer as
+  `0`. Trust the **aggregate** line and the per-class before/after arithmetic, not the per-display-name rows.
+
+**Dead ends**
+
+- A `perl -0pi -e 's/.../.../'` mutation of the `FINDING_HEADER` literal silently no-op'd because of
+  the double-backslash escaping in the Java string. It reported success and the tests "passed",
+  which would have been a **false mutant-survived** conclusion. Only the empty `git diff` I printed
+  right after applying caught it. Switched to `python3` + literal `str.replace()` with an
+  `assert s2 != s`. **Always assert the mutation actually landed before trusting the run.**
+
+**Techniques worth reusing**
+
+- Mutation testing under a no-touching-production charter: `cp -p` backup → mutate → run → restore
+  from backup → verify with `shasum -c` **and** `git diff --quiet`. Never `git checkout --`, which
+  is unsafe when another agent holds uncommitted work in the same worktree.
+- Design mutants so their *kill sets differ*: M1 (drop the call) killed only the enabled arms; M2
+  (invert the guard) additionally killed the control arm. The differing kill sets are what proves
+  the control is a real control rather than a test that passes for free.
+- 184 `NoClassDefFoundError`s for classes whose `.java` and `.class` both exist on disk = concurrent
+  Maven on a shared `target/`, not a regression. Check `ps` for a competing build before believing
+  a catastrophic result.
+
+**Learnings consumed:** tester/test-conventions, tester/never-pipe-a-verification-build, tester/negative-control-inside-the-test, backend/merging-upstream-into-restructured-tree, backend/surefire-declared-vs-actual-test-counts, backend/one-knob-many-budgets-erases-provenance
