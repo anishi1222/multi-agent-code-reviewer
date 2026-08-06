@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.domain.agent;
 
 import dev.logicojp.reviewer.domain.review.ReviewContext;
 import dev.logicojp.reviewer.shared.PlaceholderUtils;
+import dev.logicojp.reviewer.shared.PromptContentCompactor;
 
 import java.util.Map;
 import java.util.Objects;
@@ -26,10 +27,14 @@ public final class RubberDuckPromptBuilder {
 
     private final AgentConfig config;
     private final ReviewContext ctx;
+    private final boolean compactPrompts;
+    private final int peerContentMaxChars;
 
     public RubberDuckPromptBuilder(AgentConfig config, ReviewContext ctx) {
         this.config = Objects.requireNonNull(config, "config must not be null");
         this.ctx = Objects.requireNonNull(ctx, "ctx must not be null");
+        this.compactPrompts = ctx.promptBudget().compactPrompts();
+        this.peerContentMaxChars = ctx.promptBudget().peerContentMaxChars();
     }
 
     /// Builds the initial dialogue prompt.
@@ -79,9 +84,17 @@ public final class RubberDuckPromptBuilder {
     }
 
     private String replacePeerContent(String template, String peerContent) {
-        if (template == null || template.isBlank()) return safeContent(peerContent);
+        if (template == null || template.isBlank()) return peerContentForPrompt(peerContent);
         return PlaceholderUtils.replaceDollarPlaceholders(
-            template, Map.of("peerReviewContent", safeContent(peerContent)));
+            template, Map.of("peerReviewContent", peerContentForPrompt(peerContent)));
+    }
+
+    private String peerContentForPrompt(String peerContent) {
+        String safeContent = safeContent(peerContent);
+        if (!compactPrompts) {
+            return safeContent;
+        }
+        return PromptContentCompactor.compactKeepingTail(safeContent, peerContentMaxChars);
     }
 
     private String buildSystemPrompt(String roleDescription) {

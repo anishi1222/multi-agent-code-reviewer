@@ -13,7 +13,7 @@ import java.util.List;
 public final class ReviewOverallSummaryAppender {
 
     private static final String NO_FINDINGS_TEXT = "重大な指摘事項は確認されませんでした。";
-    private static final String SUMMARY_PREFIX = "マージ後のレビュー結果として、";
+    private static final String SUMMARY_PREFIX = "レビュー結果として、";
     private static final String COUNT_SUFFIX = "件の指摘事項を確認しました。";
     private static final String BREAKDOWN_PREFIX = " 優先度内訳: ";
     private static final String TOP_PREFIX = " 主な指摘: ";
@@ -48,13 +48,13 @@ public final class ReviewOverallSummaryAppender {
     private ReviewOverallSummaryAppender() {
     }
 
-    public static List<ReviewResult> appendToMergedResults(List<ReviewResult> mergedResults) {
-        if (mergedResults == null || mergedResults.isEmpty()) {
+    public static List<ReviewResult> appendToResults(List<ReviewResult> results) {
+        if (results == null || results.isEmpty()) {
             return List.of();
         }
 
-        List<ReviewResult> finalized = new ArrayList<>(mergedResults.size());
-        for (ReviewResult result : mergedResults) {
+        List<ReviewResult> finalized = new ArrayList<>(results.size());
+        for (ReviewResult result : results) {
             finalized.add(appendOverallSummary(result));
         }
         return List.copyOf(finalized);
@@ -66,11 +66,10 @@ public final class ReviewOverallSummaryAppender {
         }
 
         String contentWithoutOverall = ReviewFindingParser.stripOverallSummary(result.content());
-        String summary = buildOverallSummary(contentWithoutOverall);
         String finalized = contentWithoutOverall
             + "\n\n---\n\n"
             + "**総評**\n\n"
-            + summary;
+            + buildOverallSummary(contentWithoutOverall);
 
         return ReviewResult.builder()
             .agentConfig(result.agentConfig())
@@ -82,8 +81,9 @@ public final class ReviewOverallSummaryAppender {
             .build();
     }
 
-    static String buildOverallSummary(String mergedContent) {
-        List<ReviewFindingParser.FindingBlock> findings = ReviewFindingParser.extractFindingBlocks(mergedContent);
+    static String buildOverallSummary(String reviewContent) {
+        List<ReviewFindingParser.FindingBlock> findings =
+            ReviewFindingParser.extractFindingBlocks(reviewContent);
         if (findings.isEmpty()) {
             return NO_FINDINGS_TEXT;
         }
@@ -103,9 +103,9 @@ public final class ReviewOverallSummaryAppender {
             }
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(SUMMARY_PREFIX).append(findings.size()).append(COUNT_SUFFIX);
-        sb.append(BREAKDOWN_PREFIX)
+        StringBuilder summary = new StringBuilder();
+        summary.append(SUMMARY_PREFIX).append(findings.size()).append(COUNT_SUFFIX);
+        summary.append(BREAKDOWN_PREFIX)
             .append(Priority.CRITICAL.label).append(" ").append(counts.get(Priority.CRITICAL)).append("件, ")
             .append(Priority.HIGH.label).append(" ").append(counts.get(Priority.HIGH)).append("件, ")
             .append(Priority.MEDIUM.label).append(" ").append(counts.get(Priority.MEDIUM)).append("件, ")
@@ -113,14 +113,14 @@ public final class ReviewOverallSummaryAppender {
 
         int unknown = counts.get(Priority.UNKNOWN);
         if (unknown > 0) {
-            sb.append(", ").append(Priority.UNKNOWN.label).append(" ").append(unknown).append("件");
+            summary.append(", ").append(Priority.UNKNOWN.label).append(" ").append(unknown).append("件");
         }
-        sb.append("。");
+        summary.append("。");
 
         if (!topTitles.isEmpty()) {
-            sb.append(TOP_PREFIX).append(String.join("、", topTitles)).append("。");
+            summary.append(TOP_PREFIX).append(String.join("、", topTitles)).append("。");
         }
 
-        return sb.toString();
+        return summary.toString();
     }
 }

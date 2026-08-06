@@ -236,3 +236,39 @@
   `tests` attribute = declared. Three parameterized classes here differ by 9 total, which is the
   whole "928 vs 937" mystery from earlier tasks. Use the console figure.
 - Learnings consumed: [architect/port-direction-by-implementer, backend/architecture-rule-negative-control, backend/self-cleaning-architecture-exclusions, architect/matrix-row-requires-enforcement-rule]
+
+## [t23] Merged origin/main (36 commits) into the layered tree — 82 conflicts → 0, 939 tests green
+
+- **The shape of the problem**: ours deleted the flat tree and rewrote it as layers; main kept the flat tree and
+  added features to it. Nearly every conflict was therefore a *category error* rather than a line disagreement.
+  The rule that made it tractable: **structure from ours, behaviour from main**. Without a stated rule up front
+  I would have made inconsistent per-file calls.
+- **`DU` is the dangerous category, not `UU`.** "Deleted by us, modified by them" resolves *cleanly* by keeping the
+  deletion — and silently discards whatever main changed. There is no conflict marker to catch it. I diffstat-audited
+  all 45 and found **3 features I had not catalogued from commit messages** (`--no-rubber-duck` resolver support,
+  dynamic code fence, `ReviewFinding.summary`/`location`). Trusting the commit log would have lost all three.
+- **Auto-merged files need auditing too — this surprised me most.** Git auto-merged `ReviewResultPipelineTest`
+  (no conflict, nothing flagged) and dropped a test covering a capability we deliberately retained. Found *only* by
+  diffing per-file test-annotation counts vs HEAD. **An auto-merge is not evidence of a safe merge.**
+- **Auto-merge also broke layering twice** by inserting `infrastructure` imports into `domain`. Both compiled fine
+  and would only have failed the architecture gate. Generalisable: when main adds a framework-bound config type that
+  domain consumes, git will happily wire it across a layer boundary. Grep domain after every auto-merge.
+- **Wrong assumption, corrected**: I initially treated "it compiles + arch test passes" as sufficient. It is not —
+  templates load by *path* at runtime, so a dropped template edit throws no compile error and no test failure.
+  `git diff MERGE_HEAD -- templates/ agents/ src/main/resources/` being empty is the only real proof.
+- **Dead end: line-based conflict resolvers.** My all-ours script (drop everything between `=======` and `>>>>>>>`)
+  produced syntactically broken Java in 3 files where main had hoisted a `@Test` out of a `@Nested` class — braces
+  didn't balance, surfacing as a cascade of `';' expected`. **`git show :2:<path> > <path>` is the correct primitive**
+  for whole-file "take ours". Line-based only works when both sides share block structure.
+- **Dead end: BSD `sed`.** `\b` is unsupported and *silently* no-ops, so a rename looks successful and breaks later.
+  A greedy capture also matched across a chained `.getFirst()` → `...(List.of(merged)).getFirst(, 1);`.
+  Always `grep`-audit after a `sed` rename.
+- **Worktree gotcha**: `cat .git/MERGE_HEAD` returns nothing in a worktree because `.git` is a *file*. I briefly
+  thought the merge state was lost. Use `git rev-parse -q --verify MERGE_HEAD`.
+- **Technique worth reusing**: reconcile test counts by diffing per-file `@Test` annotation counts between HEAD and
+  the working tree. The annotation delta (−7) matched the executed delta exactly, which both validated the arithmetic
+  and pinpointed the one file that had silently lost a test.
+- **Judgement call**: declined to escalate for a task split. A merge index is shared mutable state; partitioning it
+  across agents would destroy rename detection and produce inconsistent per-file calls.
+- Learnings consumed: [backend/duplicate-utility-consolidation-semantic-drift, backend/layer-dependency-test-is-an-allowlist,
+  backend/maven-test-count-reconciliation, backend/jdk-pinning-for-preview-features]

@@ -100,3 +100,40 @@
   architect/purity-displaced-capabilities-become-ports, architect/reverify-docs-before-publishing,
   architect/port-direction-by-implementer, security/trust-boundary-severity-calibration,
   security/masked-map-accessor-matrix, security/dead-security-controls]
+
+## [t24] マージ後アーキテクチャ適合再検査 — PASS（0 CRITICAL / 1 HIGH / 2 MEDIUM）
+
+- **判定項目は「前提」から検証する。** 3-A は「YAML 面もテストもない多重パス機能」という前提付きで
+  提示されたが、両方とも誤り。`sharedSessionEnabled` は CLI フラグ `--no-shared-session`
+  （`ReviewOptionsParser:211` / `CliUsage:48`）と **inbound port DTO のフィールド**を持ち、
+  `reviewPasses` は `@Bindable` キー `reviewer.execution.concurrency.review-passes` と
+  `> 1` を実行するテスト 3 件を持つ。設問どおり答えていれば公開 CLI フラグと port フィールドを
+  削除していた。ADR-0006 D3 に続く 2 例目。→ learnings 化。
+- **「出荷 YAML にない」≠「設定面がない」。** Micronaut は `@Bindable` キーを利用者 YAML・環境変数・
+  システムプロパティから束縛する。設定面の有無は注釈側で確認する。
+- **Rule 0 の `331/331` は「網羅」を証明しない。** `analyseBytecode()` は `target/classes` を 1 回
+  walk して `classFilesOnDisk` と `dependencies` の**両辺**を作る。自己整合チェックであって、
+  ソースがコンパイルされたかは言えない。ソース→クラスの対応を独立に検査して初めて意味を持つ
+  （175/175、マージ由来 28/28）。層別 328 + ルート 3（`ReviewApp`, `$ReviewApp$Definition`,
+  `ReviewApp$GlobalOptions`）= 331 で完全に一致。
+- **同一 ADR 条項でも遵守の質に差が出る。** D6 に対し `SkillConfig:22` はコンパイル時定数参照で
+  ドリフト不能（模範）、`PromptBudgetConfig` は `@Bindable(defaultValue="12000")` で既定値を
+  文字列リテラル再宣言（F2）。値は現在一致しているが、`PromptBudgetConfigTest:37` は
+  Java コンストラクタ経路しか固定しておらず Micronaut 束縛経路は素通り。
+- **似た名前の制御を同一視しない。** `AgentConfigLoader` の per-file 上限（227 行）と累積予算
+  （189 行）は別物。`rejectsOversizedSkillFile` は前者しか踏まず、しかも `metadata.agent` を
+  持たないため後者の分岐自体に到達しない。「予算のテストはあるか」を grep で見ると緑に見える（F1）。
+- **純粋性ルールは所属ルールではない。** Rule 2 は `shared` の import だけを縛る。`java.*` しか
+  使わなければ何でも置ける。#4 の裁定で無自覚に使っていた基準（2 層以上から参照 ∧ 業務語彙なし）を
+  明文化すべき。なお「2 層から使われる」だけでは不十分 — `application → domain` が合法なら
+  `domain` が正しい置き場になる。
+- 手法: 判定の根拠はすべて upstream 成果物ではなく**コードに対する実行**で取り直した
+  （import 全列挙・consumer 逆引き・`@Bindable` リテラルと定数の突き合わせ・単純名重複 0 件確認）。
+- ソース変更は 0 件。F2/F3 は小さいが設計選択を含むため憲章どおり escalate に留めた。
+- Learnings consumed: [architect/matrix-row-requires-enforcement-rule,
+  architect/composition-root-as-layer-zero, architect/port-direction-by-implementer,
+  architect/purity-displaced-capabilities-become-ports, architect/reverify-docs-before-publishing,
+  architect/trust-level-must-be-carried-by-a-type, architect/secret-redaction-belongs-at-the-sink,
+  backend/merging-upstream-into-restructured-tree, backend/self-cleaning-architecture-exclusions,
+  backend/architecture-rule-negative-control, backend/derived-exemptions-for-generated-beans,
+  backend/duplicate-utility-consolidation-semantic-drift, tester/never-pipe-a-verification-build]

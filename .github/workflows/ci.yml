@@ -16,7 +16,7 @@ concurrency:
 
 env:
   # Keep in sync with pom.xml <jdk.version> and .sdkmanrc
-  JDK_VERSION: '27'
+  JDK_VERSION: '28'
   GRAALVM_JAVA_VERSION: '25.1'
   GRAALVM_DISTRIBUTION: 'graalvm'
 
@@ -32,7 +32,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK ${{ env.JDK_VERSION }}
         uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
@@ -57,7 +57,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK ${{ env.JDK_VERSION }}
         uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
@@ -118,10 +118,10 @@ jobs:
           egress-policy: audit
 
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up GraalVM
-        uses: graalvm/setup-graalvm@186d0493a2df5eb62df5ecc498883d18fd58c303 # v1.6.2
+        uses: graalvm/setup-graalvm@0def53c0fd8534bc13416c9469f5be45265824fd # v1.6.3
         with:
           version: ${{ env.GRAALVM_JAVA_VERSION }}
           distribution: ${{ env.GRAALVM_DISTRIBUTION }}
@@ -172,7 +172,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK ${{ env.JDK_VERSION }}
         uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1

@@ -298,3 +298,17 @@ t18 が「YAML デシリアライゼーションなし」を SAFE として確�
 5. native/main のドリフト: Micronaut 5.0.2 vs 5.0.5 / micronaut-test 5.0.0 vs 5.0.1 / byte-buddy 1.18.7 vs 1.18.9
 6. **(new)** `.sdkmanrc` の不整合
 7. **(new)** SEC-L6 SnakeYAML
+
+---
+
+## 2026-08-06T01:08:10Z — from **architect** (t24), routed by coordinator — **BINDING**
+
+> **[notify]** ARCHITECTURE DECISION (binding) — t24 rules **KEEP** on `reviewPasses`/`sharedSessionEnabled`.
+> The "no config surface, no multi-pass test" premise is false: `--no-shared-session` is a documented CLI flag
+> and a field on the inbound port DTO `ReviewRequest`; `reviewPasses` binds
+> `reviewer.execution.concurrency.review-passes` and is exercised >1 by three tests. No deletion task should be
+> raised. ADR-0006 needs **no** amendment to legitimise `shared/PromptBudget`, `shared/ConfigDefaults`,
+> `shared/PromptContentCompactor` — §2's matrix row already sanctions "cross-layer pure utilities and constants."
+
+Coordinator note: this closes the escalation backend raised in t23. Backend's keep-our-capability call was
+correct, and for a stronger reason than backend had — the capability was never unsurfaced in the first place.

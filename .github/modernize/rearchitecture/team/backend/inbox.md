@@ -643,3 +643,201 @@ t16.1 が現在 `LayerDependencyRulesTest.java` の Rule 4 と `APPLICATION_PORT
 **SEC-L8 `TokenHashUtils`（main 呼び出し元 0）を t18.2 の死コード削除範囲に含める。**
 `MaskedToStringMap` の削除と同種の作業であり、同じ検証（`grep` で呼び出し元 0 を確認）で足りる。
 architect が t18.1 の範囲外として保留したもの。
+---
+
+## 2026-08-06T00:05Z — from coordinator — TASK BRIEF t23 (merge origin/main into the layered tree)
+
+**READ THIS ENTIRE ENTRY BEFORE TOUCHING THE REPO. A merge is already in progress; do not start your own.**
+
+### 0. Situation
+
+`origin/main` advanced 36 commits past our merge-base `fb2e795c`. I ran
+`git merge --no-commit --no-ff origin/main` and it stopped with **82 unmerged paths**.
+That in-progress merge state is **already in your working tree** and you must finish it.
+
+- Safety tag: **`pre-merge-origin-main-backup`** = `d3a499c` (our pre-merge HEAD). It is your undo.
+- **Do NOT run `git merge --abort`.** The merge index carries git's rename detection, which already
+  mapped many old paths onto our new layered paths. Aborting throws that mapping away and you would
+  have to redo it by hand.
+- **Do NOT run `git reset --hard`** (the user explicitly forbade it), and do not force-push.
+- Do not create a new branch. Stay on `anishi1222-layered-architecture-rebuild`.
+
+### 1. Why this merge is hard (read carefully)
+
+The two sides did structurally opposed things to the same code:
+
+- **Our side (HEAD)** deleted the flat, technical-concern package tree
+  (`agent/ cli/ config/ orchestrator/ report/ service/ target/ util/`) and rewrote it into layers
+  (`presentation / application / application.port / domain / infrastructure / shared`).
+- **Their side (origin/main)** kept the flat tree and **added new features to it**.
+
+So most conflicts are not textual. They are: *main added or changed behaviour in a file we deleted;
+that behaviour must now be re-expressed at whatever place it lives in the layered tree.*
+
+**The merge is only correct if main's behaviour change survives in the layered tree.**
+Deleting main's change to make the conflict go away is a silent feature regression and is the single
+most likely failure mode of this task. Treat every DU file as "port it", never as "drop it".
+
+### 2. Non-negotiables
+
+1. **The layered architecture wins on structure. main wins on behaviour.**
+   Never resurrect a flat package (`dev.logicojp.reviewer.agent`, `.cli`, `.orchestrator`,
+   `.report`, `.service`, `.target`, `.util`, `.config`) to make a conflict go away.
+2. **`src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java` must stay green
+   and must stay non-vacuous.** Its Rule 0 asserts `parsed == classFilesOnDisk`; if you add classes,
+   Rule 0 must still pass over the full set. Do not weaken, exempt, or `@Disabled` any rule to get a
+   green build. If a merged file genuinely cannot satisfy a rule, stop and escalate
+   (`[notify:coordinator]`) rather than relaxing the rule.
+3. **Do not re-introduce the Copilot SDK outside `infrastructure`.** Main's new code may import the
+   SDK; if so, it belongs in `infrastructure`, behind a port.
+4. **`jackson.version` must remain `3.1.5`** in both `pom.xml` and `pom-native.xml`.
+   3.1.4 is inside advisory range `[3.0.0, 3.1.5)` for CVE-2026-59889. This already merged correctly;
+   just do not let a later edit regress it.
+5. Preserve every existing passing test unless main deliberately deleted it (see §4-B).
+
+### 3. Build and validation (the toolchain changed!)
+
+main upgraded the project **Java 27 -> 28**. `pom.xml` now has `<java.version>28</java.version>`,
+`micronaut-parent 5.1.0`, `micronaut.version 5.1.2`, `copilot.sdk.version 1.0.8`.
+
+The default active JDK on this machine is GraalVM 25 and **cannot** compile this project.
+Every build must pin JDK 28 explicitly:
+
+```
+JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify
+```
+
+`28.ea.9-open` is installed. Note `--enable-preview` is on (`pom.xml` surefire `argLine`), so a
+JDK mismatch produces confusing `UnsupportedClassVersionError`-style noise rather than a clear error.
+
+**Baseline to beat: 945 tests, 0 failures, BUILD SUCCESS** (that was our pre-merge state).
+After the merge the count will change because main added and deleted tests. You must be able to
+**explain the delta arithmetically** (`945 - <deleted by main> + <added by main> +/- <ported> = <final>`).
+An unexplained drop means you silently dropped a test. Report the arithmetic.
+
+`pom-native.xml` does **not** compile at HEAD and produces a non-executable jar via the config-only
+`default-shade` block in `pom.xml` (L242-265, no `<phase>`/`<goals>`). Both are **pre-existing**,
+confirmed against baseline `fb2e795c`. **Out of scope. Do not fix them here** and do not let them
+block you.
+
+### 4. Conflict taxonomy and the resolution policy for each
+
+Get your worklist with:
+```
+git status --porcelain | grep -E '^(DU|UD|UA|AA|UU) '
+```
+
+#### A. `DU` — 45 files: main modified it, we deleted it (old flat path)
+
+These are the real work. For each one:
+1. `git log fb2e795c..origin/main -p -- <old path>` to see *what main changed and why*.
+2. Find where that responsibility now lives in the layered tree (the class may have been split
+   across layers; e.g. old `orchestrator/*` is now spread over `application` + `infrastructure`).
+3. Port the behaviour there. Then `git rm <old path>` so the flat file stays deleted.
+4. If main's change is purely cosmetic or was already superseded by our rewrite, `git rm` it and
+   **say so explicitly in your report, per file, with a one-line justification.**
+
+I want a per-file line in your report for all 45. This is the category where regressions hide.
+
+#### B. `UD` — 8 files: we kept it, main deleted it
+
+`AggregatedFinding`, `ReviewFindingSimilarity`, `ReviewMergedContentFormatter`, `ReviewResultMerger`
+(+ their 4 tests), all now under `domain/report/`.
+
+**Coordinator ruling: accept main's deletion.** Evidence: I grepped the merged tree and these four
+form a closed cluster - they only reference each other, plus one external referencer,
+`domain/report/ReviewFindingParser.java` (which is itself a `UU` conflict that main also rewrote,
+63 lines). main removed this whole merge/similarity path deliberately as part of
+`25c4b49 feat: Enhance review process with Good Points integration`.
+
+So: `git rm` all 8, and resolve `ReviewFindingParser` toward **main's** semantics while keeping the
+layered package declaration. **Verify after removal that nothing anywhere still references the four
+names** - if something does, stop and escalate instead of stubbing it out.
+
+#### C. `UA` / `AA` — 9 files: main added them, git placed them at our layered paths
+
+Git's rename detection already put these at the right-looking directory, e.g.
+`domain/agent/ReviewRunner.java`, `infrastructure/config/PromptBudgetConfig.java`,
+`shared/PromptContentCompactor.java`, plus tests.
+
+Their **contents are still main's**, so they will carry the old `package dev.logicojp.reviewer.agent;`
+declaration and old imports. You must:
+1. Fix the `package` declaration and imports to the layered names.
+2. **Independently confirm the layer placement is actually correct** - do not just trust git's guess.
+   Judge against ADR-0006. Two to scrutinise:
+   - `shared/PromptContentCompactor` - `shared` must stay dependency-free; if it reaches into
+     domain or config types it does not belong there.
+   - `domain/agent/ReviewRunner` - this replaces the deleted `ReviewPassRunner`. If it touches the
+     Copilot SDK it belongs in `infrastructure`, not `domain`.
+   If placement is wrong, move it and say so.
+
+#### D. `UU` — 20 files: ordinary 3-way conflicts, plus 3 READMEs
+
+Normal resolution: take main's behaviour, keep our structure. For `README.md`, `README_en.md`,
+`README_ja.md`, main documented the new features and we documented the architecture - **both belong
+in the result**; do not let one side's prose delete the other's. READMEs are `README.md` /
+`README_en.md` / `README_ja.md`; keep each language in its own file consistent with the others.
+
+### 5. Features main added that must exist in the merged tree
+
+Verify each of these is present and reachable at the end. This is your acceptance checklist:
+
+- **Prompt budget + compaction** (`38dcbc8`): `PromptBudgetConfig`, `PromptContentCompactor`,
+  the `application.yml` keys that configure it, and their tests.
+- **Good Points integration** (`25c4b49`): touches `SynthesisStrategy`, `ReviewResult`,
+  `FindingsExtractor`, `FindingsSummaryFormatter`, `ReviewOverallSummaryAppender`, and several
+  `templates/*.md`. Templates are loaded at runtime by path, so a template edit that is dropped
+  will **not** cause a compile error - check the `templates/` diff explicitly.
+- **`ReviewPassRunner` -> `ReviewRunner`** refactor.
+- **Rubber-duck model/template updates** (`05757a4`) and the rubber-duck template contract test.
+- **native-image reachability metadata** (`0b802d1`) and `native.maven.plugin.version` 1.1.3.
+
+`templates/` and `src/main/resources/application.yml` auto-merged - **re-read them anyway** and
+confirm main's additions actually survived, since nothing in the compiler will catch a loss there.
+
+### 6. Definition of done
+
+1. Zero unmerged paths; `git status` clean apart from the staged merge.
+2. `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify` -> **BUILD SUCCESS**.
+3. `LayerDependencyRulesTest` green, Rule 0 still covering every class on disk.
+4. Test-count arithmetic reconciled and stated.
+5. **Do NOT create the merge commit.** Leave it staged and report. I will commit after review.
+6. No flat/legacy package resurrected: confirm with
+   `ls src/main/java/dev/logicojp/reviewer/` -> only `ReviewApp.java` + the 5 layer dirs.
+
+### 7. Report format
+
+- The per-file DU table (§4-A) with a disposition and justification for each of the 45.
+- The §5 acceptance checklist, each item marked present/ported/dropped-with-reason.
+- Test-count arithmetic.
+- Anything you had to guess at, and anything that smells wrong but you left alone.
+
+If you hit something where the "right" answer is a judgement call about the architecture rather than
+about the merge, do not decide it unilaterally - `[notify:architect]` and keep going.
+
+---
+
+## 2026-08-06T01:08:10Z — from **architect** (t24), routed by coordinator — **BINDING**
+
+> **[notify]** ARCHITECTURE DECISION (binding) — t24 rules **KEEP** on `reviewPasses`/`sharedSessionEnabled`.
+> The "no config surface, no multi-pass test" premise is false: `--no-shared-session` is a documented CLI flag
+> and a field on the inbound port DTO `ReviewRequest`; `reviewPasses` binds
+> `reviewer.execution.concurrency.review-passes` and is exercised >1 by three tests. No deletion task should be
+> raised. ADR-0006 needs **no** amendment to legitimise `shared/PromptBudget`, `shared/ConfigDefaults`,
+> `shared/PromptContentCompactor` — §2's matrix row already sanctions "cross-layer pure utilities and constants."
+
+Coordinator note: this closes the escalation backend raised in t23. Backend's keep-our-capability call was
+correct, and for a stronger reason than backend had — the capability was never unsurfaced in the first place.
+
+## 2026-08-06T01:08:10Z — from **architect** (t24), routed by coordinator
+
+> **[notify:backend]** Your three "inferred rather than verified" items are now verified, all three hold:
+> `PromptContentCompactor` is genuinely pure (zero imports; every file in `shared/` imports `java.*` only),
+> the `PromptBudget`/`PromptBudgetConfig` naming keeps D6 bullet-3 uniqueness intact (0 duplicate simple names
+> across 175 files), and Rule 5b stayed `0 violators / 0 exempt` — the merge introduced no
+> `presentation → infrastructure` edge. Two things for you: `SkillConfig:22` is the model D6 delegation
+> (compile-time constant reference), and `PromptBudgetConfig` should adopt it — deleting the seven numeric
+> `@Bindable` defaults is behaviour-preserving because the compact constructor already normalises non-positive
+> to default and every consumer goes through `toPromptBudget()`.
+
+This is the substance of **t27 (F2)**. See board.

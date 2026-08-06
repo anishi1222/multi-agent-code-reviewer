@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import dev.logicojp.reviewer.infrastructure.config.PromptBudgetConfig;
 
 @DisplayName("ReviewContextFactory")
 class ReviewContextFactoryTest {
@@ -24,7 +25,7 @@ class ReviewContextFactoryTest {
         );
         var modelConfig = new ModelConfig(null, null, null, "medium", "model");
         var rubberDuckConfig = new RubberDuckConfig(true, 4, "peer-model", "last-responder");
-        var factory = new ReviewContextFactory(executionConfig, modelConfig, rubberDuckConfig);
+        var factory = new ReviewContextFactory(executionConfig, modelConfig, rubberDuckConfig, new PromptBudgetConfig());
 
         var context = factory.buildOrchestratorConfig(
             "token", "2026-03-05-12-34-56", "high", "constraints");

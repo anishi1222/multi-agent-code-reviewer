@@ -562,3 +562,153 @@ Do not act on D3 as written. Rule the premise first.
 - `ApplicationPortFactory` method **order is now load-bearing** — Micronaut names generated bean definitions by declaration index (`…$ResolveTokenPort7$Definition`). Append-only; documented in-method by backend. Rule 4's generated-bean exemptions are **derived**, not hard-coded, so they will not silently rot.
 
 ---
+
+---
+
+## 2026-08-06T00:54:29Z — from **backend** (t23), routed by coordinator
+
+> **[notify:architect]** Still awaiting your call on main's removal of `reviewPasses`/`sharedSessionEnabled`.
+> I proceeded on keep-our-capability: with the YAML keys absent, `@Bindable` defaults give `reviewPasses=1` /
+> `sharedSessionEnabled=true`, so runtime behaviour is identical to main while the capability survives.
+> This is widening, not narrowing — reversing it later is a config-and-delete change, whereas recovering it after
+> deletion means re-implementing. If you rule for removal, that is a follow-up task, not t23.
+
+This is now **your decision to make in t24**, not an open question. See §3 below.
+
+---
+
+# t24 — Post-Merge Architecture Conformance Re-check
+
+**Role:** architect · **Phase:** Upstream Merge · **Depends on:** t23 (✅ PASS)
+
+## 1. Why this task exists
+
+t23 merged `origin/main` (36 commits) into the layered tree: **82 conflicts → 0**, 108 files staged
+(+4576/−2380), `BUILD SUCCESS`, 939 tests green. The merge is **staged but not committed** —
+`MERGE_HEAD = 5844456`, undo point is tag `pre-merge-origin-main-backup` → `d3a499c`.
+
+You are the gate before that merge commit is created. A green build is **not** evidence that the
+architecture survived the merge — it is only evidence that the code compiles and the tests that
+still exist still pass.
+
+### The specific reason to distrust a green arch gate here
+
+This project has already been burned **seven times** by the same systemic pattern, recorded in
+`.github/modernize/rearchitecture/decisions.md`:
+
+> **A control's scope of application is invisible at the call site.**
+> Countermeasure: **assert the scope, not just the outcome.**
+
+Instances: t12 (ArchUnit rules passed while parsing zero classes) · t13.1/G1 (missing rule) ·
+t16 (Rule 4 prefix too broad) · t18/SEC-H1 (dead validator caps) · t14/TGT-07 (untested control) ·
+t18.1 (`ApplicationPortFactory` erasing provenance by type) · t16.2 (Rule 4 composition-root exemption).
+
+t12 is the exact failure mode to fear here: the arch gate was **green because it was vacuous**.
+A merge that moves 108 files is precisely the event that can silently drop files out of the
+gate's scope. `LayerDependencyRulesTest` **Rule 0** exists for this — it asserts
+`parsed == classFilesOnDisk`. Your job is to confirm Rule 0 is still doing that work over the
+*post-merge* file set, not to observe that the suite is green.
+
+## 2. Deliverables you must consume
+
+- `.github/modernize/rearchitecture/artifacts/t23-backend.md` — index
+- `.github/modernize/rearchitecture/artifacts/t23-backend-conflict-dispositions.md` — all 82 conflicts, per-category policy
+- `.github/modernize/rearchitecture/artifacts/t23-backend-feature-ports.md` — 6 ported features, 2 caught silent regressions
+- `.github/modernize/rearchitecture/artifacts/t23-backend-validation.md` — build/test evidence, count arithmetic, layer-purity audit
+- `docs/adr/0006-ports-and-adapters-layering.md` — the layer import matrix (authority for every placement call)
+- `docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md` — trust boundary
+
+## 3. Decisions you must make (each needs an explicit verdict)
+
+### 3-A. `reviewPasses` / `sharedSessionEnabled` — **KEEP or REMOVE**
+
+`main` deleted both outright. Backend kept them (defaults `1` / `true`, so runtime behaviour matches `main`).
+
+Rule on it as an **architecture** question, not a preference: does a multi-pass review capability with no
+YAML surface and no test exercising `reviewPasses > 1` constitute (a) a preserved capability or
+(b) dead code that ADR-0006 should not be asked to house? State which, and why.
+
+If you rule REMOVE, do **not** implement it — record it as a follow-up task and let t23's merge stand.
+
+### 3-B. The four placement calls backend made under time pressure
+
+Judge each against ADR-0006's import matrix. These were `UA`/new-file placements where git had no
+opinion and backend had to choose:
+
+| # | Placement | Backend's reasoning |
+|---|---|---|
+| 1 | `PromptBudgetConfig` **split** into pure `shared/PromptBudget` + `infrastructure/config/PromptBudgetConfig` binder | `domain` may not see framework binder types |
+| 2 | `SKILL_MAX_PARAMETER_VALUE_LENGTH` hoisted to `shared/ConfigDefaults` | `AgentPromptBuilder` (domain) was importing a framework type |
+| 3 | `enforceAssignedSkillBudget` → `infrastructure/parsing/AgentConfigLoader` | ADR-0007 trust boundary |
+| 4 | `PromptContentCompactor` → `shared/` | must stay dependency-free |
+
+Confirm or correct. **#4 is the one to check hardest** — `shared/` is the layer with the strictest
+purity requirement and the weakest natural enforcement.
+
+### 3-C. Rule 0 non-vacuity over the post-merge tree
+
+Confirm `LayerDependencyRulesTest` Rule 0 (`parsed == classFilesOnDisk`) still holds and still
+covers every file the merge added. Report the actual parsed count. **"The suite is green" is not
+an acceptable answer to this item** — see §1.
+
+### 3-D. Does ADR-0006 need an amendment?
+
+The merge introduced `shared/PromptBudget` and `shared/ConfigDefaults` — value/constant carriers in
+`shared/`. If ADR-0006 does not currently sanction that use of `shared/`, say so and specify the
+amendment. Note ADR-0006's **D3 premise is already known false** (t16.2, still open) — do not
+re-litigate D3 here, just don't build on it.
+
+## 4. Explicit non-goals
+
+- Do **not** create the merge commit — the coordinator owns that.
+- Do **not** run `git merge --abort`, `git reset --hard`, or any destructive command. The user
+  forbade this explicitly. Git's rename detection did valuable work mapping flat→layered paths;
+  aborting throws it away.
+- Do **not** fix t16.2 / t17 / t18.2 — out of scope, separately tracked.
+- Do **not** re-open the `UD` deletion ruling (the 4-class merger/similarity cluster). That was
+  ruled with grep evidence and backend confirmed it. Attribution correction on record:
+  the deletions came from `38dcbc8`, **not** `25c4b49` — the ruling itself stands.
+
+## 5. Build command (non-negotiable)
+
+```
+JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify
+```
+
+`main` moved Java 27→28. The machine default is GraalVM 25 and **cannot compile this project**.
+`--enable-preview` is on, so a JDK mismatch produces misleading errors rather than a clear one.
+
+## 6. Known-out-of-scope defects (do not report as findings)
+
+- `pom-native.xml` does not compile at HEAD — pre-existing, confirmed against merge-base `fb2e795c`
+- `pom.xml` L242–265 `default-shade` is config-only (no `<phase>`/`<goals>`), so `verify` yields a
+  non-executable jar — pre-existing
+- Reduced test coverage from taking `ours` on 10 test conflicts — **already disclosed** by backend in
+  `t23-backend-validation.md`. Only escalate if you judge the loss architecturally significant;
+  otherwise it is a tracked follow-up.
+
+## 7. Definition of done
+
+Write `artifacts/t24-architect.md` containing:
+
+1. A verdict on **each** of 3-A, 3-B (all four), 3-C, 3-D — no item left implicit
+2. The actual Rule 0 parsed count, with the number stated
+3. `PASS` / `FAIL` on whether the merge may be committed as-is
+4. Any finding at HIGH/CRITICAL, with severity counts, using `[notify:coordinator]`
+
+If you find a violation that is mechanically fixable and clearly within ADR-0006's existing rules,
+fix it and say so. If it requires an ADR decision, escalate instead of deciding unilaterally.
+
+---
+
+## 2026-08-06T01:08:10Z — from **architect** (t24), routed by coordinator — **BINDING**
+
+> **[notify]** ARCHITECTURE DECISION (binding) — t24 rules **KEEP** on `reviewPasses`/`sharedSessionEnabled`.
+> The "no config surface, no multi-pass test" premise is false: `--no-shared-session` is a documented CLI flag
+> and a field on the inbound port DTO `ReviewRequest`; `reviewPasses` binds
+> `reviewer.execution.concurrency.review-passes` and is exercised >1 by three tests. No deletion task should be
+> raised. ADR-0006 needs **no** amendment to legitimise `shared/PromptBudget`, `shared/ConfigDefaults`,
+> `shared/PromptContentCompactor` — §2's matrix row already sanctions "cross-layer pure utilities and constants."
+
+Coordinator note: this closes the escalation backend raised in t23. Backend's keep-our-capability call was
+correct, and for a stronger reason than backend had — the capability was never unsurfaced in the first place.

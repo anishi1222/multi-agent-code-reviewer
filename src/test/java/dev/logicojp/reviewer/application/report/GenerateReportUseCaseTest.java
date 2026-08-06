@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import dev.logicojp.reviewer.shared.PromptBudget;
 
 @DisplayName("GenerateReportUseCase")
 class GenerateReportUseCaseTest {
@@ -74,7 +75,7 @@ class GenerateReportUseCaseTest {
             writer,
             new InMemoryTemplates(),
             aiSummary,
-            new SummaryGenerator.SummaryGenerationConfig(10_000, 20_000, 200, 1_000, 100, 2),
+            new SummaryGenerator.SummaryGenerationConfig(10_000, 20_000, 200, 1_000, 100, 2, new PromptBudget()),
             Clock.fixed(Instant.parse("2026-08-05T00:00:00Z"), ZoneOffset.UTC)
         );
     }

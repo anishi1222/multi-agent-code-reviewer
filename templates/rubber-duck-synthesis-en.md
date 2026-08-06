@@ -6,5 +6,7 @@ When synthesizing, follow these guidelines:
 3. Include important issues identified by only one reviewer
 4. Eliminate duplicate findings and present them in a unified format
 5. Reassess the final severity (Critical / High / Medium / Low) for each finding
+6. Consolidate evidence-based Good Points, removing duplicates
+7. Keep Good Points and improvement findings clearly separated in the configured output format
 
 Output only the final review result. Do not include the dialogue process.

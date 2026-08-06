@@ -7,16 +7,14 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 - **複数エージェント並列実行**: セキュリティ、コード品質、パフォーマンス、ベストプラクティスの各観点から同時レビュー
 - **GitHubリポジトリ/ローカルディレクトリ対応**: GitHubリポジトリまたはローカルディレクトリのソースコードをレビュー
 - **柔軟なエージェント定義**: GitHub Copilot形式 (.agent.md) でエージェントを定義
-- **エージェントスキル対応**: エージェントに個別のスキルを定義し、特定のタスクを実行可能
+- **エージェントスキル対応**: エージェントに割り当てたSKILLを通常レビューとRubber-duckレビューの必須観点として適用
 - **外部設定ファイル**: エージェント定義はビルド不要で差し替え可能
-- **パス単位セッションID命名**: `{agent}_{currentPass}of{totalPasses}_{invocationTimestamp}` 形式で追跡性を向上
-- **分離セッションモード**: `--no-shared-session` で各パスを独立セッション実行
+- **追跡可能なセッションID命名**: レビューセッションIDは `{agent}_{invocationTimestamp}` 形式
 - **LLMモデル指定**: レビュー、レポート生成、サマリー生成で異なるモデルを使用可能
 - **構造化されたレビュー結果**: Priority（Critical/High/Medium/Low）付きの一貫したフォーマット
-- **エグゼクティブサマリー生成**: 全レビュー結果を集約した経営層向けレポート
+- **エグゼクティブサマリー生成**: エージェント横断で指摘を決定的に重複排除した経営層向けレポート
 - **GraalVM対応**: Native Image によるネイティブバイナリの生成が可能
 - **推論モデル対応**: Claude Opus、o3、o4-mini等の推論モデルに対するreasoning effortの自動設定
-- **マルチパスレビュー**: 各エージェントが複数回レビューを実施し、結果をマージして網羅性を向上
 - **コンテンツサニタイズ**: LLM出力からの不要な前置き文・思考過程の自動除去
 - **デフォルトモデルの外部化**: `application.yml` でデフォルトモデルを設定可能（ビルド不要で変更可能）
 - **トークン寿命の最小化**: 実行境界でのみトークンを受け渡し、メモリ滞留時間を短縮
@@ -28,6 +26,7 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 2026-02-16 〜 2026-06-24 のレビューサイクルで検出された全指摘事項は対応済みです。
 
+- 2026-07-21 ([v2026.07.21-review-contract](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-review-contract)): レビュー実行とトークン使用量を簡素化 — マルチパス/共有セッション/チェックポイント/パスマージを削除し、追加観点はデフォルト有効のRubber-duckで取得。compact prompt予算とCLI制御、割当SKILLの安全な通常/Rubber-duckレビュー適用、Executive Summaryのエージェント横断重複排除、全runtime/custom agentの根拠付きGood Points出力を追加。
 - 2026-06-24 (v2026.06.24-refactor-seams-tests): リファクタリング seam 抽出と直接テスト追加 — rubber-duck 対話（`RubberDuckPromptBuilder`, `RubberDuckDialogueRunner`, `SdkRubberDuckSessionFactory`）、review pass/session 実行（`ReviewPassRunner`, `ReviewSessionExecutor`）、summary AI transport / 出力書き込み（`AiSummaryClient`, `SummaryReportWriter`）、review CLI option model（`ReviewOptions`, `ReviewTargetSelection`, `ReviewAgentSelection`）、agent 定義解析（`AgentFrontmatterMapper`, `AgentSectionParser`）、template repository 読み込み（`TemplateRepository`）、GitHub token 解決（`TokenInputReader`, `GhCliLocator`, `GhAuthTokenProvider`）を focused collaborator に分割。抽出 seam の直接 unit test を追加し、hybrid local-review の source 伝播と `gh auth token` の stdout/stderr 分離・bounded stream collection を修正。JDK 27 EA full clean test suite（871 tests, 0 failures）で検証。
 - 2026-06-24 (v2026.06.24-dependency-ci-hardening): 依存関係・CI・モジュール構成のハードニング — 実行基盤を `copilot-sdk-java` 1.0.1、Micronaut 5.1.2、JDK 27 の JVM ビルド、GraalVM 25.0.3 の Native Image ビルドへ更新。Logback / Copilot SDK 実行向け Native Image reachability metadata を追加し、GitHub 管理の `submit-maven` を JDK 27 で動く自前 `Dependency Submission` workflow に置換。OWASP Dependency Audit は NVD API key 受け渡し、キャッシュ復元、retry/backoff、直接 `dependency-check:check` 実行で安定化。推移依存の Jackson 2.x は `com.fasterxml.jackson:jackson-bom:2.22.0` で制約しつつ、Jackson 3 (`tools.jackson`) の既存 override も維持し、`jackson-databind` の Dependabot alert を全件解消。README / リリースノート / ADR の構成ツリーも現行 workflow、skill、MCP、Native Image、Java package 構成へ同期。
 - 2026-06-08 (v2026.06.08-agent-model-defaults): エージェントモデル既定値のドキュメント同期 — GitHub Copilot custom-agent 設定例からモデル固定を外し、レビューモデルの上書きは `.github/agents` の frontmatter ではなく CLI / 設定で指定する方針を明確化。README のモデル例を現在の実行時既定値（`claude-sonnet-4.6`, `gpt-5.3-codex`, `claude-opus-4.7-xhigh`）へ更新し、Copilot SDK 依存関係の記載を `1.0.0-beta-10-java.5` に同期。
@@ -86,18 +85,17 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 - [x] POSIX環境でレポート出力ディレクトリ/ファイルを owner-only 権限化
 - [x] OWASP 依存関係監査の週次スケジュールワークフロー追加
 - [x] SHA-256トークンハッシュを共通ユーティリティ（`TokenHashUtils`）へ統一
-- [x] 失敗結果生成を `ReviewResult.failedResults` に集約
+- [x] 失敗結果生成を `ReviewResult.failed` に集約
 - [x] `ReviewOrchestrator` のネスト型をトップレベル型へ分離
 - [x] `ScopedInstructionLoader` を明示ループ + 分離I/O例外処理へ整理
 - [x] `ExecutionConfig` にグルーピング設定とファクトリを追加し位置引数リスクを低減
-- [x] デッドコード削除（`ReviewResultPipeline.collectFromFutures`、未使用 `ReviewFindingSimilarity.WHITESPACE`）
+- [x] デッドコード削除（`ReviewResultPipeline.collectFromFutures`）
 - [x] `ReviewCommand` / `SkillCommand` の単体テストを追加（正常/ヘルプ/異常系）
 - [x] `TemplateService` のキャッシュ同期を簡素化しつつ決定的LRU挙動を維持
 - [x] `SkillService` の実行器キャッシュを Caffeine 化し、エビクション時に実行器をクローズ
 - [x] CLIトークン入力をシステムI/Oから抽象化（`CliParsing.TokenInput`）
 - [x] `ContentCollector` の連結キャッシュロックを簡素化
 - [x] `AgentMarkdownParser` のセクション解析可読性を改善（Iterableキャストトリック除去）
-- [x] `ReviewExecutionModeRunner` のマルチパス開始ログを実行実態に一致
 - [x] `GithubMcpConfig` のMapラッパー委譲メソッドを補完（`isEmpty`/`containsValue`/`keySet`/`values`）
 - [x] `ReviewResult` のデフォルトtimestamp処理を簡素化
 - [x] `SkillExecutor` のFQCNユーティリティ呼出しを解消（`ExecutorUtils` import）
@@ -271,13 +269,6 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
   --review-model gpt-4.1 \
   --summary-model claude-sonnet-4
 
-# パスごとに分離セッションでレビュー
-java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
-  run \
-  --repo owner/repository \
-  --all \
-  --no-shared-session
-
 # 利用可能なエージェント一覧
 java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
   list
@@ -296,8 +287,9 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `--token` | - | GitHub トークン入力（`-` のみ許可、直接値指定は拒否） | `gh auth token` |
 | `--parallelism` | - | 並列実行数 | 4 |
 | `--no-summary` | - | サマリー生成をスキップ | false |
-| `--no-shared-session` | - | 各レビューパスを独立セッションで実行（共有セッションを無効化） | false |
 | `--rubber-duck` | - | 設定で無効化されている場合に Rubber-duck peer discussion レビューモードを強制有効化 | true |
+| `--no-rubber-duck` | - | この実行では Rubber-duck peer discussion レビューモードを無効化 | false |
+| `--compact-prompts` | - | この実行でコンパクトプロンプト予算を有効化 | false |
 | `--dialogue-rounds` | - | Rubber-duck の対話ラウンド数を上書き（1〜10） | 2 |
 | `--peer-model` | - | Rubber-duck のピアモデルを上書き（レビューモデルと異なる必要あり） | - |
 | `--model` | - | 全ステージのデフォルトモデル | - |
@@ -334,18 +326,6 @@ gh copilot -- login
 ```
 
 環境によっては `gh copilot -- login` の代わりに `copilot login` も利用できます。
-
-### セッション実行モード
-
-マルチパスレビューはデフォルトで同一エージェント内の共有セッションを再利用します。パスごとに独立セッションにしたい場合は `--no-shared-session` を使用してください。
-
-```bash
-java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
-  run \
-  --repo owner/repository \
-  --all \
-  --no-shared-session
-```
 
 ### ローカルディレクトリレビュー
 
@@ -408,8 +388,6 @@ CLI経由のカスタムインストラクション入力は v2026.03.05 で廃�
 
 `-o` / `--output` オプションで出力ベースディレクトリを変更できます（デフォルト: `./reports`）。
 
-実行中のパス単位中間レポートは `.checkpoints/passes` に出力され、CLI終了時に `.checkpoints` ごと自動削除されます。
-
 ## 設定ファイル
 
 `application.yml` でアプリケーションの動作をカスタマイズできます。
@@ -421,10 +399,8 @@ reviewer:
       - ./agents
       - ./.github/agents
   execution:
-    shared-session-enabled: true # 同一エージェント内でセッションを共有（デフォルト）
     concurrency:
       parallelism: 4             # デフォルトの並列実行数
-      review-passes: 3           # エージェントごとのレビュー回数（マルチパスレビュー）
     timeouts:
       orchestrator-timeout-minutes: 45  # オーケストレータタイムアウト（分）
       agent-timeout-minutes: 20          # エージェントタイムアウト（分）
@@ -437,6 +413,15 @@ reviewer:
   local-files:
     max-file-size: 262144               # ローカルファイル最大サイズ（256KB）
     max-total-size: 2097152             # ローカルファイル合計最大サイズ（2MB）
+  prompt-budget:
+    compact-prompts: false              # 設定または --compact-prompts で有効化しない限り既定プロンプトを維持
+    peer-content-max-chars: 12000       # rubber-duckモードで相互に渡す応答の最大文字数
+    synthesis-turn-max-chars: 6000      # 統合プロンプトに含める対話ターンごとの最大文字数
+    synthesis-history-max-chars: 50000  # 統合プロンプトに含める対話履歴の最大文字数
+    local-source-max-chars: 1048576     # compact prompt有効時のローカルソース最大文字数
+    summary-content-per-agent-max-chars: 12000 # compact summaryのエージェント別最大文字数
+    summary-total-max-chars: 60000      # compact summaryの結果入力最大文字数
+    summary-fallback-max-chars: 2000    # 構造化できない結果のフォールバック抜粋最大文字数
   templates:
     directory: templates              # テンプレートディレクトリ
     output-constraints: output-constraints.md  # 出力制約テンプレート
@@ -523,18 +508,6 @@ java -jar multi-agent-code-reviewer.jar
 4. **ステージ別モデル設定**（`review-model`, `report-model`, `summary-model`）は非エージェント段階と CLI / 設定上書きを制御
 5. **デフォルトモデル**（`default-model`）— ステージ別設定がない場合のフォールバック
 
-### マルチパスレビュー
-
-各エージェントが複数回レビューを実施し、結果をマージすることで、単一パスでは見逃しがちな問題を検出します。
-
-- **`review-passes`** でエージェントごとのレビュー回数を設定（デフォルト: `1`）
-- 全パスは Virtual Thread プールに同時投入され、`parallelism` で同時実行数が制御されます
-- 例: 4エージェント × 2パス = 8タスクが並列キューに入り、`parallelism=4` なら最大4つが同時実行
-- 同一エージェント内で同一指摘は集約され、重複を除去した1つのレポートに統合されます
-- 集約結果には必要に応じて検出パス情報が付与され、重複指摘のトレーサビリティを維持します
-- 一部のパスが失敗しても、成功したパスの結果は利用されます
-- エグゼクティブサマリーは統合後の全パスの結果を基に生成されます
-
 ### リトライ機能
 
 エージェントのレビューがタイムアウトや空レスポンスで失敗した場合、自動的にリトライします。
@@ -574,7 +547,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 
 **主な制約:**
 - **ピアモデルはレビューモデルと異なる必要があります** — 同一モデルの組み合わせは拒否されます。
-- rubber-duck モード有効時、**マルチパスレビューは1パスに固定**されます。対話自体がマルチパスの代替となります。
+- 各エージェントは1回レビューを実行します。追加の観点が必要な場合は `dialogue-rounds` でピアレビュー/反論ラウンドを追加します。
 - rubber-duck はグローバルにデフォルト有効で、fallback ピアモデルは `gpt-5.5` です。
 - 対話ラウンド数に応じてタイムアウトが自動的に拡張されます。
 - CLI で `--peer-model` や `--dialogue-rounds` を指定すると、rubber-duck モードが **自動的に有効化**されます（`--rubber-duck` を別途指定する必要はありません）。
@@ -667,7 +640,9 @@ ${focusAreas}
 
 ## レビュー結果フォーマット
 
-各指摘事項は以下の形式で出力されます：
+各エージェントは、担当領域で確認できた強みを根拠付きの `Good Points` セクションとして先に出力し、その後に改善指摘を出力します。確認範囲でGood Pointが見つからない場合も、その旨を明記します。
+
+各改善指摘は以下の形式で出力されます：
 
 | 項目 | 説明 |
 |------|------|
@@ -689,6 +664,8 @@ ${focusAreas}
 ## Agent Skill
 
 エージェントには個別のスキルを定義し、特定のタスクを実行できます。
+
+`metadata.agent` がレビューエージェント名と一致するSKILL定義は、そのエージェントの通常レビュー指示にも追加されます。したがって、割り当てられたSKILLの観点は初回レビューとRubber-duck対話の双方で使用されます。`metadata.agent` を持たないSKILLは `skill` サブコマンドから利用できますが、すべてのレビューエージェントへ自動注入はされません。
 
 ### skill サブコマンド
 

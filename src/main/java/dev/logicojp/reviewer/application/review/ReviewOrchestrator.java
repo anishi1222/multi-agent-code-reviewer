@@ -93,7 +93,7 @@ public final class ReviewOrchestrator implements RunReviewPort {
     // -------------------------------------------------------------------------
 
     private List<ReviewResult> runReview(ReviewRequest request) {
-        var precomputer = new LocalSourcePrecomputer(collectLocalSource);
+        var precomputer = new LocalSourcePrecomputer(collectLocalSource, config.promptBudget());
         var cachedSource = precomputer
             .preComputeSourceContent(request.target(), request.localFileConfig())
             .orElse(null);
@@ -186,6 +186,7 @@ public final class ReviewOrchestrator implements RunReviewPort {
 
     private ReviewContext buildReviewContext(String cachedSourceContent) {
         return ReviewContext.builder()
+            .promptBudget(config.promptBudget())
             .invocationTimestamp(config.invocationTimestamp())
             .reasoningEffort(config.reasoningEffort())
             .outputConstraints(config.outputConstraints())

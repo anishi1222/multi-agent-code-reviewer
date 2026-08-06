@@ -18,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import dev.logicojp.reviewer.infrastructure.config.PromptBudgetConfig;
 
 @DisplayName("ReviewOrchestratorFactory")
 class ReviewOrchestratorFactoryTest {
@@ -96,6 +97,7 @@ class ReviewOrchestratorFactoryTest {
             executionConfig,
             modelConfig,
             rubberDuckConfig,
+            new PromptBudgetConfig(),
             new ReviewSessionConfigFactory(),
             new MdcCorrelationAdapter()
         );

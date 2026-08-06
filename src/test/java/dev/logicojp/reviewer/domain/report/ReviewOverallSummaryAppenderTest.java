@@ -38,7 +38,7 @@ class ReviewOverallSummaryAppenderTest {
             .timestamp(Instant.now())
             .build();
 
-        List<ReviewResult> finalized = ReviewOverallSummaryAppender.appendToMergedResults(List.of(merged));
+        List<ReviewResult> finalized = ReviewOverallSummaryAppender.appendToResults(List.of(merged));
 
         assertThat(finalized).hasSize(1);
         assertThat(finalized.getFirst().content()).contains("**総評**");
@@ -69,7 +69,7 @@ class ReviewOverallSummaryAppenderTest {
             .timestamp(Instant.now())
             .build();
 
-        ReviewResult result = ReviewOverallSummaryAppender.appendToMergedResults(List.of(merged)).getFirst();
+        ReviewResult result = ReviewOverallSummaryAppender.appendToResults(List.of(merged)).getFirst();
 
         assertThat(result.content()).containsOnlyOnce("**総評**");
         assertThat(result.content()).doesNotContain("古い総評");
@@ -91,7 +91,7 @@ class ReviewOverallSummaryAppenderTest {
             .timestamp(Instant.now())
             .build();
 
-        ReviewResult result = ReviewOverallSummaryAppender.appendToMergedResults(List.of(merged)).getFirst();
+        ReviewResult result = ReviewOverallSummaryAppender.appendToResults(List.of(merged)).getFirst();
 
         assertThat(result.content()).contains("重大な指摘事項は確認されませんでした。");
         assertThat(result.content()).doesNotContain("1件の指摘事項");

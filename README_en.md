@@ -7,16 +7,14 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 - **Parallel Multi-Agent Execution**: Simultaneous review from security, code quality, performance, and best practices perspectives
 - **GitHub Repository / Local Directory Support**: Review source code from GitHub repositories or local directories
 - **Flexible Agent Definitions**: Define agents in GitHub Copilot format (.agent.md)
-- **Agent Skill Support**: Define individual skills for agents to execute specific tasks
+- **Agent Skill Support**: Agent-bound SKILL definitions are applied as mandatory criteria during standard and rubber-duck reviews
 - **External Configuration Files**: Agent definitions can be swapped without rebuilding
-- **Per-Pass Session ID Naming**: Session IDs use `{agent}_{currentPass}of{totalPasses}_{invocationTimestamp}` for traceability
-- **Isolated Session Mode**: Disable shared session reuse across passes with `--no-shared-session`
+- **Traceable Session ID Naming**: Review session IDs use `{agent}_{invocationTimestamp}`
 - **LLM Model Selection**: Use different models for review, report generation, and summary generation
 - **Structured Review Results**: Consistent format with Priority (Critical/High/Medium/Low)
-- **Executive Summary Generation**: Management-facing report aggregating all review results
+- **Executive Summary Generation**: Management-facing report with deterministic cross-agent finding deduplication
 - **GraalVM Support**: Native binary generation via Native Image
 - **Reasoning Model Support**: Automatic reasoning effort configuration for Claude Opus, o3, o4-mini, etc.
-- **Multi-Pass Review**: Each agent performs multiple review passes and merges results for improved coverage
 - **Content Sanitization**: Automatic removal of LLM preamble text and chain-of-thought leakage from review output
 - **Default Model Externalization**: Configure the default model in `application.yml` (changeable without rebuild)
 - **Token Lifetime Minimization**: Runtime token handling is narrowed to execution boundaries to reduce in-memory exposure time
@@ -28,6 +26,7 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 All review findings from 2026-02-16 through 2026-06-24 review cycles have been fully addressed.
 
+- 2026-07-21 ([v2026.07.21-review-contract](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-review-contract)): Streamlined review execution and token usage — removed multi-pass/shared-session/checkpoint/merge behavior; kept rubber-duck enabled by default for additional perspectives; added compact prompt budgets and CLI controls; applied safe agent-bound SKILL criteria to standard/rubber-duck reviews; added deterministic cross-agent Executive Summary deduplication; and required evidence-based Good Points from every runtime/custom agent.
 - 2026-06-24 (v2026.06.24-refactor-seams-tests): Refactoring seam extraction and direct test coverage — split rubber-duck dialogue orchestration (`RubberDuckPromptBuilder`, `RubberDuckDialogueRunner`, `SdkRubberDuckSessionFactory`), review pass/session execution (`ReviewPassRunner`, `ReviewSessionExecutor`), summary AI transport/output writing (`AiSummaryClient`, `SummaryReportWriter`), review CLI option model (`ReviewOptions`, `ReviewTargetSelection`, `ReviewAgentSelection`), agent definition parsing (`AgentFrontmatterMapper`, `AgentSectionParser`), template repository loading (`TemplateRepository`), and GitHub token resolution (`TokenInputReader`, `GhCliLocator`, `GhAuthTokenProvider`) into focused collaborators. Added direct unit tests for the extracted seams, fixed hybrid local-review source propagation, and hardened `gh auth token` stdout/stderr handling with bounded stream collection. Verified with JDK 27 EA full clean test suite (871 tests, 0 failures).
 - 2026-06-24 (v2026.06.24-dependency-ci-hardening): Dependency, CI, and module-structure hardening — upgraded the runtime stack to `copilot-sdk-java` 1.0.1, Micronaut 5.1.2, JDK 27 JVM builds, and GraalVM 25.0.3 native-image builds; added native-image reachability metadata for Logback/Copilot SDK execution; added a self-managed JDK 27 `Dependency Submission` workflow to replace the GitHub-managed `submit-maven` workflow; hardened OWASP Dependency Audit with NVD API key propagation, cache restore, retry/backoff, and direct `dependency-check:check` execution; constrained transitive Jackson 2.x dependencies with `com.fasterxml.jackson:jackson-bom:2.22.0` while retaining the Jackson 3 `tools.jackson` override; resolved all open Dependabot `jackson-databind` alerts; and synchronized README / release notes / ADR module trees with the current workflow, skill, MCP, native-image, and Java package layout.
 - 2026-06-08 (v2026.06.08-agent-model-defaults): Agent model defaults documentation sync — removed model pins from GitHub Copilot custom-agent configuration references, clarified that review model overrides should be supplied via CLI/configuration rather than `.github/agents` frontmatter, refreshed README model examples to the current runtime defaults (`claude-sonnet-4.6`, `gpt-5.3-codex`, `claude-opus-4.7-xhigh`), and updated the documented Copilot SDK dependency to `1.0.0-beta-10-java.5`.
@@ -86,18 +85,17 @@ All review findings from 2026-02-16 through 2026-06-24 review cycles have been f
 - [x] Report output directories/files use owner-only POSIX permissions where supported
 - [x] Weekly scheduled OWASP dependency audit workflow added
 - [x] SHA-256 token hashing unified via shared utility (`TokenHashUtils`)
-- [x] Orchestrator failure results unified (`ReviewResult.failedResults`)
+- [x] Orchestrator failure result creation unified (`ReviewResult.failed`)
 - [x] `ReviewOrchestrator` nested collaborator/config types extracted to top-level package types
 - [x] Scoped instruction loading refactored to explicit file loop + isolated IO handling
 - [x] `ExecutionConfig` grouped settings/factory added to reduce positional constructor risk
-- [x] Dead code removed (`ReviewResultPipeline.collectFromFutures`, unused `ReviewFindingSimilarity.WHITESPACE`)
+- [x] Dead code removed (`ReviewResultPipeline.collectFromFutures`)
 - [x] `ReviewCommand` and `SkillCommand` unit tests added (normal/help/error)
 - [x] `TemplateService` cache synchronization simplified with deterministic LRU behavior preserved
 - [x] `SkillService` executor cache moved to Caffeine with eviction-time executor close
 - [x] CLI token input abstracted from direct system I/O (`CliParsing.TokenInput`)
 - [x] `ContentCollector` joined-content cache locking simplified
 - [x] `AgentMarkdownParser` section parsing readability improved (removed iterable-cast trick)
-- [x] `ReviewExecutionModeRunner` multi-pass start logging made execution-accurate
 - [x] `GithubMcpConfig` map wrappers completed delegation methods (`isEmpty`/`containsValue`/`keySet`/`values`)
 - [x] `ReviewResult` default timestamp handling simplified
 - [x] `SkillExecutor` FQCN utility call removed (`ExecutorUtils` import)
@@ -271,13 +269,6 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
   --review-model gpt-4.1 \
   --summary-model claude-sonnet-4
 
-# Run with isolated sessions per pass
-java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
-  run \
-  --repo owner/repository \
-  --all \
-  --no-shared-session
-
 # List available agents
 java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
   list
@@ -296,8 +287,9 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `--token` | - | GitHub token input (`-` for stdin only; direct value is rejected) | `gh auth token` |
 | `--parallelism` | - | Number of parallel executions | 4 |
 | `--no-summary` | - | Skip summary generation | false |
-| `--no-shared-session` | - | Force isolated session per review pass (disable shared session reuse) | false |
 | `--rubber-duck` | - | Force-enable rubber-duck peer-discussion review mode when disabled in config | true |
+| `--no-rubber-duck` | - | Disable rubber-duck peer-discussion review mode for this run | false |
+| `--compact-prompts` | - | Enable compact prompt budgets for this run | false |
 | `--dialogue-rounds` | - | Override rubber-duck dialogue rounds (1–10) | 2 |
 | `--peer-model` | - | Override peer model for rubber-duck mode (must differ from review model) | - |
 | `--model` | - | Default model for all stages | - |
@@ -334,18 +326,6 @@ gh copilot -- login
 ```
 
 If available in your environment, `copilot login` can be used instead of `gh copilot -- login`.
-
-### Session Behavior
-
-By default, multi-pass reviews reuse one shared session per agent. To isolate each pass in its own session, use `--no-shared-session`.
-
-```bash
-java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
-  run \
-  --repo owner/repository \
-  --all \
-  --no-shared-session
-```
 
 ### Local Directory Review
 
@@ -408,8 +388,6 @@ Reports are generated under the output base directory in a subdirectory correspo
 
 Use `-o` / `--output` to change the output base directory (default: `./reports`).
 
-Pass-level intermediate reports are written under `.checkpoints/passes` during execution and cleaned up automatically when the CLI exits.
-
 ## Configuration
 
 Customize application behavior via `application.yml`.
@@ -421,10 +399,8 @@ reviewer:
       - ./agents
       - ./.github/agents
   execution:
-    shared-session-enabled: true # Reuse one session per agent across passes (default)
     concurrency:
       parallelism: 4             # Default parallel execution count
-      review-passes: 3           # Number of review passes per agent (multi-pass review)
     timeouts:
       orchestrator-timeout-minutes: 45  # Orchestrator timeout (minutes)
       agent-timeout-minutes: 20          # Agent timeout (minutes)
@@ -437,6 +413,15 @@ reviewer:
   local-files:
     max-file-size: 262144               # Max local file size (256KB)
     max-total-size: 2097152             # Max total local file size (2MB)
+  prompt-budget:
+    compact-prompts: false              # Preserve default prompts unless enabled by config or --compact-prompts
+    peer-content-max-chars: 12000       # Max relayed peer response chars in rubber-duck mode
+    synthesis-turn-max-chars: 6000      # Max chars per dialogue turn in synthesis history
+    synthesis-history-max-chars: 50000  # Max chars of dialogue history in synthesis prompt
+    local-source-max-chars: 1048576     # Max local source chars when compact prompts are enabled
+    summary-content-per-agent-max-chars: 12000 # Max compact summary chars per agent
+    summary-total-max-chars: 60000      # Max compact summary prompt result chars
+    summary-fallback-max-chars: 2000    # Max fallback excerpt for unstructured compact summary entries
   templates:
     directory: templates              # Template directory
     output-constraints: output-constraints.md  # Output constraints (CoT suppression, language)
@@ -523,18 +508,6 @@ Models are resolved in the following priority order:
 4. **Stage model settings** (`review-model`, `report-model`, `summary-model`) control non-agent stages and CLI/config overrides
 5. **Default model** (`default-model`) — fallback when no stage-specific setting is specified
 
-### Multi-Pass Review
-
-Each agent can perform multiple review passes, merging the results to catch issues that a single pass might miss.
-
-- **`review-passes`** controls the number of review passes per agent (default: `1`)
-- All passes are submitted concurrently to the Virtual Thread pool, with `parallelism` controlling the maximum concurrent tasks
-- Example: 4 agents × 2 passes = 8 tasks queued in parallel; with `parallelism=4`, up to 4 run concurrently
-- Duplicate findings within the same agent are aggregated into a single deduplicated report
-- Aggregated output can include pass-detection information to preserve traceability for repeated findings
-- If some passes fail, results from the successful passes are still used
-- The executive summary is generated from the merged, multi-pass results
-
 ### Retry Behavior
 
 When an agent review fails due to timeout or empty response, it is automatically retried.
@@ -574,7 +547,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 
 **Key constraints:**
 - The **peer model must differ** from the agent's review model — same-model pairing is rejected.
-- When rubber-duck mode is enabled, **multi-pass review is forced to 1 pass** per agent. The dialogue itself replaces multi-pass coverage.
+- Each agent executes one review. Use `dialogue-rounds` to add peer challenge/counter-review rounds when broader coverage is needed.
 - Rubber-duck is globally enabled by default with `gpt-5.5` as the fallback peer model.
 - Timeout is automatically scaled based on the number of dialogue rounds.
 - Specifying `--peer-model` or `--dialogue-rounds` on the CLI **auto-enables** rubber-duck mode (no need to also pass `--rubber-duck`).
@@ -667,7 +640,9 @@ Please output the review results in the following format.
 
 ## Review Result Format
 
-Each finding is output in the following format:
+Each agent first outputs an evidence-based `Good Points` section for strengths within its assigned domain, followed by improvement findings. If no strengths are confirmed, the agent explicitly reports that no Good Point was found in the reviewed scope.
+
+Each improvement finding is output in the following format:
 
 | Field | Description |
 |-------|-------------|
@@ -689,6 +664,8 @@ Each finding is output in the following format:
 ## Agent Skill
 
 Agents can have individual skills defined to execute specific tasks.
+
+SKILL definitions with `metadata.agent` matching a review agent are also appended to that agent's normal review instruction. Therefore, the same assigned SKILL criteria are used by the agent's initial review and its rubber-duck dialogue. Skills without `metadata.agent` remain available to the `skill` subcommand but are not automatically injected into every review agent.
 
 ### skill Subcommand
 

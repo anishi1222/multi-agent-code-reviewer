@@ -28,6 +28,91 @@
 ### 検証
 - Pending
 
+## 2026-07-21 (v2026.07.21-review-contract)
+
+### 概要
+- レビュー実行をエージェントごと1回へ簡素化し、追加観点はRubber-duckの対話ラウンドで得る構成へ変更しました。
+- コンパクトプロンプト予算を追加し、レビュー根拠を維持しながらLLMへ渡す重複コンテキストを削減しました。
+- エージェントに割り当てたSKILLを通常レビューとRubber-duckレビューの必須観点として適用しました。
+- Executive Summary向けにエージェント横断の決定的な指摘重複排除を追加しました。
+- 全エージェントが改善指摘に加えて根拠付きGood Pointsを報告するよう変更しました。
+
+### 主な変更
+
+#### 追加
+- peer応答、統合履歴、ローカルソース、サマリー入力を制御する `PromptBudgetConfig` と `reviewer.prompt-budget.*` 設定。
+- 実行単位の `--compact-prompts` / `--no-rubber-duck` CLIオプション。
+- 単一レビュー実行seamとなる `ReviewRunner`。
+- 共通フォーマット、全runtime agent、全GitHub custom-agentコピー、Rubber-duckテンプレートへの根拠付き `Good Points` セクション。
+- 割当SKILLに対する安全性、ファイルサイズ、エージェント単位合計サイズ、展開後サイズのガード。
+
+#### 変更
+- Rubber-duck reviewは引き続きデフォルト有効で、再試行可能な対話失敗をリトライするよう変更。
+- `metadata.agent` で明示割当されたSKILLを、該当エージェントの通常/Rubber-duckレビュー必須観点として注入。
+- Executive Summaryプロンプトへ重複排除済み指摘一覧を渡し、指摘元/カテゴリを保持しつつ最も高い重大度を採用。
+- compact summaryでもGood Pointsと構造化された改善指摘の両方を保持。
+- ローカルソースMarkdownを内容に応じたフェンス長と安全な切り詰め境界へ変更。
+- レビューセッションIDを `{agent}_{invocationTimestamp}` 形式へ変更。
+
+#### 修正
+- compact synthesis予算下でもRubber-duck最終ラウンドを保持。
+- `--no-rubber-duck` がエージェント単位設定より優先されるよう修正。
+- ローカルソース切り詰め時にコードフェンスが開いたままになる問題を修正。
+- compact summaryで非構造化結果/指摘事項なし本文が失われる問題を修正。
+- `agents/` と `.github/agents/` の出力契約を同期。
+- 指摘ゼロのレビューで改善点を捏造せず出力できるようサマリー指示を修正。
+
+#### 削除
+- マルチパスレビュー設定・実行（`review-passes`、共有セッション動作、`--no-shared-session`）。
+- `.checkpoints/passes` 配下のパス中間レポートとクリーンアップ処理。
+- パス結果のマージ/類似度判定/重複排除モデルとマージ済み出力フォーマット。
+
+### 検証
+- `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.31-open mvn -q clean package`
+
+## 2026-07-21 (v2026.07.21-sdk-upgrade)
+
+### 概要
+- `copilot-sdk-java` を 1.0.1 から 1.0.7 へ、Micronaut を 5.0.3 から 5.0.5 へアップグレードしました。
+- agent、CLI、summary、service、util 各レイヤーから focused review seam を抽出し、新たな seam ごとに直接 unit test を追加しました（合計 871 tests）。
+- rubber-duck レビューをデフォルトで有効化しました。
+- GraalVM 25.1.3、logback 1.5.38、Jackson セキュリティ更新を適用し、CI ワークフローを安定化しました。
+
+### 主な変更
+
+#### 追加
+- `agent` パッケージ seam: `ReviewPassRunner`、`ReviewSessionExecutor`、`RubberDuckPromptBuilder`、`RubberDuckDialogueRunner`、`RubberDuckSession`、`RubberDuckSessionFactory`、`SdkRubberDuckSessionFactory`、`AgentFrontmatterMapper`、`AgentSectionParser`、`ParsedAgentMetadata`。
+- `cli` パッケージオプションモデル: `ReviewOptions`、`ReviewTargetSelection`、`ReviewAgentSelection`。
+- `report.summary` パッケージ seam: `AiSummaryClient`、`SummaryReportWriter`。
+- `service.TemplateRepository`（テンプレートキャッシュ / パス検証 / ファイルシステム / クラスパス読み込み）。
+- `util` パッケージトークン seam: `TokenInputReader`、`GhCliLocator`、`GhAuthTokenProvider`。
+- 各 seam に対するトークン/プロセス境界テストおよびキャッシュ動作テストを含む直接 unit test。
+
+#### 変更
+- `copilot-sdk-java` を 1.0.1 → 1.0.5-01 → 1.0.6 → 1.0.7 へ段階的にアップグレード。
+- Micronaut platform を 5.0.3 → 5.0.4 → 5.0.5 へアップグレード。
+- CI ワークフローの GraalVM Java バージョンを 25.1.3 へ更新。
+- `logback.version` を 1.5.38 へ更新; Jackson 2.x セキュリティ修正を適用。
+- `ReviewAgent` を `ReviewPassRunner` と `ReviewSessionExecutor` の薄いファサードに整理。
+- `RubberDuckDialogueExecutor` が抽出されたプロンプト / セッション / ダイアログ collaborator を統括するよう変更。
+- `SummaryGenerator` がプロンプト / フォールバック / レポート collaborator を統括し、SDK トランスポートを `AiSummaryClient` に委譲するよう変更。
+- `TemplateService` を型付きテンプレートカタログ / `TemplateRepository` ファサードに変更。
+- `GitHubTokenResolver` がトークン正規化とオプションの `gh auth` フォールバックを統括するよう変更。
+- `ExecutionConfig` のデフォルト値を canonical defaults ホルダーとビルダー経由で流すよう変更。
+- `actions/upload-artifact` v7、`graalvm/setup-graalvm` 1.6.3、CodeQL actions 4.37.1 へ更新。
+
+#### 修正
+- rubber-duck レビューがデフォルトで有効にならない不具合を修正。
+- Jackson 2 BOM を固定し、`validate` フェーズでの Micronaut コア拡張ロードを無効化して Maven dependency graph submission を修正。
+- dependency submission 時に OWASP `security-audit` プロファイルが起動しないよう Supply Chain Guard を修正。
+- hybrid local review が分離された並行パスセッションにソースコンテンツを送信するよう修正。
+- `GhAuthTokenProvider` が stdout/stderr を独立して排出し、プロセス終了後にストリーム収集を制限し、stdout のみをトークンとして返すよう修正。
+
+### 検証
+- `JAVA_HOME=... mvn -q clean test` — 871 tests, 0 failures, 0 errors.
+- Git タグ: `v2026.07.21-sdk-upgrade`
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-sdk-upgrade
+
 ## 2026-06-24 (v2026.06.24-refactor-seams-tests)
 
 ### 概要

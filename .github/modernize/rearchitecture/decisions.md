@@ -194,3 +194,26 @@ t14 also supplied the counter-example that proves the rule is achievable: its **
 **Rationale**: 通常のドキュメントは「読まれなければ害がない」が、自動注入されるファイルは**読まないという選択肢がない**。誤りの伝播速度が違う。実害も確認できている — この run の初期 recon で coordinator 自身が「Mustache テンプレート」と誤認したのはこのファイルが出典であり、それが `project-profile.yaml` にも複写された。t18.1 が指摘するまで 2 系統で生き延びた。
 
 **適用**: 今後 `pom.xml` の座標変更やパッケージ再編を伴うタスクは、`.github/copilot-instructions.md` / `AGENTS.md` / `README.md` の該当節を deliverable に含めるか、明示的に別タスクへ委譲すること。
+
+## architect [t24] — 2026-08-06
+
+**Decision**: KEEP `reviewPasses` / `sharedSessionEnabled` even though `origin/main` deleted both.
+ADR-0006 requires **no** amendment to house `shared/PromptBudget`, `shared/ConfigDefaults`,
+`shared/PromptContentCompactor`.
+
+**Rationale**: The question was posed on a false premise. `--no-shared-session` is a documented CLI flag and a
+field on the inbound-port DTO `ReviewRequest`; `reviewPasses` binds `reviewer.execution.concurrency.review-passes`
+and is exercised with a value >1 by three tests. So the capability was never "config-surface-less dead code" —
+deleting it would have removed a documented, tested, user-facing flag. On `shared/`, ADR-0006 §2's matrix row
+already sanctions "cross-layer pure utilities and constants", so the three new `shared/` members are covered by
+the existing text.
+
+**Coordinator note (process defect, recorded deliberately)**: the false premise was **mine** — it originated in the
+t24 brief I wrote, which asked the architect to rule on whether a capability "with no YAML surface and no test
+exercising `reviewPasses > 1`" was dead code. I asserted that as background fact without verifying it. Had the
+architect answered the question as posed rather than checking its premise, we would have deleted a working CLI
+flag. This is the project's own systemic pattern — *a control's scope of application is invisible at the call
+site* — turned on the coordinator: **a question's premise is invisible at the point of answering it.** This is the
+2nd occurrence (after ADR-0006 D3, t16.2). Countermeasure: briefs must cite evidence for load-bearing premises, or
+mark them explicitly as unverified assumptions to be checked first. Captured in
+`learnings/architect/rule-the-premise-before-the-question.md`.

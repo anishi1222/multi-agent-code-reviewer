@@ -28,6 +28,91 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - Pending
 
+## 2026-07-21 (v2026.07.21-review-contract)
+
+### Summary
+- Simplified review execution to one review per agent, using rubber-duck dialogue rounds for additional perspectives.
+- Added compact prompt budgets and reduced repeated LLM context while preserving review evidence.
+- Enforced agent-bound SKILL criteria in standard and rubber-duck reviews.
+- Added deterministic cross-agent finding deduplication for Executive Summary generation.
+- Required every agent to report evidence-based Good Points as well as improvement findings.
+
+### Highlights
+
+#### Added
+- `PromptBudgetConfig` and `reviewer.prompt-budget.*` settings for peer responses, synthesis history, local source, and summary input.
+- `--compact-prompts` and `--no-rubber-duck` per-run CLI controls.
+- `ReviewRunner` as the single-review execution seam.
+- Evidence-based `Good Points` sections in the shared format, all runtime agents, all GitHub custom-agent copies, and rubber-duck templates.
+- Assigned-SKILL prompt safety, file-size, aggregate-size, and expanded-size guards.
+
+#### Changed
+- Rubber-duck review remains enabled by default and now retries retryable dialogue failures.
+- Skills explicitly bound with `metadata.agent` are injected as mandatory criteria for that agent's standard and rubber-duck reviews.
+- Executive Summary prompts receive an authoritative deduplicated finding list; duplicates retain all source agents/categories and use the highest reported severity.
+- Compact summary prompts retain both Good Points and structured improvement findings.
+- Local-source Markdown uses content-aware fence lengths and safe truncation boundaries.
+- Review session IDs now use `{agent}_{invocationTimestamp}`.
+
+#### Fixed
+- Preserved the final rubber-duck dialogue round under compact synthesis budgets.
+- Made `--no-rubber-duck` override agent-level enablement.
+- Prevented local-source truncation from leaving code fences open.
+- Preserved unstructured/no-findings content in compact summary inputs.
+- Synchronized `agents/` and `.github/agents/` output contracts.
+- Allowed clean reviews to report no improvements without fabricating findings.
+
+#### Removed
+- Multi-pass review configuration and execution (`review-passes`, shared-session behavior, and `--no-shared-session`).
+- Pass checkpoint reports and cleanup under `.checkpoints/passes`.
+- Pass-result merge/similarity/deduplication models and merged-output formatting.
+
+### Validation
+- `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.31-open mvn -q clean package`
+
+## 2026-07-21 (v2026.07.21-sdk-upgrade)
+
+### Summary
+- Upgraded `copilot-sdk-java` from 1.0.1 to 1.0.7 and Micronaut from 5.0.3 to 5.0.5.
+- Extracted focused review seams across the agent, CLI, summary, service, and utility layers, and added direct unit tests for each new seam (871 tests total).
+- Enabled rubber-duck reviews by default.
+- Applied GraalVM 25.1.3, logback 1.5.38, and Jackson security updates; hardened CI workflows.
+
+### Highlights
+
+#### Added
+- `agent` package seams: `ReviewPassRunner`, `ReviewSessionExecutor`, `RubberDuckPromptBuilder`, `RubberDuckDialogueRunner`, `RubberDuckSession`, `RubberDuckSessionFactory`, `SdkRubberDuckSessionFactory`, `AgentFrontmatterMapper`, `AgentSectionParser`, `ParsedAgentMetadata`.
+- `cli` package option model: `ReviewOptions`, `ReviewTargetSelection`, `ReviewAgentSelection`.
+- `report.summary` package seams: `AiSummaryClient`, `SummaryReportWriter`.
+- `service.TemplateRepository` for template cache/path validation/filesystem/classpath loading.
+- `util` package token seams: `TokenInputReader`, `GhCliLocator`, `GhAuthTokenProvider`.
+- Direct tests for each new seam including token/process boundary tests and cache behavior tests.
+
+#### Changed
+- `copilot-sdk-java` upgraded from 1.0.1 through 1.0.5-01, 1.0.6 to 1.0.7.
+- Micronaut platform upgraded from 5.0.3 to 5.0.5.
+- GraalVM Java version updated to 25.1.3 in CI workflows.
+- `logback.version` bumped to 1.5.38; Jackson 2.x security fixes applied.
+- `ReviewAgent` is now a thin facade over `ReviewPassRunner` and `ReviewSessionExecutor`.
+- `RubberDuckDialogueExecutor` now coordinates extracted prompt/session/dialogue collaborators.
+- `SummaryGenerator` now coordinates prompt/fallback/report collaborators and delegates SDK transport to `AiSummaryClient`.
+- `TemplateService` is now a typed template catalog/facade over `TemplateRepository`.
+- `GitHubTokenResolver` now coordinates token normalization and optional `gh auth` fallback.
+- `ExecutionConfig` defaults now flow through a canonical defaults holder and builder path.
+- `actions/upload-artifact` bumped to v7; `graalvm/setup-graalvm` bumped to 1.6.3; CodeQL actions updated to 4.37.1.
+
+#### Fixed
+- Rubber-duck reviews are now enabled by default (regression from prior release).
+- Fixed Maven dependency graph submission by pinning the Jackson 2 BOM and disabling Micronaut core extension loading during `validate`.
+- Fixed Supply Chain Guard to avoid invoking OWASP `security-audit` profile during dependency submission.
+- Hybrid local review now sends source content to isolated parallel pass sessions.
+- `GhAuthTokenProvider` now drains stdout/stderr separately, bounds stream collection after exit, and returns only stdout as the token.
+
+### Validation
+- `JAVA_HOME=... mvn -q clean test` — 871 tests, 0 failures, 0 errors.
+- Git tag: `v2026.07.21-sdk-upgrade`
+- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-sdk-upgrade
+
 ## 2026-06-24 (v2026.06.24-refactor-seams-tests)
 
 ### Summary

@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.domain.review;
 
 import dev.logicojp.reviewer.domain.resilience.SharedCircuitBreaker;
+import dev.logicojp.reviewer.shared.PromptBudget;
 
 import java.util.Objects;
 
@@ -17,6 +18,7 @@ import java.util.Objects;
 /// @param sharedSessionEnabled whether multi-pass execution can reuse a single shared session
 /// @param maxRetries           number of retries on transient failures (0 = no retries)
 /// @param reviewCircuitBreaker shared circuit breaker for review-domain failures
+/// @param promptBudget         character budgets for prompt compaction (never null; defaults to compaction disabled)
 public record ReviewContext(
     String invocationTimestamp,
     String reasoningEffort,
@@ -24,7 +26,8 @@ public record ReviewContext(
     String cachedSourceContent,
     boolean sharedSessionEnabled,
     int maxRetries,
-    SharedCircuitBreaker reviewCircuitBreaker
+    SharedCircuitBreaker reviewCircuitBreaker,
+    PromptBudget promptBudget
 ) {
 
     private static final SharedCircuitBreaker DEFAULT_CIRCUIT_BREAKER =
@@ -33,6 +36,7 @@ public record ReviewContext(
     public ReviewContext {
         invocationTimestamp = invocationTimestamp != null ? invocationTimestamp : "unknown-start-time";
         reviewCircuitBreaker = reviewCircuitBreaker != null ? reviewCircuitBreaker : DEFAULT_CIRCUIT_BREAKER;
+        promptBudget = promptBudget != null ? promptBudget : new PromptBudget();
         if (maxRetries < 0) {
             throw new IllegalArgumentException("maxRetries must be >= 0, got: " + maxRetries);
         }
@@ -50,6 +54,7 @@ public record ReviewContext(
         private boolean sharedSessionEnabled = true;
         private int maxRetries = 0;
         private SharedCircuitBreaker reviewCircuitBreaker;
+        private PromptBudget promptBudget;
 
         public Builder invocationTimestamp(String invocationTimestamp) {
             this.invocationTimestamp = invocationTimestamp;
@@ -86,9 +91,15 @@ public record ReviewContext(
             return this;
         }
 
+        public Builder promptBudget(PromptBudget promptBudget) {
+            this.promptBudget = promptBudget;
+            return this;
+        }
+
         public ReviewContext build() {
             return new ReviewContext(invocationTimestamp, reasoningEffort, outputConstraints,
-                cachedSourceContent, sharedSessionEnabled, maxRetries, reviewCircuitBreaker);
+                cachedSourceContent, sharedSessionEnabled, maxRetries, reviewCircuitBreaker,
+                promptBudget);
         }
     }
 

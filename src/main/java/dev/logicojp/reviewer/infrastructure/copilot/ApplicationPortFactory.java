@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import dev.logicojp.reviewer.infrastructure.config.PromptBudgetConfig;
 
 /// Micronaut {@code @Factory} that binds application port interfaces to
 /// their infrastructure implementations for DI.
@@ -136,14 +137,16 @@ public class ApplicationPortFactory {
     GenerateReportPort generateReportPort(WriteReportPort writer,
                                            LoadTemplatePort templates,
                                            GenerateAiSummaryPort aiSummary,
-                                           SummaryConfig summaryConfig) {
+                                           SummaryConfig summaryConfig,
+                                           PromptBudgetConfig promptBudgetConfig) {
         var config = new SummaryGenerationConfig(
             summaryConfig.maxContentPerAgent(),
             summaryConfig.maxTotalPromptContent(),
             summaryConfig.fallbackExcerptLength(),
             summaryConfig.averageResultContentEstimate(),
             summaryConfig.initialBufferMargin(),
-            summaryConfig.excerptNormalizationMultiplier()
+            summaryConfig.excerptNormalizationMultiplier(),
+            promptBudgetConfig.toPromptBudget()
         );
         return new GenerateReportUseCase(writer, templates, aiSummary, config);
     }

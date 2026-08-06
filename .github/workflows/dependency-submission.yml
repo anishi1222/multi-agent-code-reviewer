@@ -14,7 +14,7 @@ concurrency:
 
 env:
   # Keep in sync with pom.xml <jdk.version>
-  JDK_VERSION: '27'
+  JDK_VERSION: '28'
 
 jobs:
   maven-dependency-submission:
@@ -31,7 +31,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK ${{ env.JDK_VERSION }}
         uses: oracle-actions/setup-java@ec7274acdd237c7fe61395ed2edda22d756b5afe # v1
@@ -46,5 +46,12 @@ jobs:
       # JDK. After this workflow is in place, disable the repository setting
       # Settings -> Code security -> "Automatic dependency submission" to avoid
       # double-submission and the recurring failed check on PRs.
+      #
+      # continue-on-error: the action itself does not retry on transient GitHub
+      # API errors (e.g. HTTP 502). Dependency submission is informational
+      # (it populates the dependency graph / Dependabot security alerts); a
+      # transient failure must not block CI. Re-running the workflow manually
+      # is sufficient when a submission is lost.
       - name: Submit Maven dependency graph
         uses: advanced-security/maven-dependency-submission-action@b275d12641ac2d2108b2cbb7598b154ad2f2cee8 # v5.0.0
+        continue-on-error: true

@@ -55,5 +55,46 @@ When creating DTOs for outbound ports (called by application, implemented by inf
 
 During Phase 1, create new files at new package paths. Do NOT delete old files. Old tests continue to compile against old packages. New tests test new packages. This ensures `mvn test-compile` stays green at every step.
 
+### N. Multi-field config: split into a pure `shared` record + an infrastructure binder
+
+Pattern 2 above ("inline the constant") is the right move for a *single* constant. It does **not** scale when domain
+needs a **multi-field, stateful** config object — inlining 8 fields duplicates them and they drift.
+
+Instead **split the type in two**:
+
+```java
+// shared/PromptBudget.java — pure record, java.* only, normalises via ConfigDefaults
+public record PromptBudget(int maxChars, int maxFiles, /* … */) {
+    public PromptBudget { /* normalisation */ }
+    public PromptBudget() { this(ConfigDefaults.…); }          // defaults
+    public PromptBudget withCompactPrompts(boolean b) { … }
+}
+
+// infrastructure/config/PromptBudgetConfig.java — thin Micronaut binder, ONE exit point
+@ConfigurationProperties("prompt-budget")
+public class PromptBudgetConfig {
+    public PromptBudget toPromptBudget() { return new PromptBudget(…); }
+}
+```
+
+Rules that make this work:
+
+- **Give the two types deliberately different names** (`PromptBudget` vs `PromptBudgetConfig`). Identical names invite
+  the `duplicate-utility-consolidation-semantic-drift` trap — a later agent "consolidates" them and re-breaks layering.
+- **Exactly one crossing point** (`toPromptBudget()`), so the boundary is greppable.
+- **Route it through a type `application` may already see.** `application` cannot import `infrastructure`, so hand the
+  pure record to an existing config record/builder that already flows infrastructure→application
+  (here `OrchestratorConfig`, `SummaryGenerationConfig`). Because both used builders/records with defaults, adding a
+  component broke only 5 test call-sites.
+- **Prefer hoisting to `shared` over inlining when >1 layer needs the constant** — `AgentPromptBuilder` (domain) and
+  `SkillConfig` (infrastructure) both needed `MAX_PARAMETER_VALUE_LENGTH`, so it went to
+  `shared/ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH` with `SkillConfig` delegating. Inlining would have forked it.
+
+**Merge-specific trigger (t23):** when upstream adds a framework-bound config type that domain consumes, `git merge`
+will auto-insert the illegal import. It **compiles fine** and only the architecture test catches it. After any merge,
+grep `domain/` and `shared/` for framework/infrastructure imports rather than trusting a green compile.
+
 ## History
 - 2026-08-05 (multi-agent-code-reviewer/t10): added functional interface strategy pattern + visibility rule
+- 2026-08-06 (multi-agent-code-reviewer/t23): added pattern N — multi-field config split (pure `shared` record +
+  infrastructure binder), naming discipline to avoid consolidation drift, and the auto-merge layer-violation trigger

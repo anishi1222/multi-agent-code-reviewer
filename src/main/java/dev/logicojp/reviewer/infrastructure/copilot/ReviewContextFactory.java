@@ -7,6 +7,7 @@ import dev.logicojp.reviewer.infrastructure.config.ModelConfig;
 import dev.logicojp.reviewer.infrastructure.config.RubberDuckConfig;
 
 import java.util.Objects;
+import dev.logicojp.reviewer.infrastructure.config.PromptBudgetConfig;
 
 /// Assembles {@link OrchestratorConfig} from Micronaut infrastructure configuration records.
 ///
@@ -20,13 +21,16 @@ public final class ReviewContextFactory {
     private final ExecutionConfig executionConfig;
     private final ModelConfig modelConfig;
     private final RubberDuckConfig rubberDuckConfig;
+    private final PromptBudgetConfig promptBudgetConfig;
 
     public ReviewContextFactory(ExecutionConfig executionConfig,
                                  ModelConfig modelConfig,
-                                 RubberDuckConfig rubberDuckConfig) {
+                                 RubberDuckConfig rubberDuckConfig,
+                                 PromptBudgetConfig promptBudgetConfig) {
         this.executionConfig = Objects.requireNonNull(executionConfig);
         this.modelConfig = Objects.requireNonNull(modelConfig);
         this.rubberDuckConfig = Objects.requireNonNull(rubberDuckConfig);
+        this.promptBudgetConfig = promptBudgetConfig != null ? promptBudgetConfig : new PromptBudgetConfig();
     }
 
     /// Builds an {@link OrchestratorConfig} for the current review invocation.
@@ -58,6 +62,7 @@ public final class ReviewContextFactory {
             ? reasoningEffort : modelConfig.reasoningEffort();
 
         return OrchestratorConfig.builder()
+            .promptBudget(promptBudgetConfig.toPromptBudget())
             .githubToken(githubToken)
             .invocationTimestamp(invocationTimestamp)
             .orchestratorTimeoutMinutes(orchTimeout)

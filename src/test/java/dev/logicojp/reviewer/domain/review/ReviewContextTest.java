@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.domain.review;
 
+import dev.logicojp.reviewer.shared.PromptBudget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,8 @@ class ReviewContextTest {
                 "source",
                 true,
                 2,
-                null);
+                null,
+                new PromptBudget());
 
             String result = context.toString();
 
@@ -50,7 +52,8 @@ class ReviewContextTest {
                 null,
                 true,
                 0,
-                null);
+                null,
+                new PromptBudget());
 
             assertThat(context.invocationTimestamp()).isEqualTo("unknown-start-time");
             assertThat(context.reviewCircuitBreaker()).isNotNull();

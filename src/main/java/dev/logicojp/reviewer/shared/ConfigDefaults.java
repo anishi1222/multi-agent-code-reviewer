@@ -16,6 +16,14 @@ import java.util.List;
 /// for a utility that is called at configuration-binding time.
 public final class ConfigDefaults {
 
+    /// Maximum rendered length of the "Assigned Review Skills" prompt section.
+    ///
+    /// Lives here rather than on `infrastructure.config.SkillConfig` so that domain
+    /// prompt builders can enforce the limit without importing `infrastructure`
+    /// (ADR-0006 Rule 1). `SkillConfig` delegates to this constant, so the value
+    /// still has a single source of truth.
+    public static final int SKILL_MAX_PARAMETER_VALUE_LENGTH = 10_000;
+
     private ConfigDefaults() {
     }
 

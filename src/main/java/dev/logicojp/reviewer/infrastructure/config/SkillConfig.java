@@ -19,7 +19,7 @@ public record SkillConfig(
 
     private static final String DEFAULT_FILENAME = "SKILL.md";
     private static final String DEFAULT_DIRECTORY = ".github/skills";
-    public static final int DEFAULT_MAX_PARAMETER_VALUE_LENGTH = 10_000;
+    public static final int DEFAULT_MAX_PARAMETER_VALUE_LENGTH = ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH;
     public static final int DEFAULT_MAX_EXECUTOR_CACHE_SIZE = 16;
     public static final int DEFAULT_EXECUTOR_CACHE_INITIAL_CAPACITY = 16;
     public static final double DEFAULT_EXECUTOR_CACHE_LOAD_FACTOR = 0.75;

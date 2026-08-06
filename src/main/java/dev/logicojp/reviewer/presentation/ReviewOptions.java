@@ -19,7 +19,8 @@ public record ReviewOptions(
         List<Path> additionalAgentDirs,
         int parallelism,
         boolean noSummary,
-        boolean noSharedSession
+        boolean noSharedSession,
+        boolean compactPrompts
     ) {
         OutputOptions {
             outputDirectory = outputDirectory != null ? outputDirectory : Path.of("./reports");
@@ -38,14 +39,15 @@ public record ReviewOptions(
 
     record RubberDuckOptions(
         boolean enabled,
+        boolean disabled,
         int dialogueRounds,
         String peerModel
     ) {}
 
     public ReviewOptions {
-        output = output != null ? output : new OutputOptions(Path.of("./reports"), List.of(), 1, false, false);
+        output = output != null ? output : new OutputOptions(Path.of("./reports"), List.of(), 1, false, false, false);
         models = models != null ? models : new ModelOptions(null, null, null, null, null);
-        rubberDuckOptions = rubberDuckOptions != null ? rubberDuckOptions : new RubberDuckOptions(false, 0, null);
+        rubberDuckOptions = rubberDuckOptions != null ? rubberDuckOptions : new RubberDuckOptions(false, false, 0, null);
         Objects.requireNonNull(target, "target must not be null");
         Objects.requireNonNull(agents, "agents must not be null");
     }
@@ -55,6 +57,8 @@ public record ReviewOptions(
     public int parallelism() { return output.parallelism(); }
     public boolean noSummary() { return output.noSummary(); }
     public boolean noSharedSession() { return output.noSharedSession(); }
+    public boolean compactPrompts() { return output.compactPrompts(); }
+    public boolean noRubberDuck() { return rubberDuckOptions.disabled(); }
     public String reviewModel() { return models.reviewModel(); }
     public String reportModel() { return models.reportModel(); }
     public String summaryModel() { return models.summaryModel(); }
@@ -74,6 +78,8 @@ public record ReviewOptions(
         private List<Path> additionalAgentDirs = List.of();
         private int parallelism = 1;
         private boolean noSummary;
+        private boolean compactPrompts;
+        private boolean noRubberDuck;
         private boolean noSharedSession;
         private String reviewModel;
         private String reportModel;
@@ -101,16 +107,18 @@ public record ReviewOptions(
         public Builder reasoningEffort(String r) { this.reasoningEffort = r; return this; }
         public Builder trustTarget(boolean b) { this.trustTarget = b; return this; }
         public Builder rubberDuck(boolean b) { this.rubberDuck = b; return this; }
+        public Builder noRubberDuck(boolean b) { this.noRubberDuck = b; return this; }
+        public Builder compactPrompts(boolean b) { this.compactPrompts = b; return this; }
         public Builder dialogueRounds(int r) { this.dialogueRounds = r; return this; }
         public Builder peerModel(String m) { this.peerModel = m; return this; }
 
         public ReviewOptions build() {
             return new ReviewOptions(
                 target, agents,
-                new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary, noSharedSession),
+                new OutputOptions(outputDirectory, additionalAgentDirs, parallelism, noSummary, noSharedSession, compactPrompts),
                 new ModelOptions(reviewModel, reportModel, summaryModel, defaultModel, reasoningEffort),
                 githubToken, trustTarget,
-                new RubberDuckOptions(rubberDuck, dialogueRounds, peerModel)
+                new RubberDuckOptions(rubberDuck, noRubberDuck, dialogueRounds, peerModel)
             );
         }
     }

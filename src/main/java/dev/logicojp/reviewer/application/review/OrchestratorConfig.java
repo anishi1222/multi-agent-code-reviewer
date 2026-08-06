@@ -13,6 +13,8 @@ import java.util.Objects;
 /// - Removed SDK-coupled types ({@code GithubMcpConfig}, {@code LocalFileConfig},
 ///   {@code ExecutionConfig}, {@code RubberDuckConfig}) — execution parameters
 ///   are now plain values or derived from {@code ReviewRequest} at call time.
+import dev.logicojp.reviewer.shared.PromptBudget;
+
 public record OrchestratorConfig(
     String githubToken,
     long orchestratorTimeoutMinutes,
@@ -25,7 +27,8 @@ public record OrchestratorConfig(
     String invocationTimestamp,
     PromptTexts promptTexts,
     boolean rubberDuckEnabled,
-    int rubberDuckRounds
+    int rubberDuckRounds,
+    PromptBudget promptBudget
 ) {
 
     public static final long DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES = 10L;
@@ -57,6 +60,7 @@ public record OrchestratorConfig(
         private int reviewPasses = DEFAULT_REVIEW_PASSES;
         private int maxRetries = DEFAULT_MAX_RETRIES;
         private boolean sharedSessionEnabled = true;
+        private PromptBudget promptBudget = new PromptBudget();
         private String reasoningEffort;
         private String outputConstraints;
         private String invocationTimestamp;
@@ -76,11 +80,12 @@ public record OrchestratorConfig(
         public Builder promptTexts(PromptTexts v) { this.promptTexts = v; return this; }
         public Builder rubberDuckEnabled(boolean v) { this.rubberDuckEnabled = v; return this; }
         public Builder rubberDuckRounds(int v) { this.rubberDuckRounds = v; return this; }
+        public Builder promptBudget(PromptBudget v) { this.promptBudget = v; return this; }
 
         public OrchestratorConfig build() {
             return new OrchestratorConfig(githubToken, orchestratorTimeoutMinutes, agentTimeoutMinutes,
                 reviewPasses, maxRetries, sharedSessionEnabled, reasoningEffort, outputConstraints,
-                invocationTimestamp, promptTexts, rubberDuckEnabled, rubberDuckRounds);
+                invocationTimestamp, promptTexts, rubberDuckEnabled, rubberDuckRounds, promptBudget);
         }
     }
 

@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.domain.agent;
 
 import dev.logicojp.reviewer.domain.review.ReviewContext;
+import dev.logicojp.reviewer.shared.PromptBudget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -60,7 +61,12 @@ class RubberDuckPromptBuilderTest {
     }
 
     private ReviewContext context() {
+        return context(new PromptBudget());
+    }
+
+    private ReviewContext context(PromptBudget promptBudget) {
         return ReviewContext.builder()
+            .promptBudget(promptBudget)
             .invocationTimestamp("2026-06-24-14-00-00")
             .maxRetries(0)
             .outputConstraints("OUTPUT_CONSTRAINTS")

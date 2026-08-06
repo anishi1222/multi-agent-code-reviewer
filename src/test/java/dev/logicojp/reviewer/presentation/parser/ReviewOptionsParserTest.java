@@ -42,21 +42,33 @@ class ReviewOptionsParserTest {
             .isEqualTo("owner/repo");
         assertThat(options.agents()).isInstanceOf(ReviewAgentSelection.All.class);
         assertThat(options.parallelism()).isEqualTo(7);
-        assertThat(options.noSharedSession()).isFalse();
     }
 
     @Test
-    @DisplayName("--no-shared-session指定を正しく解釈する")
-    void parsesNoSharedSessionFlag() {
+    @DisplayName("compact promptとrubber-duck無効化指定を正しく解釈する")
+    void parsesPromptSavingFlags() {
         var parser = newParser();
 
         Optional<ReviewOptions> parsed = parser.parse(
-            new String[]{"--repo", "owner/repo", "--all", "--no-shared-session"}
+            new String[]{"--repo", "owner/repo", "--all", "--no-rubber-duck", "--compact-prompts"}
         );
 
         assertThat(parsed).isPresent();
         ReviewOptions options = parsed.orElseThrow();
-        assertThat(options.noSharedSession()).isTrue();
+        assertThat(options.noRubberDuck()).isTrue();
+        assertThat(options.compactPrompts()).isTrue();
+    }
+
+    @Test
+    @DisplayName("rubber-duck有効化と無効化の同時指定はエラー")
+    void throwsWhenRubberDuckFlagsConflict() {
+        var parser = newParser();
+
+        assertThatThrownBy(() -> parser.parse(new String[]{
+            "--repo", "owner/repo", "--all", "--rubber-duck", "--no-rubber-duck"
+        }))
+            .isInstanceOf(CliValidationException.class)
+            .hasMessageContaining("Specify either --rubber-duck or --no-rubber-duck");
     }
 
     @Test

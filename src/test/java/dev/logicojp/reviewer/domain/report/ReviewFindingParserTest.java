@@ -40,25 +40,54 @@ class ReviewFindingParserTest {
     }
 
     @Test
-    @DisplayName("findingKeyはタイトル・優先度・場所・概要を使って安定キーを生成する")
-    void findingKeyBuildsDeterministicCompositeKey() {
-        var block = new ReviewFindingParser.FindingBlock(
-            "ReviewCommand クラスの責務過多",
-            """
+    @DisplayName("角括弧付き指摘番号から本文フィールドを抽出する")
+    void extractsBracketedFindingBlocks() {
+        String content = """
+            ### [1]. Validation issue
+
             | 項目 | 内容 |
             |------|------|
             | **Priority** | High |
-            | **指摘の概要** | CLI解析と実行が混在 |
-            | **該当箇所** | src/main/java/dev/logicojp/reviewer/cli/ReviewCommand.java |
-            """
-        );
+            | **指摘の概要** | Missing validation |
+            | **該当箇所** | src/A.java L10 |
+            """;
 
-        String key = ReviewFindingParser.findingKey(block);
+        List<ReviewFindingParser.FindingBlock> blocks =
+            ReviewFindingParser.extractFindingBlocks(content);
 
-        assertThat(key).contains("reviewcommand クラスの責務過多");
-        assertThat(key).contains("high");
-        assertThat(key).contains("reviewcommand.java");
-        assertThat(key).contains("cli解析と実行が混在");
+        assertThat(blocks).singleElement()
+            .satisfies(block -> {
+                assertThat(block.title()).isEqualTo("Validation issue");
+                assertThat(ReviewFindingParser.extractTableValue(block.body(), "指摘の概要"))
+                    .isEqualTo("Missing validation");
+                assertThat(ReviewFindingParser.extractTableValue(block.body(), "該当箇所"))
+                    .isEqualTo("src/A.java L10");
+            });
+    }
+
+    @Test
+    @DisplayName("Good Pointsの箇条書きを改善指摘として抽出しない")
+    void excludesGoodPointsFromFindingBlocks() {
+        String content = """
+            ### Good Points
+
+            - **Parameterized queries**: `src/A.java` L10
+
+            ### 改善点
+
+            ### [1]. Validation issue
+
+            | 項目 | 内容 |
+            |------|------|
+            | **Priority** | High |
+            """;
+
+        List<ReviewFindingParser.FindingBlock> blocks =
+            ReviewFindingParser.extractFindingBlocks(content);
+
+        assertThat(blocks).singleElement()
+            .extracting(ReviewFindingParser.FindingBlock::title)
+            .isEqualTo("Validation issue");
     }
 
     @Test
@@ -147,19 +176,4 @@ class ReviewFindingParserTest {
         assertThat(blocks).isEmpty();
     }
 
-    @Test
-    @DisplayName("findingKeyFromNormalizedのrawフォールバックは固定長ハッシュキーを返す")
-    void findingKeyFromNormalizedUsesCompactRawKey() {
-        var normalized = new AggregatedFinding.NormalizedFinding(
-            "", "", "", "", java.util.Set.of(), java.util.Set.of(), java.util.Set.of(), java.util.Set.of()
-        );
-
-        String key1 = ReviewFindingParser.findingKeyFromNormalized(normalized, "raw body content 1");
-        String key2 = ReviewFindingParser.findingKeyFromNormalized(normalized, "raw body content 2");
-
-        assertThat(key1).startsWith("raw|");
-        assertThat(key2).startsWith("raw|");
-        assertThat(key1).isNotEqualTo(key2);
-        assertThat(key1.length()).isLessThan(40);
-    }
 }

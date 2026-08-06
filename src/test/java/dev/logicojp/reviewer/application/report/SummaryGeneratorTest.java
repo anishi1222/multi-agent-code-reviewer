@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import dev.logicojp.reviewer.shared.PromptBudget;
 
 @DisplayName("SummaryGenerator")
 class SummaryGeneratorTest {
@@ -30,7 +31,8 @@ class SummaryGeneratorTest {
                 200,
                 1_000,
                 100,
-                2
+                2,
+                new PromptBudget()
             )
         );
 

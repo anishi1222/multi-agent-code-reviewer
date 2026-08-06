@@ -64,6 +64,9 @@ public class ReviewAgentConfigResolver {
 
     private Map<String, AgentConfig> applyRubberDuckOverrides(
             Map<String, AgentConfig> agentConfigs, ReviewOptions options) {
+        if (options.noRubberDuck()) {
+            return setRubberDuckEnabled(agentConfigs, false);
+        }
         boolean rubberDuck = options.rubberDuck();
         String peerModel = options.peerModel();
         int dialogueRounds = options.dialogueRounds();
@@ -83,6 +86,20 @@ public class ReviewAgentConfigResolver {
                 config = config.withDialogueRounds(dialogueRounds);
             }
             adjusted.put(entry.getKey(), config);
+        }
+        return adjusted;
+    }
+
+    /// Forces `rubberDuckEnabled` to [enabled] across every agent config.
+    ///
+    /// Ported from origin/main: backs the `--no-rubber-duck` CLI flag, which the
+    /// options parser already accepts but which previously had no effect here.
+    private Map<String, AgentConfig> setRubberDuckEnabled(
+            Map<String, AgentConfig> agentConfigs,
+            boolean enabled) {
+        Map<String, AgentConfig> adjusted = new LinkedHashMap<>();
+        for (Map.Entry<String, AgentConfig> entry : agentConfigs.entrySet()) {
+            adjusted.put(entry.getKey(), entry.getValue().withRubberDuckEnabled(enabled));
         }
         return adjusted;
     }

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import dev.logicojp.reviewer.shared.PromptBudget;
 
 @DisplayName("OrchestratorConfig")
 class OrchestratorConfigTest {
@@ -24,7 +25,8 @@ class OrchestratorConfigTest {
             null,
             null,
             false,
-            0
+            0,
+            new PromptBudget()
         );
 
         assertThat(config.orchestratorTimeoutMinutes()).isEqualTo(OrchestratorConfig.DEFAULT_ORCHESTRATOR_TIMEOUT_MINUTES);

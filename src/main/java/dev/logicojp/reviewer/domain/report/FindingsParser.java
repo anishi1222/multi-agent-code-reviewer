@@ -31,6 +31,11 @@ final class FindingsParser {
     }
 
     static List<ReviewFinding> extractFindings(String content, String agentName, String category) {
+        List<ReviewFinding> structured = extractStructuredFindings(content, agentName, category);
+        if (!structured.isEmpty()) {
+            return structured;
+        }
+
         List<ReviewFinding> findings = new ArrayList<>();
 
         List<String> titles = new ArrayList<>();
@@ -51,6 +56,35 @@ final class FindingsParser {
         appendTitleOnlyFindings(findings, titles, priorities, agentName, category);
 
         return findings;
+    }
+
+    /// Preferred extraction path, ported from origin/main: when the content contains
+    /// well-formed finding blocks, read `Priority` / `指摘の概要` / `該当箇所` straight
+    /// out of each block's table instead of inferring them with regex heuristics.
+    ///
+    /// Returns an empty list when no blocks are present, so the caller falls back to
+    /// the heading/priority scanning path.
+    private static List<ReviewFinding> extractStructuredFindings(String content,
+                                                                String agentName,
+                                                                String category) {
+        List<ReviewFindingParser.FindingBlock> blocks = ReviewFindingParser.extractFindingBlocks(content);
+        if (blocks.isEmpty()) {
+            return List.of();
+        }
+        return blocks.stream()
+            .map(block -> new ReviewFinding(
+                block.title(),
+                priorityOrUnknown(ReviewFindingParser.extractTableValue(block.body(), "Priority")),
+                agentName,
+                category,
+                ReviewFindingParser.extractTableValue(block.body(), "指摘の概要"),
+                ReviewFindingParser.extractTableValue(block.body(), "該当箇所")
+            ))
+            .toList();
+    }
+
+    private static String priorityOrUnknown(String priority) {
+        return priority == null || priority.isBlank() ? "Unknown" : priority;
     }
 
     private static void collectTitlesAndPriorities(String content,

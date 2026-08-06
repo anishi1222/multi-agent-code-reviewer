@@ -12,6 +12,7 @@ import dev.logicojp.reviewer.domain.report.SummaryPromptBuilder;
 
 import java.util.List;
 import java.util.Optional;
+import dev.logicojp.reviewer.shared.PromptBudget;
 
 /// Application-layer orchestrator for executive summary generation.
 ///
@@ -56,8 +57,13 @@ public final class SummaryGenerator {
         int fallbackExcerptLength,
         int averageResultContentEstimate,
         int initialBufferMargin,
-        int excerptNormalizationMultiplier
-    ) {}
+        int excerptNormalizationMultiplier,
+        PromptBudget promptBudget
+    ) {
+        public SummaryGenerationConfig {
+            promptBudget = promptBudget != null ? promptBudget : new PromptBudget();
+        }
+    }
 
     // Template key constants — must match what LoadTemplatePort.loadRaw() serves
     static final String TEMPLATE_SUMMARY_USER_PROMPT    = "summary-prompt.md";
@@ -81,7 +87,8 @@ public final class SummaryGenerator {
             config.maxContentPerAgent(),
             config.maxTotalPromptContent(),
             config.averageResultContentEstimate(),
-            config.initialBufferMargin()
+            config.initialBufferMargin(),
+            config.promptBudget()
         );
         this.fallbackBuilder = new FallbackSummaryBuilder(
             templates.loadRaw(TEMPLATE_FALLBACK),

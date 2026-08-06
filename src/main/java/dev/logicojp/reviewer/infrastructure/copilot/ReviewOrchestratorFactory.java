@@ -20,6 +20,7 @@ import dev.logicojp.reviewer.domain.report.ReviewResult;
 
 import java.util.List;
 import java.util.Objects;
+import dev.logicojp.reviewer.infrastructure.config.PromptBudgetConfig;
 
 /// CRITICAL DI wiring point — assembles all infrastructure adapters and creates
 /// the application-layer {@link ReviewOrchestrator}.
@@ -47,6 +48,7 @@ public class ReviewOrchestratorFactory implements RunReviewPort {
     private final ExecutionConfig executionConfig;
     private final ModelConfig modelConfig;
     private final RubberDuckConfig rubberDuckConfig;
+    private final PromptBudgetConfig promptBudgetConfig;
     private final ReviewSessionConfigFactory sessionConfigFactory;
     private final PropagateCorrelationPort propagateCorrelation;
 
@@ -57,6 +59,7 @@ public class ReviewOrchestratorFactory implements RunReviewPort {
                                       ExecutionConfig executionConfig,
                                       ModelConfig modelConfig,
                                       RubberDuckConfig rubberDuckConfig,
+                                      PromptBudgetConfig promptBudgetConfig,
                                       ReviewSessionConfigFactory sessionConfigFactory,
                                       PropagateCorrelationPort propagateCorrelation) {
         this.copilotService = Objects.requireNonNull(copilotService);
@@ -65,6 +68,7 @@ public class ReviewOrchestratorFactory implements RunReviewPort {
         this.executionConfig = Objects.requireNonNull(executionConfig);
         this.modelConfig = Objects.requireNonNull(modelConfig);
         this.rubberDuckConfig = Objects.requireNonNull(rubberDuckConfig);
+        this.promptBudgetConfig = promptBudgetConfig != null ? promptBudgetConfig : new PromptBudgetConfig();
         this.sessionConfigFactory = Objects.requireNonNull(sessionConfigFactory);
         this.propagateCorrelation = Objects.requireNonNull(propagateCorrelation);
     }
@@ -121,7 +125,7 @@ public class ReviewOrchestratorFactory implements RunReviewPort {
                                            String invocationTimestamp,
                                            String reasoningEffort,
                                            String outputConstraints) {
-        return new ReviewContextFactory(executionConfig, modelConfig, rubberDuckConfig)
+        return new ReviewContextFactory(executionConfig, modelConfig, rubberDuckConfig, promptBudgetConfig)
             .buildOrchestratorConfig(githubToken, invocationTimestamp, reasoningEffort, outputConstraints);
     }
 
