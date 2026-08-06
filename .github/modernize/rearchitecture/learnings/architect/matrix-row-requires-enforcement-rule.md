@@ -30,7 +30,21 @@ reading the matrix alone did not surface either one.
 - Name new rules with a **letter suffix at their logical position** (`5b`) rather than appending a
   next number or renumbering. Rule numbers get cited by learnings, review notes, and ADRs;
   renumbering silently invalidates those citations.
+  - **Clarified in t30:** the governing constraint is *never renumber an existing rule*; the `5b`
+    suffix is the mechanism for **inserting between** existing rules. Appending the next free number
+    is fine when it renumbers nothing — and is the *better* choice when the new number is already
+    cited downstream, since inventing a suffix would then invalidate the very citations this rule
+    protects. Check what is already published before choosing.
 
 ## History
 - 2026-08-05 (rearchitecture/t16): initial — recorded as ADR-0006 D5; produced the Rule 4 narrowing
   and the `presentation ⊥ infrastructure` rule, which backend landed as **Rule 5b** (0 exempt) in t13.1
+- 2026-08-06 (rearchitecture/t30): **first observed consequence.** ADR-0007 D5 (Accepted) declares a
+  "Rule 4b" forbidding `application.port → shared.SensitiveHeaderMasking`. `grep "Rule 4b" src/test`
+  → **0 matches**: the rule was never written, and `McpServerSpec:34` has been calling
+  `SensitiveHeaderMasking.wrapHeaders(...)` undetected ever since. Declaring an enforcement inside an
+  ADR does not create it. **Add the guard: an ADR must not be marked Accepted while any of its
+  D-items names a rule that does not yet exist in the test tree** — either ship the rule with the
+  ADR, or write the item as a proposal and leave the ADR Proposed. Also added the numbering
+  clarification above after Rule 8 exposed the ambiguity.
+

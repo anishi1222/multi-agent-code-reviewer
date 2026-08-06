@@ -44,3 +44,4 @@
 | 0005 | [Official Azure Skills and Microsoft Learn MCP for WAF Reviews](0005-azure-skills-and-microsoft-learn-mcp.md) | Accepted |
 | 0006 | [Adopt Ports & Adapters layering with an explicit composition root](0006-ports-and-adapters-layering.md) | Accepted |
 | 0007 | [Agent 定義の信頼モデルと、秘匿値の遮蔽境界](0007-agent-definition-trust-model-and-secret-sink-boundary.md) | Accepted |
+| 0008 | [制御の適用範囲は、その呼び出し箇所から見えなければならない](0008-control-scope-must-be-visible-at-the-call-site.md) | Accepted |

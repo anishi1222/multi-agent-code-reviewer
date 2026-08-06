@@ -185,3 +185,35 @@
   architect/matrix-row-requires-enforcement-rule, architect/purity-rule-is-not-a-membership-rule,
   architect/trust-level-must-be-carried-by-a-type,
   architect/purity-displaced-capabilities-become-ports]
+
+## [t30] ADR-0008 + Rule 8 — the rule that could not prove itself
+- **The premise was nearly false.** Rule 8 targets a `public static final int`. That is a JLS §4.12.4
+  *constant variable*, resolved at compile time (§13.1), so the read compiles to `sipush 10000` with
+  **no `Fieldref`**. The field-level rule t24 specified was not hard — it was impossible. What saves
+  it is that javac still emits an *unreferenced* `CONSTANT_Class` ghost entry. That is compiler
+  behaviour, not a JVMS guarantee.
+- **A grep-shaped probe told me the opposite, confidently.** My first check "confirmed" a `Fieldref`
+  existed; it was matching javap's disassembly text, not the pool. Re-running with `javap -v` and
+  reading the pool directly reversed the answer. Cheap probes lie in the direction you want.
+- **Biggest catch: an empty violator set means the rule observes nothing.** This file proves a rule
+  fires by asserting violators == exemptions. With 0 violators *and* 0 exemptions that check passes
+  for a broken predicate, a misspelled constant, or an absent pool entry. Rule 8 would have shipped
+  green and blind — the exact defect ADR-0008 exists to name, occurring inside the mechanism meant to
+  prevent it. Fixed with a permanent fixture-based control, then *proved* it by reintroducing F4's
+  original shape and watching Rule 8 go red.
+- **Measured blind spot:** a read in a `case` label leaves zero trace in the pool. Documented rather
+  than hidden; budget gates use `>`, not `switch`.
+- **Tenth instance found in the ADR series itself.** ADR-0007 D5 declares "Rule 4b"; `grep "Rule 4b"
+  src/test` → 0 matches, and `McpServerSpec:34` genuinely calls `SensitiveHeaderMasking.wrapHeaders`.
+  An Accepted ADR declared an enforcement nobody built. Left unfixed on purpose — it goes red
+  immediately and needs a real design decision, and bundling it would make Rule 8's green
+  unattributable.
+- **Trap that cost three builds: another agent is writing to this same worktree.** Their `mvn clean`
+  deleted `target/classes` mid-build, giving me one phantom test failure and then a cascade of
+  `bad class file … NoSuchFileException` on classes that had just compiled successfully. Both looked
+  like real regressions. Verified in an `rsync` copy at `/tmp/t30iso` instead: 969 tests, 0 failures.
+  Never trust a shared-worktree build result you did not isolate.
+- Learnings consumed: [architect/rule-the-premise-before-the-question,
+  architect/completeness-assertions-need-an-independent-side,
+  architect/matrix-row-requires-enforcement-rule, architect/reverify-docs-before-publishing,
+  architect/purity-rule-is-not-a-membership-rule]

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.constantpool.ClassEntry;
@@ -31,6 +32,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /// Enforces the layered / ports-and-adapters boundaries defined in
@@ -80,6 +82,9 @@ class LayerDependencyRulesTest {
     private static final String INFRASTRUCTURE = BASE + ".infrastructure";
     private static final String PRESENTATION = BASE + ".presentation";
     private static final String SHARED = BASE + ".shared";
+
+    /// The configuration-defaults holder guarded by Rule 8 (ADR-0008).
+    private static final String CONFIG_DEFAULTS = SHARED + ".ConfigDefaults";
 
     /// The five layers introduced by the rearchitecture. Everything else under [#BASE] is
     /// pre-migration code scheduled for deletion in t13.
@@ -364,6 +369,129 @@ class LayerDependencyRulesTest {
         assertTrue(rootDwellers.isEmpty(),
             () -> "Class(es) in the base package " + BASE + " belong to no layer: " + rootDwellers
                 + ". Only " + allowedAtRoot + " may live there.");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Rule 7 — RESERVED, not implemented.
+    //
+    // t24-architect.md §5 proposes a "one simple name per type" rule (group `dependencies.keySet()`
+    // by simple name, assert every group has size 1). The number is held here rather than reused so
+    // that "Rule 8" keeps the identity it already has in t24-architect.md §5A.4, decisions.md and
+    // three role inboxes. ADR-0006 L143's `5b` suffix convention governs *insertions* between
+    // existing rules — it exists to protect the 6a/6b pair — so appending 8 is compliant.
+    // ------------------------------------------------------------------------------------------
+
+    // ------------------------------------------------------------------------------------------
+    // Rule 8 — domain reads no configuration default directly (ADR-0008)
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Rule 8: domain reads no configuration default from shared.ConfigDefaults")
+    void domainReadsNoConfigurationDefault() {
+        // ADR-0008: a control's scope of application must be visible at its call site.
+        //
+        // F4 was the ninth instance of that pattern. Two gates guarded one resource -- skill
+        // parameter length -- with different quantities from different sources: one read the
+        // *configured* value and skipped with a warning, the other read the *hardcoded*
+        // `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH` and threw. Nothing at either call site
+        // revealed that the other gate existed, or that they could disagree. The remedy was to
+        // inject the resolved budget inward as a pure value (`shared.SkillBudget`), so the number
+        // in force arrives through the seam instead of being reached for.
+        //
+        // ## Why this rule names a type, not a field
+        //
+        // `SKILL_MAX_PARAMETER_VALUE_LENGTH` is a `public static final int` -- a JLS §4.12.4
+        // *constant variable*. JLS §13.1 requires the compiler to resolve it at compile time, so
+        // the read compiles to `sipush 10000` and **no `Fieldref` is ever emitted**. Field-level
+        // precision is therefore not merely awkward here, it is unavailable: there is nothing in
+        // the bytecode naming the field. The enforceable unit is the type.
+        //
+        // That makes the rule *wider* than the sentence it enforces -- it also forbids `domain`
+        // from calling the pure helpers (`defaultIfBlank`, `defaultIfNonPositive`). That widening
+        // is deliberate and currently free (0 violators): a default belongs at the configuration
+        // seam, and `infrastructure.config` + `shared` -- the only two layers that legitimately
+        // materialise defaults -- retain full access. Stated plainly so the rule is not read as
+        // narrower than it is.
+        //
+        // ## What this rule does not touch
+        //
+        // `shared.PromptBudget` and `shared.SkillBudget` are pure value objects injected *inward*.
+        // `domain` depending on them is the remedy, not the defect, and Rule 1 already permits it.
+        // Only `ConfigDefaults` itself is forbidden. If this rule ever flags a budget value object,
+        // the rule is wrong -- not the value object.
+        assertNoViolations("Rule 8 (domain ⊥ shared.ConfigDefaults)", classesIn(DOMAIN),
+            dep -> dep.equals(CONFIG_DEFAULTS),
+            Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 8 control: an inlined constant read is still visible to the analyzer")
+    void rule8DetectsAnInlinedConstantRead() throws IOException {
+        // Rule 8 is the one rule in this file that its own exemption mechanism cannot prove.
+        //
+        // Rules 3 and 4 carry non-empty exemption sets, so `assertNoViolations`' exact-equality
+        // check observes them firing on every run. Rule 8 has 0 violators *and* 0 exemptions, so
+        // that check observes nothing: it would pass identically if the predicate were broken, if
+        // `CONFIG_DEFAULTS` were misspelled, or if the constant-pool reference did not exist at all.
+        // Shipping it without this control would reproduce, inside the enforcement mechanism, the
+        // very defect ADR-0008 exists to prevent -- a control whose scope of application is
+        // invisible at its call site.
+        //
+        // The detectability Rule 8 depends on is real but *not* guaranteed by the JVM spec: javac
+        // records the compile-time dependency as an unreferenced `CONSTANT_Class` entry even though
+        // it inlined the value and emitted no instruction that uses it. That is compiler behaviour,
+        // not language semantics. This control pins it: if a toolchain change ever elides the ghost
+        // entry, this test goes red and says Rule 8 has gone blind -- instead of Rule 8 passing
+        // green forever while enforcing nothing.
+        //
+        // Known blind spot, measured on JDK 28 and stated rather than papered over: a constant read
+        // in a `case` label (`case ConfigDefaults.SOME_MAX ->`) leaves *no* trace in the reading
+        // class's constant pool. Rule 8 cannot see that shape. It is not a budget-gate idiom
+        // (budgets are compared, not switched on), so the gap is accepted and recorded here.
+        String fixture = "LayerDependencyRulesTest$InlinedConstantReadProbe.class";
+        byte[] bytes;
+        try (InputStream in = LayerDependencyRulesTest.class.getResourceAsStream(fixture)) {
+            assertNotNull(in, "Rule 8 control fixture not found on the test classpath: " + fixture);
+            bytes = in.readAllBytes();
+        }
+
+        Set<String> references = referencedTypes(ClassFile.of().parse(bytes));
+
+        System.out.printf("[arch] %-48s fixture references %s%n",
+            "Rule 8 control (inlined constant is detectable)",
+            references.contains(CONFIG_DEFAULTS) ? CONFIG_DEFAULTS : "NOTHING — Rule 8 IS BLIND");
+
+        assertTrue(InlinedConstantReadProbe.overBudget(Integer.MAX_VALUE),
+            "Fixture must genuinely read the constant, not merely mention it.");
+        assertTrue(references.contains(CONFIG_DEFAULTS), () -> """
+            Rule 8 cannot detect a direct read of an inlined `static final` constant.
+
+            The fixture reads `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH` and nothing else \
+            from that class, yet %s does not appear in its constant pool. Rule 8 is therefore \
+            vacuous: it would pass even with a live violator in `domain`.
+
+            Fix Rule 8's detection strategy (a source-text scan of `src/main/java/**/domain/**` is \
+            the fallback) -- do not delete this control.
+
+            Fixture references: %s
+            """.formatted(CONFIG_DEFAULTS, references));
+    }
+
+    /// Fixture for [#rule8DetectsAnInlinedConstantRead]. Reproduces F4's original shape exactly: a
+    /// class reading the hardcoded limit straight off [ConfigDefaults], with no other reference to
+    /// it — no method call, no field of that type — so the *only* thing that can put
+    /// `shared.ConfigDefaults` in this class's constant pool is the inlined constant read.
+    ///
+    /// It lives in the test tree, so it is never a Rule 8 subject: the analyzer walks
+    /// `target/classes` only.
+    static final class InlinedConstantReadProbe {
+
+        private InlinedConstantReadProbe() {
+        }
+
+        static boolean overBudget(int length) {
+            return length > dev.logicojp.reviewer.shared.ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH;
+        }
     }
 
     // ------------------------------------------------------------------------------------------

@@ -134,6 +134,7 @@ D3 で述べる例外の累積を招きました。
 | `infrastructure → application.port.outbound` のみ | Rule 4 |
 | `application` はアダプタ非依存 | Rule 5 |
 | `presentation ⊥ infrastructure` | **Rule 5b（t13.1 で追加済み・例外 0 件）** |
+| `domain` が設定既定値を直接読まない | **Rule 8（t30 で追加済み・例外 0 件。ADR-0008）** |
 | 層・サブパッケージの非循環 | Rule 6a / 6b |
 | 全パッケージがいずれかの層に属する | Rule 6 scope |
 
