@@ -11,6 +11,43 @@
 **Baseline commit**: fb2e795c569a56021e5ff680b3c8682dae9165ee
 **Classification**: brownfield-rewrite / grouping=none / deep_planning=true
 
+
+> ### ⚠️ SITUATION CHANGE — PR #245 was MERGED into `main` (2026-08-06T01:37:55Z)
+>
+> **The user's original request has shipped.** PR #245 *"Rebuild into a layered Ports and Adapters
+> architecture with enforced boundaries"* was merged by the repo owner as `469cfde`.
+>
+> **It was a squash merge, not a merge commit** — `469cfde` has a single parent, `5844456`. So the
+> ~40 individual commits of this branch exist in `main` as one commit. Git therefore cannot see that
+> the content is already present, which is normally a setup for large phantom conflicts.
+>
+> **Measured rather than assumed.** Tip-to-tip (`git diff HEAD..origin/main`, 2-dot — *not* the
+> 3-dot form, which misleadingly reports the whole squashed PR as "their" change):
+>
+> | Scope | Files | Delta |
+> |---|---|---|
+> | Everything | 35 | +67 / −2302 |
+> | `src/` only | 10 | +43 / −562 |
+>
+> The direction matters: HEAD → `origin/main` **deletes** our work, which means `main` contains
+> everything this branch had at PR time, and the branch's unique content is exactly the work done
+> *after* the merge — **t29** (`SkillBudget`, `AgentConfig`, `AgentPromptBuilder`, `AgentConfigLoader`,
+> `ConfigDefaults` + 3 test files) and **t25** (2 test files), plus coordination artifacts.
+>
+> **Consequence for the next merge:** merge-base is `5844456`, and both sides made largely identical
+> changes from it, so most files auto-resolve. Conflicts should be confined to the ~10 `src/` files
+> where our side is strictly newer, and **"ours" is the correct resolution** in those — the branch is
+> ahead, not divergent.
+>
+> **Deliberately NOT merging yet:** t30 and t27 are live in this worktree. Merging under two running
+> workers is precisely the shared-worktree corruption t25 documented, only worse than a `target/`
+> race. Merge happens after both land.
+>
+> **Signal worth recording:** the owner merged with **t18 still `❌ failed[findings]` (2 HIGH)** and
+> F2/F3 open. That is the owner's call to make and it supersedes the coordinator's §3.7 gate — but it
+> means those findings are now **`main`'s** problem, not this branch's, and should be re-raised
+> against `main` rather than treated as blocking here.
+
 ## Tasks
 
 ### Phase: Foundation 📌 4a5a420
