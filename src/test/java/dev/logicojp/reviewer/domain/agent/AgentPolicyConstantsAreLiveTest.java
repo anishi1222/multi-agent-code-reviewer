@@ -43,6 +43,12 @@ class AgentPolicyConstantsAreLiveTest {
 
     /// The five limits from SEC-H1 plus the file-size bounds they now sit beside. Each was
     /// either dead or uniform before ADR-0007 D2.
+    ///
+    /// The two charset constants are here because SEC-L10 found them referenced by production
+    /// but named by no test — the same shape of gap, one class over. `BLOCKED_CATEGORIES` is
+    /// deliberately **absent**: `CharsetAllowlistSweepTest` re-derives the category rule
+    /// independently instead of naming the constant, which is stronger coverage than a name
+    /// reference, and listing it here would force a citation that weakens that independence.
     @ParameterizedTest(name = "{0} is referenced outside its own declaration")
     @ValueSource(strings = {
         "MAX_INSTRUCTION_SIZE",
@@ -51,7 +57,9 @@ class AgentPolicyConstantsAreLiveTest {
         "MAX_AGENT_FILE_SIZE",
         "MAX_UNTRUSTED_AGENT_FILE_SIZE",
         "MAX_DISPLAY_NAME_LENGTH",
-        "ALLOWED_LANGUAGES"
+        "ALLOWED_LANGUAGES",
+        "ALLOWED_CHAR_RANGE",
+        "INVISIBLE_CODE_POINTS"
     })
     void constantIsReferencedInProductionAndPinnedByTests(String constant) throws IOException {
         long mainUses = countUsesExcludingDeclaration(MAIN, constant);

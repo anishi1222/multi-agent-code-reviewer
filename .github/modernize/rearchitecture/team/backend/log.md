@@ -484,3 +484,37 @@ genuinely provenance-aware. Without the captured red, a passing test after the f
 with a validator that ignores provenance entirely.
 
 - Learnings consumed: [backend/mutation-verify-regression-tests, backend/never-git-checkout-to-revert-a-mutant, backend/one-knob-many-budgets-erases-provenance, backend/surefire-declared-vs-actual-test-counts, backend/architecture-rule-negative-control, backend/archunit-java27-bytecode-ceiling, backend/self-cleaning-architecture-exclusions, backend/derived-exemptions-for-generated-beans, backend/java-subpackage-visibility, backend/domain-purification-patterns, backend/verify-clarification-against-the-repo]
+
+## [t18.3] SEC-H3 closed by subtracting Unicode categories from the charset allowlist, proven by exhaustive sweep
+
+- **The block-range trap generalises.** t18.2/F1 hand-narrowed `\u2000-\u206F` and got it
+  exactly right; the identical defect sat untouched in three other ranges of the same constant.
+  Correct hand-curation still does not generalise. Subtracting a *property* fixed all 15 ranges
+  at once.
+- **Derivation beat recall, measurably.** Security recommended excluding 5 blank-rendering
+  fillers. Sweeping the BMP against `Character.getName()` found **6** — `U+A8F9 DEVANAGARI GAP
+  FILLER` was on nobody's list. Never hand-write a set you can derive from JDK data.
+- **The coordinator's `Mn` count was low.** Reported 4 (U+302A–302D); actual is **6** — U+3099
+  and U+309A (combining dakuten/handakuten) come in via `\u3040-\u309F`, a different range than
+  the one audited. Re-derive counts rather than inheriting them.
+- **Order the exemption before the mask.** `\t \n \r` are category `Cc` and are in the allowlist
+  deliberately. `PERMITTED_CONTROL_CHARACTERS` has to be checked *before* `BLOCKED_CATEGORIES`
+  or every multi-line definition breaks. Cost me nothing here only because a test covered it.
+- **The over-block mutant is the one that taught me something.** M1 (remove the control) killed
+  the 4 rejection pins as expected. M4 (add `SPACE_SEPARATOR` to the blocked set) killed 15
+  tests including `japaneseIsAllowed` — proving the *acceptance* side is pinned and the rule
+  cannot drift too strict. A removal-only mutation matrix would have missed that entirely.
+- **Turn a tradeoff debate into a number.** Blocking all `Mn` rejects NFD kana and Ainu セ+U+309A,
+  which sounded expensive. Scanning 1,332 repo files for "admitted before, rejected after" gave
+  **0**, which settled it. Wrote `/tmp/t18_3/RepoImpact2.java` calling the *shipped* class, and
+  had to correct a first version that forgot to intersect with "currently admitted" — it flagged
+  U+FE0F in 240 files, which was already rejected. Always diff against current behaviour, not
+  against the new rule alone.
+- **Staging the RED honestly.** Added the constants as inert data first and left the predicate
+  unwired. That made the sweep and `subtractionIsNotANoOp` fail while the derivation test passed
+  — a much more informative RED than a compile error, and it doubled as mutation M1.
+- **Sweep cost is a non-issue.** 1.1M regex matches ≈ 80 ms; 1M `Character.getType` ≈ 5 ms.
+  Exhaustive enumeration of a codepoint domain is cheap enough to run on every build.
+- Learnings consumed: [security/charset-allowlist-block-ranges, backend/architecture-rule-negative-control,
+  backend/mutation-verify-regression-tests, backend/never-git-checkout-to-revert-a-mutant,
+  backend/self-cleaning-architecture-exclusions, security/dead-security-controls]

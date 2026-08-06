@@ -9,6 +9,7 @@ import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -66,7 +67,11 @@ public final class CustomInstructionSafetyValidator {
             + "|</user_provided_instruction>",
         Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern ALLOWED_CHAR_RANGE = Pattern.compile(
+    /// Package-private so [CharsetAllowlistSweepTest] can measure what the ranges admit on
+    /// their own, and thereby prove the category subtraction below is not a no-op. Callers
+    /// outside this class must go through [#containsOnlyAllowedCharacters], which applies both
+    /// halves of the rule.
+    static final Pattern ALLOWED_CHAR_RANGE = Pattern.compile(
         "^[\\x20-\\x7E"
             + "\\u3000-\\u303F"
             + "\\u3040-\\u309F"
@@ -91,6 +96,56 @@ public final class CustomInstructionSafetyValidator {
             + "\\u2600-\\u26FF"
             + "\\t\\n\\r"
             + "]*$", Pattern.DOTALL);
+
+    /// Whitespace deliberately admitted by [#ALLOWED_CHAR_RANGE] despite being category `Cc`.
+    /// An agent definition is multi-line text; these three must survive the subtraction below.
+    private static final Set<Integer> PERMITTED_CONTROL_CHARACTERS =
+        Set.of((int) '\t', (int) '\n', (int) '\r');
+
+    /// General categories subtracted from whatever [#ALLOWED_CHAR_RANGE] admits.
+    ///
+    /// A block range is named for what its author wanted out of the block and admits
+    /// everything else in it. `\uFF00-\uFFEF` was added for fullwidth ASCII and halfwidth
+    /// katakana; it also carries 15 unassigned codepoints and a blank-rendering filler.
+    /// Enumerating the block's undesirables by hand is what SEC-H3 was — this subtracts the
+    /// *property* instead, so a codepoint nobody has looked at is still covered.
+    ///
+    /// `NON_SPACING_MARK` and `ENCLOSING_MARK` are here because a combining mark renders on
+    /// top of the preceding glyph rather than as itself: `指\u3099示` looks like `指示` with a
+    /// dakuten but is a different string, and that is enough to slip past a denylist keyword.
+    /// This does reject NFD-decomposed kana and the handful of kana that have no precomposed
+    /// form (か\u309A, Ainu セ\u309A). That cost is accepted: the rule applies **only** to
+    /// `REPOSITORY_SUPPLIED` definitions, and an operator who needs those can supply the file
+    /// via `--agents-dir`, which is `USER_SUPPLIED` and charset-exempt by design (ADR-0007 D3).
+    ///
+    /// `Zs` is deliberately **absent** — U+3000 IDEOGRAPHIC SPACE and U+2000-U+200A are wanted.
+    static final Set<Integer> BLOCKED_CATEGORIES = Set.of(
+        (int) Character.FORMAT,
+        (int) Character.CONTROL,
+        (int) Character.UNASSIGNED,
+        (int) Character.PRIVATE_USE,
+        (int) Character.SURROGATE,
+        (int) Character.LINE_SEPARATOR,
+        (int) Character.PARAGRAPH_SEPARATOR,
+        (int) Character.NON_SPACING_MARK,
+        (int) Character.ENCLOSING_MARK);
+
+    /// Codepoints that render as nothing but whose general category is a letter, symbol or
+    /// punctuation — so [#BLOCKED_CATEGORIES] cannot see them.
+    ///
+    /// U+FFA0 is the one SEC-H3 was reported for. The rest are its siblings, and this set was
+    /// **derived** by sweeping the BMP against the JDK's Unicode name tables rather than
+    /// recalled — a hand-written list of the "obvious" five omitted U+A8F9. The pin is
+    /// re-derived and asserted equal on every build by
+    /// [CharsetAllowlistSweepTest.PinnedSetIsDerived], so a JDK Unicode upgrade that adds a
+    /// blank-rendering letter fails the build naming it instead of quietly widening this rule.
+    static final Set<Integer> INVISIBLE_CODE_POINTS = Set.of(
+        0x115F,   // HANGUL CHOSEONG FILLER
+        0x1160,   // HANGUL JUNGSEONG FILLER
+        0x2800,   // BRAILLE PATTERN BLANK
+        0x3164,   // HANGUL FILLER
+        0xA8F9,   // DEVANAGARI GAP FILLER
+        0xFFA0);  // HALFWIDTH HANGUL FILLER
 
     private static List<Pattern> loadSuspiciousPatterns() {
         return loadPatternTextsFromResource().stream()
@@ -128,12 +183,24 @@ public final class CustomInstructionSafetyValidator {
     private CustomInstructionSafetyValidator() {
     }
 
-    /// Reports whether every character in `content` falls inside the allowed ranges.
+    /// Reports whether every character in `content` falls inside the allowed set.
     ///
-    /// The range covers printable ASCII, CJK (kana, ideographs, full-width forms), Hangul,
-    /// common punctuation/arrow/box-drawing blocks, and the usual whitespace. It deliberately
-    /// excludes bidirectional-override and other invisible formatting characters, which are
-    /// the classic way to make a definition read differently to a human than to a model.
+    /// The rule has two halves, and both are load-bearing:
+    ///
+    /// 1. **[#ALLOWED_CHAR_RANGE]** — a whitelist of Unicode blocks covering printable ASCII,
+    ///    CJK (kana, ideographs, fullwidth forms), Hangul, and common punctuation, arrow and
+    ///    box-drawing blocks.
+    /// 2. **the category subtraction below** — because a block admits *everything* in it, not
+    ///    just the characters it was added for. `\uFF00-\uFFEF` was added for fullwidth ASCII
+    ///    and halfwidth katakana and also carries U+FFA0 HALFWIDTH HANGUL FILLER, which renders
+    ///    as blank yet is general category `Lo`. That combination defeated both layers of the
+    ///    defence at once (SEC-H3): the charset rule admitted it because it is in the block,
+    ///    and the prompt-injection denylist never matched `ig<U+FFA0>nore all previous
+    ///    instructions` because the normalisation strip is `[\p{Cf}\p{Cc}]` and U+FFA0 is a
+    ///    letter. The first half alone is therefore not sufficient.
+    ///
+    /// The second half can only ever reject more than the first, never admit more, so widening
+    /// a range cannot silently reintroduce an invisible character.
     ///
     /// This check is applied only to repository-supplied definitions
     /// ([dev.logicojp.reviewer.domain.agent.AgentTrustProfile#enforcesCharset()]). Operator
@@ -146,7 +213,24 @@ public final class CustomInstructionSafetyValidator {
         if (content == null || content.isEmpty()) {
             return true;
         }
-        return ALLOWED_CHAR_RANGE.matcher(content).matches();
+        if (!ALLOWED_CHAR_RANGE.matcher(content).matches()) {
+            return false;
+        }
+        return content.codePoints()
+            .noneMatch(CustomInstructionSafetyValidator::isDisallowedCodePoint);
+    }
+
+    /// Subtracts invisible and unassigned codepoints from whatever the block ranges admitted.
+    ///
+    /// Ordered so the deliberate exemption is checked first: `\t`, `\n` and `\r` are category
+    /// `Cc` and are in the allowlist on purpose, so they must escape [#BLOCKED_CATEGORIES]
+    /// before it is consulted.
+    private static boolean isDisallowedCodePoint(int codePoint) {
+        if (PERMITTED_CONTROL_CHARACTERS.contains(codePoint)) {
+            return false;
+        }
+        return INVISIBLE_CODE_POINTS.contains(codePoint)
+            || BLOCKED_CATEGORIES.contains(Character.getType(codePoint));
     }
 
     public static boolean containsSuspiciousPattern(String content) {
