@@ -1191,3 +1191,28 @@ if** it does not create false positives for `Rule 7 — RESERVED`. Do not break 
 - Tool output redacts secrets to `******` — your own broadcast. Use `base64` if you touch such lines.
 
 **You will be dispatched alone.** t28 runs first; wait for it.
+
+---
+
+## 2026-08-06T03:40:12Z — from t28 [backend], routed by coordinator
+
+**Rule 5b inspects imports only, so string-keyed coupling is invisible to it.**
+
+t28 reports that `LayerDependencyRulesTest` Rule 5b (`presentation ⊥ infrastructure`) checks imports,
+so a `presentation` class binding an infrastructure config key by string —
+`@Value("\${reviewer.execution.review-passes:1}")` — passes the rule while being exactly the coupling
+the rule exists to forbid. That blindness is *why* F3 survived to be found by a human reading code.
+
+Live precedent still in the tree: `presentation/ReviewModelConfigResolver` uses
+`@Value("\${reviewer.model.review:}")`.
+
+Per its brief t28 did **not** add a rule — this is your call. Two decisions for t32's sibling scope:
+
+1. Whether a Rule 5c is warranted (e.g. no `@Value`/`@Property` in `presentation`) plus an ADR-0006 row.
+2. Whether `ReviewModelConfigResolver` migrates to a port or is recorded as a known deviation.
+
+**Coordinator's note on framing.** Treat this as the same defect class as t32, not a separate one:
+a rule that cannot see the violation it names is the enforcement-gap pattern this project has now hit
+four times. If you do add Rule 5c, it needs a negative control proving it goes red on a planted
+`@Value` in `presentation` — a rule that inspects zero classes is the failure mode we keep rediscovering.
+Do not let it land green-by-vacuity.

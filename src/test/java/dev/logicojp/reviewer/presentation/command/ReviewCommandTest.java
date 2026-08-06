@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.presentation.command;
 
+import dev.logicojp.reviewer.application.port.inbound.ReviewPlan;
 import dev.logicojp.reviewer.infrastructure.logging.MdcCorrelationAdapter;
 import dev.logicojp.reviewer.application.port.inbound.GenerateReportPort;
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
@@ -124,8 +125,8 @@ class ReviewCommandTest {
         ReviewOptionsParser optionsParser = new ReviewOptionsParser(2);
         ReviewTargetResolver targetResolver = new ReviewTargetResolver(githubToken -> Optional.of("token"));
         ReviewAgentConfigResolver agentConfigResolver = new ReviewAgentConfigResolver(loadAgentPort);
-        ReviewOutputFormatter outputFormatter = new ReviewOutputFormatter(output, 1);
-        ReviewPreparationService preparationService = new ReviewPreparationService(outputFormatter);
+        ReviewOutputFormatter outputFormatter = new ReviewOutputFormatter(output);
+        ReviewPreparationService preparationService = new ReviewPreparationService(outputFormatter, () -> new ReviewPlan(1));
         ReviewRunRequestFactory runRequestFactory = new ReviewRunRequestFactory();
         ReviewExecutionCoordinator executionCoordinator = new ReviewExecutionCoordinator(stubExecutor(executionFn, output));
 
@@ -157,7 +158,7 @@ class ReviewCommandTest {
                 return Optional.empty();
             }
         };
-        return new ReviewRunExecutor(runReviewPort, generateReportPort, new ReviewOutputFormatter(output, 1)) {
+        return new ReviewRunExecutor(runReviewPort, generateReportPort, new ReviewOutputFormatter(output)) {
             @Override
             public int execute(ReviewRequest request) {
                 return executionFn.execute(request);

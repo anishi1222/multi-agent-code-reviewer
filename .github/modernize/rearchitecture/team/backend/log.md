@@ -394,3 +394,38 @@
   backend/injecting-config-into-pure-domain-as-values,
   backend/architecture-rule-negative-control, backend/merging-upstream-into-restructured-tree,
   architect/inherited-defect-is-not-a-merge-finding]
+
+## [t28] F3 — banner and executor read different config keys; fixed via a new inbound port
+- **The finding was mis-shaped as a typo.** t24 described F3 as "reads the wrong key". Correcting
+  the string would have passed every existing test and left the actual defect — a `presentation`
+  class naming an `infrastructure` config key by string — fully intact. The architect was right to
+  insist on the port. Worth remembering: when a finding says "wrong key/name/path", ask *what made
+  the wrongness invisible* before fixing the spelling.
+- **`@Value` in `presentation` is an ADR-0006 D1 blind spot.** Rule 5b (`presentation ⊥
+  infrastructure`) inspects **imports**. A `@Value("${some.infra.key}")` is the same coupling with
+  none of the compile-time safety, and no static rule sees it. `presentation/ReviewModelConfigResolver`
+  still does this. Flagged to architect; deliberately did not add a rule myself.
+- **The obvious test would have been worthless.** "set property to 3, assert banner prints 3" passes
+  identically against the broken code — the broken code also printed what *its* key said. The only
+  test with any power sets the two keys to **contradictory** values and compares the port's answer
+  against `ReviewOrchestratorFactory#buildConfig(...)`, i.e. the executor's own derivation. Compare
+  two independently-derived values, never a value against a literal.
+- **Mutation-verify any test written as a regression control.** I reintroduced the defect in the
+  isolated copy and confirmed red (`expected: 3 but was: 7`), then restored and confirmed green.
+  Cheap, and it is the only actual evidence that a "regression test" regresses.
+- **Bind a method reference, not a snapshotted value.** `new DescribeReviewPlanUseCase(executionConfig::reviewPasses)`
+  makes the wiring itself read as "the same accessor the executor uses". Passing an `int` would be
+  runtime-identical but reintroduces a *second independent read* — the exact shape of the bug.
+- **Normalisation belongs to one owner (ADR-0006 D6).** `ReviewPlan` **throws** on `< 1` rather than
+  clamping. `ExecutionConfig` already normalises; a second clamp would silently mask that owner
+  breaking. Parameterized cases `-4`/`0` prove the port inherits normalisation instead of copying it.
+- **Banner prints before `ReviewRequest` exists** (`ReviewCommand` L124 vs L128) — that is why the
+  value cannot ride on `ReviewRequest` without reordering the command. Checked this before designing.
+- **Grep for call sites *before* changing a public signature.** I changed `ReviewOutputFormatter`'s
+  ctor, then discovered 3 more test files mid-build. `grep -rn "new Type(\|methodName("` up front
+  would have cost 10 seconds and saved a failed build cycle.
+- **Shared-worktree builds:** `rsync --exclude target/ --exclude .git/ --exclude logs/` to `/tmp`,
+  and afterwards `diff -r src /tmp/<iso>/src` to prove the verified tree is the worktree. The stale
+  first sync cost me a wasted 5-error build.
+- Result: 990 tests, 0 failures (baseline 980, +10). `LayerDependencyRulesTest` needed no edits.
+- Learnings consumed: [backend/derived-exemptions-for-generated-beans, backend/micronaut-factory-port-binding]

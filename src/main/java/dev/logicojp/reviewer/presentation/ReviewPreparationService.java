@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.presentation;
 
+import dev.logicojp.reviewer.application.port.inbound.DescribeReviewPlanPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
 import dev.logicojp.reviewer.presentation.formatter.ReviewOutputFormatter;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /// Handles pre-execution validation and banner display for the review flow.
 @Singleton
@@ -19,13 +21,21 @@ public class ReviewPreparationService {
     private static final Logger logger = LoggerFactory.getLogger(ReviewPreparationService.class);
 
     private final ReviewOutputFormatter bannerPrinter;
+    private final DescribeReviewPlanPort reviewPlanSource;
 
     @Inject
-    public ReviewPreparationService(ReviewOutputFormatter bannerPrinter) {
-        this.bannerPrinter = bannerPrinter;
+    public ReviewPreparationService(ReviewOutputFormatter bannerPrinter,
+                                    DescribeReviewPlanPort reviewPlanSource) {
+        this.bannerPrinter = Objects.requireNonNull(bannerPrinter, "bannerPrinter must not be null");
+        this.reviewPlanSource =
+            Objects.requireNonNull(reviewPlanSource, "reviewPlanSource must not be null");
     }
 
     /// Validates agent and target selection, prints startup banner.
+    ///
+    /// The banner's pass count is not a parameter: it is read from
+    /// {@link DescribeReviewPlanPort} at print time, so it always reflects the plan the executor
+    /// will follow rather than a separately-bound configuration key (t24/F3).
     ///
     /// @param agentDirs      additional agent directories from CLI (for display)
     /// @param agents         resolved agent configs
@@ -46,6 +56,7 @@ public class ReviewPreparationService {
                 "No review agents found. Verify agent directories: " + agentDirs, true);
         }
 
-        bannerPrinter.printBanner(agents, agentDirs, summaryModel, target, outputDir, reviewModel);
+        bannerPrinter.printBanner(agents, agentDirs, summaryModel, target, outputDir, reviewModel,
+            reviewPlanSource.describePlan());
     }
 }

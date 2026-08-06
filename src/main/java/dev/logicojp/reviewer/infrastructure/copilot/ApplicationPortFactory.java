@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.infrastructure.copilot;
 
 import dev.logicojp.reviewer.application.agent.LoadAgentUseCase;
 import dev.logicojp.reviewer.application.auth.ResolveTokenUseCase;
+import dev.logicojp.reviewer.application.port.inbound.DescribeReviewPlanPort;
 import dev.logicojp.reviewer.application.port.inbound.ExecuteSkillPort;
 import dev.logicojp.reviewer.application.port.inbound.GenerateReportPort;
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
@@ -15,6 +16,7 @@ import dev.logicojp.reviewer.application.port.outbound.GenerateAiSummaryPort;
 import dev.logicojp.reviewer.application.port.outbound.LoadTemplatePort;
 import dev.logicojp.reviewer.application.report.GenerateReportUseCase;
 import dev.logicojp.reviewer.application.report.SummaryGenerator.SummaryGenerationConfig;
+import dev.logicojp.reviewer.application.review.DescribeReviewPlanUseCase;
 import dev.logicojp.reviewer.application.review.RunDiagnosticsUseCase;
 import dev.logicojp.reviewer.application.skill.ExecuteSkillUseCase;
 import dev.logicojp.reviewer.domain.agent.ReviewSystemPromptFormatter;
@@ -157,14 +159,32 @@ public class ApplicationPortFactory {
     /// the mechanisms. The fallback switch is configuration, so it is read here — in the
     /// composition root — and handed to the use case as a plain value, exactly as
     /// {@code defaultModel} is for {@link #executeSkillPort}.
-    ///
-    /// **Keep this method last.** Micronaut names each generated bean definition after the
-    /// method's declaration index (`…$ResolveTokenPort7$Definition`), and
-    /// {@code LayerDependencyRulesTest} Rule 4 derives its exemptions from those names. Inserting
-    /// a method above this one renumbers every definition that follows it.
     @Singleton
     ResolveTokenPort resolveTokenPort(AcquireGitHubTokenPort tokenSource,
                                        ExecutionConfig executionConfig) {
         return new ResolveTokenUseCase(tokenSource, executionConfig.isGhAuthFallbackEnabled());
+    }
+
+    /// Provides {@link DescribeReviewPlanPort} backed by {@link DescribeReviewPlanUseCase}.
+    ///
+    /// The supplier is bound to {@link ExecutionConfig#reviewPasses()} — the **same accessor**
+    /// {@code ReviewContextFactory} resolves when it maps configuration onto
+    /// {@code OrchestratorConfig} for an actual run. That is the whole point of the binding: the
+    /// banner and the executor cannot read different keys because they no longer read a key at
+    /// all, they read one accessor.
+    ///
+    /// Before t28 the banner bound `reviewer.execution.review-passes` from `presentation`, a key
+    /// nothing else read, while the executor used `reviewer.execution.concurrency.review-passes`
+    /// (t24/F3). `ReviewPassesSingleSourceTest` is the control that keeps them agreeing.
+    ///
+    /// **Append new methods below this one.** Micronaut names each generated bean definition
+    /// after the method's declaration index (`…$ResolveTokenPort7$Definition`). Inserting a
+    /// method *above* an existing one renumbers every definition that follows; appending at the
+    /// end leaves indices 0..n-1 stable. {@code LayerDependencyRulesTest} Rule 4 derives its
+    /// exemptions from the declaring class rather than those names, so it survives renumbering —
+    /// but external tooling that pins a definition name does not.
+    @Singleton
+    DescribeReviewPlanPort describeReviewPlanPort(ExecutionConfig executionConfig) {
+        return new DescribeReviewPlanUseCase(executionConfig::reviewPasses);
     }
 }
