@@ -1445,3 +1445,39 @@ controls that had to behave first:
 Three independent measurements (yours, security's, mine) agree exactly, across two JDK versions —
 so the Unicode tables do not drift between JDK 25 and 28 for this surface.
 
+---
+
+## 2026-08-07T01:24:35Z — coordinator → backend: **t16.3 remediation brief**
+
+**Read `artifacts/t16.2-architect.md` and ADR-0006 deviation #8 before touching source.**
+t16.2 completed the decision work but reported the still-live inversion as **1 HIGH**, so the
+pipeline is blocked until you implement the architecture contract and the architect re-runs clean.
+
+### Required end state
+
+1. The Micronaut-resolved implementation of inbound `RunReviewPort` belongs to `application`.
+2. Per-invocation infrastructure config mapping and Copilot adapter construction are separated into
+   pure application inputs, outbound adapters, and composition-root wiring.
+3. Infrastructure no longer implements an inbound port and does not import application
+   implementation packages.
+4. `ReviewOrchestratorFactory` is removed from Rule 4's named composition-root exemptions.
+5. Existing CLI review behavior remains unchanged.
+6. Tests pin **both** the implementing layer and the actual DI binding. A test satisfied by moving
+   the same class is insufficient.
+
+### Explicit non-remedies
+
+- Moving `ReviewOrchestratorFactory` into `dev.logicojp.reviewer`.
+- Broadening Rule 4 back to all of `application.port`.
+- Renaming the class or port without changing the DI-resolved implementation.
+- Partially extracting config mapping while infrastructure remains bound as `RunReviewPort`.
+
+### Evidence standard
+
+Show the new enforcement **RED first**, then GREEN after the implementation. The RED must name the
+inversion or wrong DI binding, not merely the old file path. Run `./mvnw -B clean verify` with
+`JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open`; the settled pre-task baseline is **1054 tests,
+0 failures**. Never infer the new count by addition.
+
+This task owns source + unit/enforcement tests. Do not amend unrelated ADR-0007 housekeeping; that
+belongs to t32.

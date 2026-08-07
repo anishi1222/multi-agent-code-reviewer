@@ -253,3 +253,22 @@
 - Learnings consumed: [architect/empty-violator-set-needs-a-permanent-control,
   architect/matrix-row-requires-enforcement-rule, architect/verify-the-premise-before-ruling,
   architect/disclose-scope-exceeded-instead-of-narrowing]
+
+## [t16.2] Corrected ADR-0006 D3 and recorded review-path inversion #8
+
+- D3's three-class premise was false: only `ApplicationPortFactory` is `@Factory`;
+  `ReviewContextFactory` maps config, and `ReviewOrchestratorFactory` is a `@Singleton` implementing
+  inbound `RunReviewPort`.
+- Ruled that moving the latter two into the root would conceal, not fix, the boundary defect.
+  Deviation #8 remains HIGH and needs a dedicated backend refactor that binds an application
+  implementation and removes the Rule 4 exemption.
+- Chose the real-refactor branch: architecture records only, no partial production-code change.
+- The final whole-ADR sweep also caught its operational note still naming Java 27 /
+  GraalVM 25.0.4; reconciled it to `pom.xml` Java 28 and `.sdkmanrc` GraalVM 25.0.3.
+- A first verification assertion searched raw `@Singleton` text and falsely matched
+  `ReviewOrchestrator` Javadoc saying the annotation had been removed. Anchoring checks to complete
+  annotation lines corrected the verifier; the final source/ADR suite passed 12/12.
+- Learnings consumed: [architect/composition-root-as-layer-zero,
+  architect/port-direction-by-implementer, architect/rule-the-premise-before-the-question,
+  architect/reverify-docs-before-publishing, architect/matrix-row-requires-enforcement-rule,
+  architect/inherited-defect-is-not-a-merge-finding]

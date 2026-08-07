@@ -299,3 +299,22 @@ omitted it; t31 caught it from the ADR itself and executed ①RED ②D6 ③D5 �
 **Residual limit (recorded, not a regression)**: sink masking is text-shaped — it does not cover
 serialized JSON bodies, heap/core dumps, debuggers, or SDK-internal paths bypassing our logback.
 Equally true before this change. Token lifetime and least-privilege remain security's.
+
+## architect [t16.2] — 2026-08-07
+
+**Decision**: ADR-0006 D3 の初版前提を棄却し、実装事実に合わせて訂正する。
+`ApplicationPortFactory` / `ReviewContextFactory` / `ReviewOrchestratorFactory` は「3 件の
+Micronaut `@Factory`」ではない。実際に `@Factory` なのは `ApplicationPortFactory` だけであり、
+`ReviewContextFactory` は設定写像を行う通常クラス、`ReviewOrchestratorFactory` は
+`@Singleton` かつ inbound `RunReviewPort` の実装である。
+
+`ReviewOrchestratorFactory implements RunReviewPort` は **ADR-0006 deviation #8（HIGH）** とする。
+これはレビュー経路の依存方向反転であり、Rule 4 の名前指定例外によってのみ green になっている。
+ファイルをコンポジションルートへ移して例外内に隠す案は明示的に拒否する。DI から解決される
+`RunReviewPort` 実装を `application` に置き、設定写像と SDK アダプタ組み立てを outbound adapter /
+ルート配線へ分離して Rule 4 例外を削除することが完了条件である。
+
+**Rationale**: 初版 D3 を字面どおり実行すると、D1 の「配線のみ」を越える設定写像と D2 が禁止する inbound-port
+実装を、全層参照可能なルートへ移すだけになる。ルールが green でも反転は残り、可視だった欠陥が
+不可視になる。レビュー経路は影響範囲が大きく、9 依存の組み立て・呼び出し単位の設定写像・DI 束縛を
+分ける必要があるため、t16.2 では半端な source refactor を行わず、ADR-of-record と追随契約を先に確定した。

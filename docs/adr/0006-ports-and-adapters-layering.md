@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-05
+- Last amended: 2026-08-07 (t16.2 — D3 premise correction and deviation #8)
 - Deciders: Multi-Agent Code Reviewer maintainers
 - Tags: architecture, ports-and-adapters, layering, observability
 
@@ -21,11 +22,12 @@
 そこで Ports & Adapters（ヘキサゴナル）に基づく 5 層への全面再構成を実施しました。
 
 再構成の設計（層定義・許可インポート表・ポートカタログ）は完了し、実装も完了していますが、
-設計時点では解決しきれなかった**構造上の緊張が 6 点**残りました。これらは実装中に
-`LayerDependencyRulesTest` の**名前指定の例外**として暫定的に吸収されており、
-テストコード中にも `// Note for ADR-0006` として明示的に残されています。
+設計時点では解決しきれなかった構造上の緊張が残りました。初版ではそのうち 6 点を
+`LayerDependencyRulesTest` の**名前指定の例外**として整理しました。その後の追随実装（t16.1）で
+D3 の前提が誤っていたことと、レビュー経路に未記録の依存方向反転が 1 件あることが判明したため、
+t16.2 で決定と逸脱表を実装事実に合わせて訂正しています。
 
-本 ADR は、その 6 点すべてに決着をつけ、以後の判断基準を確定させるものです。
+本 ADR は、これらの緊張を隠さず、以後の判断基準と追随先を確定させるものです。
 
 ## Decision
 
@@ -65,7 +67,7 @@ D3 で述べる例外の累積を招きました。
 したがって `infrastructure` に許すのは `application.port.outbound` **のみ**であり、
 `application.port` 全体ではありません（実装ルールの是正は D5 参照）。
 
-### D3. `ReviewApp` は現在地に据え置き、DI ファクトリをルートへ移す
+### D3. `ReviewApp` は現在地に据え置き、ルートへ移せるのは配線だけとする
 
 エントリポイント `dev.logicojp.reviewer.ReviewApp` を `presentation` へ移す案は**採用しません**。
 
@@ -76,15 +78,32 @@ D3 で述べる例外の累積を招きました。
   利用者側のログ解析設定まで壊れる。
 - ルートパッケージはすでに事実上のコンポジションルートである。**名前を与えるほうが正しい。**
 
-代わりに、Micronaut の DI ファクトリ（`ApplicationPortFactory` ほか）を `infrastructure.copilot` から
-**コンポジションルートへ移設**します。これにより:
+#### t16.2 訂正 — 初版の前提は誤り
 
-- `infrastructure → application.port.inbound` を許すための**クラス名指定の例外 3 件が消滅**する
-- `presentation` 参照の例外は「クラス名の列挙」から「コンポジションルートというパッケージ」へと、
-  **境界が増えない形**に変わる
-- ビルド定義・ネイティブメタデータ・ログ名の変更が一切発生しない
+初版は、Rule 4 の例外になっている次の 3 クラスをすべて「Micronaut の DI ファクトリ」とみなし、
+まとめてコンポジションルートへ移すよう指示していました。ソースを再確認した結果、その前提は
+3 件中 2 件で成立しません。
 
-**正味で例外は減ります。**「例外は減ることはあっても増えてはならない」という本再構成の受け入れ基準を満たします。
+| クラス | 実装上の形 | 裁定 |
+|---|---|---|
+| `ApplicationPortFactory` | `@Factory`。ポートと実装の配線を定義する | **唯一、ルートへの移設対象になり得る** |
+| `ReviewContextFactory` | DI 注釈を持たない通常クラス。Micronaut 設定を `OrchestratorConfig` へ写像し、既定値を選ぶ | 配線ではない設定写像を含む現在の形のままルートへ移してはならない |
+| `ReviewOrchestratorFactory` | `@Singleton` かつ inbound `RunReviewPort` の実装 | ルートへ移すと D2 違反を Rule 4 のルート例外で隠すため、移設してはならない（deviation #8） |
+
+したがって、D3 の追随は一括移設ではなく、責務ごとに分けます。
+
+1. `ApplicationPortFactory` の純粋な配線はコンポジションルートへ移せる。
+2. `ReviewContextFactory` は、設定写像を純粋値の組み立てまたは outbound port のアダプタとして
+   分離してから Rule 4 の例外を外す。現在のロジックをルートへ移すだけの変更は不採用とする。
+3. DI から解決される `RunReviewPort` の実装は `application` に置く。
+   `ReviewOrchestratorFactory` が担う SDK アダプタ組み立てと設定写像は、コンポジションルートの配線と
+   outbound adapter に分割する。`infrastructure` が inbound port を実装する状態をファイル移動だけで
+   解消したことにしてはならない。
+
+**強制手段は既存の Rule 4**（`infrastructure → application.port.outbound` のみ）です。
+現時点では 3 クラスが名前指定の例外なので、Rule 4 が green でも #4 / #8 は解消済みとは限りません。
+例外の削除と責務の分離が同時に成立したときだけ追随完了とし、移設で違反を不可視化する変更は
+明示的に拒否します。
 
 ### D4. 純粋性が押し出した横断的関心事は、必ずポートとして復元する
 
@@ -173,8 +192,9 @@ public interface RunReviewPort {
    ビルド定義 4 箇所・ネイティブメタデータ 2 ファイル・利用者のログ名を壊す。棄却。
 2. **専用の `bootstrap` サブパッケージを新設する** — 構造的には最も整うが、`ReviewApp` の移設コスト（案 1 と同じ）が発生する。
    ルートパッケージが実質同じ役割を果たしているため、費用対効果で棄却。
-3. **DI ファクトリを `infrastructure` に残し、例外を維持する** — 例外リストが恒久化し、
-   「例外は増えない」という受け入れ基準の実効性を失う。棄却。
+3. **名前が `Factory` の 3 クラスを一括してルートへ移す** — t16.2 で棄却。
+   実際に `@Factory` なのは 1 件だけであり、残る 2 件を移すと設定写像ロジックと inbound port 実装を
+   ルート例外の内側へ隠す。例外の恒久維持も不採用であり、#4 / #8 の責務分離で解消する。
 4. **`application` でも SLF4J を許可する** — `domain` 純粋性との一貫性が崩れ、
    メトリクス・トレーシング追加時に同じ議論を繰り返すことになる。棄却（D4 のポート化を採用）。
 5. **層の強制をレビュー運用（人手）に委ねる** — `presentation ⊥ infrastructure` の違反が
@@ -195,24 +215,28 @@ public interface RunReviewPort {
 
 - コンポジションルートは全層を参照できるため、**規律が緩めば「何でも置ける場所」になり得る**。
   配線以外を置かない制約は、レビューで継続的に守る必要がある。
+- Rule 4 には #4 / #8 に対応する名前指定の例外が残るため、build green だけではレビュー経路の
+  依存方向が正しいことを証明できない。例外表と実際の実装者を併せて確認する必要がある。
 - 横断的関心事のポート化により、単純なログ 1 行のために契約が 1 つ増える。ボイラープレートは増える。
 - 単純クラス名の一意性規約は、意図的な同名 DTO を層ごとに置く自由を制限する。
 - 層の再編に伴い、既存のパッケージ名を参照する外部ドキュメント・ログ解析設定は追随が必要。
 
-## Known deviations (2026-08-05 時点)
+## Known deviations (2026-08-07 更新)
 
-本 ADR の決定に対するコード側の追随状況です。**Status** 列が本 ADR 発行時点の事実であり、
-`Open` の項目は後続タスクで解消されます。
+本 ADR の決定に対するコード側の追随状況です。**Status** 列は最終確認時点の事実であり、
+`Open` の項目は後続タスクで解消します。ファイル移動によってルールの例外側へ入っただけでは
+`Resolved` としません。
 
 | # | 逸脱 | 該当 | Status | 決定との差 |
 |---|---|---|---|---|
-| 1 | `ResolveTokenPort` が `application.port.inbound` にあるが、実装は `infrastructure.auth.GitHubTokenResolver` のみ | D2 | **Open** | 向きの誤分類。outbound 化するか、`application` に実装を置く |
-| 2 | `ExecuteSkillPort`（inbound）を `application.skill.ExecuteSkillUseCase` と `infrastructure.copilot.SkillExecutor` が二重実装し、DI 束縛先は後者。ユースケースは Javadoc 以外から未参照 | D2 | **Open** | 同上。ユースケースを束縛先に戻し、SDK 呼び出しは outbound ポートへ委譲する |
-| 3 | Rule 4 の対象が `application.port` 全体 | D2 / D5 | **Open** | `application.port.outbound` へ狭める（狭めることで #1 #2 が機械的に検出される） |
-| 4 | DI ファクトリ 3 件（`ApplicationPortFactory` / `ReviewContextFactory` / `ReviewOrchestratorFactory`）が `infrastructure.copilot` に所在し、Rule 4 のクラス名例外になっている | D3 | **Open** | コンポジションルートへ移設する |
+| 1 | `ResolveTokenPort` が `application.port.inbound` にあるが、実装は `infrastructure.auth.GitHubTokenResolver` のみ | D2 | **Resolved (t16.1)** | `application.auth.ResolveTokenUseCase` を inbound 実装とし、GitHub CLI 機構を outbound `AcquireGitHubTokenPort` に分離済み |
+| 2 | `ExecuteSkillPort`（inbound）を `application.skill.ExecuteSkillUseCase` と `infrastructure.copilot.SkillExecutor` が二重実装し、DI 束縛先は後者 | D2 | **Resolved (t16.1)** | `ExecuteSkillUseCase` を DI 束縛先へ戻し、`SkillExecutor` を削除済み |
+| 3 | Rule 4 の対象が `application.port` 全体 | D2 / D5 | **Resolved (t16.1)** | `application.port.outbound` のみに狭め、#1 / #2 を実違反として RED にした後に是正済み |
+| 4 | `ApplicationPortFactory` と `ReviewContextFactory` が `infrastructure.copilot` にあり、Rule 4 の名前指定例外になっている | D3 | **Open — scope corrected (t16.2)** | 前者だけが実際の `@Factory`。後者は設定写像・既定値選択を分離してから例外を外す。一括移設はしない |
 | 5 | `domain`（4 ファイル）・`application`（10 ファイル）のログ出力が `java.util.logging` のまま | D4 | **Partial** | 相関伝播は t13.1 の `PropagateCorrelationPort` で復元済み。レベル付き診断出力を同じ規律に載せるかは未決 |
 | 6 | `ConfigDefaults` / `RetryPolicyUtils` が `shared` と `infrastructure` に重複 | D6 | **Resolved (t13.1)** | `shared` に統合済み。単純クラス名の重複は現在 0 件 |
 | 7 | `presentation ⊥ infrastructure` の強制ルールが不在 | D5 | **Resolved (t13.1)** | Rule 5b として追加済み（例外 0 件、違反 0 件） |
+| 8 | `infrastructure.copilot.ReviewOrchestratorFactory` が `@Singleton` として inbound `RunReviewPort` を実装し、presentation への DI 束縛先になっている。`application.review.ReviewOrchestrator` も同ポートを実装するが DI bean ではない | D2 / D3 | **Open — HIGH (t16.2)** | DI から解決される inbound 実装を `application` に置き、設定写像と SDK アダプタ組み立てを outbound adapter / ルート配線へ分割して Rule 4 例外を削除する。ルートへの移設だけでは解消扱いにしない |
 
 ## Operational notes
 
@@ -220,15 +244,16 @@ public interface RunReviewPort {
   `pom.xml` / `pom-native.xml` の `mainClass`、GraalVM の `reachability-metadata.json`、
   および `docs/runbook.md` に記載のロガー名 `d.l.reviewer.ReviewApp` は**いずれも変更されません**。
 - **CLI の外部仕様は変わりません。** オプション名・設定キー・終了コード・レポート出力先はいずれも再構成の対象外です。
-- **層の逸脱はビルドで落ちます。** 層間依存は `LayerDependencyRulesTest` が JDK 標準の
+- **層の逸脱は、明示済みの #4 / #8 を除いてビルドで落ちます。** 層間依存は `LayerDependencyRulesTest` が JDK 標準の
   `java.lang.classfile` API でバイトコードを直接検査します。`mvn verify` の一部として実行されるため、
-  違反はレビュー前に検出されます。
-- **ArchUnit は使用しません。** 同ライブラリが同梱する ASM は Java 27 のクラスファイル
-  （major version 71）を解釈できず、**エラーを出さずに大半のクラスを読み飛ばす**ため、
+  例外に入っていない違反はレビュー前に検出されます。名前指定例外の存在は「解消済み」を意味しません。
+- **ArchUnit は使用しません。** 同ライブラリが同梱する ASM は Java 28 のクラスファイル
+  （major version 72）を解釈できず、**エラーを出さずに大半のクラスを読み飛ばす**ため、
   層検査が空振りします。層検査の依存追加時は、対象 JDK のクラスファイルバージョンへの
   対応を必ず確認してください。
-- **ビルドは 2 つの JDK を使い分けます。** `pom.xml` は OpenJDK 27-ea、`pom-native.xml` は
-  Oracle GraalVM 25.0.4 を必要とします。`JAVA_HOME` を明示せずに実行するとコンパイルに失敗します。
+- **ビルドは 2 つの JDK を使い分けます。** `pom.xml` は Java 28、`pom-native.xml` は release 25 を
+  対象とし、`.sdkmanrc` は native build 用に GraalVM 25.0.3 を選択します。
+  `JAVA_HOME` を明示せずに実行すると、意図しない toolchain でコンパイルされます。
 
 ## References
 
@@ -236,4 +261,5 @@ public interface RunReviewPort {
 - [0002: Use Micronaut dependency injection as composition backbone](0002-micronaut-di.md)
 - [0003: Orchestrate agent execution with virtual threads and structured concurrency](0003-virtual-thread-orchestration.md)
 - `src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java` — 層依存の強制実装
+- `.github/modernize/rearchitecture/artifacts/t16.1-backend.md` — D3 の前提反証と deviation #8 の発見証拠
 - `README_ja.md` / `README_en.md` の「プロジェクト構造」「アーキテクチャ」節 — 実装後の層構成
