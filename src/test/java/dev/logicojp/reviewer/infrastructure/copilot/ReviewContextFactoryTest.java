@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
+import dev.logicojp.reviewer.application.port.outbound.ResolveReviewSettingsPort.ReviewSettingsInput;
 import dev.logicojp.reviewer.infrastructure.config.ExecutionConfig;
 import dev.logicojp.reviewer.infrastructure.config.ModelConfig;
 import dev.logicojp.reviewer.infrastructure.config.RubberDuckConfig;
@@ -13,7 +14,7 @@ import dev.logicojp.reviewer.infrastructure.config.PromptBudgetConfig;
 class ReviewContextFactoryTest {
 
     @Test
-    @DisplayName("設定値を反映したOrchestratorConfigを生成する")
+    @DisplayName("設定値をframework-freeなReviewSettingsへ写像する")
     void createsContextWithConfiguredValues() {
         var executionConfig = new ExecutionConfig(
             new ExecutionConfig.ConcurrencySettings(2, 1),
@@ -27,18 +28,14 @@ class ReviewContextFactoryTest {
         var rubberDuckConfig = new RubberDuckConfig(true, 4, "peer-model", "last-responder");
         var factory = new ReviewContextFactory(executionConfig, modelConfig, rubberDuckConfig, new PromptBudgetConfig());
 
-        var context = factory.buildOrchestratorConfig(
-            "token", "2026-03-05-12-34-56", "high", "constraints");
+        var context = factory.resolve(new ReviewSettingsInput("high"));
 
-        assertThat(context.githubToken()).isEqualTo("token");
         assertThat(context.orchestratorTimeoutMinutes()).isEqualTo(10);
         assertThat(context.agentTimeoutMinutes()).isEqualTo(5);
         assertThat(context.reviewPasses()).isEqualTo(1);
         assertThat(context.maxRetries()).isEqualTo(2);
         assertThat(context.sharedSessionEnabled()).isTrue();
         assertThat(context.reasoningEffort()).isEqualTo("high");
-        assertThat(context.outputConstraints()).isEqualTo("constraints");
-        assertThat(context.invocationTimestamp()).isEqualTo("2026-03-05-12-34-56");
         assertThat(context.rubberDuckEnabled()).isTrue();
         assertThat(context.rubberDuckRounds()).isEqualTo(4);
     }

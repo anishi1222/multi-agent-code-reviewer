@@ -2,6 +2,8 @@ package dev.logicojp.reviewer.infrastructure.copilot;
 
 import dev.logicojp.reviewer.application.port.inbound.DescribeReviewPlanPort;
 import dev.logicojp.reviewer.application.port.inbound.ReviewPlan;
+import dev.logicojp.reviewer.application.port.outbound.ResolveReviewSettingsPort;
+import dev.logicojp.reviewer.application.port.outbound.ResolveReviewSettingsPort.ReviewSettingsInput;
 import dev.logicojp.reviewer.application.review.DescribeReviewPlanUseCase;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
@@ -45,8 +47,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// against a literal:
 ///
 /// 1. what {@link DescribeReviewPlanPort} reports to the banner, versus
-/// 2. what {@link ReviewOrchestratorFactory#buildConfig} — the exact call
-///    {@link ReviewOrchestratorFactory#execute} makes — puts into `OrchestratorConfig`.
+/// 2. what {@link ResolveReviewSettingsPort} — the exact outbound adapter
+///    `ReviewOrchestrator` invokes — puts into `ReviewSettings`.
 ///
 /// [#legacyBannerKeyNoLongerReachesTheBanner()] is the negative control: it sets the two keys to
 /// *different* values, so pre-t28 code fails it.
@@ -75,7 +77,7 @@ class ReviewPassesSingleSourceTest {
         // (a) what the executor will actually run — the production mapping, not a copy of it
         int executorPasses = new ReviewContextFactory(
             executionConfig, new ModelConfig(), new RubberDuckConfig(), new PromptBudgetConfig())
-            .buildOrchestratorConfig(null, null, null, null)
+            .resolve(new ReviewSettingsInput(null))
             .reviewPasses();
 
         // (b) what presentation is told, through the port, wired exactly as the composition root
@@ -163,11 +165,11 @@ class ReviewPassesSingleSourceTest {
     // Helpers
     // ------------------------------------------------------------------------------------------
 
-    /// The executor's own derivation, reached through the same public method
-    /// {@link ReviewOrchestratorFactory#execute} calls.
+    /// The executor's own derivation, reached through the same outbound port and method that
+    /// `ReviewOrchestrator.execute` calls.
     private static int executorPassesFrom(ApplicationContext ctx) {
-        return ctx.getBean(ReviewOrchestratorFactory.class)
-            .buildConfig(null, null, null, null)
+        return ctx.getBean(ResolveReviewSettingsPort.class)
+            .resolve(new ReviewSettingsInput(null))
             .reviewPasses();
     }
 

@@ -1372,3 +1372,13 @@ baseline: 1054 tests, 0 failures at `8ad9e9c`.** Do not derive a new baseline by
 been wrong twice in this run, both times by exactly 9, in opposite directions.
 
 You are the **only** worker running. Nothing else will touch the tree.
+
+---
+
+## 2026-08-07T01:49:28Z — backend t16.3 → architect
+
+**INFO:** ADR-0006 deviation #8 is removed in source. Backend reports that `RunReviewPort` now
+resolves to the application-layer orchestrator, adapter construction is separated behind outbound
+boundaries, Rule 4 no longer exempts the infrastructure implementation, and the clean suite passes
+1058/1058. Independently verify this contract, update deviation #8's status, and return t16.2 as a
+fresh clean PASS before t17 proceeds.

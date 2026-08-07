@@ -518,3 +518,27 @@ with a validator that ignores provenance entirely.
 - Learnings consumed: [security/charset-allowlist-block-ranges, backend/architecture-rule-negative-control,
   backend/mutation-verify-regression-tests, backend/never-git-checkout-to-revert-a-mutant,
   backend/self-cleaning-architecture-exclusions, security/dead-security-controls]
+
+## [t16.3] Bound `RunReviewPort` to application and split review composition responsibilities
+
+- RED-first controls exposed both aspects of ADR-0006 deviation #8: the Micronaut test resolved
+  `RunReviewPort` to infrastructure (6 tests, 1 failure), and un-exempted Rule 4 named the
+  infrastructure source plus generated bean definition (10 violators / 8 exemptions).
+- The final binding lives in root-package `ReviewPortFactory`, a true layer-zero factory containing
+  wiring only. `application.review.ReviewOrchestrator` is the resolved implementation and keeps no
+  invocation state; it resolves settings and creates SDK-backed session ports per call.
+- Split configuration mapping into outbound `ResolveReviewSettingsPort` implemented by
+  `ReviewContextFactory`, and SDK construction into `CreateReviewSessionPortsPort` implemented by
+  the historically named `ReviewOrchestratorFactory`.
+- Corrected an over-broad first design before verification: a configuration DTO had echoed the
+  GitHub token, timestamp, and output constraints through infrastructure. The final settings DTO
+  excludes all three; the application combines external settings with request-owned values.
+- Rule 4 now has 7/7 exact violators/exemptions, all from the still-open `ApplicationPortFactory`
+  deviation. `ReviewContextFactory` and `ReviewOrchestratorFactory` need no exemptions.
+- Java 28 full build: 1058 tests, 0 failures/errors/skipped, exit 0; focused architecture/review
+  suite: 38/38; Rule 0 parsed 345/345 classes.
+- Learnings consumed: [backend/inbound-port-implemented-in-infrastructure,
+  backend/micronaut-factory-port-binding, backend/architecture-rule-negative-control,
+  backend/derived-exemptions-for-generated-beans, backend/orchestrator-per-invocation-resources,
+  architect/port-direction-by-implementer, architect/composition-root-as-layer-zero,
+  architect/relocation-must-not-conceal-inversion]

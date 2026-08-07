@@ -272,3 +272,34 @@
   architect/port-direction-by-implementer, architect/rule-the-premise-before-the-question,
   architect/reverify-docs-before-publishing, architect/matrix-row-requires-enforcement-rule,
   architect/inherited-defect-is-not-a-merge-finding]
+
+## [t16.2] Independently re-passed deviation #8 after t16.3
+
+- Verified the implementation rather than the backend report: `ReviewOrchestrator` is the sole
+  production `RunReviewPort` implementer, Micronaut resolves that concrete class, and the two former
+  review-path exceptions now implement outbound ports only.
+- Two isolated negative controls proved both enforcement halves: a layer-zero lambda made the
+  runtime binding assertion fail, and a constant-pool inbound-port probe made Rule 4 name
+  `ReviewOrchestratorFactory`; both files restored byte-identically before 38 focused and 1058 full
+  tests passed.
+- The source verifier had two false starts: its first regex double-escaped `\b`, then its
+  "wiring-only" keyword scan matched `for` in Javadoc. Correcting the regex and stripping comments
+  produced the trustworthy 13/13 result.
+- A whole-ADR reconciliation was necessary: marking row #8 alone would have left D3, the negative
+  consequence, operational note, and deviation #4 scope stale. The ADR now reflects the current
+  Rule 4 exception set.
+- The isolated builds exposed an inherited Logback Joran `PatternSyntaxException` that the
+  hand-substituting sink canary misses. Logging resources match HEAD and were excluded from the
+  t16.3 conformance count, but the product defect was routed to coordinator/security/backend.
+- Learnings consumed: [architect/composition-root-as-layer-zero,
+  architect/empty-violator-set-needs-a-permanent-control,
+  architect/matrix-row-requires-enforcement-rule,
+  architect/port-direction-by-implementer,
+  architect/relocation-must-not-conceal-inversion,
+  architect/reverify-docs-before-publishing,
+  architect/rule-the-premise-before-the-question,
+  architect/shared-worktree-invalidates-build-results,
+  backend/architecture-rule-negative-control,
+  backend/inbound-port-implemented-in-infrastructure,
+  backend/review-composition-root-split,
+  backend/self-cleaning-architecture-exclusions]

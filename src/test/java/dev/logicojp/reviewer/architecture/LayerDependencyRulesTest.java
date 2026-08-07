@@ -163,6 +163,7 @@ class LayerDependencyRulesTest {
             // Named anchors spanning every layer. If a package is ever renamed, these fail first
             // and say so, instead of a rule quietly narrowing to an empty subject set.
             () -> assertAnchorPresent(BASE + ".ReviewApp"),
+            () -> assertAnchorPresent(BASE + ".ReviewPortFactory"),
             () -> assertAnchorPresent(PRESENTATION + ".CliOutput"),
             () -> assertAnchorPresent(PRESENTATION + ".SkillOptions"),
             () -> assertAnchorPresent(APPLICATION + ".port.inbound.LoadAgentPort"),
@@ -242,18 +243,12 @@ class LayerDependencyRulesTest {
     @Test
     @DisplayName("Rule 4: infrastructure reaches application only through its outbound ports")
     void infrastructureUsesApplicationPortsOnly() {
-        // Micronaut @Factory / @Singleton classes form the composition root: binding a port to its
-        // implementation necessarily names that implementation, and this is the one place in the
-        // system where that is legitimate.
-        //
-        // Note for ADR-0006 D3 — relocating these to the composition root package would retire the
-        // exemptions, but only `ApplicationPortFactory` is actually a Micronaut `@Factory`; the
-        // other two carry config-mapping logic and an inbound-port implementation, which D1 forbids
-        // the root from holding. See t16.1's artifact before acting on D3.
+        // ApplicationPortFactory is the one remaining composition-root class in infrastructure:
+        // binding a port to its application implementation necessarily names that implementation.
+        // ReviewContextFactory and ReviewOrchestratorFactory are now ordinary outbound adapters;
+        // neither may use this exception (ADR-0006 deviation #8, t16.3).
         Set<String> compositionRoot = Set.of(
-            INFRASTRUCTURE + ".copilot.ApplicationPortFactory",
-            INFRASTRUCTURE + ".copilot.ReviewContextFactory",
-            INFRASTRUCTURE + ".copilot.ReviewOrchestratorFactory");
+            INFRASTRUCTURE + ".copilot.ApplicationPortFactory");
 
         Predicate<String> reachesApplicationOffPort =
             dep -> dep.startsWith(APPLICATION) && !dep.startsWith(APPLICATION_PORT_OUTBOUND);
@@ -464,7 +459,8 @@ class LayerDependencyRulesTest {
         // This replaces the former `legacyPackagesAreExplicitlyOutOfCycleScope` self-destruct,
         // whose job was to fail once the legacy tree was deleted. It has now fired and been
         // removed, as its own failure message instructed.
-        Set<String> allowedAtRoot = Set.of(BASE + ".ReviewApp", BASE + ".$ReviewApp$Definition");
+        Set<String> allowedRootSources =
+            Set.of(BASE + ".ReviewApp", BASE + ".ReviewPortFactory");
 
         Map<String, Integer> strays = new TreeMap<>();
         List<String> rootDwellers = new ArrayList<>();
@@ -478,11 +474,10 @@ class LayerDependencyRulesTest {
                 continue;
             }
             if (topLevel.equals(BASE)) {
-                // A class sitting directly in the base package belongs to no layer, so only the
-                // two entries exempted by Rule 3 may live there. Nested types (ReviewApp$Xxx)
-                // are part of their enclosing class and inherit its exemption.
-                String enclosing = owner.contains("$") ? owner.substring(0, owner.indexOf('$')) : owner;
-                if (!allowedAtRoot.contains(owner) && !allowedAtRoot.contains(enclosing)) {
+                // Layer zero admits only the entry point and explicit composition-root wiring,
+                // plus their nested/generated bean definitions. Generated names are derived from
+                // the declaring source rather than hard-coded method indices.
+                if (!isRootSourceOrGenerated(owner, allowedRootSources)) {
                     rootDwellers.add(owner);
                 }
                 continue;
@@ -501,7 +496,8 @@ class LayerDependencyRulesTest {
 
         assertTrue(rootDwellers.isEmpty(),
             () -> "Class(es) in the base package " + BASE + " belong to no layer: " + rootDwellers
-                + ". Only " + allowedAtRoot + " may live there.");
+                + ". Only layer-zero sources " + allowedRootSources
+                + " and their generated definitions may live there.");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -681,6 +677,19 @@ class LayerDependencyRulesTest {
                 + "composition-root exemption: %s%n", derived.size(), String.join(", ", derived));
         }
         return Set.copyOf(expanded);
+    }
+
+    private static boolean isRootSourceOrGenerated(String owner, Set<String> allowedSources) {
+        for (String source : allowedSources) {
+            if (owner.equals(source) || owner.startsWith(source + "$")) {
+                return true;
+            }
+            String simpleName = source.substring(source.lastIndexOf('.') + 1);
+            if (owner.startsWith(BASE + ".$" + simpleName + "$")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// Maps a Micronaut-generated class to the class it was generated from, or `null` when the name
