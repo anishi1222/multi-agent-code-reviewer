@@ -95,7 +95,7 @@ progress_sync:
   completed_modules: 11
   total_tasks: 58
   completed_tasks: 58
-  total_commits: 619
+  total_commits: 621
   build_verified: true  # JVM + native CLEAN verify green at t19: 1058 JVM, 1058 native, 4 packaged-JAR tests; 0 failures.
   # Baseline corrected: the previously recorded 980 was inflated by orphaned surefire XMLs
   # from an incremental run. True pre-t28 figure at 191307d is 971, measured in an isolated
