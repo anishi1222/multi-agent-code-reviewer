@@ -13,6 +13,11 @@ implementation, and split infrastructure into settings-resolution and session-ad
 ports. An initial broad configuration DTO was narrowed after review because it unnecessarily sent
 the GitHub token and invocation correlation values out to infrastructure and back.
 
+In t17.2 the same pattern closed the remaining application-wide factory deviation. The stable root
+entry point kept only process startup, CLI behavior moved to presentation, and provenance, config,
+filesystem, SDK, and logging operations became focused infrastructure adapters. With the source
+exception gone, all generated Rule 4 exceptions and their derivation helper disappeared too.
+
 ## Takeaway
 
 - A layer-zero factory may name application implementations and outbound ports, but must only wire.
@@ -22,8 +27,11 @@ the GitHub token and invocation correlation values out to infrastructure and bac
   request-owned values stay in the application and are combined there.
 - Prove both halves: a static rule rejects infrastructure inbound implementations, while a
   container test asserts the concrete bean Micronaut actually resolves.
+- Prefer eliminating a factory exception over making generated exceptions durable; the desired
+  end-state is zero source and zero generated exemptions.
 
 ## History
 
 - 2026-08-07 (multi-agent-code-reviewer/t16.3): initial.
-
+- 2026-08-07 (multi-agent-code-reviewer/t17.2): generalized to application startup and removed the
+  final factory/generated-definition exemptions.

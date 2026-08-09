@@ -122,12 +122,14 @@ class ReviewCommandTest {
             }
         };
 
-        ReviewModelConfigResolver modelConfigResolver = new ReviewModelConfigResolver(null, null, "summary-model", null);
-        ReviewOptionsParser optionsParser = new ReviewOptionsParser(2);
+        dev.logicojp.reviewer.application.port.inbound.DescribeReviewPlanPort reviewPlan =
+            () -> new ReviewPlan(1, 2, "review-model", "report-model", "summary-model", "high");
+        ReviewModelConfigResolver modelConfigResolver = new ReviewModelConfigResolver(reviewPlan);
+        ReviewOptionsParser optionsParser = new ReviewOptionsParser(reviewPlan);
         ReviewTargetResolver targetResolver = new ReviewTargetResolver(githubToken -> Optional.of("token"));
         ReviewAgentConfigResolver agentConfigResolver = new ReviewAgentConfigResolver(loadAgentPort);
         ReviewOutputFormatter outputFormatter = new ReviewOutputFormatter(output);
-        ReviewPreparationService preparationService = new ReviewPreparationService(outputFormatter, () -> new ReviewPlan(1));
+        ReviewPreparationService preparationService = new ReviewPreparationService(outputFormatter, reviewPlan);
         ReviewRunRequestFactory runRequestFactory = new ReviewRunRequestFactory();
         ReviewExecutionCoordinator executionCoordinator = new ReviewExecutionCoordinator(stubExecutor(executionFn, output));
 

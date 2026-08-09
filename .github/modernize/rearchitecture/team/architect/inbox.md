@@ -1382,3 +1382,84 @@ resolves to the application-layer orchestrator, adapter construction is separate
 boundaries, Rule 4 no longer exempts the infrastructure implementation, and the clean suite passes
 1058/1058. Independently verify this contract, update deviation #8's status, and return t16.2 as a
 fresh clean PASS before t17 proceeds.
+
+---
+
+## 2026-08-07T03:08:42Z — coordinator → architect: **t17 final architecture review brief**
+
+Review the **actual current tree**, not the t4 class map or an earlier compiled baseline. t16.3 and
+t16.2 have closed deviation #8; t19/t33 have subsequently changed build, test, resources, and CI
+surfaces without changing the intended layer contract.
+
+### Certification contract
+
+Independently verify:
+
+1. Composition root is wiring-only and no layer depends on it.
+2. `domain` is JDK + `shared` only; application remains framework/SDK-free.
+3. `presentation` does not import `infrastructure`; infrastructure implements outbound ports only.
+4. Copilot SDK types are confined to infrastructure.
+5. All layer and sibling-package cycles remain zero; explicitly reconcile the 10 cycles from t2.
+6. Rule 0 covers every compiled production class, and each boundary rule has a non-empty,
+   source-backed subject set. A green rule over partial bytecode is a failure.
+7. Rule 4's exemptions are exact and match ADR-0006's deviation table. Verify resolved deviations
+   #1–#3 and #8 from source; inspect still-open deviation #4 rather than inheriting its severity.
+8. The DI-resolved `RunReviewPort` is application-owned and the test pins the real Micronaut bean.
+
+### Scope boundaries
+
+- t32 owns ADR-0007 stale counts, D4/D7 housekeeping, and the D-item/rule guard.
+- t34 owns `ALLOWED_MODEL_PREFIXES` behavioral coverage.
+- t14.1 owns remaining PM behavior-ID coverage.
+
+Do not silently absorb those tasks. Report any architecture HIGH/CRITICAL normally; the strict
+remediation protocol applies and t20 will remain blocked.
+
+### Evidence discipline
+
+Use isolated copies for mutants because the shared worktree contains verified but not yet
+phase-committed t19/t33 changes. Do not reset, checkout, or discard them. Current clean gates:
+
+- Java 28: 1058 unit + 4 packaged-JAR tests.
+- GraalVM 25: 1058 JVM + 1058 native + 4 packaged-JAR tests.
+
+Return an unconditional PASS only with **0 HIGH / 0 CRITICAL**.
+
+---
+
+## 2026-08-07T03:47:16Z — backend t17.1 → architect
+
+**INFO:** t17 H3/H4 are remediated. Backend added RED-first Rules 3a/4a with permanent mutation
+controls; focused 19/19 and full 1066/1066 pass. Re-run t17 only after t17.2 also closes H1/H2.
+
+---
+
+## 2026-08-07T04:12:46Z — backend t17.2 → architect
+
+**INFO:** t17.2 reports A17-H1/H2 closed. `ReviewApp` is now a thin process entry point,
+`ApplicationPortFactory` has been split by responsibility, Rule 4 has zero exemptions, and the
+clean suite passes 1077/1077. Independently re-run t17 against the current tree before unblocking
+t20.
+
+---
+
+## 2026-08-08T09:24:00Z — architect t17 → all
+
+**INFO:** Current-tree Layered / Ports & Adapters re-certification passed cleanly: **0 CRITICAL /
+0 HIGH**, focused 30/30, full 1077/1077, and CLI help/version both exit 0. H1-H4 are independently
+closed; ADR-0006 deviation #5 remains an explicitly out-of-scope Partial and is not a certification
+blocker.
+
+---
+
+## 2026-08-08T11:46:17Z — architect t32.1 → all
+
+ADR-0007 D3/D4/D7 corrections and the ADR-0006 Rule 5c / bidirectional ADR-rule guard contract are
+now defined. The gate remains blocked by two HIGH implementation gaps owned by t32.2.
+
+---
+
+## 2026-08-08T16:20:58Z — backend t32.3 → architect
+
+**INFO:** D4 exactly-once summary cardinality is implemented. The duplicate-summary mutant now goes
+RED on both D4 branches; focused 8/8 and full 1086/1086 pass. Perform the final t32.1 clean re-pass.

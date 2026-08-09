@@ -100,7 +100,11 @@ class AgentLoadRejectionReportingTest {
 
         load(dir);
 
-        ILoggingEvent summary = summaryEvent();
+        List<ILoggingEvent> summaries = summaryEvents();
+        assertThat(summaries)
+            .as("one agent load must emit exactly one summary event")
+            .hasSize(1);
+        ILoggingEvent summary = summaries.getFirst();
         assertThat(summary.getFormattedMessage()).contains("1").contains("rejected");
         assertThat(summary.getLevel())
             .as("a run that silently dropped an agent must not look like a clean run")
@@ -117,7 +121,11 @@ class AgentLoadRejectionReportingTest {
 
         load(dir);
 
-        ILoggingEvent summary = summaryEvent();
+        List<ILoggingEvent> summaries = summaryEvents();
+        assertThat(summaries)
+            .as("one agent load must emit exactly one summary event")
+            .hasSize(1);
+        ILoggingEvent summary = summaries.getFirst();
         assertThat(summary.getFormattedMessage()).contains("0 rejected");
         assertThat(summary.getLevel()).isEqualTo(Level.INFO);
     }
@@ -135,16 +143,15 @@ class AgentLoadRejectionReportingTest {
             .isTrue();
 
         load(dir);
-        assertThat(summaryEvent()).isNotNull();
+        assertThat(summaryEvents())
+            .as("the default logger level must make the summary observable")
+            .isNotEmpty();
     }
 
-    private ILoggingEvent summaryEvent() {
+    private List<ILoggingEvent> summaryEvents() {
         return appender.list.stream()
             .filter(e -> e.getFormattedMessage().contains(AgentConfigLoader.AGENT_LOAD_SUMMARY_PREFIX))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError(
-                "no agent load summary was emitted; observed messages: "
-                    + appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList()));
+            .toList();
     }
 
     private static AgentConfigLoader.AgentLoadReport load(Path dir) throws IOException {

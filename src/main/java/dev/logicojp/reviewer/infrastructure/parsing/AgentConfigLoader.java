@@ -135,12 +135,18 @@ public class AgentConfigLoader {
     /// Outcome of a load: the agents that survived validation, plus every definition that
     /// was refused and why (ADR-0007 D4).
     ///
-    /// @param agents     accepted agents, keyed by name, in discovery order
-    /// @param rejections definitions refused by policy, in discovery order
-    public record AgentLoadReport(Map<String, AgentConfig> agents, List<AgentRejection> rejections) {
+    /// @param agents           accepted agents, keyed by name, in discovery order
+    /// @param rejections       definitions refused by policy, in discovery order
+    /// @param discoveredSkills valid global skills from the same discovery pass
+    public record AgentLoadReport(
+        Map<String, AgentConfig> agents,
+        List<AgentRejection> rejections,
+        List<SkillDefinition> discoveredSkills
+    ) {
         public AgentLoadReport {
             agents = agents == null ? Map.of() : Map.copyOf(agents);
             rejections = rejections == null ? List.of() : List.copyOf(rejections);
+            discoveredSkills = discoveredSkills == null ? List.of() : List.copyOf(discoveredSkills);
         }
     }
 
@@ -187,7 +193,7 @@ public class AgentConfigLoader {
             loadAgentsFromDirectory(directory, filter, globalSkills, agents, rejections);
         }
         reportOutcome(agents, rejections);
-        return new AgentLoadReport(agents, rejections);
+        return new AgentLoadReport(agents, rejections, globalSkills);
     }
 
     /// Emits the end-of-load summary required by ADR-0007 D4.

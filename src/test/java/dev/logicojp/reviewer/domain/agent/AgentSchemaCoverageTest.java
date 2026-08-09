@@ -23,8 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// Enumerating [Class#getRecordComponents()] means the coverage map cannot fall behind the
 /// type. Adding a component without a decision below fails this test by construction.
 ///
-/// The element count is **derived, never hard-coded**. ADR-0007 states 13; the record has 14.
-/// Asserting a literal would encode whichever number the author believed at the time.
+/// The element count is **derived, never hard-coded**. ADR-0007 records the current 14-element
+/// schema, while this test follows future changes reflectively instead of encoding that number.
 @DisplayName("AgentConfig schema coverage (ADR-0007 D3)")
 class AgentSchemaCoverageTest {
 

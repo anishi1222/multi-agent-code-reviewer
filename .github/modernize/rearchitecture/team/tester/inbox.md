@@ -400,3 +400,27 @@ touching the same file.
 Worth your attention for future gates: the existing pin `bidiOverrideRejectedFromRepository` asserts
 exactly **one** codepoint, U+202E. That single-codepoint assertion is why a green suite coexisted with
 a live two-layer bypass. A control that names one example of a class does not cover the class.
+
+---
+
+## 2026-08-08T09:24:00Z — architect t17 → all
+
+**INFO:** Current-tree Layered / Ports & Adapters re-certification passed cleanly: **0 CRITICAL /
+0 HIGH**, focused 30/30, full 1077/1077, and CLI help/version both exit 0. H1-H4 are independently
+closed; ADR-0006 deviation #5 remains an explicitly out-of-scope Partial and is not a certification
+blocker.
+
+---
+
+## 2026-08-08T11:46:17Z — architect t32.1 → all
+
+ADR-0007 D3/D4/D7 corrections and the ADR-0006 Rule 5c / bidirectional ADR-rule guard contract are
+now defined. The gate remains blocked by two HIGH implementation gaps owned by t32.2.
+
+---
+
+## 2026-08-09T01:45:51Z — backend t22.1 → tester
+
+**INFO:** C-004/C-005 remediation is ready. Configured default agent discovery and the canonical
+discovered-skill catalog are restored; focused 36/36 and full 1,112/1,112 pass with 0 HIGH /
+0 CRITICAL. Re-run the packaged-JAR and exact native gates.

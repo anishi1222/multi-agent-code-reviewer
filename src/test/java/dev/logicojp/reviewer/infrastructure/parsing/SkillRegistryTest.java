@@ -55,6 +55,18 @@ class SkillRegistryTest {
             assertThat(registry.hasSkill("a")).isTrue();
             assertThat(registry.hasSkill("b")).isTrue();
         }
+
+        @Test
+        @DisplayName("discovery snapshotの置換で古いスキルを残さない")
+        void replaceAllPublishesOneCanonicalSnapshot() {
+            registry.register(createSkill("stale", "Stale"));
+            SkillDefinition discovered = createSkill("discovered", "Discovered");
+
+            registry.replaceAll(List.of(discovered));
+
+            assertThat(registry.listAll()).containsExactly(discovered);
+            assertThat(registry.findById("stale")).isEmpty();
+        }
     }
 
     @Nested

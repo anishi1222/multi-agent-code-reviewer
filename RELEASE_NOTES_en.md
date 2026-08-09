@@ -1273,7 +1273,9 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - Each agent now performs `review-passes` iterations (default: 1), with results merged by `ReviewResultMerger`.
 - All passes are submitted concurrently to a Virtual Thread pool, governed by `Semaphore(parallelism)` for concurrency control.
 - Merge is string-concatenation only (no additional AI calls).
-- Configurable via `reviewer.execution.review-passes` in `application.yml`.
+- Historical correction (2026-08-07): configure execution via
+  `reviewer.execution.concurrency.review-passes`. The previously documented
+  `reviewer.execution.review-passes` key changed only the banner and never controlled execution.
 
 #### Security Hardening
 - Strengthened path validation in `ReviewTarget`.

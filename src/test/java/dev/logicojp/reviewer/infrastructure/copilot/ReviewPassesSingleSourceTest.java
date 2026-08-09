@@ -8,9 +8,11 @@ import dev.logicojp.reviewer.application.review.DescribeReviewPlanUseCase;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
 import dev.logicojp.reviewer.infrastructure.config.ExecutionConfig;
+import dev.logicojp.reviewer.infrastructure.config.ApplicationSettingsAdapter;
 import dev.logicojp.reviewer.infrastructure.config.ModelConfig;
 import dev.logicojp.reviewer.infrastructure.config.PromptBudgetConfig;
 import dev.logicojp.reviewer.infrastructure.config.RubberDuckConfig;
+import dev.logicojp.reviewer.infrastructure.config.SummaryConfig;
 import dev.logicojp.reviewer.presentation.CliOutput;
 import dev.logicojp.reviewer.presentation.formatter.ReviewOutputFormatter;
 import io.micronaut.context.ApplicationContext;
@@ -82,8 +84,12 @@ class ReviewPassesSingleSourceTest {
 
         // (b) what presentation is told, through the port, wired exactly as the composition root
         //     wires it in ApplicationPortFactory#describeReviewPlanPort
-        ReviewPlan plan =
-            new DescribeReviewPlanUseCase(executionConfig::reviewPasses).describePlan();
+        ReviewPlan plan = new DescribeReviewPlanUseCase(new ApplicationSettingsAdapter(
+            executionConfig,
+            new ModelConfig(),
+            new SummaryConfig(0, 0, 0, 0, 0, 0),
+            new PromptBudgetConfig()
+        )).describePlan();
 
         assertThat(plan.reviewPasses())
             .as("the plan handed to the banner must equal the pass count the executor uses")

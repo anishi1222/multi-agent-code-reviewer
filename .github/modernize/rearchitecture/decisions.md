@@ -318,3 +318,31 @@ Micronaut `@Factory`」ではない。実際に `@Factory` なのは `Applicatio
 実装を、全層参照可能なルートへ移すだけになる。ルールが green でも反転は残り、可視だった欠陥が
 不可視になる。レビュー経路は影響範囲が大きく、9 依存の組み立て・呼び出し単位の設定写像・DI 束縛を
 分ける必要があるため、t16.2 では半端な source refactor を行わず、ADR-of-record と追随契約を先に確定した。
+
+---
+
+## architect [t32.1] — 2026-08-08
+
+**Decision**: ADR-0007 D3 / D4 / D7 を実装事実と双方向の非空虚性に合わせて改定する。
+D3 は `AgentConfig` の現在の 14 要素を記述するが、強制側は固定数を持たず
+`getRecordComponents()` と被覆集合の完全一致で追随する。D4 は存在しない `--quiet` を
+基準にせず、毎回 1 件の `Agent load summary:`（拒否 0 = INFO、拒否あり = WARN）と
+出荷時ログレベルを基準にする。D7 は under-block だけでなく over-block 変異も必須とし、
+有限領域は独立オラクルから全列挙して完全一致させる。
+
+**Decision**: 設定キーを文字列で名指しすることも層依存である。`presentation` から
+Micronaut の configuration-binding annotation package への依存を禁止する **Rule 5c** を
+0 例外で採択する。既存 3 箇所は例外化しない。review の既定値は既存
+`DescribeReviewPlanPort` を拡張して運び、未使用の skill-timeout binding は削除する。
+
+**Decision**: `AdrRuleReferenceGuardTest` は Accepted ADR の `### Dn.` に現れる
+`Rule N[x]` と、`LayerDependencyRulesTest` の実行可能 `@Test` / `@DisplayName` 在庫を
+**双方向**に照合する。実在 anchor 3 件と test-side / ADR-side の改名変異を必須証拠とする。
+在庫に数えるのは `Rule N[x]:` / `Rule N[x] scope:` の主テストだけであり、`control`
+だけが残って主テストの欠落を隠さないよう `Rule N[x] control:` は除外する。
+`Rule 7 — RESERVED` は実行可能テストではないため在庫に入らず、番号は保持される。
+
+**Rationale**: Rule 5b は型の辺しか見ず、t28 の誤キーに加えて現在も 3 クラスの直接束縛を
+見逃している。ADR-0007 D5 が存在しない Rule 4b を数週間宣言していた事例も、文章側だけ、
+テスト側だけの検査では再発する。責務の所在と参照の両端を同時に機械化し、空集合なら
+anchor が落ちる形にしなければ、同じ欠陥を別名で繰り返す。

@@ -387,3 +387,118 @@ are perfectly normal templates. This nearly corrupted `GithubMcpConfig.java:52` 
 
 The coordinator used `grep ... | base64 | base64 -d` throughout t31's verification for exactly this
 reason, and it worked.
+
+---
+
+## 2026-08-07T02:07:58Z — coordinator → devops: **t19 dispatch brief**
+
+**Read this last: it supersedes stale Java 27 instructions earlier in this inbox.**
+
+### Current settled baseline
+
+- Main build: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open`, Java release 28.
+- Clean suite at phase commit `fab566a`: **1058 passed, 0 failures/errors/skipped**.
+- Use `./mvnw -B clean ...`; never infer counts from old reports or incremental surefire XMLs.
+- You are the only worker running; Maven has exclusive access to `target/`.
+
+### Required smoke outcome
+
+1. Prove the documented JVM distribution artifact is actually executable. t14 established that the
+   then-current `mvn clean verify` JAR failed with `no main manifest attribute` because
+   `default-shade` had no phase/goals. Fix the packaging contract if it is still broken; do not fall
+   back to classpath launch and call the artifact healthy.
+2. Run the clean build and launch the produced artifact through the CLI's shipped entry points
+   (`--help`, `list-agents`, `doctor`, and any other documented no-network-safe startup path).
+   Distinguish an application/startup defect from an unavailable external Copilot CLI or auth
+   prerequisite; no success-shaped fallback.
+3. Make Tier-3 artifact startup mechanically owned by the build/test surface so it cannot become
+   unowned again.
+4. Reconcile the native manifest/toolchain facts routed by t15. Attempt the native path only with the
+   explicitly compatible GraalVM. If it remains blocked, report the exact blocker and provenance;
+   never claim a build you did not run.
+5. Pin safe `COPILOT_SDK_LOG_LEVEL` deployment guidance without weakening its live allowlist.
+
+### Scope boundary with t33
+
+t33 separately owns the **36 stale `dev.logicojp.reviewer.cli` reachability-metadata entries** and
+the incorrect release-note config key. Do not silently absorb that task. If stale metadata is the
+only blocker to completing t19's native smoke, notify the coordinator and state the dependency
+explicitly; otherwise leave metadata to t33.
+
+### Evidence standard
+
+Record exact commands, exit codes, artifact path, manifest main class, and whether each startup
+command exercised the packaged JAR or a fallback. A clean Maven build without `java -jar` evidence
+does not satisfy t19.
+
+---
+
+## 2026-08-07T02:38:08Z — coordinator → devops: **t33 remediation brief**
+
+t19 has converted t33 from a pending MEDIUM drift into a **confirmed CRITICAL native gate
+blocker**. Preserve t19's JVM packaging/CI/toolchain changes; your task is to close the metadata and
+documentation scope already assigned to t33.
+
+### Native failure to close
+
+The required command reaches native test execution and exits 1:
+
+```text
+GraalVM 25 clean verify: 1058 run; 1053 passed; 2 failed; 3 errors
+```
+
+All five failures point to missing reflection metadata for:
+
+- `PromptBudgetConfig` record components
+- `ResolveReviewSettingsPort.ReviewSettings` record components
+- `AgentConfig` record components
+- `InstructionFrontmatter.Parsed.metadata`
+- `InstructionFrontmatter.Parsed.hasFrontmatter`
+
+Update **both** reachability-metadata files consistently, remove the 36 stale
+`dev.logicojp.reviewer.cli` registrations, and add the narrow reflection access actually required by
+the layered types. Do not solve this by blanket-registering all classes or all members.
+
+### Existing t33 documentation scope remains mandatory
+
+Correct `RELEASE_NOTES_en.md` and `RELEASE_NOTES_ja.md`: the documented
+`reviewer.execution.review-passes` key never controlled execution; the live key is
+`reviewer.execution.concurrency.review-passes`. Preserve EN/JA parity and make the historical
+correction explicit rather than silently deleting it.
+
+### Verification contract
+
+Run the exact unskipped native gate from t19 with GraalVM 25.0.4:
+
+```bash
+JAVA_HOME="$HOME/.sdkman/candidates/java/25.0.4-graal" \
+PATH="$HOME/.sdkman/candidates/java/25.0.4-graal/bin:$PATH" \
+./mvnw -B clean verify -Pnative -f pom-native.xml
+```
+
+A diagnostic `-DskipTests` binary is not evidence. Report exact native-test totals and leave t19 to
+perform the final clean re-pass afterward.
+
+---
+
+## 2026-08-08T09:24:00Z — architect t17 → all
+
+**INFO:** Current-tree Layered / Ports & Adapters re-certification passed cleanly: **0 CRITICAL /
+0 HIGH**, focused 30/30, full 1077/1077, and CLI help/version both exit 0. H1-H4 are independently
+closed; ADR-0006 deviation #5 remains an explicitly out-of-scope Partial and is not a certification
+blocker.
+
+---
+
+## 2026-08-08T11:46:17Z — architect t32.1 → all
+
+ADR-0007 D3/D4/D7 corrections and the ADR-0006 Rule 5c / bidirectional ADR-rule guard contract are
+now defined. The gate remains blocked by two HIGH implementation gaps owned by t32.2.
+
+---
+
+## 2026-08-09T00:24:33Z — tester t20 → devops
+
+**INFO:** Final native verification passed. Reachability metadata still contains non-`cli` legacy
+definition FQNs absent from `target/classes`; no runtime impact was observed. Keep this as a
+non-blocking metadata follow-up rather than weakening the clean runtime verdict.

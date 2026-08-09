@@ -1,0 +1,204 @@
+metadata:
+  schema: "deep-planning/spec-to-plan/v2"
+  task_id: "t22.4"
+  producer_role: "teamlead"
+  classification: "brownfield-rewrite"
+  deep_planning: true
+  generated_at_utc: "2026-08-09T06:56:46Z"
+  requirement_sources:
+    - ".github/modernize/rearchitecture/artifacts/t3-pm.md"
+    - ".github/modernize/rearchitecture/artifacts/t1-teamlead.md"
+    - ".github/modernize/rearchitecture/clarification.md"
+    - ".github/modernize/rearchitecture/artifacts/checkpoints/traceability-matrix.yaml"
+    - ".github/modernize/rearchitecture/artifacts/t22.3-pm.md"
+  plan_sources:
+    - ".github/modernize/rearchitecture/artifacts/t5-teamlead-plan.md"
+    - ".github/modernize/rearchitecture/artifacts/t5-teamlead-tasks.md"
+    - ".github/modernize/rearchitecture/board.md"
+
+denominator:
+  pm_behaviors: 69
+  architecture_contracts: 8
+  build_contracts: 3
+  supplemental_contracts: 4
+  total_requirements: 84
+  note: "t3 prose says 74 behaviors, but its authoritative table and the final PM sign-off contain 69 unique behavior IDs."
+
+summary:
+  total_requirements: 84
+  mapped_requirements: 84
+  unmapped_requirements: 0
+  duplicate_requirement_ids: 0
+  plan_items_total: 37
+  referenced_plan_items: 37
+  orphan_plan_items: 0
+  final_requirement_state:
+    complete: 84
+    broken: 0
+    partial: 0
+  corrected_closures:
+    AGT-01: "DIRECT-CLOSURE — configured-default discovery proven in packaged JAR and native executable"
+    SKL-01: "DIRECT-CLOSURE — discovered skills proven in the canonical executable catalog on JAR and native paths"
+
+plan_item_inventory:
+  - {id: "P0.1", type: "governance", title: "Establish constitution and layer rules", source: "t1-teamlead.md"}
+  - {id: "P0.2", type: "governance", title: "Inventory architecture and behavior", source: "t2-architect.md + t3-pm.md"}
+  - {id: "P0.3", type: "governance", title: "Design target package and port architecture", source: "t4-architect.md"}
+  - {id: "P0.4", type: "governance", title: "Create phased implementation plan and DAG", source: "t5-teamlead-plan.md"}
+  - {id: "P0.5", type: "governance", title: "Validate plan coverage and feasibility", source: "t6-teamlead.md"}
+  - {id: "P0.6", type: "environment", title: "Prepare explicit JVM and native toolchains", source: "t7-devops.md"}
+  - {id: "P1.1", type: "base", title: "Shared utilities", deep_plan_task: "T001"}
+  - {id: "P1.2", type: "base", title: "Domain core types and purification", deep_plan_task: "T002"}
+  - {id: "P1.3", type: "base", title: "Inbound and outbound ports", deep_plan_task: "T003"}
+  - {id: "P2.1", type: "base", title: "Agent domain models and pure logic", deep_plan_task: "T004"}
+  - {id: "P2.2", type: "base", title: "Review orchestration use cases", deep_plan_task: "T005"}
+  - {id: "P3.1", type: "base", title: "Report domain and application", deep_plan_task: "T006"}
+  - {id: "P3.2", type: "base", title: "Skill and agent application", deep_plan_task: "T007"}
+  - {id: "P3.3", type: "base", title: "Diagnostics use case", deep_plan_task: "T008"}
+  - {id: "P4.1", type: "base", title: "Copilot SDK infrastructure", deep_plan_task: "T009"}
+  - {id: "P4.2", type: "base", title: "Support infrastructure", deep_plan_task: "T010"}
+  - {id: "P5.1", type: "base", title: "Presentation layer and composition", deep_plan_task: "T011"}
+  - {id: "P5.2", type: "base", title: "Executable architecture boundaries", deep_plan_task: "T012"}
+  - {id: "P6.1", type: "base", title: "Test migration", deep_plan_task: "T013"}
+  - {id: "P6.2", type: "base", title: "Full build and native verification", deep_plan_task: "T014"}
+  - {id: "P6.3", type: "base", title: "Regression verification", deep_plan_task: "T015"}
+  - {id: "P6.4", type: "base", title: "Packaged CLI smoke verification", deep_plan_task: "T016"}
+  - {id: "R1.1", type: "remediation", title: "Preserve per-agent output and multi-pass reachability"}
+  - {id: "R1.2", type: "remediation", title: "Replace vacuous architecture enforcement"}
+  - {id: "R1.3", type: "remediation", title: "Delete legacy tree and close exposed regressions"}
+  - {id: "R1.4", type: "remediation", title: "Close behavior-contract and retry gaps"}
+  - {id: "R1.5", type: "remediation", title: "Dependency and CVE closure"}
+  - {id: "R1.6", type: "remediation", title: "Correct port direction and composition roots"}
+  - {id: "R1.7", type: "remediation", title: "Re-certify layered responsibility boundaries"}
+  - {id: "R1.8", type: "remediation", title: "Agent-definition trust and input-security closure"}
+  - {id: "R1.9", type: "remediation", title: "Packaging, native metadata, and runtime closure"}
+  - {id: "R1.10", type: "remediation", title: "Port upstream behavior into the layered tree"}
+  - {id: "R1.11", type: "remediation", title: "Make budgets and defaults explicit and non-vacuous"}
+  - {id: "R1.12", type: "remediation", title: "Move effective configuration behind ports"}
+  - {id: "R1.13", type: "remediation", title: "Move secret masking to the sink and enforce the boundary"}
+  - {id: "R1.14", type: "remediation", title: "Close runtime parity including AGT-01 and SKL-01"}
+  - {id: "R1.15", type: "remediation", title: "Reconstruct and independently validate global checkpoints"}
+
+requirements:
+  - {id: "AGT-01", group: "pm-agent", base_plan_items: ["P2.1", "P2.2", "P3.2", "P6.3", "P6.4"], remediation_plan_items: ["R1.14"], final_status: "complete", evidence_grade: "DIRECT-CLOSURE", evidence: ".github/modernize/rearchitecture/artifacts/t22.3-pm.md"}
+  - {id: "AGT-02", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-03", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-04", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-05", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-06", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-07", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-08", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-09", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-10", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-11", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-12", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "AGT-13", group: "pm-agent", base_plan_items: ["P2.1", "P3.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "SKL-01", group: "pm-skill", base_plan_items: ["P3.2", "P6.3", "P6.4"], remediation_plan_items: ["R1.14"], final_status: "complete", evidence_grade: "DIRECT-CLOSURE", evidence: ".github/modernize/rearchitecture/artifacts/t22.3-pm.md"}
+  - {id: "SKL-02", group: "pm-skill", base_plan_items: ["P3.2", "P6.3"], remediation_plan_items: ["R1.11"], final_status: "complete"}
+  - {id: "SKL-03", group: "pm-skill", base_plan_items: ["P3.2", "P6.3"], remediation_plan_items: ["R1.11"], final_status: "complete"}
+  - {id: "SKL-04", group: "pm-skill", base_plan_items: ["P3.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "SKL-05", group: "pm-skill", base_plan_items: ["P3.2", "P6.3"], remediation_plan_items: ["R1.11"], final_status: "complete"}
+  - {id: "SKL-06", group: "pm-skill", base_plan_items: ["P3.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "SKL-07", group: "pm-skill", base_plan_items: ["P3.2", "P6.3"], remediation_plan_items: ["R1.4"], final_status: "complete"}
+  - {id: "SKL-08", group: "pm-skill", base_plan_items: ["P3.2", "P4.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "INS-01", group: "pm-instruction", base_plan_items: ["P1.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "INS-02", group: "pm-instruction", base_plan_items: ["P1.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "INS-03", group: "pm-instruction", base_plan_items: ["P1.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "INS-04", group: "pm-instruction", base_plan_items: ["P1.2", "P6.3"], remediation_plan_items: ["R1.8"], final_status: "complete"}
+  - {id: "INS-05", group: "pm-instruction", base_plan_items: ["P1.2", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "TGT-01", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "TGT-02", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "TGT-03", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "TGT-04", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: ["R1.3"], final_status: "complete"}
+  - {id: "TGT-05", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "TGT-06", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "TGT-07", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: ["R1.4"], final_status: "complete"}
+  - {id: "TGT-08", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "TGT-09", group: "pm-target", base_plan_items: ["P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "ORC-01", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.12"], final_status: "complete"}
+  - {id: "ORC-02", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.6"], final_status: "complete"}
+  - {id: "ORC-03", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.6"], final_status: "complete"}
+  - {id: "ORC-04", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.6"], final_status: "complete"}
+  - {id: "ORC-05", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.4"], final_status: "complete"}
+  - {id: "ORC-06", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.12"], final_status: "complete"}
+  - {id: "ORC-07", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.6"], final_status: "complete"}
+  - {id: "ORC-08", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.6"], final_status: "complete"}
+  - {id: "ORC-09", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.6"], final_status: "complete"}
+  - {id: "ORC-10", group: "pm-orchestration", base_plan_items: ["P2.2", "P4.1", "P6.3"], remediation_plan_items: ["R1.6"], final_status: "complete"}
+  - {id: "AUTH-01", group: "pm-auth", base_plan_items: ["P4.1", "P4.2", "P6.3", "P6.4"], remediation_plan_items: [], final_status: "complete", evidence_grade: "MANUAL-TIER"}
+  - {id: "AUTH-02", group: "pm-auth", base_plan_items: ["P4.1", "P4.2", "P6.3"], remediation_plan_items: ["R1.13"], final_status: "complete"}
+  - {id: "AUTH-03", group: "pm-auth", base_plan_items: ["P4.1", "P4.2", "P6.3"], remediation_plan_items: ["R1.13"], final_status: "complete"}
+  - {id: "AUTH-04", group: "pm-auth", base_plan_items: ["P4.1", "P4.2", "P6.3"], remediation_plan_items: ["R1.13"], final_status: "complete"}
+  - {id: "AUTH-05", group: "pm-auth", base_plan_items: ["P4.1", "P4.2", "P6.3"], remediation_plan_items: ["R1.13"], final_status: "complete"}
+  - {id: "AUTH-06", group: "pm-auth", base_plan_items: ["P4.1", "P4.2", "P6.3"], remediation_plan_items: ["R1.13"], final_status: "complete"}
+  - {id: "AUTH-07", group: "pm-auth", base_plan_items: ["P4.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "AUTH-08", group: "pm-auth", base_plan_items: ["P4.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "AUTH-09", group: "pm-auth", base_plan_items: ["P3.3", "P4.1", "P6.4"], remediation_plan_items: ["R1.9"], final_status: "complete"}
+  - {id: "AUTH-10", group: "pm-auth", base_plan_items: ["P4.1", "P6.3"], remediation_plan_items: ["R1.4", "R1.13"], final_status: "complete"}
+  - {id: "AUTH-11", group: "pm-auth", base_plan_items: ["P4.1", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "RTY-01", group: "pm-retry", base_plan_items: ["P2.2", "P6.3"], remediation_plan_items: ["R1.3"], final_status: "complete"}
+  - {id: "RTY-02", group: "pm-retry", base_plan_items: ["P2.2", "P6.3"], remediation_plan_items: ["R1.3"], final_status: "complete"}
+  - {id: "RTY-03", group: "pm-retry", base_plan_items: ["P2.2", "P6.3"], remediation_plan_items: ["R1.3"], final_status: "complete"}
+  - {id: "RTY-04", group: "pm-retry", base_plan_items: ["P2.2", "P6.3"], remediation_plan_items: ["R1.4"], final_status: "complete"}
+  - {id: "OUT-01", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "OUT-02", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: ["R1.1"], final_status: "complete"}
+  - {id: "OUT-03", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: ["R1.1"], final_status: "complete"}
+  - {id: "OUT-04", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "OUT-05", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "OUT-06", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "OUT-07", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "OUT-08", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "OUT-09", group: "pm-output", base_plan_items: ["P3.1", "P4.2", "P6.3"], remediation_plan_items: [], final_status: "complete"}
+  - {id: "ARCH-01", group: "architecture", contract: "All production code belongs to the documented layered package model", base_plan_items: ["P0.1", "P0.2", "P0.3", "P1.1", "P1.2", "P1.3", "P2.1", "P2.2", "P3.1", "P3.2", "P3.3", "P4.1", "P4.2", "P5.1", "P5.2"], remediation_plan_items: ["R1.3", "R1.6", "R1.7"], final_status: "complete"}
+  - {id: "ARCH-02", group: "architecture", contract: "Dependencies point inward only", base_plan_items: ["P0.1", "P0.3", "P1.3", "P5.2"], remediation_plan_items: ["R1.2", "R1.6", "R1.7", "R1.12", "R1.13"], final_status: "complete"}
+  - {id: "ARCH-03", group: "architecture", contract: "Domain and shared remain framework-free and I/O-free", base_plan_items: ["P0.1", "P0.3", "P1.2", "P2.1", "P3.1", "P5.2"], remediation_plan_items: ["R1.2", "R1.7", "R1.11"], final_status: "complete"}
+  - {id: "ARCH-04", group: "architecture", contract: "Inbound and outbound ports have correct implementation direction", base_plan_items: ["P0.1", "P0.3", "P1.3", "P5.2"], remediation_plan_items: ["R1.6", "R1.7", "R1.12"], final_status: "complete"}
+  - {id: "ARCH-05", group: "architecture", contract: "Package dependency graph has zero cycles", base_plan_items: ["P0.1", "P0.2", "P0.3", "P5.2"], remediation_plan_items: ["R1.2", "R1.7"], final_status: "complete"}
+  - {id: "ARCH-06", group: "architecture", contract: "Copilot SDK types are isolated to infrastructure", base_plan_items: ["P0.1", "P0.2", "P0.3", "P4.1", "P5.2"], remediation_plan_items: ["R1.2", "R1.7"], final_status: "complete"}
+  - {id: "ARCH-07", group: "architecture", contract: "Micronaut and Jakarta never enter domain or shared", base_plan_items: ["P0.1", "P0.2", "P0.3", "P4.1", "P4.2", "P5.2"], remediation_plan_items: ["R1.2", "R1.7", "R1.12"], final_status: "complete"}
+  - {id: "ARCH-08", group: "architecture", contract: "Composition root wires only; responsibilities remain split by layer", base_plan_items: ["P0.1", "P0.3", "P5.1", "P5.2"], remediation_plan_items: ["R1.6", "R1.7", "R1.12", "R1.13"], final_status: "complete"}
+  - {id: "BUILD-01", group: "build", contract: "Preserve the in-place single-module Maven structure", base_plan_items: ["P0.1", "P0.3", "P6.2"], remediation_plan_items: ["R1.9", "R1.10"], final_status: "complete"}
+  - {id: "BUILD-02", group: "build", contract: "Java 28 root clean verify, shade JAR, and AOT succeed", base_plan_items: ["P0.6", "P6.2", "P6.3", "P6.4"], remediation_plan_items: ["R1.5", "R1.9", "R1.10", "R1.14"], final_status: "complete"}
+  - {id: "BUILD-03", group: "build", contract: "Exact GraalVM 25 native build, tests, and executable flows succeed", base_plan_items: ["P0.6", "P6.2", "P6.4"], remediation_plan_items: ["R1.9", "R1.14"], final_status: "complete"}
+  - {id: "TEST-01", group: "supplemental", base_plan_items: ["P0.4", "P0.5", "P6.1", "P6.3"], remediation_plan_items: ["R1.2", "R1.4", "R1.8", "R1.9", "R1.10", "R1.14", "R1.15"], final_status: "complete"}
+  - {id: "CLI-01", group: "supplemental", base_plan_items: ["P5.1", "P6.4"], remediation_plan_items: ["R1.9", "R1.12", "R1.14"], final_status: "complete"}
+  - {id: "EQ-01", group: "supplemental", base_plan_items: ["P0.2", "P0.4", "P6.3", "P6.4"], remediation_plan_items: ["R1.3", "R1.4", "R1.9", "R1.10", "R1.14", "R1.15"], final_status: "complete"}
+  - {id: "TEST-02", group: "supplemental", base_plan_items: ["P0.4", "P0.5", "P5.2", "P6.3"], remediation_plan_items: ["R1.2", "R1.7", "R1.15"], final_status: "complete"}
+
+producer_checks:
+  status: "ready-for-independent-validation"
+  expected_unique_requirement_ids: 84
+  expected_plan_items: 37
+  canonical_requirement_ids_match: true
+  requirement_group_cardinalities_match: true
+  requirement_to_plan_inverse_coverage: "37/37"
+  missing_requirements: []
+  duplicate_requirement_ids: []
+  unknown_plan_item_references: []
+  orphan_plan_items: []
+
+validation:
+  passed: true
+  status: "independently-validated"
+  validator_task: "t22.5"
+  validator_role: "architect"
+  validated_at_utc: "2026-08-09T09:20:47Z"
+  validation_report: ".github/modernize/rearchitecture/artifacts/t22.5-architect.md"
+  findings:
+    critical: 0
+    high: 0
+  independent_evidence:
+    checks_passed: "13/13"
+    canonical_requirements_reextracted: "84/84"
+    declared_plan_items_reconciled: "37/37"
+    requirement_rows_with_valid_plan_references: "84/84"
+    inverse_plan_coverage: "37/37"
+    pm_rows_cross_checked_against_t22_3: "69/69"
+    agt_01_final_state: "DIRECT-CLOSURE"
+    skl_01_final_state: "DIRECT-CLOSURE"
+  required_checks:
+    - "Re-extract the 84-ID denominator from the authoritative source artifacts."
+    - "Verify every requirement row references only declared plan items."
+    - "Verify all 37 plan items are referenced by at least one requirement."
+    - "Verify AGT-01 and SKL-01 use the corrected t22.3 DIRECT-CLOSURE evidence."
+    - "Set passed=true only after independent evidence review."

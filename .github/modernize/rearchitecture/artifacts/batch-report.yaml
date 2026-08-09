@@ -1,0 +1,141 @@
+batch:
+  id: "t32.2"
+  role: "backend"
+  title: "Zero-exemption Rule 5c port migration and ADR-rule guard"
+  classification: "brownfield-rewrite"
+  matched_task_ids:
+    - "t32.2"
+  status: "success"
+  started_at_utc: "2026-08-08T13:16:59Z"
+  completed_at_utc: "2026-08-08T14:07:04Z"
+
+required_endpoints: []
+endpoint_probes: []
+
+tasks:
+  completed:
+    - id: "t32.2"
+      description: "Migrate presentation defaults through ReviewPlan and enforce Rule 5c plus ADR-rule traceability"
+      requirements:
+        - "ADR-0006-D1"
+        - "ADR-0006-D5"
+        - "ADR-0007-D7"
+        - "T32.1-PORT-MIGRATION"
+        - "T32.1-RULE-5C"
+        - "T32.1-ADR-GUARD"
+      plan_references:
+        - ".github/modernize/rearchitecture/artifacts/t32.1-architect.md#Port migration"
+        - ".github/modernize/rearchitecture/artifacts/t32.1-architect.md#Rule 5c acceptance"
+        - ".github/modernize/rearchitecture/artifacts/t32.1-architect.md#ADR guard acceptance"
+      acceptance_status: "passed"
+  blocked: []
+
+files_changed:
+  - path: "src/main/java/dev/logicojp/reviewer/application/port/inbound/ReviewPlan.java"
+    change: "modified"
+    purpose: "Carry and validate all effective presentation-facing defaults"
+  - path: "src/main/java/dev/logicojp/reviewer/application/port/outbound/ResolveApplicationSettingsPort.java"
+    change: "modified"
+    purpose: "Expose normalized parallelism and model defaults"
+  - path: "src/main/java/dev/logicojp/reviewer/application/review/DescribeReviewPlanUseCase.java"
+    change: "modified"
+    purpose: "Map the outbound settings port to the inbound plan DTO"
+  - path: "src/main/java/dev/logicojp/reviewer/infrastructure/config/ApplicationSettingsAdapter.java"
+    change: "modified"
+    purpose: "Map ExecutionConfig and ModelConfig effective values"
+  - path: "src/main/java/dev/logicojp/reviewer/ApplicationPortFactory.java"
+    change: "modified"
+    purpose: "Wire the settings port into the plan use case at layer zero"
+  - path: "src/main/java/dev/logicojp/reviewer/presentation/ReviewModelConfigResolver.java"
+    change: "modified"
+    purpose: "Overlay CLI model values on plan defaults without configuration bindings"
+  - path: "src/main/java/dev/logicojp/reviewer/presentation/parser/ReviewOptionsParser.java"
+    change: "modified"
+    purpose: "Seed parallelism from the plan before CLI override"
+  - path: "src/main/java/dev/logicojp/reviewer/presentation/command/SkillCommand.java"
+    change: "modified"
+    purpose: "Remove the dead timeout binding and propagation"
+  - path: "src/main/java/dev/logicojp/reviewer/presentation/SkillExecutionCoordinator.java"
+    change: "modified"
+    purpose: "Remove the unused timeout parameter"
+  - path: "src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java"
+    change: "modified"
+    purpose: "Add source-backed zero-exemption Rule 5c and exact control"
+  - path: "src/test/java/dev/logicojp/reviewer/architecture/AdrRuleReferenceGuardTest.java"
+    change: "created"
+    purpose: "Enforce non-vacuous bidirectional Accepted-ADR/primary-rule traceability"
+  - path: "src/test/java/dev/logicojp/reviewer/presentation/T32ConfigurationBindingViolation.java"
+    change: "created"
+    purpose: "Permanent forbidden-binding detection fixture outside production subjects"
+  - path: "src/test/java/dev/logicojp/reviewer/application/port/inbound/ReviewPlanTest.java"
+    change: "created"
+    purpose: "Reject impossible non-normalized plan values"
+
+traceability:
+  - upstream: ".github/modernize/rearchitecture/clarification.md#Backend"
+    evidence: "Java 28 single-module CLI preserved; full verify and packaged CLI passed"
+  - upstream: ".github/modernize/rearchitecture/clarification.md#Generic success definition"
+    evidence: "Presentation no longer owns infrastructure configuration strings; boundaries remain inward"
+  - upstream: ".github/modernize/rearchitecture/team/backend/inbox.md#architect t32.1 -> backend"
+    evidence: "Rule 5c is 0/0 and the primary-only Rule 4b mutant is killed"
+  - upstream: ".github/modernize/rearchitecture/artifacts/t32.1-architect.md#Port migration"
+    evidence: "Expanded settings port, use-case mapping, root wiring, explicit CLI overlays, timeout removal"
+  - upstream: ".github/modernize/rearchitecture/artifacts/t32.1-architect.md#Rule 5c acceptance"
+    evidence: "72 compiled subjects, 31 source-backed primary types, exact fixture and production mutant"
+  - upstream: ".github/modernize/rearchitecture/artifacts/t32.1-architect.md#ADR guard acceptance"
+    evidence: "Accepted-D parser, primary-only inventory, three anchors, two independent rename mutants"
+
+test_results:
+  - name: "Focused migration and architecture suite"
+    command: "JAVA_HOME=$HOME/.sdkman/candidates/java/28.ea.9-open PATH=$HOME/.sdkman/candidates/java/28.ea.9-open/bin:$PATH ./mvnw -B -Dtest=<13 focused classes> test"
+    passed: 62
+    failed: 0
+    errors: 0
+    skipped: 0
+    returncode: 0
+  - name: "Full repository verification"
+    command: "JAVA_HOME=$HOME/.sdkman/candidates/java/28.ea.9-open PATH=$HOME/.sdkman/candidates/java/28.ea.9-open/bin:$PATH ./mvnw -B clean verify"
+    surefire_passed: 1082
+    failsafe_passed: 4
+    passed: 1086
+    failed: 0
+    errors: 0
+    skipped: 0
+    returncode: 0
+  - name: "Rule 5c production mutation"
+    command: "isolated copy: ./mvnw -B -Dtest=LayerDependencyRulesTest test"
+    expected_failures: 1
+    unexpected_failures: 0
+    returncode: 1
+    evidence: "ReviewModelConfigResolver -> io.micronaut.context.annotation.Value"
+  - name: "Primary Rule 4b display-name mutation"
+    command: "isolated copy: ./mvnw -B -Dtest=AdrRuleReferenceGuardTest test"
+    expected_failures: 2
+    unexpected_failures: 0
+    returncode: 1
+    evidence: "Control remained Rule 4b but did not satisfy the missing primary inventory"
+  - name: "ADR-0007 D5 Rule 4b reference mutation"
+    command: "isolated copy: ./mvnw -B -Dtest=AdrRuleReferenceGuardTest test"
+    expected_failures: 2
+    unexpected_failures: 0
+    returncode: 1
+    evidence: "ADR-0007 D5 -> Rule 4x and the missing Rule 4b anchor were both named"
+
+architecture_results:
+  rule_0: "parsed 364/364"
+  rule_5c: "72 compiled / 31 source-backed primary types / 0 violators / 0 exemptions"
+  rule_5c_fixture: "T32ConfigurationBindingViolation -> io.micronaut.context.annotation.Value"
+  adr_guard: "2 passed / 0 failed; both inventories nonempty; three anchors present"
+
+warnings:
+  - "Pre-existing Maven duplicate dependency-management warning remains; convergence and build passed."
+errors: []
+
+protocol:
+  red_first_controls_retained: true
+  production_source_modified: true
+  tests_green_after_restore: true
+  mutants_isolated_from_shared_worktree: true
+  full_build_unmodified: true
+  packaged_cli_entrypoints_passed: 4
+  api_endpoint_gate: "not-applicable-cli"

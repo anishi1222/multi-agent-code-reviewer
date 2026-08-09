@@ -1224,7 +1224,9 @@
 - 各エージェントが `review-passes` 回（デフォルト: 1）レビューを実施し、結果を `ReviewResultMerger` で統合。
 - 全パスを Virtual Thread プールに同時投入し、`Semaphore(parallelism)` で同時実行数を制御。
 - マージは文字列連結のみ（追加 AI 呼び出しなし）。
-- `application.yml` の `reviewer.execution.review-passes` で設定可能。
+- 履歴訂正（2026-08-07）: 実行回数は
+  `reviewer.execution.concurrency.review-passes` で設定します。従来記載していた
+  `reviewer.execution.review-passes` はバナー表示のみを変更し、実行回数を制御していませんでした。
 
 #### セキュリティ強化
 - `ReviewTarget` のパスバリデーション強化。

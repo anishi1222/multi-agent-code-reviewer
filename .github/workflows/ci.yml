@@ -15,9 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Keep in sync with pom.xml <jdk.version> and .sdkmanrc
+  # Keep in sync with pom.xml <java.version> and .sdkmanrc
   JDK_VERSION: '28'
-  GRAALVM_JAVA_VERSION: '25.1'
+  # Keep in sync with pom-native.xml <jdk.version>; this exact patch is smoke-tested locally.
+  GRAALVM_JAVA_VERSION: '25.0.4'
   GRAALVM_DISTRIBUTION: 'graalvm'
 
 jobs:
@@ -65,14 +66,8 @@ jobs:
           website: jdk.java.net
           release: ${{ env.JDK_VERSION }}
 
-      - name: Compile
-        run: ./mvnw -B -ntp -DskipTests compile
-
-      - name: Test
-        run: ./mvnw -B -ntp test
-
-      - name: Build fat JAR
-        run: ./mvnw -B -ntp -DskipTests package
+      - name: Full build, tests, and packaged CLI smoke
+        run: ./mvnw -B -ntp clean verify
 
       - name: Generate SBOM (CycloneDX)
         run: ./mvnw -B -ntp -DskipTests cyclonedx:makeAggregateBom
@@ -99,8 +94,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: surefire-reports
-          path: target/surefire-reports/**
+          name: test-reports
+          path: |
+            target/surefire-reports/**
+            target/failsafe-reports/**
           if-no-files-found: warn
           retention-days: 7
 
@@ -123,12 +120,17 @@ jobs:
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@0def53c0fd8534bc13416c9469f5be45265824fd # v1.6.3
         with:
-          version: ${{ env.GRAALVM_JAVA_VERSION }}
+          java-version: ${{ env.GRAALVM_JAVA_VERSION }}
           distribution: ${{ env.GRAALVM_DISTRIBUTION }}
 
       - name: Build Native Image
-        continue-on-error: true
-        run: ./mvnw -B -ntp -Pnative -DskipTests package -f pom-native.xml
+        run: ./mvnw -B -ntp clean verify -Pnative -f pom-native.xml
+
+      - name: Smoke native CLI entry point
+        run: |
+          test -x target/review
+          ./target/review --help
+          ./target/review --version
 
       - name: Upload native image artifact
         if: always()

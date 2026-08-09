@@ -81,7 +81,12 @@ public class CopilotService implements ManageCopilotClientPort {
     }
 
     @Override
+    @Deprecated(forRemoval = true, since = "2026.03")
     public synchronized void start(String token) {
+        if (token != null && !token.isBlank()) {
+            logger.warn("start(String) is deprecated and ignores token input. "
+                + "Use OAuth login via `gh auth login` instead.");
+        }
         try {
             initialize();
         } catch (InterruptedException e) {

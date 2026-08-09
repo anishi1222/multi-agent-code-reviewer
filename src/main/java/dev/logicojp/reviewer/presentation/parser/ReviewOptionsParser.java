@@ -1,11 +1,11 @@
 package dev.logicojp.reviewer.presentation.parser;
 
+import dev.logicojp.reviewer.application.port.inbound.DescribeReviewPlanPort;
 import dev.logicojp.reviewer.presentation.CliParsing;
 import dev.logicojp.reviewer.presentation.CliValidationException;
 import dev.logicojp.reviewer.presentation.ReviewAgentSelection;
 import dev.logicojp.reviewer.presentation.ReviewOptions;
 import dev.logicojp.reviewer.presentation.ReviewTargetSelection;
-import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 
 import java.nio.file.Path;
@@ -18,10 +18,11 @@ import java.util.OptionalInt;
 @Singleton
 public class ReviewOptionsParser {
 
-    private final int defaultParallelism;
+    private final DescribeReviewPlanPort describeReviewPlanPort;
 
-    public ReviewOptionsParser(@Value("${reviewer.execution.parallelism:1}") int defaultParallelism) {
-        this.defaultParallelism = defaultParallelism;
+    public ReviewOptionsParser(DescribeReviewPlanPort describeReviewPlanPort) {
+        this.describeReviewPlanPort =
+            Objects.requireNonNull(describeReviewPlanPort, "describeReviewPlanPort must not be null");
     }
 
     @FunctionalInterface
@@ -31,7 +32,7 @@ public class ReviewOptionsParser {
 
     public Optional<ReviewOptions> parse(String[] args) {
         args = Objects.requireNonNullElse(args, new String[0]);
-        var state = new ParseState(defaultParallelism);
+        var state = new ParseState(describeReviewPlanPort.describePlan().defaultParallelism());
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];

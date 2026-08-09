@@ -1,0 +1,609 @@
+metadata:
+  schema: "deep-planning/tasks-to-implementation/v2"
+  task_id: "t22.4"
+  producer_role: "teamlead"
+  classification: "brownfield-rewrite"
+  deep_planning: true
+  scope: "global"
+  generated_at_utc: "2026-08-09T06:56:46Z"
+  source_tasks:
+    - ".github/modernize/rearchitecture/artifacts/t5-teamlead-tasks.md"
+    - ".github/modernize/rearchitecture/board.md#Tasks"
+  final_runtime_evidence:
+    - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md"
+    - ".github/modernize/rearchitecture/artifacts/t22.3-pm.md"
+
+summary:
+  deep_plan_tasks_total: 16
+  deep_plan_tasks_with_final_files: 16
+  execution_tasks_total: 55
+  completed: 53
+  failed_remediated: 1
+  pending: 1
+  unmapped_tasks: 0
+  tasks_without_evidence: 0
+  pending_validator_task: "t22.5"
+  final_runtime:
+    java_surefire_passed: 1107
+    java_failsafe_passed: 5
+    native_jvm_passed: 1107
+    native_image_passed: 1107
+    native_failsafe_passed: 5
+    packaged_jar_flows_passed: 5
+    native_flows_passed: 5
+    architecture_classes_parsed: "366/366"
+
+deep_plan_implementation:
+  - id: "T001"
+    plan_item: "P1.1"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/shared/RetryExecutor.java", "src/main/java/dev/logicojp/reviewer/shared/ConfigDefaults.java", "src/main/java/dev/logicojp/reviewer/shared/PlaceholderUtils.java"]
+    implementation_tasks: ["t8", "t13", "t13.1"]
+  - id: "T002"
+    plan_item: "P1.2"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/domain/agent/AgentConfig.java", "src/main/java/dev/logicojp/reviewer/domain/report/ReviewResult.java", "src/main/java/dev/logicojp/reviewer/domain/resilience/SharedCircuitBreaker.java"]
+    implementation_tasks: ["t8", "t13"]
+  - id: "T003"
+    plan_item: "P1.3"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/application/port/inbound/RunReviewPort.java", "src/main/java/dev/logicojp/reviewer/application/port/outbound/RunCopilotSessionPort.java", "src/main/java/dev/logicojp/reviewer/application/port/outbound/WriteReportPort.java"]
+    implementation_tasks: ["t8", "t16.1", "t16.3"]
+  - id: "T004"
+    plan_item: "P2.1"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/domain/agent/AgentDefinitionPolicy.java", "src/main/java/dev/logicojp/reviewer/domain/agent/AgentPromptBuilder.java", "src/main/java/dev/logicojp/reviewer/domain/agent/RubberDuckPromptBuilder.java"]
+    implementation_tasks: ["t9", "t18.2", "t29"]
+  - id: "T005"
+    plan_item: "P2.2"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/application/review/ReviewOrchestrator.java", "src/main/java/dev/logicojp/reviewer/application/review/ReviewPassRunner.java", "src/main/java/dev/logicojp/reviewer/application/review/AgentReviewExecutor.java"]
+    implementation_tasks: ["t9", "t9.1", "t16.3"]
+  - id: "T006"
+    plan_item: "P3.1"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/application/report/GenerateReportUseCase.java", "src/main/java/dev/logicojp/reviewer/domain/report/ReviewOverallSummaryAppender.java", "src/main/java/dev/logicojp/reviewer/domain/report/ReviewFindingParser.java"]
+    implementation_tasks: ["t10", "t9.1", "t25"]
+  - id: "T007"
+    plan_item: "P3.2"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/application/skill/ExecuteSkillUseCase.java", "src/main/java/dev/logicojp/reviewer/application/agent/LoadAgentUseCase.java"]
+    implementation_tasks: ["t10", "t14.2", "t22.1"]
+  - id: "T008"
+    plan_item: "P3.3"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/application/review/RunDiagnosticsUseCase.java", "src/main/java/dev/logicojp/reviewer/application/port/inbound/RunDiagnosticsPort.java"]
+    implementation_tasks: ["t10"]
+  - id: "T009"
+    plan_item: "P4.1"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/infrastructure/copilot/CopilotService.java", "src/main/java/dev/logicojp/reviewer/infrastructure/copilot/ReviewSessionExecutor.java", "src/main/java/dev/logicojp/reviewer/infrastructure/copilot/ReviewOrchestratorFactory.java"]
+    implementation_tasks: ["t11", "t14.2", "t16.3", "t17.2"]
+  - id: "T010"
+    plan_item: "P4.2"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/infrastructure/parsing/AgentConfigLoader.java", "src/main/java/dev/logicojp/reviewer/infrastructure/file/LocalFileProvider.java", "src/main/java/dev/logicojp/reviewer/infrastructure/template/TemplateRepository.java"]
+    implementation_tasks: ["t11", "t18.2", "t22.1", "t26", "t27", "t29"]
+  - id: "T011"
+    plan_item: "P5.1"
+    status: "complete"
+    final_files: ["src/main/java/dev/logicojp/reviewer/ReviewApp.java", "src/main/java/dev/logicojp/reviewer/presentation/CliApplication.java", "src/main/java/dev/logicojp/reviewer/presentation/command/ReviewCommand.java"]
+    implementation_tasks: ["t12", "t17.2", "t28", "t32.2"]
+  - id: "T012"
+    plan_item: "P5.2"
+    status: "complete"
+    final_files: ["src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java", "src/test/java/dev/logicojp/reviewer/architecture/AdrRuleReferenceGuardTest.java"]
+    implementation_tasks: ["t12.1", "t13.1", "t17.1", "t17.2", "t30", "t31", "t32.2"]
+  - id: "T013"
+    plan_item: "P6.1"
+    status: "complete"
+    final_files: ["src/test/java/dev/logicojp/reviewer/domain/agent/AgentConfigTest.java", "src/test/java/dev/logicojp/reviewer/application/review/ReviewOrchestratorTest.java", "src/test/java/dev/logicojp/reviewer/presentation/command/ReviewCommandTest.java"]
+    implementation_tasks: ["t13"]
+  - id: "T014"
+    plan_item: "P6.2"
+    status: "complete"
+    final_files: ["pom.xml", "pom-native.xml", ".github/workflows/ci.yml", "src/main/resources/META-INF/native-image/reachability-metadata.json"]
+    implementation_tasks: ["t13", "t15", "t19", "t33"]
+  - id: "T015"
+    plan_item: "P6.3"
+    status: "complete"
+    final_files: ["src/test/java/dev/logicojp/reviewer/application/skill/SkillExecutionResilienceContractTest.java", "src/test/java/dev/logicojp/reviewer/infrastructure/file/LocalReviewSymlinkDefenseTest.java", "src/test/java/dev/logicojp/reviewer/presentation/ReviewDualOutputBehaviorTest.java"]
+    implementation_tasks: ["t14", "t14.1", "t14.2", "t20", "t22.2"]
+  - id: "T016"
+    plan_item: "P6.4"
+    status: "complete"
+    final_files: ["src/test/java/dev/logicojp/reviewer/PackagedCliSmokeIT.java", "src/main/java/dev/logicojp/reviewer/ReviewApp.java"]
+    implementation_tasks: ["t19", "t20", "t22.2"]
+
+execution_task_evidence:
+  - id: "t1"
+    role: "teamlead"
+    kind: "governance"
+    status: "completed"
+    plan_items: ["P0.1"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t1-teamlead.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t1-teamlead.md"]
+    verification: "Constitution published; downstream architecture and implementation gates consume it."
+  - id: "t2"
+    role: "architect"
+    kind: "analysis"
+    status: "completed"
+    plan_items: ["P0.2"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t2-architect.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t2-architect-cycles.md", ".github/modernize/rearchitecture/artifacts/t2-architect-leakage.md"]
+    verification: "10 cycles and framework leakage inventory supplied to design."
+  - id: "t3"
+    role: "pm"
+    kind: "analysis"
+    status: "completed"
+    plan_items: ["P0.2"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t3-pm.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t3-pm.md"]
+    verification: "69 unique PM behavior IDs established."
+  - id: "t4"
+    role: "architect"
+    kind: "design"
+    status: "completed"
+    plan_items: ["P0.3"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t4-architect.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t4-architect-packages.md", ".github/modernize/rearchitecture/artifacts/t4-architect-ports.md", ".github/modernize/rearchitecture/artifacts/t4-architect-classmap.md"]
+    verification: "Target package map, dependency matrix, port catalog, and class map published."
+  - id: "t5"
+    role: "teamlead"
+    kind: "planning"
+    status: "completed"
+    plan_items: ["P0.4"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t5-teamlead.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t5-teamlead-plan.md", ".github/modernize/rearchitecture/artifacts/t5-teamlead-tasks.md", ".github/modernize/rearchitecture/artifacts/t5-teamlead-teststrategy.md"]
+    verification: "Six phases and T001-T016 DAG published."
+  - id: "t6"
+    role: "teamlead"
+    kind: "validation"
+    status: "completed"
+    plan_items: ["P0.5"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t6-teamlead.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t6-teamlead.md"]
+    verification: "Original plan gate passed before execution."
+  - id: "t7"
+    role: "devops"
+    kind: "environment"
+    status: "completed"
+    plan_items: ["P0.6"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t7-devops.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t7-devops.md", "pom.xml", "pom-native.xml"]
+    verification: "Explicit JVM and GraalVM activation contract established; later corrected runtime evidence is in t22.2."
+  - id: "t8"
+    role: "backend"
+    kind: "implementation"
+    status: "completed"
+    plan_items: ["P1.1", "P1.2", "P1.3"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t8-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/shared/RetryExecutor.java", "src/main/java/dev/logicojp/reviewer/domain/agent/AgentConfig.java", "src/main/java/dev/logicojp/reviewer/application/port/inbound/RunReviewPort.java"]
+    verification: "T001-T003 delivered; full build recorded in artifact."
+  - id: "t9"
+    role: "backend"
+    kind: "implementation"
+    status: "completed"
+    plan_items: ["P2.1", "P2.2"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t9-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/domain/agent/AgentPromptBuilder.java", "src/main/java/dev/logicojp/reviewer/application/review/ReviewOrchestrator.java"]
+    verification: "T004-T005 delivered; OUT reachability defect routed to t9.1."
+  - id: "t9.1"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.1"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t9.1-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/application/port/inbound/RunReviewPort.java", "src/main/java/dev/logicojp/reviewer/domain/report/ReviewResult.java", "src/main/java/dev/logicojp/reviewer/application/report/GenerateReportUseCase.java"]
+    verification: "Per-agent List<ReviewResult> and numbered multi-pass output restored."
+  - id: "t10"
+    role: "backend"
+    kind: "implementation"
+    status: "completed"
+    plan_items: ["P3.1", "P3.2", "P3.3"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t10-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/application/report/GenerateReportUseCase.java", "src/main/java/dev/logicojp/reviewer/application/skill/ExecuteSkillUseCase.java", "src/main/java/dev/logicojp/reviewer/application/review/RunDiagnosticsUseCase.java"]
+    verification: "T006-T008 application/domain layers delivered."
+  - id: "t11"
+    role: "backend"
+    kind: "implementation"
+    status: "completed"
+    plan_items: ["P4.1", "P4.2"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t11-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/infrastructure/copilot/CopilotService.java", "src/main/java/dev/logicojp/reviewer/infrastructure/parsing/AgentConfigLoader.java", "src/main/java/dev/logicojp/reviewer/infrastructure/file/LocalFileProvider.java"]
+    verification: "T009-T010 adapters delivered with SDK confined to infrastructure."
+  - id: "t12"
+    role: "backend"
+    kind: "implementation-remediated"
+    status: "completed"
+    plan_items: ["P5.1", "P5.2"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t12-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/presentation/CliApplication.java", "src/main/java/dev/logicojp/reviewer/ApplicationPortFactory.java"]
+    verification: "Presentation retained; original ArchUnit enforcement superseded by t12.1."
+  - id: "t12.1"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["P5.2", "R1.2"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t12.1-backend.md"
+    evidence_files: ["src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java", "src/test/java/dev/logicojp/reviewer/infrastructure/copilot/LoadAgentPortWiringTest.java", "src/main/java/dev/logicojp/reviewer/presentation/SkillOptions.java"]
+    verification: "JDK classfile enforcement replaced vacuous ArchUnit checks; completeness and mutation controls pass."
+  - id: "t13"
+    role: "backend"
+    kind: "implementation-remediation"
+    status: "completed"
+    plan_items: ["P6.1", "P6.2", "R1.3"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t13-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/ReviewApp.java", "src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java", "pom.xml"]
+    verification: "Legacy source tree removed, tests migrated, exposed regressions repaired."
+  - id: "t13.1"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.2", "R1.3"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t13.1-backend.md"
+    evidence_files: ["src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java", "src/main/java/dev/logicojp/reviewer/application/port/outbound/PropagateCorrelationPort.java", "src/main/java/dev/logicojp/reviewer/infrastructure/logging/MdcCorrelationAdapter.java", "src/main/java/dev/logicojp/reviewer/shared/RetryPolicyUtils.java"]
+    verification: "Rule 5b, correlation propagation, and consolidated retry semantics delivered."
+  - id: "t14"
+    role: "tester"
+    kind: "validation"
+    status: "completed"
+    plan_items: ["P6.3"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t14-tester.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t14-tester-traceability.md", ".github/modernize/rearchitecture/artifacts/t14-tester-retry-widening.md"]
+    verification: "Regression baseline and behavior gaps established."
+  - id: "t14.1"
+    role: "tester"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["P6.3", "R1.4"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t14.1-tester.md"
+    evidence_files: ["src/test/java/dev/logicojp/reviewer/application/skill/SkillExecutionResilienceContractTest.java", "src/test/java/dev/logicojp/reviewer/infrastructure/copilot/CopilotDeprecatedTokenWarningContractTest.java", ".github/modernize/rearchitecture/artifacts/t14.1-tester-traceability.md"]
+    verification: "20/20 remaining behavior contracts and full regression passed after t14.2."
+  - id: "t14.2"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.4"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t14.2-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/application/skill/ExecuteSkillUseCase.java", "src/main/java/dev/logicojp/reviewer/infrastructure/copilot/CopilotService.java"]
+    verification: "SKL-07, RTY-04, and AUTH-10 contracts restored without weakening tests."
+  - id: "t15"
+    role: "backend"
+    kind: "remediation-security"
+    status: "completed"
+    plan_items: ["P6.2", "R1.5"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t15-backend.md"
+    evidence_files: ["pom.xml", "pom-native.xml", "osv-scanner.toml"]
+    verification: "CVE-2026-59889 override corrected and scanner non-vacuity proven."
+  - id: "t16"
+    role: "architect"
+    kind: "architecture-record"
+    status: "completed"
+    plan_items: ["P0.3", "R1.6"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t16-architect.md"
+    evidence_files: ["docs/adr/0006-ports-and-adapters-layering.md", "README.md", "README_en.md", "README_ja.md"]
+    verification: "ADR-0006 and user-facing layered architecture documentation published."
+  - id: "t16.1"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.6"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t16.1-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/application/auth/ResolveTokenUseCase.java", "src/main/java/dev/logicojp/reviewer/application/port/outbound/AcquireGitHubTokenPort.java", "src/main/java/dev/logicojp/reviewer/infrastructure/auth/GitHubTokenResolver.java", "src/test/java/dev/logicojp/reviewer/infrastructure/copilot/PortDirectionWiringTest.java"]
+    verification: "Rule 4 narrowed and inbound token/skill bindings corrected."
+  - id: "t16.2"
+    role: "architect"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["R1.6"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t16.2-architect.md"
+    evidence_files: ["docs/adr/0006-ports-and-adapters-layering.md", "src/test/java/dev/logicojp/reviewer/infrastructure/copilot/PortDirectionWiringTest.java"]
+    verification: "Independent clean re-pass closed deviation 8 after t16.3."
+  - id: "t16.3"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.6"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t16.3-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/ReviewPortFactory.java", "src/main/java/dev/logicojp/reviewer/application/review/ReviewOrchestrator.java", "src/main/java/dev/logicojp/reviewer/application/port/outbound/ResolveReviewSettingsPort.java", "src/main/java/dev/logicojp/reviewer/application/port/outbound/CreateReviewSessionPortsPort.java"]
+    verification: "RunReviewPort now resolves to the application orchestrator; infrastructure owns outbound mechanisms only."
+  - id: "t17"
+    role: "architect"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["R1.7"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t17-architect.md"
+    evidence_files: ["src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java", "docs/adr/0006-ports-and-adapters-layering.md"]
+    verification: "Independent architecture recertification passed H1-H4 with fresh mutants."
+  - id: "t17.1"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.7"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t17.1-backend.md"
+    evidence_files: ["src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java", "src/test/java/dev/logicojp/reviewer/application/probe/T17RootReferenceViolation.java", "src/test/java/dev/logicojp/reviewer/application/port/inbound/T17PortImplementationViolation.java"]
+    verification: "Zero-exemption Rules 3a and 4a added with exact negative controls."
+  - id: "t17.2"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.7"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t17.2-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/ReviewApp.java", "src/main/java/dev/logicojp/reviewer/presentation/CliApplication.java", "src/main/java/dev/logicojp/reviewer/ApplicationPortFactory.java", "src/main/java/dev/logicojp/reviewer/infrastructure/config/ApplicationSettingsAdapter.java"]
+    verification: "Thin entry point and focused port factories delivered; Rule 4 is zero-exemption."
+  - id: "t18"
+    role: "security"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["R1.8"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t18-security-gate.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t18-security-rerun.md", ".github/modernize/rearchitecture/artifacts/t18-security-rerun-charset-audit.md", ".github/modernize/rearchitecture/artifacts/t18-security-gate.md"]
+    verification: "Final security rerun passed with zero HIGH and zero CRITICAL."
+  - id: "t18.1"
+    role: "architect"
+    kind: "remediation-design"
+    status: "completed"
+    plan_items: ["R1.8"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t18.1-architect.md"
+    evidence_files: ["docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md", ".github/copilot-instructions.md"]
+    verification: "Trust provenance and secret-sink boundary decisions published."
+  - id: "t18.2"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.8"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t18.2-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/domain/agent/AgentSource.java", "src/main/java/dev/logicojp/reviewer/domain/agent/AgentSourceDirectory.java", "src/main/java/dev/logicojp/reviewer/domain/agent/AgentTrustProfile.java", "src/main/java/dev/logicojp/reviewer/domain/agent/AgentDefinitionPolicy.java", "src/main/java/dev/logicojp/reviewer/infrastructure/parsing/AgentConfigLoader.java"]
+    verification: "ADR-0007 D1-D4 implemented with differential, schema, liveness, and rejection controls."
+  - id: "t18.3"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.8"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t18.3-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/domain/instruction/CustomInstructionSafetyValidator.java", "src/test/java/dev/logicojp/reviewer/domain/instruction/CharsetAllowlistSweepTest.java", "src/test/java/dev/logicojp/reviewer/domain/agent/AgentPolicyConstantsAreLiveTest.java"]
+    verification: "Exhaustive 1,114,112-codepoint sweep leaves zero invisible/unassigned offenders."
+  - id: "t19"
+    role: "devops"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["P6.2", "P6.4", "R1.9"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t19-devops.md"
+    evidence_files: ["pom.xml", "pom-native.xml", ".github/workflows/ci.yml", "src/test/java/dev/logicojp/reviewer/PackagedCliSmokeIT.java"]
+    verification: "Independent Java 28, packaged-JAR, GraalVM 25, native-test, and native-CLI gates pass."
+  - id: "t20"
+    role: "tester"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["P6.3", "P6.4", "R1.9"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t20-tester.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t20-tester.md", "src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java"]
+    verification: "Three-tier final-tree runtime validation passed in isolated clean copies."
+  - id: "t21"
+    role: "pm"
+    kind: "validation"
+    status: "completed"
+    plan_items: ["R1.14"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t21-pm.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t21-pm.md"]
+    verification: "Initial 69/69 parity sign-off; AGT-01/SKL-01 later corrected by t22.1-t22.3."
+  - id: "t22"
+    role: "teamlead"
+    kind: "validation"
+    status: "failed-remediated"
+    plan_items: ["R1.15"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t22-teamlead.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t22-teamlead.md", ".github/modernize/rearchitecture/artifacts/migration-summary.md"]
+    verification: "Historical completeness gate found C-001 through C-005; all remediation producers are now represented."
+  - id: "t22.1"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.14"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t22.1-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/application/agent/LoadAgentUseCase.java", "src/main/java/dev/logicojp/reviewer/application/port/outbound/ManageSkillCatalogPort.java", "src/main/java/dev/logicojp/reviewer/infrastructure/parsing/AgentDefinitionLoaderAdapter.java", "src/main/java/dev/logicojp/reviewer/infrastructure/parsing/SkillRegistry.java", "src/test/java/dev/logicojp/reviewer/PackagedCliSmokeIT.java"]
+    verification: "C-004/C-005 closed with discriminating packaged-CLI tests."
+  - id: "t22.2"
+    role: "tester"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["R1.14"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t22.2-tester.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t22.2-tester.md", "src/test/java/dev/logicojp/reviewer/PackagedCliSmokeIT.java"]
+    verification: "Java 28 1107+5 and native 1107+1107+5 pass; five JAR and five native flows pass."
+  - id: "t22.3"
+    role: "pm"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["R1.14"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t22.3-pm.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t22.3-pm.md"]
+    verification: "69/69 re-signed; AGT-01 and SKL-01 are DIRECT-CLOSURE."
+  - id: "t22.4"
+    role: "teamlead"
+    kind: "remediation-checkpoint"
+    status: "completed"
+    plan_items: ["R1.15"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t22.4-teamlead.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/checkpoints/spec-to-plan.yaml", ".github/modernize/rearchitecture/artifacts/checkpoints/plan-to-tasks.yaml", ".github/modernize/rearchitecture/artifacts/checkpoints/tasks-to-impl.yaml", ".github/modernize/rearchitecture/artifacts/checkpoints/t22.4-producer-check.rb", ".github/modernize/rearchitecture/artifacts/t22.4-teamlead.md"]
+    verification: "Global checkpoints reconstructed; independent validation intentionally pending."
+  - id: "t22.5"
+    role: "architect"
+    kind: "independent-validation"
+    status: "pending"
+    plan_items: ["R1.15"]
+    artifact: null
+    evidence_files: []
+    verification: "Must independently validate and alone may set validation.passed=true."
+  - id: "t23"
+    role: "backend"
+    kind: "merge-remediation"
+    status: "completed"
+    plan_items: ["R1.10"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t23-backend.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t23-backend-feature-ports.md", ".github/modernize/rearchitecture/artifacts/t23-backend-conflict-dispositions.md", "src/main/java/dev/logicojp/reviewer/shared/PromptBudget.java", "src/main/resources/application.yml"]
+    verification: "82 conflicts resolved; upstream behavior ported without restoring the flat tree."
+  - id: "t24"
+    role: "architect"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["R1.10"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t24-architect.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t24-architect.md"]
+    verification: "Post-merge clean pass and remediation rulings recorded."
+  - id: "t25"
+    role: "tester"
+    kind: "remediation-test"
+    status: "completed"
+    plan_items: ["R1.10"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t25-tester.md"
+    evidence_files: ["src/test/java/dev/logicojp/reviewer/domain/agent/RubberDuckPromptBuilderTest.java", "src/test/java/dev/logicojp/reviewer/domain/report/ReviewOverallSummaryAppenderTest.java"]
+    verification: "Merge-dropped compaction and non-numbered report-section assertions restored with mutant kills."
+  - id: "t26"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.11"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t26-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/infrastructure/parsing/AgentConfigLoader.java", "src/main/java/dev/logicojp/reviewer/shared/ConfigDefaults.java", "src/test/java/dev/logicojp/reviewer/infrastructure/parsing/AgentConfigLoaderTest.java"]
+    verification: "Cumulative assigned-skill budget control proven non-vacuous; budget provenance named."
+  - id: "t27"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.11"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t27-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/infrastructure/config/PromptBudgetConfig.java", "src/main/resources/application.yml", "src/test/java/dev/logicojp/reviewer/infrastructure/config/PromptBudgetConfigBindingTest.java"]
+    verification: "PromptBudget defaults have one owner and absent-key binding is protected."
+  - id: "t28"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.12"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t28-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/application/port/inbound/ReviewPlan.java", "src/main/java/dev/logicojp/reviewer/application/port/inbound/DescribeReviewPlanPort.java", "src/main/java/dev/logicojp/reviewer/application/review/DescribeReviewPlanUseCase.java", "src/test/java/dev/logicojp/reviewer/infrastructure/copilot/ReviewPassesSingleSourceTest.java"]
+    verification: "Banner and executor now consume one review-pass source through an inbound port."
+  - id: "t29"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.11"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t29-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/shared/SkillBudget.java", "src/main/java/dev/logicojp/reviewer/domain/agent/AgentConfig.java", "src/main/java/dev/logicojp/reviewer/domain/agent/AgentPromptBuilder.java", "src/main/java/dev/logicojp/reviewer/infrastructure/parsing/AgentConfigLoader.java"]
+    verification: "Effective skill budget reaches domain as a pure value; overflow degrades by skip-and-warn."
+  - id: "t30"
+    role: "architect"
+    kind: "remediation-enforcement"
+    status: "completed"
+    plan_items: ["R1.11"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t30-architect.md"
+    evidence_files: ["docs/adr/0008-control-scope-must-be-visible-at-the-call-site.md", "docs/adr/0006-ports-and-adapters-layering.md", "src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java"]
+    verification: "ADR-0008 and non-vacuous Rule 8 shipped together."
+  - id: "t31"
+    role: "architect"
+    kind: "remediation-enforcement"
+    status: "completed"
+    plan_items: ["R1.13"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t31-architect.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/application/port/outbound/McpServerSpec.java", "src/main/resources/logback.xml", "src/main/resources/logback-json.xml", "src/test/java/dev/logicojp/reviewer/infrastructure/logging/SensitiveHeaderMaskingSinkCanaryTest.java", "src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java"]
+    verification: "Rule 4b is live; masking moved to both log sinks and is mutation-proven."
+  - id: "t32"
+    role: "architect"
+    kind: "remediation-rollup"
+    status: "completed"
+    plan_items: ["R1.12"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t32.1-architect.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t32.1-architect.md", "src/test/java/dev/logicojp/reviewer/architecture/AdrRuleReferenceGuardTest.java"]
+    verification: "Parent rollup closed by t32.1 after t32.2 and t32.3."
+  - id: "t32.1"
+    role: "architect"
+    kind: "remediation-validation"
+    status: "completed"
+    plan_items: ["R1.12"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t32.1-architect.md"
+    evidence_files: [".github/modernize/rearchitecture/artifacts/t32.1-architect.md", "src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java", "src/test/java/dev/logicojp/reviewer/architecture/AdrRuleReferenceGuardTest.java"]
+    verification: "Final independent Rule 5c, ADR/rule, and exact D4 cardinality re-pass."
+  - id: "t32.2"
+    role: "backend"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.12"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t32.2-backend.md"
+    evidence_files: ["src/main/java/dev/logicojp/reviewer/application/port/inbound/ReviewPlan.java", "src/main/java/dev/logicojp/reviewer/application/port/outbound/ResolveApplicationSettingsPort.java", "src/main/java/dev/logicojp/reviewer/application/review/DescribeReviewPlanUseCase.java", "src/main/java/dev/logicojp/reviewer/infrastructure/config/ApplicationSettingsAdapter.java", "src/test/java/dev/logicojp/reviewer/architecture/AdrRuleReferenceGuardTest.java"]
+    verification: "Presentation config bindings removed; zero-exemption Rule 5c and bidirectional ADR guard pass."
+  - id: "t32.3"
+    role: "backend"
+    kind: "remediation-test"
+    status: "completed"
+    plan_items: ["R1.12"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t32.3-backend.md"
+    evidence_files: ["src/test/java/dev/logicojp/reviewer/infrastructure/parsing/AgentLoadRejectionReportingTest.java", "src/test/java/dev/logicojp/reviewer/domain/agent/AgentSchemaCoverageTest.java"]
+    verification: "Both D4 semantic branches assert exactly one summary event; duplicate mutant is killed."
+  - id: "t33"
+    role: "devops"
+    kind: "remediation"
+    status: "completed"
+    plan_items: ["R1.9"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t33-devops.md"
+    evidence_files: ["src/main/resources/META-INF/native-image/reachability-metadata.json", "src/main/resources/META-INF/native-image/dev.logicojp/multi-agent-reviewer/reachability-metadata.json", "RELEASE_NOTES_en.md", "RELEASE_NOTES_ja.md"]
+    verification: "Layered native metadata and review-pass release notes corrected; exact native gate passed."
+  - id: "t34"
+    role: "tester"
+    kind: "remediation-test"
+    status: "completed"
+    plan_items: ["R1.8"]
+    artifact: ".github/modernize/rearchitecture/artifacts/t34-tester.md"
+    evidence_files: ["src/test/java/dev/logicojp/reviewer/domain/agent/AgentModelPrefixPolicyTest.java", "src/test/java/dev/logicojp/reviewer/domain/agent/AgentPolicyConstantsAreLiveTest.java"]
+    verification: "All five model-prefix families have matched acceptance and rejection boundaries."
+
+remediation_closure:
+  - {finding: "C-001", description: "spec-to-plan checkpoint absent", closed_by: ["t22.4"], evidence: ".github/modernize/rearchitecture/artifacts/checkpoints/spec-to-plan.yaml"}
+  - {finding: "C-002", description: "plan-to-tasks checkpoint absent", closed_by: ["t22.4"], evidence: ".github/modernize/rearchitecture/artifacts/checkpoints/plan-to-tasks.yaml"}
+  - {finding: "C-003", description: "tasks-to-implementation checkpoint batch-only", closed_by: ["t22.4"], evidence: ".github/modernize/rearchitecture/artifacts/checkpoints/tasks-to-impl.yaml"}
+  - {finding: "C-004", description: "configured default agent discovery bypassed", closed_by: ["t22.1", "t22.2", "t22.3"], evidence: ".github/modernize/rearchitecture/artifacts/t22.3-pm.md"}
+  - {finding: "C-005", description: "discovered skills absent from executable catalog", closed_by: ["t22.1", "t22.2", "t22.3"], evidence: ".github/modernize/rearchitecture/artifacts/t22.3-pm.md"}
+
+producer_checks:
+  status: "ready-for-independent-validation"
+  expected_execution_task_ids: 55
+  planning_ledger_parity: "55/55"
+  declared_repository_paths: 330
+  status_arithmetic: "53 completed + 1 failed-remediated + 1 pending"
+  duplicate_task_ids: []
+  missing_task_ids: []
+  unknown_plan_item_references: []
+  missing_completed_artifacts: []
+  missing_evidence_files: []
+  missing_repository_paths: []
+  pending_without_evidence:
+    - "t22.5"
+
+validation:
+  passed: true
+  status: "independently-validated"
+  validator_task: "t22.5"
+  validator_role: "architect"
+  validated_at_utc: "2026-08-09T09:20:47Z"
+  validation_report: ".github/modernize/rearchitecture/artifacts/t22.5-architect.md"
+  findings:
+    critical: 0
+    high: 0
+  independent_evidence:
+    checks_passed: "16/16"
+    deep_plan_tasks_reconciled: "16/16"
+    declared_final_files_resolved: "45/45"
+    execution_task_ledger_rows: "55/55"
+    nonpending_evidence_sets_resolved: "54/54"
+    producer_declared_repository_paths_resolved: "330/330"
+    remediation_closures_reconciled: "5/5"
+    java_28_clean_verify: "1112/1112"
+    java_28_surefire: "1107/1107"
+    packaged_cli_failsafe: "5/5"
+  required_checks:
+    - "Reconcile the 55 execution-task IDs against board.md."
+    - "Verify every non-null artifact and every evidence_files path exists."
+    - "Verify T001-T016 each map to current final implementation files."
+    - "Verify all remediation tasks and C-001 through C-005 closures are represented."
+    - "Re-run current build/runtime evidence as needed; do not inherit producer assertions."
+    - "Set passed=true only after independent validation."

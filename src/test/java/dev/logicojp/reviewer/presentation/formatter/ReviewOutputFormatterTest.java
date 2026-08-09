@@ -36,7 +36,7 @@ class ReviewOutputFormatterTest {
             ReviewTarget.gitHub("owner/repo"),
             java.nio.file.Path.of("reports/owner/repo"),
             "review-model",
-            new ReviewPlan(1)
+            new ReviewPlan(1, 4, "review", "report", "summary", "high")
         );
 
         String outputText = outBuffer.toString();

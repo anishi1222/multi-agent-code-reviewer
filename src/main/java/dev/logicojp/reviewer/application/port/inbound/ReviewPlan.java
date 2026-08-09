@@ -1,9 +1,12 @@
 package dev.logicojp.reviewer.application.port.inbound;
 
+import java.util.Objects;
+
 /// Inbound port DTO: the execution plan that a review run will follow.
 ///
-/// Carries only values that a caller may legitimately need **before** execution starts —
-/// today that is the per-agent pass count, which the startup banner reports.
+/// Carries effective application-owned settings that a caller may legitimately need before
+/// execution starts. Presentation may overlay explicit CLI values, but it never binds or
+/// re-defaults infrastructure configuration.
 ///
 /// ## Why this exists
 ///
@@ -20,7 +23,19 @@ package dev.logicojp.reviewer.application.port.inbound;
 /// the executor resolves.
 ///
 /// @param reviewPasses number of review passes each agent will run; always at least 1
-public record ReviewPlan(int reviewPasses) {
+/// @param defaultParallelism effective default worker concurrency; always at least 1
+/// @param defaultReviewModel effective default model for review stages
+/// @param defaultReportModel effective default model for report generation
+/// @param defaultSummaryModel effective default model for summary generation
+/// @param defaultReasoningEffort effective default reasoning effort
+public record ReviewPlan(
+    int reviewPasses,
+    int defaultParallelism,
+    String defaultReviewModel,
+    String defaultReportModel,
+    String defaultSummaryModel,
+    String defaultReasoningEffort
+) {
 
     /// Rejects a non-positive pass count rather than normalising it.
     ///
@@ -35,6 +50,16 @@ public record ReviewPlan(int reviewPasses) {
                 "reviewPasses must be at least 1, was " + reviewPasses
                     + " — the configuration source stopped normalising non-positive values");
         }
+        if (defaultParallelism < 1) {
+            throw new IllegalArgumentException(
+                "defaultParallelism must be at least 1, was " + defaultParallelism
+                    + " — the configuration source stopped normalising non-positive values");
+        }
+        defaultReviewModel = requireNonBlank(defaultReviewModel, "defaultReviewModel");
+        defaultReportModel = requireNonBlank(defaultReportModel, "defaultReportModel");
+        defaultSummaryModel = requireNonBlank(defaultSummaryModel, "defaultSummaryModel");
+        defaultReasoningEffort =
+            requireNonBlank(defaultReasoningEffort, "defaultReasoningEffort");
     }
 
     /// Whether the plan runs more than one pass per agent.
@@ -42,5 +67,13 @@ public record ReviewPlan(int reviewPasses) {
     /// A fact about the plan, not a display rule: callers decide what to do with it.
     public boolean isMultiPass() {
         return reviewPasses > 1;
+    }
+
+    private static String requireNonBlank(String value, String name) {
+        Objects.requireNonNull(value, name);
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(name + " must not be blank");
+        }
+        return value;
     }
 }

@@ -5,6 +5,7 @@ import dev.logicojp.reviewer.application.port.inbound.ReportOptions;
 import dev.logicojp.reviewer.application.port.inbound.ReportOutput;
 import dev.logicojp.reviewer.application.port.outbound.GenerateAiSummaryPort;
 import dev.logicojp.reviewer.application.port.outbound.LoadTemplatePort;
+import dev.logicojp.reviewer.application.port.outbound.ResolveApplicationSettingsPort.SummarySettings;
 import dev.logicojp.reviewer.application.port.outbound.WriteReportPort;
 import dev.logicojp.reviewer.application.report.SummaryGenerator.SummaryGenerationConfig;
 import dev.logicojp.reviewer.domain.report.ReportContentFormatter;
@@ -47,6 +48,13 @@ public final class GenerateReportUseCase implements GenerateReportPort {
     public GenerateReportUseCase(WriteReportPort writer,
                                   LoadTemplatePort templates,
                                   GenerateAiSummaryPort aiSummary,
+                                  SummarySettings settings) {
+        this(writer, templates, aiSummary, toInternalConfig(settings));
+    }
+
+    public GenerateReportUseCase(WriteReportPort writer,
+                                  LoadTemplatePort templates,
+                                  GenerateAiSummaryPort aiSummary,
                                   SummaryGenerationConfig config) {
         this(writer, templates, aiSummary, config, Clock.systemUTC());
     }
@@ -61,6 +69,18 @@ public final class GenerateReportUseCase implements GenerateReportPort {
         this.templates = templates;
         this.summaryGenerator = new SummaryGenerator(templates, aiSummary, config);
         this.clock = clock;
+    }
+
+    private static SummaryGenerationConfig toInternalConfig(SummarySettings settings) {
+        return new SummaryGenerationConfig(
+            settings.maxContentPerAgent(),
+            settings.maxTotalPromptContent(),
+            settings.fallbackExcerptLength(),
+            settings.averageResultContentEstimate(),
+            settings.initialBufferMargin(),
+            settings.excerptNormalizationMultiplier(),
+            settings.promptBudget()
+        );
     }
 
     /// Generates individual per-agent reports and, unless skipped, an executive summary.

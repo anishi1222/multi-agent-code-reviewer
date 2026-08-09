@@ -303,3 +303,180 @@
   backend/inbound-port-implemented-in-infrastructure,
   backend/review-composition-root-split,
   backend/self-cleaning-architecture-exclusions]
+
+## [t17] Final layered-architecture conformance review — FAIL (4 HIGH)
+
+- The actual Java 28 tree is healthy but not certifiable: the full build passed 1058 Surefire + 4
+  packaged-JAR tests, Rule 0 parsed 345/345, and an independent source-to-primary-class map passed
+  187/187.
+- All ten t2 package cycles remain removed; Rules 6a/6b report zero layer and sibling-package cycles.
+  Domain/shared/application purity, Copilot SDK confinement, port implementation direction, and the
+  application-owned real `RunReviewPort` binding all pass fresh inspection.
+- `ReviewApp` is not wiring-only: it owns CLI parsing/dispatch/output, filesystem hardening, and a
+  concrete logging switch. Stable FQN does not justify those responsibilities.
+- Deviation #4 cannot be downgraded to benign wiring. `ApplicationPortFactory` combines trust-source
+  classification, agent-loading I/O, config mapping, SDK construction, and use-case binding; its
+  7 Rule 4 violations are exact but substantive.
+- Two isolated one-way mutants exposed controls that do not exist: application→root and
+  application.port→new application implementation both passed 15/15. Rule 3 checks the opposite
+  root concern, and acyclicity only catches a port edge when a coincidental back-edge exists.
+- Wrong assumption corrected: ADR-0006 D5's correspondence table says coverage is one-to-one but
+  omits the `application.port` row. Reading the table's conclusion was not a substitute for building
+  a matrix-row mutant.
+- Verification technique worth reusing: pair Rule 0's compiled→parsed equality with the independent
+  source→primary-class map, then mutation-test each directional matrix row with a one-way edge.
+- Learnings consumed: [architect/composition-root-as-layer-zero,
+  architect/completeness-assertions-need-an-independent-side,
+  architect/empty-violator-set-needs-a-permanent-control,
+  architect/matrix-row-requires-enforcement-rule,
+  architect/port-direction-by-implementer,
+  architect/relocation-must-not-conceal-inversion,
+  architect/shared-worktree-invalidates-build-results,
+  backend/architecture-rule-negative-control,
+  backend/derived-exemptions-for-generated-beans,
+  backend/inbound-port-implemented-in-infrastructure,
+  backend/review-composition-root-split,
+  teamlead/domain-purity-rules,
+  tester/mutation-testing-without-touching-git-state,
+  tester/never-pipe-a-verification-build]
+
+## [t17] Re-certified the post-t17.1/t17.2 tree — clean PASS
+
+- The current-tree t17 artifact was missing, so the prior FAIL report was recovered read-only from
+  commit `be15ce4`; its H1-H4/L1 closure conditions were treated as the contract rather than
+  reconstructed from the backend summaries.
+- Independent current-tree denominators are 200 production sources, 200/200 primary classes, and
+  364/364 parsed production classes. The five named layers account for 197 sources / 351 classes;
+  Java source hashes were identical before and after the full build.
+- All four repaired controls were proved live in `/tmp/t17-recert-6F90BA68`: an added ReviewApp
+  policy method, an infrastructure-to-inbound edge, a layer-to-root edge, and a
+  port-to-implementation edge each caused exactly one named architecture-test failure. Restored
+  runs passed 20/20 and the isolated source/hash matched the shared tree.
+- Port inventory now has 8 inbound interfaces / 8 application implementers and 14 outbound
+  interfaces / 15 infrastructure implementers. Rule 4 is 122 / 0 / 0; Rules 3a and 4a are
+  351/197/0 and 35/30/0 respectively.
+- Full Java 28 `clean verify` passed 1073 Surefire + 4 packaged-JAR cases; direct shaded-JAR help
+  and version startup returned 0 in 0.51 s and 0.50 s. The final architecture ruling is
+  0 CRITICAL / 0 HIGH.
+- A raw root-factory token scan initially matched the word `Configuration` in Javadoc. Stripping
+  comments before the responsibility-token check avoided turning documentation into false
+  behavior evidence. Two ad-hoc Python verifier attempts also failed only from shell/f-string
+  quoting; the corrected verifiers were rerun to rc 0 rather than treating partial output as
+  evidence.
+- Reusable technique: for a reflection-based thin-entry contract, replace only the isolated
+  compiled entry class with a same-FQN mutant that preserves the allowed dependency set but adds
+  one method. This proves the method/field responsibility constraint independently without
+  mutating shared source.
+- Learnings consumed: [architect/acyclicity-is-not-port-purity,
+  architect/completeness-assertions-need-an-independent-side,
+  architect/composition-root-as-layer-zero,
+  architect/empty-violator-set-needs-a-permanent-control,
+  architect/layer-zero-needs-two-controls,
+  architect/matrix-row-requires-enforcement-rule,
+  architect/port-direction-by-implementer,
+  architect/relocation-must-not-conceal-inversion,
+  architect/shared-worktree-invalidates-build-results,
+  backend/architecture-rule-negative-control,
+  backend/review-composition-root-split,
+  tester/mutation-testing-without-touching-git-state,
+  tester/never-pipe-a-verification-build]
+
+## [t32.1] Amended ADR-0007 and specified Rule 5c plus ADR-rule traceability
+
+- `AgentConfig` has 14 components; the stable contract is reflective component-set equality, not
+  another pinned integer. D4's former `--quiet` guarantee was vacuous because the option does not
+  exist; the real observable is the exactly-once `Agent load summary:` event.
+- String-keyed configuration is a layer edge. Three presentation classes still bind wrong or dead
+  keys, so t32.2 must extend `DescribeReviewPlanPort`, remove the dead timeout path, and land Rule
+  5c with zero exceptions.
+- The first ADR guard model was subtly vacuous: renaming the Rule 4b primary test left its
+  `Rule 4b control:` display name, so an inventory of all displays still passed. Restricting
+  inventory to `Rule N[x]:` / `Rule N[x] scope:` primary tests made the mutant RED.
+- Focused Java 28 verification passed 33/33 in an isolated copy. The design-state guard has exactly
+  one expected forward gap (Rule 5c, pending t32.2), no reverse gaps, and both one-sided rename
+  mutants fail after modeling Rule 5c.
+- Learnings consumed: [architect/completeness-assertions-need-an-independent-side,
+  architect/empty-violator-set-needs-a-permanent-control,
+  architect/matrix-row-requires-enforcement-rule,
+  architect/reverify-docs-before-publishing,
+  backend/architecture-rule-negative-control,
+  backend/derive-and-sweep-finite-security-domains,
+  backend/route-config-to-presentation-through-an-inbound-port,
+  backend/source-backed-architecture-rule-subjects]
+
+## [t22.5] Independently validated all three global checkpoints
+
+- Reconstructed the 84-requirement denominator from 69 t3 PM rows plus 15 non-PM traceability rows,
+  the T001–T016 DAG from the source task breakdown, and 55 unique board task IDs before comparing
+  any producer mapping.
+- Independent results were 13/13 spec-to-plan, 17/17 plan-to-tasks, and 16/16
+  tasks-to-implementation. All 330 producer-declared paths resolved; the final validator adds three
+  report pointers, yielding 333/333 post-validation paths.
+- The auxiliary remediation inventory omits t13, t16, t21, t22, and t23, but canonical R mappings
+  and the execution ledger contain all five. Classified LOW because global traceability is intact.
+- Corrected two validator assumptions while making the audit reproducible: supplemental IDs are
+  TEST/CLI/EQ rather than `SUP-*`, and the 45 final-file declarations contain 44 unique paths because
+  `ReviewApp.java` is cross-referenced.
+- Current Java 28 `clean verify` passed 1,107 Surefire + 5 Failsafe tests. The discriminating
+  packaged-JAR AGT-01/SKL-01 flows passed in that run.
+- The t22.4 checker is a producer oracle and intentionally rejects post-validation `passed: true`;
+  `t22.5-independent-check.rb` is the correct final-state oracle. The local Ruby lacks
+  `Array#tally` and `filter_map`, so portable Hash/map+compact forms were used.
+- Learnings consumed: [architect/completeness-assertions-need-an-independent-side,
+  architect/reverify-docs-before-publishing,
+  architect/rule-the-premise-before-the-question,
+  teamlead/checkpoint-contract-integrity]
+
+## [t32.1] Final clean re-certification after t32.3
+
+- Re-certified Rule 5c over 72 compiled / 31 source-backed presentation types at 0 violations /
+  0 exemptions. Its permanent fixture still resolves the exact `@Value` edge, and a fresh
+  production-type mutant failed 1/22 architecture tests.
+- Independently reconciled 46 Accepted-ADR references over 17 canonical IDs against 17 executable
+  primary IDs: no forward gaps, reverse gaps, or duplicates. Control aliases remain excluded and
+  Rule 7 remains non-executable. Fresh test-side and ADR-side Rule 4b rename mutants each failed 2/2.
+- t32.3 closes the prior D4 HIGH: both semantic paths now collect all summary events and assert
+  cardinality one. A fresh duplicate-emission mutant failed exactly the rejection and no-rejection
+  tests (2/5), while the other three D4 tests remained green.
+- The isolated Java 28 full build passed 1082 Surefire + 4 Failsafe tests; packaged CLI help and
+  version both exited 0 in 1.57 s and 1.55 s. `src/` and `docs/adr/` stayed byte-identical to the
+  verified copy through publication.
+- No new architecture choice or reusable surprise emerged; the existing bidirectional-traceability
+  and event-cardinality learnings already capture the two applicable patterns.
+- Learnings consumed: [architect/adr-rule-references-need-bidirectional-guard,
+  architect/completeness-assertions-need-an-independent-side,
+  architect/empty-violator-set-needs-a-permanent-control,
+  architect/event-cardinality-needs-duplicate-mutant,
+  architect/matrix-row-requires-enforcement-rule,
+  architect/reverify-docs-before-publishing,
+  architect/shared-worktree-invalidates-build-results,
+  architect/string-keyed-configuration-is-a-layer-edge,
+  backend/architecture-rule-negative-control,
+  backend/derive-and-sweep-finite-security-domains,
+  backend/route-config-to-presentation-through-an-inbound-port,
+  backend/source-backed-architecture-rule-subjects,
+  tester/mutation-testing-without-touching-git-state,
+  tester/never-pipe-a-verification-build]
+
+## [t32.1] Re-passed t32.2 and blocked on D4 event cardinality
+
+- Independently verified that the two t32.2 HIGH findings are closed: Rule 5c covers 72 compiled /
+  31 source-backed presentation types at 0/0, and the 17-primary-rule ADR guard kills both a
+  test-side rename and an ADR-side rename while controls stay excluded.
+- Corrected ADR-0006's stale future tense and marked deviation #9 resolved. Rule 7 remains a comment
+  reservation rather than an executable primary rule.
+- D3 exact-set and D7 finite-domain claims passed source review and focused tests; independent D7
+  under-block and over-block mutants both went RED.
+- A fresh D4 duplicate-summary mutant survived 5/5 tests. Production currently emits one summary,
+  but `summaryEvent().findFirst()` cannot enforce ADR-0007's exactly-once contract. Routed as HIGH
+  for backend remediation and withheld a clean verdict.
+- Full isolated Java 28 verification passed 1082 Surefire + 4 Failsafe tests; shaded-JAR help and
+  version startup both returned 0.
+- Learnings consumed: [architect/completeness-assertions-need-an-independent-side,
+  architect/empty-violator-set-needs-a-permanent-control,
+  architect/matrix-row-requires-enforcement-rule,
+  architect/reverify-docs-before-publishing,
+  backend/architecture-rule-negative-control,
+  backend/derive-and-sweep-finite-security-domains,
+  backend/route-config-to-presentation-through-an-inbound-port,
+  backend/source-backed-architecture-rule-subjects]

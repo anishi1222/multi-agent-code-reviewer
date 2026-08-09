@@ -8,6 +8,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,17 +52,22 @@ class LoadAgentUseCaseTest {
     }
 
     @Test
-    @DisplayName("ディレクトリ未指定時はloaderを呼ばずにemptyを返す")
-    void emptyDirectoriesReturnEmptyWithoutLoading() {
-        AtomicReference<Boolean> called = new AtomicReference<>(false);
-        LoadAgentUseCase useCase = new LoadAgentUseCase(_ -> {
-            called.set(true);
+    @DisplayName("追加ディレクトリ未指定時もconfigured defaultsを解決するloaderへ委譲する")
+    void emptyAdditionalDirectoriesStillDelegateToConfiguredDefaults() {
+        AtomicInteger calls = new AtomicInteger();
+        AtomicReference<List<AgentSourceDirectory>> capturedDirectories = new AtomicReference<>();
+        AgentConfig security = agent("security", "security agent");
+        LoadAgentUseCase useCase = new LoadAgentUseCase(directories -> {
+            calls.incrementAndGet();
+            capturedDirectories.set(directories);
             return List.of(agent("security", "security agent"));
         });
 
-        assertThat(useCase.loadAll(List.of())).isEmpty();
-        assertThat(useCase.loadByName("security", null)).isEmpty();
-        assertThat(called).hasValue(false);
+        assertThat(useCase.loadAll(List.of())).containsExactly(security);
+        assertThat(capturedDirectories.get()).isEmpty();
+        assertThat(useCase.loadByName("security", null)).contains(security);
+        assertThat(capturedDirectories.get()).isEmpty();
+        assertThat(calls).hasValue(2);
     }
 
     // not ported: configured/additional directory merging belongs to infrastructure configuration, not LoadAgentUseCase.

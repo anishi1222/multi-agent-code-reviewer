@@ -1,8 +1,11 @@
 package dev.logicojp.reviewer.presentation;
 
-import io.micronaut.context.annotation.Value;
+import dev.logicojp.reviewer.application.port.inbound.DescribeReviewPlanPort;
+import dev.logicojp.reviewer.application.port.inbound.ReviewPlan;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+
+import java.util.Objects;
 
 /// Resolves model configuration strings from CLI options and application configuration.
 ///
@@ -18,36 +21,34 @@ public class ReviewModelConfigResolver {
         String reasoningEffort
     ) {}
 
-    private final String configuredReviewModel;
-    private final String configuredReportModel;
-    private final String configuredSummaryModel;
-    private final String configuredReasoningEffort;
+    private final DescribeReviewPlanPort describeReviewPlanPort;
 
     @Inject
-    public ReviewModelConfigResolver(
-            @Value("${reviewer.model.review:}") String configuredReviewModel,
-            @Value("${reviewer.model.report:}") String configuredReportModel,
-            @Value("${reviewer.model.summary:}") String configuredSummaryModel,
-            @Value("${reviewer.model.reasoning-effort:}") String configuredReasoningEffort) {
-        this.configuredReviewModel = nullIfEmpty(configuredReviewModel);
-        this.configuredReportModel = nullIfEmpty(configuredReportModel);
-        this.configuredSummaryModel = nullIfEmpty(configuredSummaryModel);
-        this.configuredReasoningEffort = nullIfEmpty(configuredReasoningEffort);
+    public ReviewModelConfigResolver(DescribeReviewPlanPort describeReviewPlanPort) {
+        this.describeReviewPlanPort =
+            Objects.requireNonNull(describeReviewPlanPort, "describeReviewPlanPort must not be null");
     }
 
     public ResolvedModels resolve(ReviewOptions options) {
-        String reviewModel = firstNonNull(options.reviewModel(), configuredReviewModel);
-        String reportModel = firstNonNull(options.reportModel(), configuredReportModel);
-        String summaryModel = firstNonNull(options.summaryModel(), configuredSummaryModel);
-        String reasoningEffort = firstNonNull(options.reasoningEffort(), configuredReasoningEffort);
+        Objects.requireNonNull(options, "options must not be null");
+        ReviewPlan plan = describeReviewPlanPort.describePlan();
+        String reviewModel = firstNonBlank(
+            options.reviewModel(), options.defaultModel(), plan.defaultReviewModel());
+        String reportModel = firstNonBlank(
+            options.reportModel(), options.defaultModel(), plan.defaultReportModel());
+        String summaryModel = firstNonBlank(
+            options.summaryModel(), options.defaultModel(), plan.defaultSummaryModel());
+        String reasoningEffort =
+            firstNonBlank(options.reasoningEffort(), plan.defaultReasoningEffort());
         return new ResolvedModels(reviewModel, reportModel, summaryModel, reasoningEffort);
     }
 
-    private static String firstNonNull(String a, String b) {
-        return a != null ? a : b;
-    }
-
-    private static String nullIfEmpty(String s) {
-        return (s == null || s.isEmpty()) ? null : s;
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        throw new IllegalStateException("review plan did not provide an effective model default");
     }
 }

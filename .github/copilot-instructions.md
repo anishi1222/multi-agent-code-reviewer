@@ -3,26 +3,31 @@
 ## Build & Test
 
 ```bash
-# Build (fat JAR)
-mvn clean package
+# Full JVM build, tests, and packaged-JAR CLI smoke (Java 28)
+./mvnw -B clean verify
+java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar --version
 
-# Build native image (GraalVM 26 EA required)
-mvn clean package -Pnative
+# Native image (activate Oracle GraalVM 25.0.4 first)
+export JAVA_HOME="$HOME/.sdkman/candidates/java/25.0.4-graal"
+export PATH="$JAVA_HOME/bin:$PATH"
+./mvnw -B clean verify -Pnative -f pom-native.xml
 
 # Run tests
-mvn test
+./mvnw test
 
 # Run a single test class
-mvn test -Dtest=ModelConfigTest
+./mvnw test -Dtest=ModelConfigTest
 
 # Run a single test method
-mvn test -Dtest=ModelConfigTest#testDefaultValues
+./mvnw test -Dtest=ModelConfigTest#testDefaultValues
 
-# Skip tests during build
-mvn clean package -DskipTests
+# Diagnostic-only package without tests (never use for release verification)
+./mvnw clean package -DskipTests
 ```
 
-Requires **GraalVM 26 EA (Java 26)** — managed via `.sdkmanrc` with SDKMAN.
+The default build requires **Java 28 with preview features**; `.sdkmanrc` selects that
+toolchain. The separate `pom-native.xml` path targets **Java 25** and requires explicit
+GraalVM 25 activation. `docs/runbook.md` is the authoritative toolchain and release procedure.
 
 ## Architecture
 

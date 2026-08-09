@@ -1,0 +1,607 @@
+metadata:
+  schema: "quality-gates/traceability-matrix/v1"
+  task_id: "t22"
+  gate: "completeness"
+  classification: "brownfield-rewrite"
+  generated_at_utc: "2026-08-09T11:15:15Z"
+  deep_planning: true
+  verdict: "PASS"
+  critical_findings: 0
+  high_findings: 0
+  low_advisories: 1
+
+summary:
+  total_requirements: 84
+  complete: 84
+  partial: 0
+  broken: 0
+  behavior_requirements:
+    total: 69
+    complete: 69
+    broken: 0
+  final_build:
+    status: "PASS"
+    source: ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#Smoke Test Verdict"
+    returncode: 0
+    covers_all_modules: true
+    fresh_regate_surefire: 1107
+    fresh_regate_failsafe: 5
+  functional_equivalence:
+    status: "PASS"
+    accepted_by_t22_3: 69
+    independently_verified_complete: 69
+    independently_verified_broken: []
+
+checkpoint_validation:
+  - checkpoint: "checkpoints/spec-to-plan.yaml"
+    required: true
+    exists: true
+    validation_passed: true
+    coverage: "84/84 requirements; 37/37 plan items"
+    validator: "t22.5/architect"
+    status: "complete"
+  - checkpoint: "checkpoints/plan-to-tasks.yaml"
+    required: true
+    exists: true
+    validation_passed: true
+    coverage: "37/37 plan items; T001-T016; 55/55 execution tasks"
+    validator: "t22.5/architect"
+    status: "complete"
+  - checkpoint: "checkpoints/tasks-to-impl.yaml"
+    required: true
+    exists: true
+    validation_passed: true
+    declared_scope: "global"
+    required_plan_tasks: ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009", "T010", "T011", "T012", "T013", "T014", "T015", "T016"]
+    coverage: "16/16 deep-plan tasks; 55/55 execution tasks; 330/330 producer-declared paths"
+    validator: "t22.5/architect"
+    status: "complete"
+
+evidence_catalog:
+  agent: &agent
+    plan_items: ["T004", "T007", "T015", "T016"]
+    tasks: ["t9", "t10", "t11", "t14", "t14.1", "t20", "t22.1", "t22.2", "t22.3"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/domain/agent/"
+      - "src/main/java/dev/logicojp/reviewer/application/agent/LoadAgentUseCase.java"
+      - "src/main/java/dev/logicojp/reviewer/infrastructure/parsing/AgentDefinitionLoaderAdapter.java"
+      - "src/main/java/dev/logicojp/reviewer/presentation/command/ListAgentsCommand.java"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#C-004 / C-005 Behavioral Closure"
+      - ".github/modernize/rearchitecture/artifacts/t22.3-pm.md#Agent loading and validation"
+  skill: &skill
+    plan_items: ["T007", "T015"]
+    tasks: ["t10", "t11", "t14", "t14.1", "t20", "t22.1", "t22.2", "t22.3"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/domain/skill/"
+      - "src/main/java/dev/logicojp/reviewer/application/skill/ExecuteSkillUseCase.java"
+      - "src/main/java/dev/logicojp/reviewer/infrastructure/parsing/SkillRegistry.java"
+      - "src/main/java/dev/logicojp/reviewer/presentation/command/SkillCommand.java"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#C-004 / C-005 Behavioral Closure"
+      - ".github/modernize/rearchitecture/artifacts/t22.3-pm.md#Skill system"
+      - ".github/modernize/rearchitecture/artifacts/t14.1-tester-traceability.md#Former NONE IDs"
+  instruction: &instruction
+    plan_items: ["T002", "T015"]
+    tasks: ["t8", "t14", "t14.1", "t18", "t20", "t21"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/domain/instruction/CustomInstructionSafetyValidator.java"
+      - "src/test/java/dev/logicojp/reviewer/domain/instruction/InstructionNormalizationDefenseTest.java"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t21-pm.md#Custom instructions and safety"
+      - ".github/modernize/rearchitecture/artifacts/t18-security-gate.md"
+      - ".github/modernize/rearchitecture/artifacts/t20-tester.md#Test Results"
+  target: &target
+    plan_items: ["T010", "T015"]
+    tasks: ["t11", "t14", "t14.1", "t20", "t21"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/infrastructure/file/LocalFileProvider.java"
+      - "src/test/java/dev/logicojp/reviewer/infrastructure/file/LocalFileProviderTest.java"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t21-pm.md#Review target collection"
+      - ".github/modernize/rearchitecture/artifacts/t20-tester.md#Test Results"
+  orchestration: &orchestration
+    plan_items: ["T005", "T009", "T015"]
+    tasks: ["t9", "t11", "t14", "t20", "t21"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/application/review/"
+      - "src/main/java/dev/logicojp/reviewer/infrastructure/copilot/"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t21-pm.md#Orchestration"
+      - ".github/modernize/rearchitecture/artifacts/t20-tester.md#Test Results"
+  auth: &auth
+    plan_items: ["T009", "T010", "T016"]
+    tasks: ["t11", "t14", "t14.1", "t20", "t21"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/application/auth/"
+      - "src/main/java/dev/logicojp/reviewer/infrastructure/auth/"
+      - "src/main/java/dev/logicojp/reviewer/presentation/command/DoctorCommand.java"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t21-pm.md#Authentication and SDK"
+      - ".github/modernize/rearchitecture/artifacts/t20-tester.md#Test Results"
+  retry: &retry
+    plan_items: ["T005", "T015"]
+    tasks: ["t9", "t10", "t14", "t14.1", "t20", "t21"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/application/review/ReviewRetryExecutor.java"
+      - "src/main/java/dev/logicojp/reviewer/shared/RetryExecutor.java"
+      - "src/main/java/dev/logicojp/reviewer/domain/resilience/"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t21-pm.md#Retry and circuit breaker"
+      - ".github/modernize/rearchitecture/artifacts/t14.1-tester-traceability.md#Former NONE IDs"
+      - ".github/modernize/rearchitecture/artifacts/t20-tester.md#Test Results"
+  output: &output
+    plan_items: ["T006", "T010", "T015"]
+    tasks: ["t10", "t11", "t14", "t14.1", "t20", "t21"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/domain/report/"
+      - "src/main/java/dev/logicojp/reviewer/application/report/"
+      - "src/main/java/dev/logicojp/reviewer/infrastructure/file/ReportFileWriter.java"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t21-pm.md#Output and reporting"
+      - ".github/modernize/rearchitecture/artifacts/t20-tester.md#Test Results"
+  architecture: &architecture
+    plan_items: ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009", "T010", "T011", "T012"]
+    tasks: ["t8", "t9", "t9.1", "t10", "t11", "t12", "t12.1", "t13.1", "t16.1", "t16.3", "t17.1", "t17.2", "t17"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/"
+      - "src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java"
+      - "docs/adr/0006-ports-and-adapters-layering.md"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t17-architect.md#Certification Contract"
+      - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#Architecture Evidence"
+      - ".github/modernize/rearchitecture/artifacts/t22.5-architect.md#Tasks → Implementation Validation"
+  build: &build
+    plan_items: ["T014"]
+    tasks: ["t19", "t20", "t22.2", "t22.5", "t22"]
+    files:
+      - "pom.xml"
+      - "pom-native.xml"
+      - "src/main/resources/META-INF/native-image/"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t19-devops.md"
+      - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#Smoke Test Verdict"
+      - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#Native Smoke Test Verdict"
+      - ".github/modernize/rearchitecture/artifacts/migration-summary.md#Fresh Re-gate Verification"
+  regression: &regression
+    plan_items: ["T013", "T015"]
+    tasks: ["t13", "t14", "t14.1", "t20", "t22.2", "t22.3", "t22.5", "t22"]
+    files:
+      - "src/test/java/"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t14.1-tester.md"
+      - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#Test Results"
+      - ".github/modernize/rearchitecture/artifacts/migration-summary.md#Test Results"
+  cli: &cli
+    plan_items: ["T011", "T016"]
+    tasks: ["t12", "t20", "t22.1", "t22.2", "t22.3", "t22"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/presentation/"
+      - "src/main/resources/application.yml"
+      - "src/test/java/dev/logicojp/reviewer/PackagedCliSmokeIT.java"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t3-pm.md#Commands"
+      - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#C-004 / C-005 Behavioral Closure"
+      - ".github/modernize/rearchitecture/artifacts/migration-summary.md#Fresh Re-gate Verification"
+  equivalence: &equivalence
+    plan_items: ["T015", "T016"]
+    tasks: ["t14", "t14.1", "t20", "t22.2", "t22.3", "t22"]
+    files:
+      - "src/main/java/dev/logicojp/reviewer/"
+      - "src/test/java/dev/logicojp/reviewer/"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t22.3-pm.md#69-Behavior Acceptance Matrix"
+      - ".github/modernize/rearchitecture/artifacts/migration-summary.md#Functional Equivalence"
+  strategy: &strategy
+    plan_items: ["T012", "T015", "T016"]
+    tasks: ["t17", "t20", "t22.2", "t22.3", "t22.5", "t22"]
+    files:
+      - "src/test/java/dev/logicojp/reviewer/architecture/LayerDependencyRulesTest.java"
+      - "src/test/java/dev/logicojp/reviewer/PackagedCliSmokeIT.java"
+    evidence:
+      - ".github/modernize/rearchitecture/artifacts/t5-teamlead-teststrategy.md"
+      - ".github/modernize/rearchitecture/artifacts/t17-architect.md"
+      - ".github/modernize/rearchitecture/artifacts/t22.2-tester.md"
+      - ".github/modernize/rearchitecture/artifacts/t22.5-architect.md"
+      - ".github/modernize/rearchitecture/artifacts/migration-summary.md#Testing Strategy Conformance"
+
+traceability:
+  - <<: *agent
+    requirement: "AGT-01"
+    acceptance: "Discover agents from all configured directories"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-02"
+    acceptance: "Reject invalid or over-length agent names with a diagnostic"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-03"
+    acceptance: "Admit only configured model prefixes and reject the rest"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-04"
+    acceptance: "Reject agent files over 64 KiB with byte-count context"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-05"
+    acceptance: "Reject agent definitions without YAML frontmatter"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-06"
+    acceptance: "Require name, systemPrompt, and instruction"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-07"
+    acceptance: "Warn but continue when recommended output sections are absent"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-08"
+    acceptance: "Scan all agent fields for prompt injection and skip suspicious agents"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-09"
+    acceptance: "Exclude agents whose enabled flag is false"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-10"
+    acceptance: "Enforce focus-area count and length limits"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-11"
+    acceptance: "Enforce dialogue-round range 0 through 10"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-12"
+    acceptance: "Audit unknown frontmatter keys without rejecting the agent"
+    status: "complete"
+  - <<: *agent
+    requirement: "AGT-13"
+    acceptance: "Report a warning when an agent name cannot be resolved"
+    status: "complete"
+
+  - <<: *skill
+    requirement: "SKL-01"
+    acceptance: "Discover valid .github/skills/<name>/SKILL.md files and skip logged parse failures"
+    status: "complete"
+  - <<: *skill
+    requirement: "SKL-02"
+    acceptance: "Parse frontmatter and use the body as prompt; warn or error on invalid shape"
+    status: "complete"
+  - <<: *skill
+    requirement: "SKL-03"
+    acceptance: "Require non-empty skill ID and prompt"
+    status: "complete"
+  - <<: *skill
+    requirement: "SKL-04"
+    acceptance: "Reject invocation with missing required parameters"
+    status: "complete"
+  - <<: *skill
+    requirement: "SKL-05"
+    acceptance: "Reject parameter values above the configured limit"
+    status: "complete"
+  - <<: *skill
+    requirement: "SKL-06"
+    acceptance: "Reject prompt-injection patterns in skill parameters"
+    status: "complete"
+  - <<: *skill
+    requirement: "SKL-07"
+    acceptance: "Apply skill retry, circuit breaker, and timeout with specific failure messages"
+    status: "complete"
+  - <<: *skill
+    requirement: "SKL-08"
+    acceptance: "Exclude skill symlinks that escape the configured root"
+    status: "complete"
+
+  - <<: *instruction
+    requirement: "INS-01"
+    acceptance: "Reject prompt injection in English, Japanese, Korean, and Chinese"
+    status: "complete"
+  - <<: *instruction
+    requirement: "INS-02"
+    acceptance: "Detect Greek and Cyrillic homoglyph bypasses after normalization"
+    status: "complete"
+  - <<: *instruction
+    requirement: "INS-03"
+    acceptance: "Strip control characters and apply NFKC"
+    status: "complete"
+  - <<: *instruction
+    requirement: "INS-04"
+    acceptance: "Reject delimiter-injection markers"
+    status: "complete"
+  - <<: *instruction
+    requirement: "INS-05"
+    acceptance: "Separate scalar metadata and fall back to raw content when absent"
+    status: "complete"
+
+  - <<: *target
+    requirement: "TGT-01"
+    acceptance: "Walk a local directory and error when it is missing"
+    status: "complete"
+  - <<: *target
+    requirement: "TGT-02"
+    acceptance: "Skip ignored directories"
+    status: "complete"
+  - <<: *target
+    requirement: "TGT-03"
+    acceptance: "Collect recognized source extensions and special filenames only"
+    status: "complete"
+  - <<: *target
+    requirement: "TGT-04"
+    acceptance: "Silently exclude sensitive files"
+    status: "complete"
+  - <<: *target
+    requirement: "TGT-05"
+    acceptance: "Skip files above the 256 KiB default and log the decision"
+    status: "complete"
+  - <<: *target
+    requirement: "TGT-06"
+    acceptance: "Stop collection at the 2 MiB total default and warn"
+    status: "complete"
+  - <<: *target
+    requirement: "TGT-07"
+    acceptance: "Reject symlinks traversing outside the review base"
+    status: "complete"
+  - <<: *target
+    requirement: "TGT-08"
+    acceptance: "Continue with no-source placeholder when nothing matches"
+    status: "complete"
+  - <<: *target
+    requirement: "TGT-09"
+    acceptance: "Detect files changed during read and skip them"
+    status: "complete"
+
+  - <<: *orchestration
+    requirement: "ORC-01"
+    acceptance: "Let --parallelism override configured parallelism"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-02"
+    acceptance: "Execute agents on named virtual threads"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-03"
+    acceptance: "Convert a per-agent timeout into a failed result"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-04"
+    acceptance: "Cancel unfinished work when orchestrator timeout elapses"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-05"
+    acceptance: "Queue agents when the concurrency semaphore is exhausted"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-06"
+    acceptance: "Run each agent for N passes and merge results"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-07"
+    acceptance: "Collect and log duration, wait, and outcome metrics"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-08"
+    acceptance: "Run two-model rubber-duck dialogue with dynamic timeout"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-09"
+    acceptance: "Return a failed result instead of crashing on agent execution failure"
+    status: "complete"
+  - <<: *orchestration
+    requirement: "ORC-10"
+    acceptance: "Cancel gracefully on interruption"
+    status: "complete"
+
+  - <<: *auth
+    requirement: "AUTH-01"
+    acceptance: "Pre-authenticate through interactive gh auth login OAuth device flow"
+    status: "complete"
+    verification_grade: "manual-tier, coordinator-approved"
+  - <<: *auth
+    requirement: "AUTH-02"
+    acceptance: "Resolve CLI paths from environment or PATH and guide when absent"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-03"
+    acceptance: "Retry transient client startup three times with exponential backoff"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-04"
+    acceptance: "Time out startup and suggest review doctor"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-05"
+    acceptance: "Diagnose protocol or ping timeout with guidance"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-06"
+    acceptance: "Probe health and attempt reinitialization when unhealthy"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-07"
+    acceptance: "Resolve token in CLI argument, environment, then gh auth token order"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-08"
+    acceptance: "Read --token - from stdin and fall through when blank"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-09"
+    acceptance: "Report every doctor diagnostic as success or failure"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-10"
+    acceptance: "Log a redacted warning for the deprecated token API"
+    status: "complete"
+  - <<: *auth
+    requirement: "AUTH-11"
+    acceptance: "Emit security-audit events for authentication activity"
+    status: "complete"
+
+  - <<: *retry
+    requirement: "RTY-01"
+    acceptance: "Retry transient review failures with exponential backoff and logging"
+    status: "complete"
+  - <<: *retry
+    requirement: "RTY-02"
+    acceptance: "Open and reset independent review, skill, and summary circuit breakers"
+    status: "complete"
+  - <<: *retry
+    requirement: "RTY-03"
+    acceptance: "Retry only errors classified as transient"
+    status: "complete"
+  - <<: *retry
+    requirement: "RTY-04"
+    acceptance: "Retry a failed skill at most once"
+    status: "complete"
+
+  - <<: *output
+    requirement: "OUT-01"
+    acceptance: "Produce report artifacts only as Markdown files"
+    status: "complete"
+  - <<: *output
+    requirement: "OUT-02"
+    acceptance: "Write one agent-name-report.md per agent for a single-pass run"
+    status: "complete"
+  - <<: *output
+    requirement: "OUT-03"
+    acceptance: "Write agent-name-pass-n-report.md for multi-pass runs"
+    status: "complete"
+  - <<: *output
+    requirement: "OUT-04"
+    acceptance: "Create executive summary unless disabled"
+    status: "complete"
+  - <<: *output
+    requirement: "OUT-05"
+    acceptance: "Use fallback template when AI summary generation fails"
+    status: "complete"
+  - <<: *output
+    requirement: "OUT-06"
+    acceptance: "Create reports under a timestamped directory"
+    status: "complete"
+  - <<: *output
+    requirement: "OUT-07"
+    acceptance: "Print progress banners and completion summary to stdout"
+    status: "complete"
+  - <<: *output
+    requirement: "OUT-08"
+    acceptance: "Route errors to stderr through the CLI output boundary"
+    status: "complete"
+  - <<: *output
+    requirement: "OUT-09"
+    acceptance: "Keep progress stdout and report-file output active together"
+    status: "complete"
+
+  - <<: *architecture
+    requirement: "ARCH-01"
+    acceptance: "All production code belongs to the documented layered package model"
+    status: "complete"
+  - <<: *architecture
+    requirement: "ARCH-02"
+    acceptance: "Dependencies point inward only"
+    status: "complete"
+  - <<: *architecture
+    requirement: "ARCH-03"
+    acceptance: "Domain and shared remain framework-free and I/O-free"
+    status: "complete"
+  - <<: *architecture
+    requirement: "ARCH-04"
+    acceptance: "Inbound and outbound ports have correct implementation direction"
+    status: "complete"
+  - <<: *architecture
+    requirement: "ARCH-05"
+    acceptance: "Package dependency graph has zero cycles"
+    status: "complete"
+  - <<: *architecture
+    requirement: "ARCH-06"
+    acceptance: "Copilot SDK types are isolated to infrastructure"
+    status: "complete"
+  - <<: *architecture
+    requirement: "ARCH-07"
+    acceptance: "Micronaut and Jakarta never enter domain or shared"
+    status: "complete"
+  - <<: *architecture
+    requirement: "ARCH-08"
+    acceptance: "Composition root wires only; responsibilities remain split by layer"
+    status: "complete"
+
+  - <<: *build
+    requirement: "BUILD-01"
+    acceptance: "Preserve the in-place, single-module Maven structure"
+    status: "complete"
+  - <<: *build
+    requirement: "BUILD-02"
+    acceptance: "Java 28 root clean verify, shade JAR, and AOT succeed"
+    status: "complete"
+  - <<: *build
+    requirement: "BUILD-03"
+    acceptance: "Exact GraalVM 25 native build, tests, and executable flows succeed"
+    status: "complete"
+
+  - <<: *regression
+    requirement: "TEST-01"
+    acceptance: "Existing regression suite passes with zero failures, errors, and skips"
+    status: "complete"
+  - <<: *cli
+    requirement: "CLI-01"
+    acceptance: "Preserve default CLI options, configured directories, keys, and observable output"
+    status: "complete"
+  - <<: *equivalence
+    requirement: "EQ-01"
+    acceptance: "All 69 brownfield behaviors remain functionally equivalent"
+    status: "complete"
+  - <<: *strategy
+    requirement: "TEST-02"
+    acceptance: "Execute the complete structural, regression, and discriminating CLI smoke strategy"
+    status: "complete"
+
+upstream_artifacts_consumed:
+  - path: ".github/modernize/rearchitecture/clarification.md"
+    use: "Target architecture, Java 28, CLI compatibility, build and test invariants"
+  - path: ".github/modernize/rearchitecture/team/teamlead/inbox.md"
+    use: "Coordinator handoffs, required task evidence, and carried gate constraints"
+  - path: ".github/modernize/rearchitecture/board.md"
+    use: "Authoritative execution ledger and C-001 through C-005 remediation chronology"
+  - path: ".github/modernize/rearchitecture/artifacts/t22.2-tester.md"
+    use: "Authoritative Java 28, packaged-JAR, native, architecture, and corrected-runtime evidence"
+  - path: ".github/modernize/rearchitecture/artifacts/t22.3-pm.md"
+    use: "Corrected 69/69 functional-equivalence sign-off"
+  - path: ".github/modernize/rearchitecture/artifacts/t22.4-teamlead.md"
+    use: "Global checkpoint reconstruction contract"
+  - path: ".github/modernize/rearchitecture/artifacts/t22.5-architect.md"
+    use: "Independent 46/46 checkpoint validation"
+  - path: ".github/modernize/rearchitecture/artifacts/checkpoints/spec-to-plan.yaml"
+    use: "Validated 84-requirement to 37-plan-item mapping"
+  - path: ".github/modernize/rearchitecture/artifacts/checkpoints/plan-to-tasks.yaml"
+    use: "Validated 37-plan-item, T001-T016, and 55-task mapping"
+  - path: ".github/modernize/rearchitecture/artifacts/checkpoints/tasks-to-impl.yaml"
+    use: "Validated global implementation evidence and remediation closure"
+  - path: ".github/modernize/rearchitecture/artifacts/t1-teamlead.md"
+    use: "Binding constitution"
+  - path: ".github/modernize/rearchitecture/artifacts/t5-teamlead-plan.md"
+    use: "T001 through T016 requirement mapping"
+  - path: ".github/modernize/rearchitecture/artifacts/t5-teamlead-tasks.md"
+    use: "Planned implementation task inventory"
+  - path: ".github/modernize/rearchitecture/artifacts/t5-teamlead-teststrategy.md"
+    use: "Three-tier validation contract"
+  - path: ".github/modernize/rearchitecture/artifacts/t12.1-backend.md"
+    use: "Exact ArchUnit incompatibility evidence and JDK classfile analyzer substitution"
+  - path: ".github/modernize/rearchitecture/artifacts/t17-architect.md"
+    use: "Final architecture and non-vacuity certification"
+
+evidence_mapping:
+  - upstream: ".github/modernize/rearchitecture/artifacts/t22.3-pm.md#69-Behavior Acceptance Matrix"
+    output: "traceability[AGT-01..OUT-09]"
+  - upstream: ".github/modernize/rearchitecture/artifacts/checkpoints/spec-to-plan.yaml#requirements"
+    output: "traceability[AGT-01..TEST-02] canonical 84-row denominator"
+  - upstream: ".github/modernize/rearchitecture/artifacts/checkpoints/plan-to-tasks.yaml#validation"
+    output: "checkpoint_validation[1]"
+  - upstream: ".github/modernize/rearchitecture/artifacts/checkpoints/tasks-to-impl.yaml#validation"
+    output: "checkpoint_validation[2]"
+  - upstream: ".github/modernize/rearchitecture/artifacts/t22.5-architect.md#Spec → Plan Validation"
+    output: "checkpoint_validation[0]"
+  - upstream: ".github/modernize/rearchitecture/artifacts/t17-architect.md#Certification Contract"
+    output: "traceability[ARCH-01..ARCH-08]"
+  - upstream: ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#Smoke Test Verdict"
+    output: "summary.final_build and traceability[BUILD-02..BUILD-03]"
+  - upstream: ".github/modernize/rearchitecture/artifacts/t22.2-tester.md#C-004 / C-005 Behavioral Closure"
+    output: "traceability[AGT-01,SKL-01,CLI-01,TEST-02]"

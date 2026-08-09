@@ -10,7 +10,6 @@ import dev.logicojp.reviewer.presentation.SkillExecutionPreparation;
 import dev.logicojp.reviewer.presentation.SkillOptions;
 import dev.logicojp.reviewer.presentation.formatter.SkillOutputFormatter;
 import dev.logicojp.reviewer.presentation.parser.SkillOptionsParser;
-import io.micronaut.context.annotation.Value;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -30,7 +29,6 @@ public class SkillCommand implements CliCommand {
     private final SkillOptionsParser optionsParser;
     private final SkillOutputFormatter outputFormatter;
     private final CliOutput output;
-    private final long skillTimeoutMinutes;
 
     @Inject
     public SkillCommand(
@@ -39,15 +37,13 @@ public class SkillCommand implements CliCommand {
             SkillExecutionCoordinator executionCoordinator,
             SkillOptionsParser optionsParser,
             SkillOutputFormatter outputFormatter,
-            CliOutput output,
-            @Value("${reviewer.execution.skill-timeout-minutes:10}") long skillTimeoutMinutes) {
+            CliOutput output) {
         this.executeSkillPort = executeSkillPort;
         this.executionPreparation = executionPreparation;
         this.executionCoordinator = executionCoordinator;
         this.optionsParser = optionsParser;
         this.outputFormatter = outputFormatter;
         this.output = output;
-        this.skillTimeoutMinutes = skillTimeoutMinutes;
     }
 
     @Override
@@ -80,8 +76,7 @@ public class SkillCommand implements CliCommand {
             options.skillId(),
             prepared.parameters(),
             prepared.resolvedToken(),
-            options.model(),
-            skillTimeoutMinutes
+            options.model()
         );
     }
 

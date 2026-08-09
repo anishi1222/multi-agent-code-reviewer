@@ -22,7 +22,7 @@ class ReviewPreparationServiceTest {
     @Test
     @DisplayName("エージェントが存在する場合はbanner表示まで完了する")
     void preparesBannerWhenAgentsExist() {
-        var service = new ReviewPreparationService(formatter(), () -> new ReviewPlan(1));
+        var service = new ReviewPreparationService(formatter(), ReviewPreparationServiceTest::plan);
         Map<String, AgentConfig> agentConfigs = Map.of(
             "code-quality", new AgentConfig("code-quality", "Code Quality", "r", "prompt", "instruction", "", List.of(), List.of())
         );
@@ -40,7 +40,7 @@ class ReviewPreparationServiceTest {
     @Test
     @DisplayName("エージェントが空の場合は検証エラー")
     void throwsWhenAgentsAreEmpty() {
-        var service = new ReviewPreparationService(formatter(), () -> new ReviewPlan(1));
+        var service = new ReviewPreparationService(formatter(), ReviewPreparationServiceTest::plan);
 
         assertThatThrownBy(() -> service.prepare(
             List.of(Path.of("agents")),
@@ -63,5 +63,9 @@ class ReviewPreparationServiceTest {
             new PrintStream(OutputStream.nullOutputStream())
         );
         return new ReviewOutputFormatter(cliOutput);
+    }
+
+    private static ReviewPlan plan() {
+        return new ReviewPlan(1, 4, "review", "report", "summary", "high");
     }
 }

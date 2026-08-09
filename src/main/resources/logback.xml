@@ -20,7 +20,8 @@
         consume only the `Bearer` keyword and leave the token behind.
     -->
     <property name="MASK_PATTERN" value="(?i)(Bearer\s+|token\s+|ghp_|gho_|ghs_|ghu_|ghr_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9._\-]+"/>
-    <property name="HEADER_MASK_PATTERN" value="(?i)([\w-]*(?:authorization|api-?key|secret|password|credential|cookie|token)[\w-]*\s*[=:]\s*)[^,\s}\]&quot;]+"/>
+    <!-- Hex escapes keep comma/brace/bracket literals out of Logback's %replace option grammar. -->
+    <property name="HEADER_MASK_PATTERN" value="(?i)([\w-]*(?:authorization|api-?key|secret|password|credential|cookie|token)[\w-]*\s*[=:]\s*)[^\x2C\s\x7D\x5D&quot;]+"/>
 
     <!-- Console appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">

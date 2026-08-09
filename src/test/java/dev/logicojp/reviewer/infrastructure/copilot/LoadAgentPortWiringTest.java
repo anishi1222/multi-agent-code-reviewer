@@ -73,9 +73,14 @@ class LoadAgentPortWiringTest {
     }
 
     @Test
-    @DisplayName("ディレクトリが空の場合は読み込みを行わない")
-    void returnsEmptyWhenNoDirectoriesGiven() {
-        assertThat(loadAgentPort.loadAll(List.of())).isEmpty();
-        assertThat(loadAgentPort.loadByName("security", List.of())).isEmpty();
+    @DisplayName("追加ディレクトリなしでも設定済み既定ディレクトリから読み込む")
+    void loadsConfiguredDefaultsWhenNoAdditionalDirectoriesGiven() {
+        assertThat(loadAgentPort.loadAll(List.of()))
+            .as("empty add-ons must not bypass reviewer.agents.directories")
+            .extracting(AgentConfig::name)
+            .contains("security");
+        assertThat(loadAgentPort.loadByName("security", List.of()))
+            .as("name lookup must use the same configured defaults")
+            .isPresent();
     }
 }

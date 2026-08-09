@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.infrastructure.copilot;
 
 import dev.logicojp.reviewer.application.auth.ResolveTokenUseCase;
 import dev.logicojp.reviewer.application.port.inbound.ResolveTokenPort;
+import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.application.port.inbound.RunReviewPort;
 import dev.logicojp.reviewer.application.port.outbound.AcquireGitHubTokenPort;
 import dev.logicojp.reviewer.application.port.outbound.CreateReviewSessionPortsPort;
@@ -9,12 +10,16 @@ import dev.logicojp.reviewer.application.port.outbound.ResolveReviewSettingsPort
 import dev.logicojp.reviewer.application.review.ReviewOrchestrator;
 import dev.logicojp.reviewer.application.skill.ExecuteSkillUseCase;
 import dev.logicojp.reviewer.application.port.inbound.ExecuteSkillPort;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import dev.logicojp.reviewer.infrastructure.auth.GitHubTokenResolver;
 import io.micronaut.context.env.Environment;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.nio.file.Path;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,6 +39,9 @@ class PortDirectionWiringTest {
 
     @Inject
     ExecuteSkillPort executeSkillPort;
+
+    @Inject
+    LoadAgentPort loadAgentPort;
 
     @Inject
     ResolveTokenPort resolveTokenPort;
@@ -62,12 +70,14 @@ class PortDirectionWiringTest {
     }
 
     @Test
-    @DisplayName("配線されたExecuteSkillPortが登録済みスキルを列挙できる")
-    void executeSkillPortListsRegisteredSkills() {
-        // Exercises the injected registry lambdas, which is the part the swap actually rewired.
+    @DisplayName("発見済みスキルの単一カタログをLoadAgentPortとExecuteSkillPortが共有する")
+    void agentDiscoveryPopulatesTheCatalogUsedByExecuteSkillPort() {
+        loadAgentPort.loadAll(List.of(AgentSourceDirectory.userSupplied(Path.of("agents"))));
+
         assertThat(executeSkillPort.listSkills())
-            .as("the getAll supplier must be bound to the real SkillRegistry")
-            .isNotNull();
+            .as("skills parsed during agent loading must reach the executable catalog")
+            .extracting(skill -> skill.id())
+            .contains("java-junit");
     }
 
     @Test

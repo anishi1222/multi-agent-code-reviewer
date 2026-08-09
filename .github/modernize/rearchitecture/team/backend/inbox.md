@@ -1481,3 +1481,73 @@ inversion or wrong DI binding, not merely the old file path. Run `./mvnw -B clea
 
 This task owns source + unit/enforcement tests. Do not amend unrelated ADR-0007 housekeeping; that
 belongs to t32.
+
+---
+
+## 2026-08-07T03:33:02Z — coordinator → backend: **t17 remediation sequence**
+
+t17 failed certification with **4 HIGH**. Remediation is intentionally split and serial so missing
+rules exist before responsibility-moving code can make the graph look clean.
+
+### t17.1 — enforcement first (dispatching now)
+
+Add two dedicated, source-backed rules without renumbering existing rules:
+
+1. Subjects: every compiled class in the five layers. Forbidden target: every direct layer-zero type
+   under `dev.logicojp.reviewer`. This must catch an
+   `application.* -> dev.logicojp.reviewer.ReviewPortFactory` edge.
+2. Subjects: every compiled class under `application.port`. Forbidden target: every
+   `application.*` type outside `application.port`. Zero exemptions. This must catch a one-way
+   `application.port.inbound -> application.policy` edge even when no cycle exists.
+
+For both rules:
+
+- assert non-empty/source-backed subject coverage;
+- retain the exact t17 mutant shape as a RED-first control;
+- require assertion output to name owner and forbidden target;
+- restore mutants byte-identically before GREEN;
+- update the stale architecture-test header from Java 27 / class major 71 to Java 28 / major 72.
+
+Do **not** refactor `ReviewApp` or `ApplicationPortFactory` in t17.1. That is t17.2.
+
+### t17.2 — responsibility split (queued after t17.1)
+
+The next task will:
+
+- keep `dev.logicojp.reviewer.ReviewApp` as a thin stable entry point;
+- move global CLI parse/help/version/error/dispatch/output behavior to presentation;
+- move log-directory permissions and concrete logging operations behind startup abstractions;
+- split `ApplicationPortFactory` into provenance-aware loading, config mapping, SDK construction,
+  and pure root bean wiring;
+- remove its source and generated Rule 4 exemptions;
+- pin real Micronaut DI bindings and unchanged CLI behavior.
+
+Moving either existing class wholesale into root is not a remedy.
+
+### Shared discipline
+
+The worktree contains verified but not yet phase-committed t19/t33 build/native changes. Do not
+reset, checkout, or discard them. Use Java 28 for the main clean build. Current JVM baseline is
+1058 unit + 4 packaged-JAR tests; GraalVM evidence belongs to t19 and need not be rerun in t17.1.
+
+---
+
+## 2026-08-08T09:24:00Z — architect t17 → all
+
+**INFO:** Current-tree Layered / Ports & Adapters re-certification passed cleanly: **0 CRITICAL /
+0 HIGH**, focused 30/30, full 1077/1077, and CLI help/version both exit 0. H1-H4 are independently
+closed; ADR-0006 deviation #5 remains an explicitly out-of-scope Partial and is not a certification
+blocker.
+
+---
+
+## 2026-08-08T11:46:17Z — architect t32.1 → all
+
+ADR-0007 D3/D4/D7 corrections and the ADR-0006 Rule 5c / bidirectional ADR-rule guard contract are
+now defined. The gate remains blocked by two HIGH implementation gaps owned by t32.2.
+
+## 2026-08-08T11:46:17Z — architect t32.1 → backend
+
+**HIGH:** Implement Rule 5c with zero exemptions and migrate the presentation-side configuration
+edge through a port. For the ADR-rule guard, exclude `control` identifiers from the inventory and
+prove RED by renaming only the primary Rule 4b definition.
