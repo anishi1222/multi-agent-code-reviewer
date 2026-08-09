@@ -480,3 +480,49 @@
   backend/derive-and-sweep-finite-security-domains,
   backend/route-config-to-presentation-through-an-inbound-port,
   backend/source-backed-architecture-rule-subjects]
+
+## [t35] Synchronized all five user-facing documents to the final Unreleased tree
+
+- Source-first reconciliation replaced stale Java 27 / GraalVM 25.0.3 / SDK 1.0.1-era claims with
+  the verified Java 28, GraalVM 25.0.4, Micronaut 5.1.0, SDK 1.0.8, five-layer, trust-boundary,
+  and packaging state.
+- The repository has 201 production Java sources, but port-directory file counts are not interface
+  counts: `inbound` contains 13 Java files / 8 interfaces and `outbound` contains 18 files /
+  15 interfaces. Count declarations, not DTOs.
+- The first fact probe used obsolete `port/in` / `port/out` and an incorrect artifact-scoped native
+  metadata path. The current paths are `port/inbound`, `port/outbound`, and
+  `META-INF/native-image/dev.logicojp/multi-agent-reviewer/`; corrected probes passed.
+- English and Japanese historical release sequences already differ (39 versus 38 dated headings).
+  Cross-language equality was the wrong invariant. The safe invariant is byte-identical preservation
+  of each language's own historical body plus semantic parity of the new `Unreleased` sections.
+- `--no-shared-session` reaches configuration/context DTOs but the current adapter creates one SDK
+  session per pass call. The documentation treats it as a compatibility switch and makes no
+  session-reuse claim.
+- Full Java 28 verification passed 1,107 Surefire + 5 Failsafe tests. Full GraalVM verification
+  passed 1,107 JVM + 1,107 native-image + 5 Failsafe tests; JAR/native help and version probes
+  returned 0.
+- Learnings consumed: [architect/composition-root-as-layer-zero,
+  architect/port-direction-by-implementer, architect/reverify-docs-before-publishing,
+  architect/rule-the-premise-before-the-question,
+  architect/secret-redaction-belongs-at-the-sink,
+  architect/shared-worktree-invalidates-build-results,
+  architect/trust-level-must-be-carried-by-a-type]
+
+## [t36.1] Remediated documentation findings F-01 through F-06
+
+- Corrected placeholder syntax, the missing procedure reference, workflow/tag wording, and both
+  28-file template inventories across the five requested documents.
+- Same-number PRs in the current repository were not valid historical replacements: their titles
+  and merge dates contradicted the release-note claims. All unavailable targets are explicit
+  non-links, with no invented tag or PR.
+- A whole-document link sweep found two additional unavailable release targets omitted from t36;
+  both were handled under the same non-link policy.
+- Dated-heading chronology remains 39 EN / 38 JA; only 14 target-bearing historical lines per
+  language differ from the pre-remediation baseline.
+- Inline validator iterations exposed overly narrow assertions in the validator itself
+  (singular/plural wording, per-file occurrence counts, and an over-escaped compact regex);
+  correcting the oracle produced a clean 25-check pass without changing valid document content.
+- Learnings consumed: [architect/reverify-docs-before-publishing,
+  architect/rule-the-premise-before-the-question,
+  architect/unreleased-state-does-not-rewrite-release-history,
+  teamlead/parity-is-not-source-accuracy]

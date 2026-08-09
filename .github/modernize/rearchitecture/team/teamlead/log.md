@@ -50,3 +50,21 @@
 - Producer-time checkpoint snapshots remain historically immutable; t22.5 validation metadata and the final matrix represent the later closure state.
 - One LOW auxiliary-list omission remains non-blocking because the authoritative 55-row ledger and canonical mappings include all five IDs.
 - Learnings consumed: [teamlead/checkpoint-contract-integrity, teamlead/domain-purity-rules, teamlead/layer-naming-conventions, teamlead/smoke-gate-must-prove-work, teamlead/vertical-module-task-split]
+
+## [t36] Independent documentation quality gate failed on source accuracy
+- Current architecture, runtime, security, packaging, EN/JA structure, and release chronology were independently reproduced.
+- Both detailed READMEs prescribe `{{placeholder}}`, but the implementation and shipped resources use only `${key}`; mirrored translation errors can pass parity checks.
+- The broader reference audit found one missing operational checklist and 17 unique retired-repository GitHub targets returning 404.
+- Fixing the historical URLs conflicts with the loaded byte-immutable-history policy; coordinator arbitration is required rather than silently weakening either gate.
+- Release notes also overstate GraalVM 25.0.4 release-workflow alignment and use an imprecise latest-tag claim; template trees omit one of 28 files.
+- Verdict: FAIL (1 HIGH, 3 MEDIUM, 2 LOW); code/runtime reports remain green at 1,107 Surefire + 5 Failsafe + 1,107 native tests.
+- Learnings consumed: [teamlead/checkpoint-contract-integrity, architect/unreleased-state-does-not-rewrite-release-history]
+
+## [t36] Fresh documentation re-gate passed after F-01 through F-06 remediation
+- Independently reproduced every closure: `${placeholder}`, canonical runbook anchor, explicit unavailable historical identifiers, accurate JVM/native workflow split, release-tag wording, and exact 28-file template inventories.
+- Fresh deterministic evidence passed: 25/25 source assertions, 23/23 local references, 39/39 factual external targets, 6/6 parity checks, 4/4 chronology checks, and 5/5 fence checks.
+- `PlaceholderUtilsTest` passed 2/2 under Java 28; this read-only gate did not rerun the unaffected full JVM/native build.
+- Chronology validation must count changed lines and preserved identifiers rather than raw diff opcodes; 14 substitutions can be grouped into nine operations.
+- Whole-document token equality is not a valid bilingual oracle for localized history; exact token parity is useful within matched current-state sections and must be combined with structural and curated semantic checks.
+- The paired pre-history prefix has 8 headings / 33 inline-code tokens; the `Unreleased` subtree has 6 / 30. A hand-reconstructed final checker initially used stale path and section assumptions, so its false negatives were corrected against source rather than treated as document regressions.
+- Learnings consumed: [architect/unreleased-state-does-not-rewrite-release-history, teamlead/checkpoint-contract-integrity, teamlead/parity-is-not-source-accuracy]

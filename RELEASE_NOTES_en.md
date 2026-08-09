@@ -2,7 +2,7 @@
 
 ## Update Rules (Template)
 
-Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation_sync_checklist_2026-02-17.md`
+Canonical procedure: [Release Procedure](./docs/runbook.md#release-procedure)
 
 1. Add a new date section with the same structure in both EN and JA files.
 2. Create and push an annotated tag (for example: `vYYYY.MM.DD-notes`).
@@ -12,21 +12,64 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ## Unreleased
 
 ### Summary
-- Placeholder for upcoming release items.
+- Completed the in-place Ports & Adapters rewrite: five named layers plus a layer-zero composition
+  root, with all behavior retained behind explicit inbound and outbound ports.
+- Upgraded the JVM runtime to Java 28, Micronaut to 5.1.0, and `copilot-sdk-java` to 1.0.8 while
+  retaining a separately verified Java 25 / GraalVM 25.0.4 native build.
+- Finalized agent-definition trust, Unicode validation, log-sink redaction, dependency security,
+  shaded-JAR packaging, and exact-member Native Image reachability metadata.
+- This work remains Unreleased; no newer release tag than `v2026.07.21-review-contract` has been created.
 
 ### Highlights
 
 #### Added
-- TBD
+- Layer-zero `ApplicationPortFactory` and `ReviewPortFactory` bindings around a thin `ReviewApp`
+  process entry; the final contract has 8 inbound port interfaces and 15 outbound port interfaces.
+- Bytecode-level `LayerDependencyRulesTest` coverage using JDK `java.lang.classfile` for import-matrix,
+  composition-root, control-ownership, and package/layer cycle enforcement.
+- Typed `AgentSource` / `AgentSourceDirectory` provenance, differential
+  `USER_SUPPLIED` / `REPOSITORY_SUPPLIED` validation profiles, Unicode/default-ignorable sweeps, and
+  provider-family model-prefix tests.
+- Distribution verification for shaded-JAR resources/startup and mirrored Native Image reachability
+  metadata with exact member registration.
 
 #### Changed
-- TBD
+- Reorganized all 201 production Java sources into `presentation`, `application`, `domain`,
+  `infrastructure`, and `shared`; framework/SDK configuration and I/O now cross the application
+  boundary only through ports.
+- Standard-review multi-pass execution is available through the live
+  `reviewer.execution.concurrency.review-passes` key and returns distinct per-pass reports without
+  restoring the removed merge/checkpoint pipeline. The current adapter creates one session per pass
+  call, so `--no-shared-session` is a compatibility switch rather than a session-reuse toggle.
+  Rubber-duck mode returns one synthesized result.
+- Updated runtime defaults to `claude-sonnet-5`, `gpt-5.3-codex`, and `gpt-5.6-sol`; prompt-budget
+  defaults now have a single owner in `shared/PromptBudget`.
+- Updated dependency constraints to Jackson 3.1.5 and Jackson 2 BOM 2.22.1. Active JVM CI,
+  dependency-submission, audit, and release jobs use Java 28; native CI separately validates
+  GraalVM 25.0.4, while the native release job remains disabled.
 
 #### Fixed
-- TBD
+- Single-sourced review-plan/banner/executor pass counts on
+  `reviewer.execution.concurrency.review-passes`; the retired
+  `reviewer.execution.review-passes` path remains documented only as historical context.
+- Moved secret masking to both Logback output sinks and retired object-level masking wrappers that
+  could not protect arbitrary stringification paths.
+- Closed Native Image reflection/resource gaps for Copilot SDK, Jackson, and Logback execution paths
+  and verified all 28 Markdown templates in the distributable JAR.
+- Pinned positive and negative behavioral controls for repository-supplied agent definitions,
+  allowed model families, architecture boundaries, and dependency/CVE scanning.
 
 ### Validation
-- Pending
+- JVM: `JAVA_HOME="$HOME/.sdkman/candidates/java/28.ea.9-open" PATH="$JAVA_HOME/bin:$PATH" ./mvnw -B clean verify`
+  — 1,107 Surefire tests + 5 Failsafe tests, 0 failures/errors/skips; shaded-JAR `--help` and
+  `--version` both returned 0; 28 templates packaged.
+- Native: `JAVA_HOME="$HOME/.sdkman/candidates/java/25.0.4-graal" PATH="$JAVA_HOME/bin:$PATH" ./mvnw -B clean verify -Pnative -f pom-native.xml`
+  — 1,107 JVM tests + 1,107 native tests + 5 Failsafe tests, 0 failures/errors/skips;
+  `target/review --help` and `--version` both returned 0.
+- Dependency-security gate: 31 runtime coordinates evaluated, 0 known CVEs, with non-vacuous
+  positive controls.
+- Documentation: EN/JA heading/marker parity, Markdown/Mermaid fence balance, local-link checks,
+  stale-current-state scans, release-heading chronology, and immutable historical-body comparison.
 
 ## 2026-07-21 (v2026.07.21-review-contract)
 
@@ -111,7 +154,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 ### Validation
 - `JAVA_HOME=... mvn -q clean test` — 871 tests, 0 failures, 0 errors.
 - Git tag: `v2026.07.21-sdk-upgrade`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-sdk-upgrade
+- GitHub Release: unavailable — the historical `v2026.07.21-sdk-upgrade` target is absent; no replacement tag was inferred.
 
 ## 2026-06-24 (v2026.06.24-refactor-seams-tests)
 
@@ -156,7 +199,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.25-open ./mvnw -B -ntp -q clean test` — 871 tests, 0 failures, 0 errors
 - Code-review agents reviewed the refactor/test changes; material findings were fixed before final validation.
 - Git tag: `v2026.06.24-refactor-seams-tests`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-refactor-seams-tests
+- GitHub Release: unavailable — the historical `v2026.06.24-refactor-seams-tests` target is absent; no replacement tag was inferred.
 
 ## 2026-06-24 (v2026.06.24-dependency-ci-hardening)
 
@@ -1003,7 +1046,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - Local compile validation: `mvn -q -DskipTests compile` succeeded
 
 ### Merged PRs
-- [#67](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/67): reuse `CopilotSession` across passes and sync related updates
+- #67 (historical PR target unavailable; identifier retained without replacement): reuse `CopilotSession` across passes and sync related updates
 
 ---
 
@@ -1070,7 +1113,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - CI: All required checks passed on every PR
 
 ### Merged PRs
-- [#41](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/41)–[#49](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/49), [#56](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/56), [#60](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/60)–[#65](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/65)
+- #41–#49, #56, #60–#65 (historical PR targets unavailable; identifiers retained without replacement)
 
 ---
 
@@ -1137,7 +1180,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - Runtime: `mvn clean package` + `run --repo ... --all` exit code 0
 
 ### Merged PRs
-- [#34](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/34)–[#40](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/40)
+- #34–#40 (historical PR targets unavailable; identifiers retained without replacement)
 
 ---
 
@@ -1165,7 +1208,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - Final summary: `reports/anishi1222/multi-agent-code-reviewer/final_remediation_summary_2026-02-17.md`
 - Release notes EN/JA alignment guide: `reports/anishi1222/multi-agent-code-reviewer/release_notes_bilingual_alignment_2026-02-17.md`
 - Release tag: `v2026.02.17-notes`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer-java/releases/tag/v2026.02.17-notes
+- GitHub Release: unavailable — the historical `v2026.02.17-notes` target is absent; no replacement tag was inferred.
 
 ## 2026-02-16
 
@@ -1221,7 +1264,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
   - `required_conversation_resolution` enabled
 
 ### Merged PRs
-- [#10](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/10): enforce dependency policy and required checks
+- #10 (historical PR target unavailable; identifier retained without replacement): enforce dependency policy and required checks
 
 ### Affected Files (PR #10)
 - `.github/workflows/dependency-review.yml`
@@ -1255,7 +1298,7 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - Test result: 431 run, 0 failures, 0 errors
 
 ### Merged PRs
-- [#13](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/13): fix: resolve all findings from 2026-02-15 reports
+- #13 (historical PR target unavailable; identifier retained without replacement): fix: resolve all findings from 2026-02-15 reports
 
 ### Reference
 - Detailed checklist: `reports/anishi1222/multi-agent-code-reviewer/remediation_checklist_2026-02-15.md`
@@ -1304,12 +1347,12 @@ Reference checklist: `reports/anishi1222/multi-agent-code-reviewer/documentation
 - Updated README (EN/JA) with multi-pass review feature description, configuration examples, and architecture diagram.
 
 ### Merged PRs
-- [#16](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/16): fix: add default reviewer.local-files settings
-- [#17](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/17): fix: update build-native-image job dependencies
-- [#18](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/18): fix: remediate 2026-02-15 report findings (all severities)
-- [#19](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/19): feat: multi-pass review
-- [#20](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/20): docs: add multi-pass review to README
-- [#21](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/21): fix: all review findings and strengthen coverage
+- #16 (historical PR target unavailable; identifier retained without replacement): fix: add default reviewer.local-files settings
+- #17 (historical PR target unavailable; identifier retained without replacement): fix: update build-native-image job dependencies
+- #18 (historical PR target unavailable; identifier retained without replacement): fix: remediate 2026-02-15 report findings (all severities)
+- #19 (historical PR target unavailable; identifier retained without replacement): feat: multi-pass review
+- #20 (historical PR target unavailable; identifier retained without replacement): docs: add multi-pass review to README
+- #21 (historical PR target unavailable; identifier retained without replacement): fix: all review findings and strengthen coverage
 
 ### Validation
 - `mvn test`: 453 run, 0 failures, 0 errors
