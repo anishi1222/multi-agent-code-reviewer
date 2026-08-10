@@ -27,11 +27,11 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 ## リリース状況
 
-現在のリポジトリツリーは **Unreleased** です。最新の公開タグは
-[`v2026.07.21-review-contract`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-review-contract)
-のままであり、現行状態は [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md) の `Unreleased` に記録しています。
+現在のリポジトリツリーは
+[`v2026.08.10-layered-architecture`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture)
+として公開しており、詳細は [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md) に記録しています。
 
-- **Unreleased の層構造完成**: 3つの第0層エントリ/配線ファイル、8個の inbound port interface、
+- 2026-08-10 ([v2026.08.10-layered-architecture](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture)): 層構造の完成 — 3つの第0層エントリ/配線ファイル、8個の inbound port interface、
   15個の outbound port interface、機械的に強制される循環ゼロ境界からなる5層 Ports & Adapters
   リライトを完了。CLI/review/report 契約を維持しつつ、実際に有効な
   `reviewer.execution.concurrency.review-passes` による標準マルチパス出力を復元。Java 28、

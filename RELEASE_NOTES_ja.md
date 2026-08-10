@@ -12,13 +12,32 @@
 ## Unreleased
 
 ### 概要
+- TBD
+
+### 主な変更
+
+#### 追加
+- TBD
+
+#### 変更
+- TBD
+
+#### 修正
+- TBD
+
+### 検証
+- Pending
+
+## 2026-08-10 (v2026.08.10-layered-architecture)
+
+### 概要
 - 5つの名前付き層と第0層コンポジションルートからなる Ports & Adapters への in-place
   リライトを完了し、全挙動を明示的な inbound/outbound port の背後に維持しました。
 - JVM runtime を Java 28、Micronaut を 5.1.0、`copilot-sdk-java` を 1.0.8 へ更新しつつ、
   Java 25 / GraalVM 25.0.4 の分離 native build も検証しました。
 - エージェント定義 trust、Unicode 検証、log sink 遮蔽、依存関係 security、shaded JAR
   packaging、exact-member Native Image reachability metadata を最終化しました。
-- 本作業は Unreleased のままです。`v2026.07.21-review-contract` より新しいリリースタグは作成していません。
+- CodeQL、Harden Runner、CycloneDX、OWASP Dependency-Check automation の固定バージョンを更新しました。
 
 ### 主な変更
 

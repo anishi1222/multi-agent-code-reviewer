@@ -27,11 +27,11 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 
 ## Release Status
 
-The current repository tree is **Unreleased**. The latest published tag remains
-[`v2026.07.21-review-contract`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-review-contract);
-the current state is recorded in the `Unreleased` section of [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md).
+The current repository tree is published as
+[`v2026.08.10-layered-architecture`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture);
+the release details are recorded in [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md).
 
-- **Unreleased layered-architecture completion**: completed the five-layer Ports & Adapters rewrite with
+- 2026-08-10 ([v2026.08.10-layered-architecture](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture)): Layered-architecture completion — completed the five-layer Ports & Adapters rewrite with
   three layer-zero entry/wiring files, 8 inbound port interfaces, 15 outbound port interfaces, and
   mechanically enforced zero-cycle boundaries; preserved the CLI/review/report contracts while restoring
   standard multi-pass output through the live `reviewer.execution.concurrency.review-passes` key; upgraded

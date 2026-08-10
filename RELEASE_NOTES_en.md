@@ -12,13 +12,32 @@ Canonical procedure: [Release Procedure](./docs/runbook.md#release-procedure)
 ## Unreleased
 
 ### Summary
+- TBD
+
+### Highlights
+
+#### Added
+- TBD
+
+#### Changed
+- TBD
+
+#### Fixed
+- TBD
+
+### Validation
+- Pending
+
+## 2026-08-10 (v2026.08.10-layered-architecture)
+
+### Summary
 - Completed the in-place Ports & Adapters rewrite: five named layers plus a layer-zero composition
   root, with all behavior retained behind explicit inbound and outbound ports.
 - Upgraded the JVM runtime to Java 28, Micronaut to 5.1.0, and `copilot-sdk-java` to 1.0.8 while
   retaining a separately verified Java 25 / GraalVM 25.0.4 native build.
 - Finalized agent-definition trust, Unicode validation, log-sink redaction, dependency security,
   shaded-JAR packaging, and exact-member Native Image reachability metadata.
-- This work remains Unreleased; no newer release tag than `v2026.07.21-review-contract` has been created.
+- Refreshed the pinned CodeQL, Harden Runner, CycloneDX, and OWASP Dependency-Check automation.
 
 ### Highlights
 

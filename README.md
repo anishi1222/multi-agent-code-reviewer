@@ -9,11 +9,10 @@ AI-powered parallel code review CLI that orchestrates specialized agents through
 
 ## Release State
 
-The current repository tree is **Unreleased**. The latest published tag remains
-[`v2026.07.21-review-contract`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-review-contract);
-see the `Unreleased` section of the paired release notes for changes made after that tag.
+The current repository tree is published as
+[`v2026.08.10-layered-architecture`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture).
 
-The Unreleased tree completes the in-place Ports & Adapters rewrite, upgrades the JVM build to
+The 2026-08-10 release completes the in-place Ports & Adapters rewrite, upgrades the JVM build to
 Java 28 and Micronaut 5.1.0, upgrades `copilot-sdk-java` to 1.0.8, hardens agent-definition trust
 and log redaction, and validates both the shaded JAR and the GraalVM 25 native executable.
 
