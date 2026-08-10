@@ -20,21 +20,39 @@ This document covers day-to-day operations, troubleshooting, and maintenance pro
 
 ## Environment Prerequisites
 
-| Component        | Required Version        | Verification Command              |
-|------------------|-------------------------|-----------------------------------|
-| JDK              | 26 EA (preview enabled) | `java --version`                  |
-| GraalVM          | 26 EA (native image only) | `native-image --version`        |
-| Maven Wrapper    | Maven 3.9.14            | `./mvnw --version`                |
-| GitHub CLI       | latest                  | `gh --version`                    |
-| Copilot CLI      | 0.0.407+                | `gh copilot --version`            |
-| SDKMAN (optional)| latest                  | `sdk version`                     |
+| Component         | Required Version                       | Verification Command       |
+|-------------------|----------------------------------------|----------------------------|
+| JVM build JDK     | Java 28 (preview enabled)              | `java --version`           |
+| Native build JDK  | Oracle GraalVM 25.0.4 (Java 25 target) | `native-image --version`   |
+| Maven Wrapper     | Maven 3.9.14                           | `./mvnw --version`         |
+| GitHub CLI        | latest                                | `gh --version`             |
+| Copilot CLI       | 0.0.407+                              | `gh copilot --version`     |
+| SDKMAN (optional) | latest                                | `sdk version`              |
 
 ### Quick Setup with SDKMAN
 
 ```bash
 sdk env install    # reads .sdkmanrc for correct JDK
-sdk env            # activates the JDK
+sdk env            # activates Java 28 for pom.xml
+java --version
 ```
+
+### Toolchain Source of Truth
+
+- `pom.xml` is the default JVM/release build and compiles for Java 28. `.sdkmanrc` intentionally
+  selects this toolchain because `sdk env` is applied automatically by many developer shells.
+- `pom-native.xml` is the native-image compatibility build and compiles for Java 25. A single
+  `.sdkmanrc` cannot select both toolchains, so native builds must activate GraalVM explicitly:
+
+  ```bash
+  export JAVA_HOME="$HOME/.sdkman/candidates/java/25.0.4-graal"
+  export PATH="$JAVA_HOME/bin:$PATH"
+  java --version
+  native-image --version
+  ```
+
+- Do not run `pom.xml` with GraalVM 25 or `pom-native.xml` with the Java 28 JDK. Both POMs use
+  `micronaut-parent:5.1.0`; dependency versions are parent-managed to avoid manifest drift.
 
 ---
 
@@ -44,15 +62,14 @@ Run these commands to validate your environment before building or releasing.
 
 ### 1. JDK Version Match
 
-Confirm the installed JDK matches `pom.xml` `<jdk.version>`:
+Confirm the installed JDK matches `pom.xml` `<java.version>`:
 
 ```bash
-# Expected: matches <jdk.version> in pom.xml (currently 26)
+# Expected: Java 28, matching pom.xml
 java --version
 
 # Cross-check pom.xml
-grep '<jdk.version>' pom.xml
-grep '<release.version>' pom.xml
+grep '<java.version>' pom.xml
 ```
 
 ### 2. Maven Toolchain
@@ -86,7 +103,7 @@ gh copilot -- login     # or: copilot login
 ### 5. Full Build Smoke Test
 
 ```bash
-./mvnw clean verify
+./mvnw -B clean verify
 ```
 
 ---
@@ -96,14 +113,21 @@ gh copilot -- login     # or: copilot login
 ### JVM JAR Build
 
 ```bash
-./mvnw clean package
+./mvnw -B clean verify
 java --enable-preview -jar target/multi-agent-reviewer-*.jar --version
 ```
+
+`verify` runs unit tests and a Failsafe integration test that starts the shaded JAR from an
+isolated temporary directory with `--help`, `--version`, `list`, and `doctor --help`. This proves
+the manifest, embedded templates, logging configuration, and Micronaut bootstrap path used by the
+distributed artifact. `package -DskipTests` is diagnostic-only and is not release evidence.
 
 ### Native Image Build (Optional)
 
 ```bash
-./mvnw clean package -Pnative
+export JAVA_HOME="$HOME/.sdkman/candidates/java/25.0.4-graal"
+export PATH="$JAVA_HOME/bin:$PATH"
+./mvnw -B clean verify -Pnative -f pom-native.xml
 ./target/review --version
 ```
 
@@ -249,6 +273,21 @@ Output format:
 {"timestamp":"2026-04-14T10:30:00.000+09:00","level":"INFO","logger":"d.l.reviewer.ReviewApp","thread":"main","execution.id":"abc-123","event.category":"lifecycle","event.action":"start","message":"Review started"}
 ```
 
+### Copilot SDK Log Level
+
+Use the allowlisted `warning` level in production so SDK diagnostics remain available without
+enabling verbose payload logging:
+
+```bash
+export COPILOT_SDK_LOG_LEVEL=warning
+java --enable-preview -jar target/multi-agent-reviewer-*.jar --version
+```
+
+The application accepts only its configured log-level allowlist. Do not weaken the allowlist or
+use `debug`/`trace` as a production workaround; those levels increase the chance that third-party
+diagnostic messages contain sensitive request context. Sink-side masking remains mandatory for
+both human-readable and JSON logging profiles.
+
 ### MDC Keys
 
 | Key              | Description                          | Example        |
@@ -279,13 +318,13 @@ Stale compiled classes can cause `access$0` errors:
 ./mvnw clean test
 ```
 
-#### `--release 26` compilation failure
+#### `--release 28` compilation failure
 
 Ensure JDK version matches `pom.xml`:
 
 ```bash
-java --version        # must be 26+
-grep '<jdk.version>' pom.xml
+java --version        # must be 28
+grep '<java.version>' pom.xml
 ```
 
 #### SNAPSHOT dependency rejection
@@ -341,8 +380,9 @@ reviewer:
 
 #### Native image build failure
 
-- Native image build uses `continue-on-error: true` in CI — this is expected.
-- Check GraalVM version compatibility with your dependencies.
+- Native image verification is a required CI gate; do not bypass it with `continue-on-error`,
+  `-DskipTests`, or a narrowed lifecycle.
+- Confirm the active toolchain is Oracle GraalVM 25.0.4 and the command uses `-f pom-native.xml`.
 - Review `reflect-config.json` and `resource-config.json` under `src/main/resources/META-INF/native-image/`.
 
 ---

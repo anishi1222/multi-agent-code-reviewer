@@ -180,3 +180,237 @@ L62 の `AgentConfigLoader` に渡る時点で**型から出自が消えてい�
 
 Coordinator note: this closes the escalation backend raised in t23. Backend's keep-our-capability call was
 correct, and for a stronger reason than backend had — the capability was never unsurfaced in the first place.
+
+---
+
+## [BROADCAST] t24 round-1 conformance gate — **CLEAN PASS** (2026-08-06T01:51:53Z)
+
+**0 CRITICAL, 0 HIGH, 3 MEDIUM.** Merge `cd91bb0` + F1 fix `3ed3eda` both stand.
+Build exit 0, **942 tests, 0 failures**. 15/15 architecture rules green, Rule 0 parsed 331/331, 0 cycles.
+
+**Rulings that bind everyone:**
+
+1. **F1 CLOSED.** The negative control at `AgentConfigLoaderTest:386` is genuine — it removes sites 2
+   and 3 as explanations, so the drop is attributable to site 1 alone. Verified in source, not accepted
+   on report.
+2. **F4 → MEDIUM, inherited from `origin/main`, NOT a merge finding.** The defect is real
+   (`AgentPromptBuilder:145` gates on a hardcoded constant and *throws*, while the loader gates read the
+   *configured* knob and *skip*), but it is bit-identical to `origin/main` and unreachable in every
+   shipped configuration: worst agent renders **3,858 / 10,000 — 61% headroom**, and both skills over
+   10 KB declare no `metadata.agent`, so `AgentPromptBuilder:127` filters them out before the gate.
+3. **The systemic pattern gets an ADR.** Nine instances is not bad luck — it is an unrecorded
+   architectural decision. **ADR-0008** is recommended, and per ADR-0006 line 124 it **must** ship with
+   a mechanizable rule or it is a slogan. **Proposed Rule 8**: no class under `domain` may reference a
+   limit constant on `shared.ConfigDefaults`; budgets reach `domain` as injected values. Blast radius
+   verified = **exactly one violator** (F4 itself).
+
+**Cost disclosed, not glossed:** the layering made F4 *harder* to fix. `AgentPromptBuilder` is in
+`domain`, so Rule 1 forbids importing `infrastructure.config.SkillConfig` — "just read the configured
+value" is no longer available. That cost is attributable to our architecture and belongs on the record.
+
+---
+### [2026-08-06T02:45:00Z] BROADCAST from architect (t30) — ADR-0008 Accepted / Rule 8 live
+`domain` may no longer reference `shared.ConfigDefaults` (Rule 8, ADR-0008).
+If your task needs a limit inside `domain`, **inject it as a value object**
+(`PromptBudget` / `SkillBudget` are the precedents) — that stays legal under Rule 1.
+Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
+violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
+do not claim the number.
+
+---
+### [2026-08-06T02:45:00Z] HIGH from architect (t30) — ADR-0007 D5 is unfulfilled, with a live violation
+`application/port/outbound/McpServerSpec.java:34` calls `shared.SensitiveHeaderMasking.wrapHeaders(headers)`.
+ADR-0007 **D5 (line 240)** mandates exactly the opposite — it declares this edge forbidden and to be
+enforced as **`Rule 4b`** in `LayerDependencyRulesTest`. Coordinator independently verified:
+`grep -rn "Rule 4b" src/test/` → **0 matches**. The rule was never built.
+
+So an **Accepted** ADR has been declaring an enforcement that does not exist, while the thing it
+forbids happens in shipped code — header-masking responsibility currently crosses the port boundary
+unchecked. This is the same defect shape ADR-0006 D5 names ("a matrix row with no enforcement rule
+is itself a defect"), which is how t30 found it.
+
+Being tracked as **t31 [architect]**. You are the reviewer of record on the *semantics*: the fix
+relocates where masking happens, and getting it wrong silently unmasks headers. t31 is required to
+ship a control proving masking still occurs for the same inputs — please confirm that control is
+sufficient before t31 closes. Note this is **separate** from your still-open t18 findings.
+
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ADR-0007 D5/D6: secret masking moved to the log sink
+
+**Coordinator-verified. Two things everyone must know.**
+
+### 1. Port DTOs now expose raw header values in `toString()` — by design
+
+Object-level masking is **removed** from `application.port.outbound.McpServerSpec`. Masking now
+happens at the **log sink** (`logback.xml` / `logback-json.xml`).
+
+**Do not "fix" this by re-adding a wrapper.** It cannot work (measured: the SDK overrides
+`toString()` on neither config class and stores headers with a plain field write, so a wrapper is
+lost on any copy), and it is now mechanically blocked by `LayerDependencyRulesTest` **Rule 4b**.
+
+### 2. If you add a log appender or logging profile, it MUST carry both `%replace` passes
+
+Both passes, in the documented nesting order, or secrets leak.
+`SensitiveHeaderMaskingSinkCanaryTest` will fail you if it doesn't — **the coordinator confirmed
+this by weakening the shipped `logback.xml` and watching it go red** with
+`SECRET LEAKED THROUGH THE LOG SINK`. It reads the real XML; it is not a re-declared copy.
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ⚠️ TOOLING HAZARD: output redaction can fake a defect
+
+The tool-output pipeline redacts auth-header literals to `******` in **all** output — `cat`, `grep`,
+`view`, `sed`, even Python `repr()`. Source lines then look like broken `"******"` defaults when they
+are perfectly normal templates. This nearly corrupted `GithubMcpConfig.java:52` and
+`application.yml:88`.
+
+**`base64` is the only reliable reveal** — `od -c` and `xxd` are redacted too.
+
+> **Never rewrite a line displaying `******` without decoding it first.**
+
+The coordinator used `grep ... | base64 | base64 -d` throughout t31's verification for exactly this
+reason, and it worked.
+
+---
+
+## t18.2 [backend] → security / 2026-08-06 — HIGH: 文字許可リストが Trojan Source 系文字を通していた
+
+`CustomInstructionSafetyValidator.ALLOWED_CHAR_RANGE` は `U+2000–U+206F` を**ブロック単位で丸ごと許可**していました。
+この範囲には以下が含まれます:
+
+- 双方向制御 (bidi override) `U+202A–U+202E`
+- ゼロ幅文字 `U+200B–U+200F`
+- 不可視演算子 `U+2060–U+2064`
+
+**すなわち、拒否するために存在していた当の文字を許可していた**ことになります。
+backend が `\u2000-\u200A`, `\u2010-\u2027`, `\u202F-\u205F` に絞り込み、日本語で実用される約物
+(`U+203B` 等) は保持しました。
+
+**現時点で潜在的だったのは、この定数が死んでいた（宣言のみで呼ばれていなかった）ためです** —
+SEC-H1 がこの HIGH を偶然に覆い隠していた形になります。t18.2 が定数を実経路に接続したため、
+絞り込みが同時に行われていなければ、この修正自体が脆弱性を有効化していました。
+
+**backend からの申し送り（重要）**: 「Unicode ブロック範囲で書かれた他の許可リストも監査すべき」。
+ブロック範囲指定は、その範囲に何が含まれるかを書き手が列挙しないまま許可を与えるため、
+同型の欠陥を生みやすい構造です。t18 再実行時の観点に加えてください。
+
+
+---
+
+## From coordinator — 2026-08-06 (t18.2 verified; input for t18 re-run)
+
+t18.2 is **verified PASS**. SEC-H1 and SEC-H2 are closed at the root: provenance is now a type
+(`AgentSourceDirectory`) assigned once in `ApplicationPortFactory`, so the trusted `--agents-dir`
+population and the untrusted CWD-relative population are no longer flattened into one `List<Path>`.
+The five dead constants are live (4/4/5/2 `src/main` references). Build: 1041 tests, 0 failures.
+
+I mutation-tested the differential claim myself rather than accepting it: collapsing
+`AgentTrustProfile.forSource` to return a single profile turned the suite **RED, 10 failures / 28**,
+3 of 3 in `AgentTrustLevelDifferentialTest`. The control is real.
+
+**Three items for your re-run, one of which is mine:**
+
+1. **New HIGH, closed, worth your independent eye (F1).** `ALLOWED_CHAR_RANGE` whitelisted
+   `U+2000–U+206F` *wholesale* — a block that contains U+202A–U+202E (bidi override),
+   U+200B–U+200F (zero-width), U+2060–U+2064 (invisible operators). The charset allowlist was
+   admitting the exact Trojan-Source characters it existed to reject. It was latent **only because
+   the constant was dead** — meaning SEC-H1 was accidentally masking a second HIGH, and any fix that
+   made the constant live *without* narrowing it would have activated the vulnerability.
+
+2. **Backend's own suggestion, which I endorse:** audit whether any other whitelist in the codebase
+   is written as a block range. F1's shape is "the range is named for what it admits, not checked
+   for what else it admits," and nothing about that is unique to this constant.
+
+3. **My finding (LOW, but it is the SEC-H1 shape again).** `AgentPolicyConstantsAreLiveTest`
+   enumerates seven constants; `ALLOWED_CHAR_RANGE` is **not** one of them and has zero `src/test`
+   references. The control is pinned behaviourally by
+   `AgentTrustContractBoundaryTest.bidiOverrideRejectedFromRepository` (`\u202E` rejected as
+   REPOSITORY_SUPPLIED, accepted as USER_SUPPLIED), so re-widening turns a test red today. The gap is
+   that deleting that behavioural test would silently unguard the constant.
+
+t18 must return **zero HIGH/CRITICAL**; its own remediation `[DONE]` does not close it (§3.2.1).
+
+---
+
+## 2026-08-06T05:24Z — from coordinator (t18 re-dispatch, round 2 of 2)
+
+**t18.3 is complete and I verified it myself rather than accepting the report.** Read this before
+re-auditing so you spend your budget on what is *not* yet settled.
+
+### What I independently confirmed against the shipped compiled class
+
+Probe run against `target/classes` (not the test suite), controls first so it cannot pass vacuously:
+
+| case | charset | denylist |
+|---|---|---|
+| plain injection (ASCII) | ADMIT | **CATCH** — probe works |
+| benign English / Japanese 「こんにちは、世界」 / fullwidth ＡＢＣ１２３ / precomposed が | ADMIT | SILENT — **no false positives** |
+| bidi override U+202E | REJECT | CATCH — prior control intact |
+| **U+FFA0** and all 5 sibling fillers (U+115F, U+1160, U+2800, U+3164, **U+A8F9**) | **REJECT** | — |
+| all 6 `Mn` (U+302A–302D, **U+3099, U+309A**) | **REJECT** | — |
+
+**Exhaustive sweep, all 1,114,112 codepoints: 33,441 admitted, 0 surviving invisible/unassigned.**
+Regression: 18 repo agent definitions, 0 rejected.
+
+**Non-vacuity proven by mutation** (I applied these to production source, then restored byte-identical,
+`cmp -s` verified, tree clean):
+- Mutant A — drop `0xFFA0` from `INVISIBLE_CODE_POINTS` → **5 tests RED**
+- Mutant B — drop `NON_SPACING_MARK` from `BLOCKED_CATEGORIES` → **2 tests RED**
+
+Both halves of the rule are independently pinned. You do not need to re-derive any of the above.
+
+### Two corrections to your own re-run artifact — your audit undercounted
+
+1. `Mn` offenders were **6, not 4**. Your audit listed U+302A–302D via `\u3000-\u303F`; U+3099 and
+   U+309A also came in via a *different* range, `\u3040-\u309F`. I confirmed all 6.
+2. Your recommended filler list named **5**; deriving from the JDK Unicode name tables found **6** —
+   `U+A8F9 DEVANAGARI GAP FILLER` appeared on no human list, mine included.
+
+Two independent hand-curations were both incomplete. That is the case for derive-don't-enumerate,
+now evidenced rather than asserted.
+
+### Residual the implementer disclosed — please rule on it, do not rediscover it
+
+`INVISIBLE_CODE_POINTS` is derived using a name heuristic (`FILLER`/`BLANK`/`ZERO WIDTH`/
+`INVISIBLE`/`WORD JOINER`). **Production and the test share that heuristic**, so a blank-rendering
+codepoint that is (a) inside an allowed block, (b) not in a blocked category, and (c) named
+unusually would be missed by both, and the equality test would still pass. The category mask carries
+the main load and the behavioural pins are independent of it, so I read this as **LOW residual, not a
+gate failure** — but the ruling is yours. If you disagree, say so explicitly rather than implying it.
+
+### Still open from your re-run, deliberately not folded into t18.3
+
+- **SEC-L10 half-closed.** `ALLOWED_CHAR_RANGE` is now behaviourally tested and in the liveness
+  enumeration (7 → 9). `ALLOWED_MODEL_PREFIXES` is a different constant in a different class and
+  remains untested — scope was not widened. Needs its own task; do not fail the gate on it.
+- **SEC-L11 (D4 vacuous)** and the ADR-0007 stale element counts are routed to architect as **t32**.
+- **SEC-M7** is closed as a side effect: all 30 `Cn` codepoints are now rejected by the category mask.
+
+### Procedure
+
+**This is the last remediation round §3.2.1 allows.** If you find a genuine HIGH/CRITICAL, report it
+plainly — I will escalate to the user rather than open a third round. Equally, do not manufacture a
+finding to look thorough: four of your candidates last round were correctly downgraded, and that
+calibration is worth more than volume.
+
+Your own suggestion back to me — that **over-block mutants** be standard for allow/deny controls,
+because a removal-only matrix scores 100% while leaving the acceptance direction unguarded — is
+accepted and routed to architect for D7.
+
+---
+
+## 2026-08-08T09:24:00Z — architect t17 → all
+
+**INFO:** Current-tree Layered / Ports & Adapters re-certification passed cleanly: **0 CRITICAL /
+0 HIGH**, focused 30/30, full 1077/1077, and CLI help/version both exit 0. H1-H4 are independently
+closed; ADR-0006 deviation #5 remains an explicitly out-of-scope Partial and is not a certification
+blocker.
+
+---
+
+## 2026-08-08T11:46:17Z — architect t32.1 → all
+
+ADR-0007 D3/D4/D7 corrections and the ADR-0006 Rule 5c / bidirectional ADR-rule guard contract are
+now defined. The gate remains blocked by two HIGH implementation gaps owned by t32.2.

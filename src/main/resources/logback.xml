@@ -1,12 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <!--
+        Sink-side secret masking (ADR-0007 D6).
+
+        Masking is the responsibility of the *sink*, not of the objects being logged. An object that
+        masks its own `toString()` only guards that one method: `get()`, `entrySet()`, a JSON
+        serializer or a debugger all still see the raw value, and the guard is lost the moment the
+        value is copied into a type we do not own. These two patterns run on every appender, so they
+        hold regardless of which object — ours or a third party's — produced the text.
+
+        MASK_PATTERN        masks by *value shape*: recognizable token formats, wherever they appear.
+        HEADER_MASK_PATTERN masks by *header name*: any `name=value` / `name: value` whose name looks
+                            sensitive, whatever the value looks like. This is the branch that covers
+                            opaque custom headers from `reviewer.mcp.github.headers`, which have no
+                            recognizable prefix for MASK_PATTERN to catch.
+
+        Order matters and is asserted by SensitiveHeaderMaskingSinkCanaryTest: MASK_PATTERN must run
+        *first* (innermost), because HEADER_MASK_PATTERN stops at whitespace and would otherwise
+        consume only the `Bearer` keyword and leave the token behind.
+    -->
     <property name="MASK_PATTERN" value="(?i)(Bearer\s+|token\s+|ghp_|gho_|ghs_|ghu_|ghr_|github_pat_|sk-|xox[baprs]-)[A-Za-z0-9._\-]+"/>
+    <!-- Hex escapes keep comma/brace/bracket literals out of Logback's %replace option grammar. -->
+    <property name="HEADER_MASK_PATTERN" value="(?i)([\w-]*(?:authorization|api-?key|secret|password|credential|cookie|token)[\w-]*\s*[=:]\s*)[^\x2C\s\x7D\x5D&quot;]+"/>
 
     <!-- Console appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.err</target>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [exec:%X{execution.id}] [%X{event.category}:%X{event.action}] - %replace(%msg){'${MASK_PATTERN}','$1***'}%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [exec:%X{execution.id}] [%X{event.category}:%X{event.action}] - %replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'${HEADER_MASK_PATTERN}','$1***'}%n</pattern>
         </encoder>
     </appender>
 
@@ -18,7 +39,7 @@
             <totalSizeCap>100MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{ISO8601} level=%-5level execution.id=%X{execution.id} category=%X{event.category} action=%X{event.action} mdc=%X %replace(%msg){'${MASK_PATTERN}','$1***'}%n</pattern>
+            <pattern>%d{ISO8601} level=%-5level execution.id=%X{execution.id} category=%X{event.category} action=%X{event.action} mdc=%X %replace(%replace(%msg){'${MASK_PATTERN}','$1***'}){'${HEADER_MASK_PATTERN}','$1***'}%n</pattern>
         </encoder>
     </appender>
     

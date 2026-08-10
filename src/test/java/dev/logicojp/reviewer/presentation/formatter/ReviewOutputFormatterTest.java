@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.presentation.formatter;
 
+import dev.logicojp.reviewer.application.port.inbound.ReviewPlan;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.report.ReviewResult;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
@@ -25,7 +26,7 @@ class ReviewOutputFormatterTest {
         var outBuffer = new ByteArrayOutputStream();
         var errBuffer = new ByteArrayOutputStream();
         CliOutput output = new CliOutput(new PrintStream(outBuffer), new PrintStream(errBuffer));
-        var formatter = new ReviewOutputFormatter(output, 1);
+        var formatter = new ReviewOutputFormatter(output);
 
         AgentConfig config = new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
         formatter.printBanner(
@@ -34,7 +35,8 @@ class ReviewOutputFormatterTest {
             "summary-model",
             ReviewTarget.gitHub("owner/repo"),
             java.nio.file.Path.of("reports/owner/repo"),
-            "review-model"
+            "review-model",
+            new ReviewPlan(1, 4, "review", "report", "summary", "high")
         );
 
         String outputText = outBuffer.toString();
@@ -49,7 +51,7 @@ class ReviewOutputFormatterTest {
         var outBuffer = new ByteArrayOutputStream();
         var errBuffer = new ByteArrayOutputStream();
         CliOutput output = new CliOutput(new PrintStream(outBuffer), new PrintStream(errBuffer));
-        var formatter = new ReviewOutputFormatter(output, 1);
+        var formatter = new ReviewOutputFormatter(output);
 
         AgentConfig config = new AgentConfig("security", "Security", "model", "system", "instruction", null, List.of(), List.of());
         List<ReviewResult> results = List.of(

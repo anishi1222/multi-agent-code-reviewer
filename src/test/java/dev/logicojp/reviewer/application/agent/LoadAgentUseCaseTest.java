@@ -1,12 +1,14 @@
 package dev.logicojp.reviewer.application.agent;
 
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,15 +25,18 @@ class LoadAgentUseCaseTest {
         Path configured = tempDir.resolve("agents");
         AgentConfig security = agent("security", "security agent");
         AgentConfig quality = agent("quality", "quality agent");
-        AtomicReference<List<Path>> capturedDirectories = new AtomicReference<>();
+        AtomicReference<List<AgentSourceDirectory>> capturedDirectories = new AtomicReference<>();
         LoadAgentUseCase useCase = new LoadAgentUseCase(directories -> {
             capturedDirectories.set(directories);
             return List.of(security, quality);
         });
 
-        List<AgentConfig> all = useCase.loadAll(List.of(configured));
+        List<AgentConfig> all = useCase.loadAll(List.of(AgentSourceDirectory.userSupplied(configured)));
 
-        assertThat(capturedDirectories.get()).containsExactly(configured);
+        assertThat(capturedDirectories.get())
+            .as("the use case must forward the directory *with* its provenance intact — "
+                + "flattening back to a bare Path is the defect ADR-0007 D1 removes")
+            .containsExactly(AgentSourceDirectory.userSupplied(configured));
         assertThat(all).extracting(AgentConfig::name).containsExactly("security", "quality");
     }
 
@@ -42,22 +47,27 @@ class LoadAgentUseCaseTest {
         AgentConfig security = agent("security", "security agent");
         LoadAgentUseCase useCase = new LoadAgentUseCase(_ -> List.of(security));
 
-        assertThat(useCase.loadByName("SECURITY", List.of(configured))).contains(security);
-        assertThat(useCase.loadByName("missing", List.of(configured))).isEmpty();
+        assertThat(useCase.loadByName("SECURITY", List.of(AgentSourceDirectory.userSupplied(configured)))).contains(security);
+        assertThat(useCase.loadByName("missing", List.of(AgentSourceDirectory.userSupplied(configured)))).isEmpty();
     }
 
     @Test
-    @DisplayName("ディレクトリ未指定時はloaderを呼ばずにemptyを返す")
-    void emptyDirectoriesReturnEmptyWithoutLoading() {
-        AtomicReference<Boolean> called = new AtomicReference<>(false);
-        LoadAgentUseCase useCase = new LoadAgentUseCase(_ -> {
-            called.set(true);
+    @DisplayName("追加ディレクトリ未指定時もconfigured defaultsを解決するloaderへ委譲する")
+    void emptyAdditionalDirectoriesStillDelegateToConfiguredDefaults() {
+        AtomicInteger calls = new AtomicInteger();
+        AtomicReference<List<AgentSourceDirectory>> capturedDirectories = new AtomicReference<>();
+        AgentConfig security = agent("security", "security agent");
+        LoadAgentUseCase useCase = new LoadAgentUseCase(directories -> {
+            calls.incrementAndGet();
+            capturedDirectories.set(directories);
             return List.of(agent("security", "security agent"));
         });
 
-        assertThat(useCase.loadAll(List.of())).isEmpty();
-        assertThat(useCase.loadByName("security", null)).isEmpty();
-        assertThat(called).hasValue(false);
+        assertThat(useCase.loadAll(List.of())).containsExactly(security);
+        assertThat(capturedDirectories.get()).isEmpty();
+        assertThat(useCase.loadByName("security", null)).contains(security);
+        assertThat(capturedDirectories.get()).isEmpty();
+        assertThat(calls).hasValue(2);
     }
 
     // not ported: configured/additional directory merging belongs to infrastructure configuration, not LoadAgentUseCase.

@@ -1,9 +1,13 @@
 package dev.logicojp.reviewer.infrastructure.parsing;
 
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentRejection;
+import dev.logicojp.reviewer.domain.agent.AgentSource;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import dev.logicojp.reviewer.domain.instruction.CustomInstructionSafetyValidator;
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
 import dev.logicojp.reviewer.infrastructure.config.SkillConfig;
+import dev.logicojp.reviewer.shared.SkillBudget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /// Loads agent configurations from external files.
@@ -33,7 +38,17 @@ public class AgentConfigLoader {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentConfigLoader.class);
 
-    private final List<Path> agentDirectories;
+    /// Marker every end-of-load summary line starts with, so operators and tests can
+    /// locate the line without matching on the rest of the sentence (ADR-0007 D4).
+    public static final String AGENT_LOAD_SUMMARY_PREFIX = "Agent load summary:";
+
+    /// Rejection rule for a definition that threw while being read or built.
+    public static final String RULE_LOAD_FAILED = "AGENT-LOAD-FAILED";
+
+    /// Rejection rule for a definition whose text matched a prompt-injection pattern.
+    public static final String RULE_SUSPICIOUS_PATTERN = "AGENT-SUSPICIOUS-PATTERN";
+
+    private final List<AgentSourceDirectory> agentDirectories;
     private final AgentMarkdownParser markdownParser;
     private final SkillMarkdownParser skillParser;
     private final String skillsDirectory;
@@ -49,16 +64,23 @@ public class AgentConfigLoader {
     /// through `metadata.agent`.
     private final int maxAssignedSkillTotalChars;
 
-    public static Builder builder(List<Path> agentDirectories) {
+    /// Maximum **character** length of the rendered "Assigned Review Skills" section that
+    /// `AgentPromptBuilder` appends to an agent's instruction.
+    ///
+    /// Unlike the three above, this budget is not enforced here — it is handed to `domain` as a
+    /// [SkillBudget] value, because the section it bounds only exists once the prompt is rendered.
+    private final int maxRenderedSkillSectionChars;
+
+    public static Builder builder(List<AgentSourceDirectory> agentDirectories) {
         return new Builder(agentDirectories);
     }
 
     public static final class Builder {
-        private final List<Path> agentDirectories;
+        private final List<AgentSourceDirectory> agentDirectories;
         private SkillConfig skillConfig = SkillConfig.defaults();
         private String defaultOutputFormat;
 
-        private Builder(List<Path> agentDirectories) {
+        private Builder(List<AgentSourceDirectory> agentDirectories) {
             this.agentDirectories = List.copyOf(agentDirectories);
         }
 
@@ -77,38 +99,83 @@ public class AgentConfigLoader {
         }
     }
 
-    /// Creates a loader with a single agents directory and default skill settings.
-    public AgentConfigLoader(Path agentsDirectory) {
+    /// Creates a loader for a single directory whose contents carry the given provenance.
+    ///
+    /// @param agentsDirectory directory paired with the provenance of its contents
+    public AgentConfigLoader(AgentSourceDirectory agentsDirectory) {
         this(List.of(agentsDirectory), SkillConfig.defaults(), null);
     }
 
     /// Creates a loader with multiple agent directories, skill configuration,
     /// and an optional default output format.
-    public AgentConfigLoader(List<Path> agentDirectories, SkillConfig skillConfig,
+    ///
+    /// @param agentDirectories   directories to scan, each paired with the provenance of its
+    ///                           contents (ADR-0007 D1). Provenance is decided by the
+    ///                           composition root and is only carried here, never recomputed.
+    /// @param skillConfig        skill discovery and budget settings
+    /// @param defaultOutputFormat fallback output-format template, or null
+    public AgentConfigLoader(List<AgentSourceDirectory> agentDirectories, SkillConfig skillConfig,
                              String defaultOutputFormat) {
         this.agentDirectories = List.copyOf(agentDirectories);
         this.markdownParser = new AgentMarkdownParser(defaultOutputFormat);
         this.skillParser = new SkillMarkdownParser(skillConfig.filename());
         this.skillsDirectory = skillConfig.directory();
-        // These three budgets are all sourced from the single
+        // These four budgets are all sourced from the single
         // `reviewer.skills.max-parameter-value-length` knob, but they are NOT interchangeable:
-        // they measure three different quantities, and the first is counted in bytes while the
-        // other two are counted in UTF-16 characters. They are kept as separate fields so that
+        // they measure four different quantities, and the first is counted in bytes while the
+        // others are counted in UTF-16 characters. They are kept as separate fields so that
         // each call site declares which budget it is applying instead of hiding behind one alias.
         int sharedSkillBudget = skillConfig.maxParameterValueLength();
         this.maxSkillFileBytes = sharedSkillBudget;
         this.maxSkillContentChars = sharedSkillBudget;
         this.maxAssignedSkillTotalChars = sharedSkillBudget;
+        this.maxRenderedSkillSectionChars = sharedSkillBudget;
+    }
+
+    /// Outcome of a load: the agents that survived validation, plus every definition that
+    /// was refused and why (ADR-0007 D4).
+    ///
+    /// @param agents           accepted agents, keyed by name, in discovery order
+    /// @param rejections       definitions refused by policy, in discovery order
+    /// @param discoveredSkills valid global skills from the same discovery pass
+    public record AgentLoadReport(
+        Map<String, AgentConfig> agents,
+        List<AgentRejection> rejections,
+        List<SkillDefinition> discoveredSkills
+    ) {
+        public AgentLoadReport {
+            agents = agents == null ? Map.of() : Map.copyOf(agents);
+            rejections = rejections == null ? List.of() : List.copyOf(rejections);
+            discoveredSkills = discoveredSkills == null ? List.of() : List.copyOf(discoveredSkills);
+        }
     }
 
     /// Loads all agent configurations from all configured directories.
+    ///
+    /// Rejected definitions are dropped individually and do not abort the run; use
+    /// [#loadAllAgentsWithReport()] when the caller needs to see what was dropped.
+    ///
+    /// @return accepted agents keyed by name
+    /// @throws IOException if a directory cannot be listed
     public Map<String, AgentConfig> loadAllAgents() throws IOException {
+        return loadAllAgentsWithReport().agents();
+    }
+
+    /// Loads all agent configurations and reports the definitions that were refused.
+    ///
+    /// @return accepted agents plus the rejection records
+    /// @throws IOException if a directory cannot be listed
+    public AgentLoadReport loadAllAgentsWithReport() throws IOException {
         return loadAgentsInternal(null);
     }
 
     /// Loads specific agents by name.
+    ///
+    /// @param agentNames names to load
+    /// @return accepted agents keyed by name
+    /// @throws IOException if a directory cannot be listed
     public Map<String, AgentConfig> loadAgents(List<String> agentNames) throws IOException {
-        Map<String, AgentConfig> agents = loadAgentsInternal(new HashSet<>(agentNames));
+        Map<String, AgentConfig> agents = loadAgentsInternal(new HashSet<>(agentNames)).agents();
         for (String name : agentNames) {
             if (!agents.containsKey(name)) {
                 logger.warn("Agent not found: {}", name);
@@ -117,17 +184,46 @@ public class AgentConfigLoader {
         return agents;
     }
 
-    private Map<String, AgentConfig> loadAgentsInternal(Set<String> filter) throws IOException {
+    private AgentLoadReport loadAgentsInternal(Set<String> filter) throws IOException {
         Map<String, AgentConfig> agents = new LinkedHashMap<>();
+        List<AgentRejection> rejections = new ArrayList<>();
         List<SkillDefinition> globalSkills = loadGlobalSkills();
-        for (Path directory : agentDirectories) {
-            if (!isExistingDirectory(directory)) continue;
-            loadAgentsFromDirectory(directory, filter, globalSkills, agents);
+        for (AgentSourceDirectory directory : agentDirectories) {
+            if (!isExistingDirectory(directory.path())) continue;
+            loadAgentsFromDirectory(directory, filter, globalSkills, agents, rejections);
+        }
+        reportOutcome(agents, rejections);
+        return new AgentLoadReport(agents, rejections, globalSkills);
+    }
+
+    /// Emits the end-of-load summary required by ADR-0007 D4.
+    ///
+    /// The line is emitted on **every** load, including when nothing was refused. A summary
+    /// that only appears on failure is one an operator never learns to look for, and its
+    /// absence is then indistinguishable from "no rejections". Emitting it unconditionally
+    /// also lets a test assert the line exists rather than assert on a negative.
+    ///
+    /// Both branches log at levels that are enabled by the shipped `logback.xml`
+    /// (`dev.logicojp.reviewer` = INFO), so the summary is visible at the default level.
+    private void reportOutcome(Map<String, AgentConfig> agents, List<AgentRejection> rejections) {
+        if (rejections.isEmpty()) {
+            logger.info("{} {} agent(s) accepted, 0 rejected", AGENT_LOAD_SUMMARY_PREFIX, agents.size());
+        } else {
+            logger.warn("{} {} agent(s) accepted, {} rejected: {}",
+                AGENT_LOAD_SUMMARY_PREFIX, agents.size(), rejections.size(),
+                rejections.stream().map(AgentRejection::describe).collect(Collectors.joining("; ")));
         }
         if (agents.isEmpty()) {
-            logger.warn("No agents found in any configured directory");
+            // ADR-0007 D4: zero-agent behaviour is unchanged (warn and continue), but the
+            // wording must let an operator tell "this repository defines none" apart from
+            // "every definition was refused" — previously both produced the same sentence.
+            if (rejections.isEmpty()) {
+                logger.warn("No agents found in any configured directory (no definition files present)");
+            } else {
+                logger.warn("No agents found in any configured directory ({} definition(s) were rejected by policy)",
+                    rejections.size());
+            }
         }
-        return agents;
     }
 
     private boolean isExistingDirectory(Path directory) {
@@ -138,43 +234,59 @@ public class AgentConfigLoader {
         return true;
     }
 
-    private void loadAgentsFromDirectory(Path directory, Set<String> filter,
+    private void loadAgentsFromDirectory(AgentSourceDirectory directory, Set<String> filter,
                                          List<SkillDefinition> globalSkills,
-                                         Map<String, AgentConfig> agents) throws IOException {
-        logger.info("Loading agents from: {}", directory);
-        List<Path> files = listAgentFiles(directory, filter);
+                                         Map<String, AgentConfig> agents,
+                                         List<AgentRejection> rejections) throws IOException {
+        logger.info("Loading agents from: {} ({})", directory.path(), directory.source());
+        List<Path> files = listAgentFiles(directory.path(), filter);
         for (Path file : files) {
-            parseAndStoreAgent(file, globalSkills, agents);
+            parseAndStoreAgent(file, directory.source(), globalSkills, agents, rejections);
         }
     }
 
-    private void parseAndStoreAgent(Path file, List<SkillDefinition> globalSkills,
-                                    Map<String, AgentConfig> agents) {
+    private void parseAndStoreAgent(Path file, AgentSource source, List<SkillDefinition> globalSkills,
+                                    Map<String, AgentConfig> agents, List<AgentRejection> rejections) {
         try {
-            Optional<AgentConfig> parsed = parseAgent(file, globalSkills);
+            Optional<AgentConfig> parsed = parseAgent(file, source, globalSkills, rejections);
             if (parsed.isEmpty()) return;
             AgentConfig config = parsed.get();
             agents.put(config.name(), config);
             logger.info("Loaded agent: {} from {}", config.name(), file.getFileName());
         } catch (IOException | IllegalArgumentException | UncheckedIOException e) {
+            // A malformed definition must not abort the run (ADR-0007 D4); it is recorded so
+            // the summary can account for it rather than leaving the agent silently absent.
+            rejections.add(new AgentRejection(file.getFileName().toString(), source,
+                RULE_LOAD_FAILED, String.valueOf(e.getMessage())));
             logger.error("Failed to load agent from {}: {}", file, e.getMessage(), e);
         }
     }
 
-    private Optional<AgentConfig> parseAgent(Path file, List<SkillDefinition> globalSkills) throws IOException {
-        AgentMarkdownParser.ParseResult parseResult = markdownParser.parseSafe(file);
+    private Optional<AgentConfig> parseAgent(Path file, AgentSource source,
+                                             List<SkillDefinition> globalSkills,
+                                             List<AgentRejection> rejections) throws IOException {
+        AgentMarkdownParser.ParseResult parseResult = markdownParser.parseSafe(file, source);
         if (!parseResult.accepted()) {
-            logger.warn("Agent rejected by policy: {} — {}", file.getFileName(), parseResult.rejectionReason());
+            AgentRejection rejection = new AgentRejection(file.getFileName().toString(), source,
+                parseResult.ruleId(), parseResult.rejectionReason());
+            rejections.add(rejection);
+            logger.warn("Agent rejected by policy: {}", rejection.describe());
             return Optional.empty();
         }
         AgentConfig config = parseResult.config();
         Optional<String> suspiciousField = firstSuspiciousField(config);
         if (suspiciousField.isPresent()) {
-            logger.warn("Agent file contains suspicious patterns in '{}', skipping: {}",
-                suspiciousField.get(), file);
+            AgentRejection rejection = new AgentRejection(file.getFileName().toString(), source,
+                RULE_SUSPICIOUS_PATTERN,
+                "field '%s' contains a suspicious prompt-injection pattern".formatted(suspiciousField.get()));
+            rejections.add(rejection);
+            logger.warn("Agent rejected by policy: {}", rejection.describe());
             return Optional.empty();
         }
-        AgentConfig withSkills = applySkills(config, globalSkills);
+        // Attached here rather than inside applySkills(), which returns early for agents that
+        // have no assigned skills — every loaded agent must carry the configured budget.
+        AgentConfig withSkills = applySkills(config, globalSkills)
+            .withSkillBudget(new SkillBudget(maxRenderedSkillSectionChars));
         withSkills.validateRequired();
         return Optional.of(withSkills);
     }
@@ -283,9 +395,9 @@ public class AgentConfigLoader {
 
     public List<String> listAvailableAgents() throws IOException {
         Set<String> agentNames = new TreeSet<>();
-        for (Path directory : agentDirectories) {
-            if (!Files.exists(directory)) continue;
-            List<Path> files = listAgentFiles(directory);
+        for (AgentSourceDirectory directory : agentDirectories) {
+            if (!Files.exists(directory.path())) continue;
+            List<Path> files = listAgentFiles(directory.path());
             for (Path file : files) {
                 agentNames.add(extractAgentName(file));
             }
@@ -335,7 +447,7 @@ public class AgentConfigLoader {
         return AgentMarkdownParser.extractNameFromFilename(file.getFileName().toString());
     }
 
-    List<Path> getAgentDirectories() {
+    List<AgentSourceDirectory> getAgentDirectories() {
         return agentDirectories;
     }
 }

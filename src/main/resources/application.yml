@@ -38,15 +38,18 @@ reviewer:
   local-files:
     max-file-size: 262144
     max-total-size: 2097152
-  prompt-budget:
-    compact-prompts: false
-    peer-content-max-chars: 12000
-    synthesis-turn-max-chars: 6000
-    synthesis-history-max-chars: 50000
-    local-source-max-chars: 1048576
-    summary-content-per-agent-max-chars: 12000
-    summary-total-max-chars: 60000
-    summary-fallback-max-chars: 2000
+  # prompt-budget: defaults are owned solely by shared/PromptBudget (see t27/F2).
+  # Restating them here made this file the value that actually won at runtime, so a
+  # change to PromptBudget.DEFAULT_* would silently not take effect. Omitted keys now
+  # bind as null and fall through to those constants. Override any of:
+  #   reviewer.prompt-budget.compact-prompts
+  #   reviewer.prompt-budget.peer-content-max-chars
+  #   reviewer.prompt-budget.synthesis-turn-max-chars
+  #   reviewer.prompt-budget.synthesis-history-max-chars
+  #   reviewer.prompt-budget.local-source-max-chars
+  #   reviewer.prompt-budget.summary-content-per-agent-max-chars
+  #   reviewer.prompt-budget.summary-total-max-chars
+  #   reviewer.prompt-budget.summary-fallback-max-chars
   templates:
     directory: templates
     default-output-format: default-output-format.md

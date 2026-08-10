@@ -20,12 +20,24 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 - **トークン寿命の最小化**: 実行境界でのみトークンを受け渡し、メモリ滞留時間を短縮
 - **DI一貫性の強化**: `CopilotService` を no-arg なしのDIコンストラクタ運用へ統一
 - **Rubber-Duck Peer Discussion モード**: エージェント単位で2つの異なるLLMモデルが対話し、設定可能なラウンド数で議論した後、統合された最終レビューを出力
+- **標準レビューの任意マルチパス**: `reviewer.execution.concurrency.review-passes` により暗黙のマージを行わずパス別レポートを出力
+- **Ports & Adapters 境界の強制**: 5つの名前付き層と第0層コンポジションルートを `mvn verify` でコンパイル済みバイトコードから検査
+- **型付きエージェント信頼モデル + シンク遮蔽**: エージェント定義の出所に応じて検証ポリシーを選択し、両方の Logback シンクで秘匿値をマスク
 - **Azure 公式 Skills + MCP 対応**: `microsoft/azure-skills` のプロジェクトフォールバック、Azure MCP 設定、Microsoft Learn MCP で根拠付ける WAF skill を同梱
 
-## 最新リメディエーション状況
+## リリース状況
 
-2026-02-16 〜 2026-06-24 のレビューサイクルで検出された全指摘事項は対応済みです。
+現在のリポジトリツリーは **Unreleased** です。最新の公開タグは
+[`v2026.07.21-review-contract`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-review-contract)
+のままであり、現行状態は [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md) の `Unreleased` に記録しています。
 
+- **Unreleased の層構造完成**: 3つの第0層エントリ/配線ファイル、8個の inbound port interface、
+  15個の outbound port interface、機械的に強制される循環ゼロ境界からなる5層 Ports & Adapters
+  リライトを完了。CLI/review/report 契約を維持しつつ、実際に有効な
+  `reviewer.execution.concurrency.review-passes` による標準マルチパス出力を復元。Java 28、
+  Micronaut 5.1.0、`copilot-sdk-java` 1.0.8 へ更新し、型付きエージェント定義 provenance、
+  repository-supplied 向け厳格ポリシー、Unicode/default-ignorable 検証、Logback シンク遮蔽、
+  モデルファミリの固定テストを追加。shaded JAR と GraalVM 25 Native Image の両方を検証。
 - 2026-07-21 ([v2026.07.21-review-contract](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-review-contract)): レビュー実行とトークン使用量を簡素化 — マルチパス/共有セッション/チェックポイント/パスマージを削除し、追加観点はデフォルト有効のRubber-duckで取得。compact prompt予算とCLI制御、割当SKILLの安全な通常/Rubber-duckレビュー適用、Executive Summaryのエージェント横断重複排除、全runtime/custom agentの根拠付きGood Points出力を追加。
 - 2026-06-24 (v2026.06.24-refactor-seams-tests): リファクタリング seam 抽出と直接テスト追加 — rubber-duck 対話（`RubberDuckPromptBuilder`, `RubberDuckDialogueRunner`, `SdkRubberDuckSessionFactory`）、review pass/session 実行（`ReviewPassRunner`, `ReviewSessionExecutor`）、summary AI transport / 出力書き込み（`AiSummaryClient`, `SummaryReportWriter`）、review CLI option model（`ReviewOptions`, `ReviewTargetSelection`, `ReviewAgentSelection`）、agent 定義解析（`AgentFrontmatterMapper`, `AgentSectionParser`）、template repository 読み込み（`TemplateRepository`）、GitHub token 解決（`TokenInputReader`, `GhCliLocator`, `GhAuthTokenProvider`）を focused collaborator に分割。抽出 seam の直接 unit test を追加し、hybrid local-review の source 伝播と `gh auth token` の stdout/stderr 分離・bounded stream collection を修正。JDK 27 EA full clean test suite（871 tests, 0 failures）で検証。
 - 2026-06-24 (v2026.06.24-dependency-ci-hardening): 依存関係・CI・モジュール構成のハードニング — 実行基盤を `copilot-sdk-java` 1.0.1、Micronaut 5.1.2、JDK 27 の JVM ビルド、GraalVM 25.0.3 の Native Image ビルドへ更新。Logback / Copilot SDK 実行向け Native Image reachability metadata を追加し、GitHub 管理の `submit-maven` を JDK 27 で動く自前 `Dependency Submission` workflow に置換。OWASP Dependency Audit は NVD API key 受け渡し、キャッシュ復元、retry/backoff、直接 `dependency-check:check` 実行で安定化。推移依存の Jackson 2.x は `com.fasterxml.jackson:jackson-bom:2.22.0` で制約しつつ、Jackson 3 (`tools.jackson`) の既存 override も維持し、`jackson-databind` の Dependabot alert を全件解消。README / リリースノート / ADR の構成ツリーも現行 workflow、skill、MCP、Native Image、Java package 構成へ同期。
@@ -62,7 +74,8 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 - 2026-02-17 (v1): PRs #22〜#27 — 最終リメディエーション（PR-1〜PR-5）
 - 運用サマリー（2026-02-19 v2-v4）: Java 25 へのCI整合（PR #74）→ idle-timeout scheduler 耐障害性修正（PR #76）→ 運用完了チェック同期（PR #78）
 - リリース詳細: `RELEASE_NOTES_ja.md`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-refactor-seams-tests
+- GitHub Release: 利用不可 — 履歴上の `v2026.06.24-refactor-seams-tests` 参照先は存在せず、
+  代替タグは推定していません。
 
 ## 運用完了チェック（2026-02-19）
 
@@ -104,7 +117,7 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 ## リリース更新手順（テンプレート）
 
-参照チェックリスト: `reports/anishi1222/multi-agent-code-reviewer/documentation_sync_checklist_2026-02-17.md`
+正規手順: [Release Procedure](./docs/runbook.md#release-procedure)
 
 1. `RELEASE_NOTES_en.md` と `RELEASE_NOTES_ja.md` に同一構成で新しい日付セクションを追加する。
 2. 注釈付きタグ（例: `vYYYY.MM.DD-notes`）を作成して push する。
@@ -123,12 +136,16 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 
 ## 要件
 
-- **JDK 27**（ランタイムコマンドは preview features を有効化）
-- **GraalVM 25.0.3**（任意、`pom-native.xml` 経由の `-Pnative` Native Image ビルド時のみ必須）
-- GitHub Copilot CLI 0.0.407 以上
+- **OpenJDK 28 EA**（`.sdkmanrc` の `28.ea.9-open`。JVM 実行コマンドは preview features を有効化）
+- **Oracle GraalVM 25.0.4**（任意。専用 `pom-native.xml` の Native Image ビルド時のみ必須）
+- Maven Wrapper 3.9.14（`./mvnw`）
+- 認証済み Copilot entitlement を利用できる GitHub Copilot CLI
 - GitHub CLI ログイン（`gh auth login`、リポジトリアクセス用）
 - GitHub Copilot CLI ログイン（`gh copilot -- login` または `copilot login`）
 - Azure skills / MCP 作業を行う場合は Node.js 18+（`npx`）、Azure CLI、`az login`
+
+> JVM と Native Image は意図的に異なる Java release を使います。`pom-native.xml` を Java 28
+> toolchain で実行したり、メイン JVM ビルドを Java 25 に下げたりしないでください。
 
 ## Azure Skills Plugin と MCP セットアップ
 
@@ -162,7 +179,7 @@ WAF レビュー skill は Microsoft Learn MCP による公式ドキュメント
 
 ## Copilot SDK ライセンスとサーバーサイド利用
 
-このプロジェクトは `com.github:copilot-sdk-java`（現在は `1.0.1`）に依存しています。SDK artifact と upstream repository は MIT License を宣言しており、SDK コード自体はサーバーサイド組み込み、改変、再配布に使いやすい permissive license です。
+このプロジェクトは `com.github:copilot-sdk-java`（現在は `1.0.8`）に依存しています。SDK artifact と upstream repository は MIT License を宣言しており、SDK コード自体はサーバーサイド組み込み、改変、再配布に使いやすい permissive license です。
 
 ただし MIT License が対象にするのは SDK コードのみです。GitHub Copilot への呼び出しは、認証済みユーザーまたは組織の Copilot 権利と GitHub Copilot の製品利用条件に従います。単一の Copilot ログインを無関係な複数エンドユーザーで共有する設計や、Copilot を透過的な SaaS バックエンドとして再提供する設計は、事前に契約・法務確認してください。
 
@@ -176,8 +193,9 @@ WAF レビュー skill は Microsoft Learn MCP による公式ドキュメント
 - PR の Dependency Review は、`GPL-2.0` / `GPL-3.0` / `AGPL-3.0` / `LGPL-2.1` / `LGPL-3.0` ライセンスを拒否します。
 - `Supply Chain Guard` は OWASP 脆弱性スキャンを重複実行せず、Maven `validate` によるポリシー検証を実行します。
 - `Dependency Audit` が、NVD API key 受け渡し、キャッシュ復元、transient NVD 失敗時の retry/backoff 付きで、`org.owasp:dependency-check-maven:check` を直接実行します。
-- 自前の `Dependency Submission` workflow は JDK 27 上で実行し、Micronaut Maven plugin と互換性のある dependency graph submission を維持します。
-- Jackson は 2 系統を独立に制約します。Jackson 3 (`tools.jackson.*`) は `jackson.version`、推移依存の Jackson 2 (`com.fasterxml.jackson.*`) は `jackson2.version` / `jackson-bom` で管理します。
+- 自前の `Dependency Submission` workflow は JDK 28 上で実行し、Micronaut Maven plugin と互換性のある dependency graph submission を維持します。
+- Jackson は2系統を独立に制約します。Jackson 3 (`tools.jackson.*`) は 3.1.5、推移依存の Jackson 2 (`com.fasterxml.jackson.*`) は BOM 2.22.1 で管理します。
+- 最終 dependency-security gate は runtime coordinate 31件を評価して既知 CVE 0件であり、positive control により空のスキャンでないことも検証済みです。
 
 推奨されるブランチ保護の Required checks:
 
@@ -206,11 +224,15 @@ java -version
 git clone https://github.com/your-org/multi-agent-reviewer.git
 cd multi-agent-reviewer
 
-# ビルド（JARファイル）
-./mvnw clean package
+# Java 28 JVM toolchain を有効化し、完全な検証ゲートを実行
+sdk env install
+sdk env
+./mvnw -B clean verify
 
-# ネイティブイメージをビルド（オプション）
-./mvnw clean package -Pnative
+# GraalVM 25.0.4 でネイティブ実行ファイルをビルド・検証（任意）
+JAVA_HOME="$HOME/.sdkman/candidates/java/25.0.4-graal" \
+PATH="$JAVA_HOME/bin:$PATH" \
+./mvnw -B clean verify -Pnative -f pom-native.xml
 ```
 
 ### テストのトラブルシュート
@@ -239,6 +261,23 @@ java --enable-preview \
 - `-XX:+DisableAttachMechanism`: 実行中のアタッチ/デバッグ経路からのトークン露出リスク低減に有効です。
 - `-XX:-HeapDumpOnOutOfMemoryError`: トークンを含む可能性のあるヒープダンプの自動出力を抑止します。
 - 運用上ヒープダンプが必要な場合は、厳格なアクセス制御がある保存先に限定し、保持期間を短くしてください。
+
+### エージェント定義の信頼モデルと秘匿値境界
+
+最終セキュリティモデルは
+[ADR-0007](docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md) で定義しています。
+
+- 発見から検証まで、出所を型付き `AgentSource` / `AgentSourceDirectory` として保持します。
+  設定済みリポジトリディレクトリは厳格な `REPOSITORY_SUPPLIED` profile、明示的に選択した
+  ディレクトリは `USER_SUPPLIED` を使います。
+- 単独所有者である `AgentDefinitionPolicy` が、プロンプトへ入る全フィールド、MCP 設定、
+  model identifier、focus area、割当 skill を検証します。repository-supplied 定義には、より厳しい
+  文字・サイズ・schema 制限を適用します。
+- Unicode 制御は、安全でない control/default-ignorable 文字を拒否し、正当な整形用途だけを小さな
+  allowlist として保持します。provider-family test は `claude-`、`gpt-`、`o3`、`o4-mini`、
+  `gemini-` の許可 prefix を固定します。
+- 秘匿値マスキングは Logback **シンク**の責務であり、人間向け/構造化 profile の両方にあります。
+  任意の logging/stringification 経路で回避できるため、object-level masking wrapper は廃止しました。
 
 ### 基本的な使用方法
 
@@ -290,12 +329,13 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `--rubber-duck` | - | 設定で無効化されている場合に Rubber-duck peer discussion レビューモードを強制有効化 | true |
 | `--no-rubber-duck` | - | この実行では Rubber-duck peer discussion レビューモードを無効化 | false |
 | `--compact-prompts` | - | この実行でコンパクトプロンプト予算を有効化 | false |
-| `--dialogue-rounds` | - | Rubber-duck の対話ラウンド数を上書き（1〜10） | 2 |
-| `--peer-model` | - | Rubber-duck のピアモデルを上書き（レビューモデルと異なる必要あり） | - |
-| `--model` | - | 全ステージのデフォルトモデル | - |
-| `--review-model` | - | レビュー用モデル | エージェント設定 |
-| `--report-model` | - | レポート生成用モデル | review-model |
-| `--summary-model` | - | サマリー生成用モデル | default-model |
+| `--no-shared-session` | - | 分離パスセッションを要求する互換スイッチ。現行 adapter はパス呼び出しごとに1セッションを生成 | false |
+| `--dialogue-rounds` | - | Rubber-duck の対話ラウンド数を上書き（1〜10） | 3 |
+| `--peer-model` | - | Rubber-duck のピアモデルを上書き（レビューモデルと異なる必要あり） | `gpt-5.6-sol` |
+| `--model` | - | 全ステージのデフォルトモデル | `claude-sonnet-5` |
+| `--review-model` | - | レビュー用モデル | `gpt-5.3-codex` |
+| `--report-model` | - | レポート生成用モデル | `claude-sonnet-5` |
+| `--summary-model` | - | サマリー生成用モデル | `claude-sonnet-5` |
 | `--help` | `-h` | ヘルプ表示 | - |
 | `--version` | `-V` | バージョン表示 | - |
 | `--verbose` | `-v` | 詳細ログ出力（debugレベル） | - |
@@ -315,7 +355,7 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 | `COPILOT_START_TIMEOUT_SECONDS` | Copilot クライアント起動タイムアウト（秒） | 60 |
 | `COPILOT_CLI_HEALTHCHECK_SECONDS` | CLI ヘルスチェック タイムアウト（秒） | 10 |
 | `COPILOT_CLI_AUTHCHECK_SECONDS` | CLI 認証チェック タイムアウト（秒） | 15 |
-| `RUBBER_DUCK_PEER_MODEL` | Rubber-duck モードのデフォルトピアモデル | gpt-5.5 |
+| `RUBBER_DUCK_PEER_MODEL` | Rubber-duck モードのデフォルトピアモデル | `gpt-5.6-sol` |
 
 CLI 自動検出パスは、次の trusted 実体パス配下で再検証されます:
 `/usr/bin`, `/usr/local/bin`, `/bin`, `/opt/homebrew/bin`, `/usr/local/Cellar`, `/opt/homebrew/Cellar`, `/usr/local/Caskroom`, `/opt/homebrew/Caskroom`。
@@ -399,8 +439,10 @@ reviewer:
       - ./agents
       - ./.github/agents
   execution:
+    gh-auth-fallback-enabled: false
     concurrency:
-      parallelism: 4             # デフォルトの並列実行数
+      parallelism: 4                    # デフォルトの並列エージェント数
+      review-passes: 1                  # エージェントごとの標準レビューパス数
     timeouts:
       orchestrator-timeout-minutes: 45  # オーケストレータタイムアウト（分）
       agent-timeout-minutes: 20          # エージェントタイムアウト（分）
@@ -413,6 +455,8 @@ reviewer:
   local-files:
     max-file-size: 262144               # ローカルファイル最大サイズ（256KB）
     max-total-size: 2097152             # ローカルファイル合計最大サイズ（2MB）
+  # 任意の上書き。canonical default は shared/PromptBudget に単独所有させ、
+  # リポジトリの application.yml では意図的に値を重複定義しません。
   prompt-budget:
     compact-prompts: false              # 設定または --compact-prompts で有効化しない限り既定プロンプトを維持
     peer-content-max-chars: 12000       # rubber-duckモードで相互に渡す応答の最大文字数
@@ -433,14 +477,17 @@ reviewer:
       type: http
       url: https://api.githubcopilot.com/mcp/
       tools:
-        - "*"
+        - "get_file_contents"
+        - "search_code"
+        - "list_commits"
+        - "get_commit"
       auth-header-name: Authorization
       auth-header-template: "Bearer {token}"
   models:
-    default-model: claude-sonnet-4.6  # 全モデルのデフォルト（ビルド不要で変更可能）
-    review-model: gpt-5.3-codex      # レビュー用モデル
-    report-model: claude-opus-4.7-xhigh  # レポート生成用モデル
-    summary-model: claude-sonnet-4.6 # サマリー生成用モデル
+    default-model: claude-sonnet-5    # 全モデルのデフォルト（ビルド不要で変更可能）
+    review-model: gpt-5.3-codex       # レビュー用モデル
+    report-model: claude-sonnet-5     # レポート生成用モデル
+    summary-model: claude-sonnet-5    # サマリー生成用モデル
     reasoning-effort: high           # 推論モデルのエフォートレベル (low/medium/high)
   summary:
     max-content-per-agent: 50000     # サマリープロンプト生成時のエージェント別最大文字数
@@ -449,9 +496,14 @@ reviewer:
   rubber-duck:
     enabled: true                    # Rubber-duck peer discussion モードをグローバルに有効化
     dialogue-rounds: 3               # 対話ラウンド数（1〜10）
-    peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.5}  # ピアモデル（環境変数または明示指定）
+    peer-model: ${RUBBER_DUCK_PEER_MODEL:gpt-5.6-sol}  # ピアモデル（環境変数または明示指定）
     synthesis-strategy: last-responder  # last-responder | dedicated-session
 ```
+
+`review-passes` の正しいパスは `reviewer.execution.concurrency.review-passes` です。旧
+`reviewer.execution.review-passes` は過去の実装でバナーだけを変更し、実行回数を制御しません。
+標準モードはパスごとに1つの `ReviewResult` とレポートファイルを返し、削除済みのパスマージ
+pipeline は実行しません。Rubber-duck モードはエージェントごとに常に1つの統合結果を生成します。
 
 ### 外部設定ファイルによる上書き
 
@@ -462,29 +514,31 @@ fat JAR や Native Image で実行する場合、リビルドせずに内蔵の 
 ```bash
 # Fat JAR
 cp application.yml ./
-java -jar multi-agent-code-reviewer.jar
+java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar
 
 # Native Image
 cp application.yml ./
-./multi-agent-code-reviewer
+./target/review
 ```
 
 **システムプロパティで明示的にパスを指定する方法:**
 
 ```bash
 # Fat JAR
-java -Dmicronaut.config.files=/path/to/application.yml -jar multi-agent-code-reviewer.jar
+java --enable-preview \
+  -Dmicronaut.config.files=/path/to/application.yml \
+  -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar
 
 # Native Image
-./multi-agent-code-reviewer -Dmicronaut.config.files=/path/to/application.yml
+./target/review -Dmicronaut.config.files=/path/to/application.yml
 ```
 
 **環境変数で個別プロパティを上書きする方法:**
 
 ```bash
 export REVIEWER_MODELS_DEFAULT_MODEL=gpt-4
-export REVIEWER_EXECUTION_PARALLELISM=8
-java -jar multi-agent-code-reviewer.jar
+export REVIEWER_EXECUTION_CONCURRENCY_PARALLELISM=8
+java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar
 ```
 
 > **注意:** 外部の `application.yml` には上書きしたいプロパティだけを記述すれば十分です。ファイル全体をコピーする必要はありません。
@@ -547,8 +601,9 @@ java --enable-preview -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
 
 **主な制約:**
 - **ピアモデルはレビューモデルと異なる必要があります** — 同一モデルの組み合わせは拒否されます。
-- 各エージェントは1回レビューを実行します。追加の観点が必要な場合は `dialogue-rounds` でピアレビュー/反論ラウンドを追加します。
-- rubber-duck はグローバルにデフォルト有効で、fallback ピアモデルは `gpt-5.5` です。
+- Rubber-duck モードはエージェントごとに1つの統合レビューを生成します。標準モードで反復結果を
+  分離して出力する場合は `reviewer.execution.concurrency.review-passes` を使います。
+- rubber-duck はグローバルにデフォルト有効で、fallback ピアモデルは `gpt-5.6-sol` です。
 - 対話ラウンド数に応じてタイムアウトが自動的に拡張されます。
 - CLI で `--peer-model` や `--dialogue-rounds` を指定すると、rubber-duck モードが **自動的に有効化**されます（`--rubber-duck` を別途指定する必要はありません）。
 
@@ -746,118 +801,109 @@ metadata:
 
 ## GraalVM Native Image
 
-ネイティブバイナリとしてビルドする場合:
+JVM ビルドは Java 28、検証済み Native Image toolchain は Oracle GraalVM 25.0.4 を対象にするため、
+ネイティブパッケージングは `pom-native.xml` に分離しています。
 
 ```bash
-# ネイティブイメージをビルド
-./mvnw clean package -Pnative
+# 正確な native toolchain で build/test/package/verify
+JAVA_HOME="$HOME/.sdkman/candidates/java/25.0.4-graal" \
+PATH="$JAVA_HOME/bin:$PATH" \
+./mvnw -B clean verify -Pnative -f pom-native.xml
 
-# 実行
+# 生成した実行ファイルを実行
 ./target/review run --repo owner/repository --all
+./target/review --help
+./target/review --version
 ```
 
-### リフレクション設定の生成（初回ビルド時・依存関係更新時）
+Native build には shaded JAR と同じ28個の Markdown template を含めます。reflection/resource 設定は
+次の場所で追跡します。
 
-Copilot SDK は内部で Jackson Databind を使用して JSON-RPC 通信を行います。GraalVM Native Image ではリフレクションが制限されるため、SDK 内部の DTO クラス群に対してリフレクション設定を事前に登録する必要があります。
+- `src/main/resources/META-INF/native-image/reachability-metadata.json`
+- `src/main/resources/META-INF/native-image/dev.logicojp/multi-agent-reviewer/reachability-metadata.json`
+- artifact-scoped の `reflect-config.json`、`resource-config.json`、`native-image.properties`
 
-このリポジトリでは、Logback と Copilot SDK 実行経路向けの基本 reachability metadata を `src/main/resources/META-INF/native-image/reachability-metadata.json` として追跡しています。Copilot SDK、Jackson、Logback、GraalVM Native Image tooling を更新した場合は、このファイルを再生成して差分を確認してください。
+2つの reachability metadata は意図的に byte-identical とし、広い `allDeclared*` アクセスではなく
+正確な member を登録します。Copilot SDK、Jackson、Logback、GraalVM を更新した場合は、互換
+tracing-agent 実行で discovery data を再生成し、内容をレビューして両コピーを更新した後、完全な
+native `clean verify` gate を再実行してください。未レビューの生 tracing output で置換しないでください。
 
-設定が不足している場合、Native Image の実行時に Copilot CLI との通信でタイムアウトが発生します（FAT JAR では発生しません）。これは Jackson がリフレクション経由で JSON のシリアライズ/デシリアライズを行う際に、Native Image 環境では未登録クラスのメタデータにアクセスできず、SDK 内部で例外が握り潰されて `CompletableFuture` が完了しなくなるためです。
-
-GraalVM の**トレーシングエージェント**を使って、実際の実行で必要なリフレクション情報を自動収集してください。
-
-```bash
-# 1. まず FAT JAR をビルド
-./mvnw clean package -DskipTests
-
-# 2. トレーシングエージェント付きで実行し、リフレクション設定を自動生成
-#    既存の設定とマージするため config-merge-dir を使用
-java -agentlib:native-image-agent=config-merge-dir=src/main/resources/META-INF/native-image \
-     -jar target/multi-agent-reviewer-1.0.0-SNAPSHOT.jar \
-     run --repo owner/repository --all
-
-# 3. 生成された設定を確認
-ls src/main/resources/META-INF/native-image/
-# reflect-config.json, resource-config.json, proxy-config.json 等が生成・更新される
-
-# 4. Native Image を再ビルド
-./mvnw clean package -Pnative -DskipTests
-```
-
-> **注意**: `config-output-dir` ではなく `config-merge-dir` を使うことで、既存の設定（Logback 等）を上書きせずマージできます。また、レビュー対象の全エージェント（security, performance 等）を一通り実行し、すべてのコードパスを通すことで、漏れのない設定を生成できます。
-
-> **ヒント**: Copilot SDK、Jackson、Logback、GraalVM Native Image tooling 等の依存ライブラリを更新した場合も、トレーシングエージェントを再実行して設定を更新してください。
+このリポジトリには現在 `Dockerfile` がありません。サポートする配布成果物は shaded JAR と
+`target/review` です。
 
 ## アーキテクチャ
 
-本アプリケーションは **Ports & Adapters（ヘキサゴナル）による層構造**です。依存は内向き一方向
-（`presentation -> application -> domain`）であり、`infrastructure` は outbound ポートを実装する形で
-外側から接続します。決定の詳細は [ADR-0006](docs/adr/0006-ports-and-adapters-layering.md) を参照してください。
+本アプリケーションは **Ports & Adapters（ヘキサゴナル）による層構造**です。最終ツリーは、
+5つの名前付き層と第0層コンポジションルートに201個の本番 Java source を配置します。依存は内向きで、
+`infrastructure` は outbound port を実装して外側から接続します。決定の詳細は
+[ADR-0006](docs/adr/0006-ports-and-adapters-layering.md) を参照してください。
 
 | 層 | 責務 | 依存してよい先 |
 |---|---|---|
-| `dev.logicojp.reviewer`（コンポジションルート） | エントリポイントと DI オブジェクトグラフの組み立てのみ | すべての層 |
-| `presentation` | CLI 解析、コマンド、コンソール出力 | `application`, `application.port.inbound`, `domain`, `shared` |
-| `application` | ユースケース調整（アダプタ非依存） | `application.port.*`, `domain`, `shared` |
-| `domain` | 業務ルールとモデル | `shared`, `java.*` |
-| `infrastructure` | アダプタ: Copilot SDK、ファイル、設定、ログ | `application.port.outbound`, `domain`, `shared` |
-| `shared` | 層をまたぐ純粋ユーティリティと既定値 | `java.*` のみ |
+| 第0層（`ReviewApp`, `ApplicationPortFactory`, `ReviewPortFactory`） | 薄い process entry と、構築済み port/use case の配線のみ。業務ポリシーを持たない | すべての層 |
+| `presentation` | CLI 解析、コマンド、request 構築、対象/agent 解決、コンソール出力 | inbound port、application DTO、`domain`、`shared` |
+| `application` | framework/SDK 非依存の use case と review/report 調整 | `application.port.*`、`domain`、`shared`、JDK |
+| `domain` | 業務ルールとモデル | `shared`、JDK のみ |
+| `infrastructure` | outbound adapter: Copilot SDK、filesystem、設定、解析、logging、startup | outbound port、`domain`、`shared`、外部 library |
+| `shared` | 層をまたぐ純粋 utility と canonical default | JDK のみ |
 
-層境界は規約ではなく機械的に強制されます。`LayerDependencyRulesTest` が JDK の
-`java.lang.classfile` API でコンパイル済みバイトコードを検査し、違反があれば `mvn verify` が失敗します。
+現在の port 契約は、application use case が実装する **8個の inbound interface** と、
+infrastructure adapter が実装する **15個の outbound interface** です。`ReviewApp` は startup 準備、
+Micronaut CLI context 起動、`CliApplication` 呼び出し、終了コード返却だけを行い、2つの root factory は
+配線だけを行います。
+
+層境界は規約ではなく機械的に強制します。`LayerDependencyRulesTest` は JDK の
+`java.lang.classfile` API でコンパイル済みバイトコードを検査し、import matrix の全行と package/layer
+循環を確認します。違反があれば `mvn verify` が失敗します。
 
 ### 層構造
 
 ```mermaid
 flowchart TB
-    Root["コンポジションルート
-    ReviewApp + DI factories"]
+    Root["第0層
+    ReviewApp
+    ApplicationPortFactory
+    ReviewPortFactory"]
 
     subgraph L1["presentation（CLI アダプタ）"]
         direction LR
-        Cmd["command/
-        ReviewCommand / ListAgentsCommand
-        SkillCommand / DoctorCommand"]
-        Par["parser/
-        CliParsing / CliUsage / ExitCodes"]
-        Fmt["formatter/
-        CliOutput"]
+        Cli["CliApplication + command/"]
+        Prep["ReviewPreparationService
+        対象 / agent / model 解決"]
+        Fmt["parser/ + formatter/"]
     end
 
-    In["application.port.inbound
+    In["8 inbound ports
     RunReviewPort / LoadAgentPort
     ExecuteSkillPort / GenerateReportPort
-    RunDiagnosticsPort"]
+    ResolveTokenPort / RunDiagnosticsPort / ..."]
 
     subgraph L2["application（ユースケース）"]
         direction LR
-        Orc["review/
-        ReviewOrchestrator / AgentReviewExecutor"]
-        Rep["report/
-        GenerateReportUseCase / SummaryGenerator"]
-        Agt["agent/ + skill/
-        LoadAgentUseCase / ExecuteSkillUseCase"]
+        Review["review/
+        ReviewOrchestrator
+        ReviewExecutionModeRunner"]
+        Other["agent/ auth/ report/
+        skill/ startup/"]
     end
 
-    Out["application.port.outbound
-    RunCopilotSessionPort / LoadTemplatePort
-    WriteReportPort / CollectLocalSourcePort
-    GenerateAiSummaryPort"]
+    Out["15 outbound ports
+    RunCopilotSessionPort / RunRubberDuckSessionPort
+    LoadTemplatePort / WriteReportPort
+    ResolveReviewSettingsPort / ..."]
 
     subgraph L3["infrastructure（アダプタ）"]
         direction LR
         Cop["copilot/
-        CopilotService / SkillExecutor"]
-        Auth["auth/
-        GitHubTokenResolver"]
-        Io["file/ parsing/ template/
-        config/ logging/"]
+        SDK lifecycle + session adapter"]
+        Infra["auth/ config/ file/ logging/
+        parsing/ startup/ template/"]
     end
 
     subgraph L4["domain（業務ルール、JDK のみ）"]
         direction LR
-        Dom["agent/ report/ review/
-        skill/ instruction/ resilience/"]
+        Dom["agent/ instruction/ report/
+        resilience/ review/ skill/"]
     end
 
     Shared["shared
@@ -865,18 +911,19 @@ flowchart TB
 
     Ext["GitHub Copilot API / GitHub MCP Server"]
 
-    Root -.->|組み立て| L1
-    Root -.->|組み立て| L2
-    Root -.->|組み立て| L3
-
-    L1 --> In
+    Root -.->|起動 / 配線| L1
+    Root -.->|配線| L2
+    Root -.->|配線| L3
+    L1 -->|駆動| In
     In --> L2
-    L2 --> Out
+    L2 -->|呼び出し| Out
     L3 -.->|実装| Out
-
     L1 --> L4
     L2 --> L4
     L3 --> L4
+    L1 --> Shared
+    L2 --> Shared
+    L3 --> Shared
     L4 --> Shared
     L3 --> Ext
 ```
@@ -885,49 +932,41 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    ReviewApp["ReviewApp
-    （コンポジションルート）"] --> ReviewCommand
+    ReviewApp --> CliApplication
+    CliApplication --> ReviewCommand
+    ReviewCommand --> ReviewPreparationService
     ReviewCommand --> ReviewExecutionCoordinator
     ReviewExecutionCoordinator --> ReviewRunExecutor
 
     ReviewRunExecutor -->|RunReviewPort| ReviewOrchestrator
+    ReviewOrchestrator --> LocalSourcePrecomputer
+    ReviewOrchestrator -->|CreateReviewSessionPortsPort| SessionFactory["ReviewOrchestratorFactory
+    （outbound adapter factory）"]
+    ReviewOrchestrator --> ReviewExecutionModeRunner
+    ReviewExecutionModeRunner --> AgentReviewExecutor
+    AgentReviewExecutor -->|標準| ReviewPassRunner
+    AgentReviewExecutor -->|rubber-duck| RubberDuckDialogueRunner
+    ReviewExecutionModeRunner --> ReviewResultPipeline["ReviewResultPipeline
+    収集 / filter / log のみ"]
 
-    subgraph APP["application.review"]
-        direction TB
-        ReviewOrchestrator --> LocalSourcePrecomputer["LocalSourcePrecomputer
-        ローカルソース事前収集"]
-        LocalSourcePrecomputer --> ReviewExecutionModeRunner["ReviewExecutionModeRunner
-        Async / Structured Concurrency"]
-        ReviewExecutionModeRunner --> AgentReviewExecutor["AgentReviewExecutor
-        セマフォ制御 + タイムアウト"]
-        AgentReviewExecutor --> ReviewPassRunner
-        ReviewExecutionModeRunner --> ReviewResultPipeline["ReviewResultPipeline
-        結果収集"]
-    end
-
-    subgraph DOM["domain.report"]
-        direction TB
-        ReviewResultMerger["ReviewResultMerger
-        マルチパス重複排除"]
-        ReviewOverallSummaryAppender["ReviewOverallSummaryAppender
-        マージ後の総括生成"]
-        ContentSanitizer
-    end
-
+    SessionFactory --> ReviewSessionExecutor
+    SessionFactory --> RubberDuckDialogueExecutor
     ReviewPassRunner -->|RunCopilotSessionPort| ReviewSessionExecutor
-    ReviewPassRunner --> ContentSanitizer
-    ReviewResultPipeline --> ReviewResultMerger
-    ReviewResultMerger --> ReviewOverallSummaryAppender
+    RubberDuckDialogueRunner -->|RunRubberDuckSessionPort| RubberDuckDialogueExecutor
 
     ReviewRunExecutor -->|GenerateReportPort| GenerateReportUseCase
-    GenerateReportUseCase --> SummaryGenerator
     GenerateReportUseCase -->|WriteReportPort| ReportFileWriter
-    SummaryGenerator -->|GenerateAiSummaryPort| AiSummaryClient
-
-    ReviewSessionExecutor -.-> Ext["GitHub Copilot API
-    GitHub MCP Server"]
+    GenerateReportUseCase -->|GenerateAiSummaryPort| AiSummaryClient
+    ReviewSessionExecutor -.-> Ext["GitHub Copilot API / GitHub MCP"]
+    RubberDuckDialogueExecutor -.-> Ext
     AiSummaryClient -.-> Ext
 ```
+
+エージェントは structured concurrency で fork し、correlation context を伝播します。標準モードでは
+エージェントを並列実行し、各エージェント内の設定済みパスは順番に実行して別々の結果として保持します。
+`ReviewResultPipeline` はそれらをマージしません。Rubber-duck モードでは、各エージェントが1つの
+複数ラウンド対話を実行して1つの統合結果を返します。`GenerateReportUseCase` は結果別レポートを
+書き出し、outbound port 経由でエージェント横断の Executive Summary を生成します。
 
 ## テンプレートのカスタマイズ
 
@@ -957,7 +996,8 @@ templates/
 ├── local-review-result-request.md # ローカルレビュー結果リクエスト
 ├── local-source-header.md         # ローカルソースヘッダー
 ├── custom-instruction-section.md  # カスタムインストラクションセクション
-└── review-custom-instruction.md   # レビュー用カスタムインストラクション
+├── review-custom-instruction.md   # レビュー用カスタムインストラクション
+├── review-quality-constraints.md  # レビュー品質制約
 ├── rubber-duck-initial-en.md      # Rubber-duck 初回レビュープロンプト（EN）
 ├── rubber-duck-initial-ja.md      # Rubber-duck 初回レビュープロンプト（JA）
 ├── rubber-duck-peer-review-en.md  # Rubber-duck ピアレビュープロンプト（EN）
@@ -990,36 +1030,27 @@ reviewer:
 
 ### プレースホルダー
 
-テンプレート内では `{{placeholder}}` 形式のプレースホルダーが使用できます。各テンプレートで使用可能なプレースホルダーはテンプレートファイルを参照してください。
+テンプレート内では `${placeholder}` 形式のプレースホルダーが使用できます。各テンプレートで使用可能なプレースホルダーはテンプレートファイルを参照してください。
 
 ## プロジェクト構造
 
-以下のツリーは 2026-08-05 時点の現行ソース構成に同期済みです（Ports & Adapters による層構成 — [ADR-0006](docs/adr/0006-ports-and-adapters-layering.md)）。
+以下のツリーは最終 Unreleased の Ports & Adapters 構成に同期済みです
+（[ADR-0006](docs/adr/0006-ports-and-adapters-layering.md)）。
 
 ```
 multi-agent-reviewer/
-├── pom.xml                              # JVM/FAT JAR ビルド、dependency management、security-audit profile
-├── pom-native.xml                       # 同一アプリ依存関係を使う GraalVM Native Image ビルド
+├── pom.xml                              # Java 28 JVM/shaded JAR build と security profile
+├── pom-native.xml                       # Java 25 / GraalVM Native Image build
+├── .sdkmanrc                            # OpenJDK 28 EA 選択
 ├── toolchains-template.xml              # 任意の Maven toolchain テンプレート
-├── .sdkmanrc                            # SDKMAN Java 設定
 ├── skills-lock.json                     # 取り込み済み Azure skills の取得元/ハッシュ固定情報
-├── .vscode/
-│   ├── mcp.json                         # Azure MCP + Microsoft Learn MCP workspace 設定
-│   └── settings.json                    # workspace Java 設定
+├── .vscode/mcp.json                     # Azure MCP + Microsoft Learn MCP workspace 設定
 ├── .agents/skills/                      # Azure 公式 microsoft/azure-skills のプロジェクトフォールバック
-│   ├── azure-ai/
-│   ├── azure-deploy/
-│   ├── azure-diagnostics/
-│   ├── microsoft-foundry/
-│   └── ...
 ├── .github/
 │   ├── agents/                          # GitHub Copilot custom-agent profile
 │   ├── instructions/                     # リポジトリ instruction files
 │   ├── skills/                          # プロジェクト固有レビュー skill（SKILL.md 形式）
-│   │   ├── dependency-audit/
-│   │   ├── java-best-practices/
-│   │   ├── waf-security/
-│   │   └── ...
+│   ├── modernize/rearchitecture/         # 再設計の decision、evidence、task artifact
 │   └── workflows/                       # CI/CD とセキュリティ workflow
 │       ├── ci.yml                       # Supply-chain guard、audit、JVM build/test、Native Image
 │       ├── codeql.yml                   # CodeQL 解析
@@ -1029,59 +1060,57 @@ multi-agent-reviewer/
 │       ├── release.yml                  # タグ付きリリースの build / publish workflow
 │       └── scorecard.yml                # OpenSSF Scorecard
 ├── agents/                              # CLI アプリ実行時に読み込むエージェント定義
-│   ├── security.agent.md
-│   ├── code-quality.agent.md
-│   ├── performance.agent.md
-│   ├── best-practices.agent.md
-│   └── waf-*.agent.md
-├── docs/
-│   └── adr/                             # Architecture Decision Records
+├── docs/adr/                            # Architecture Decision Records（ADR-0001〜ADR-0008）
 ├── scripts/
-│   └── archive-reports.sh               # CI で使用するレポートアーカイブ補助
-├── templates/                           # prompt / report / summary / rubber-duck テンプレート
-│   ├── summary-system.md
-│   ├── summary-prompt.md
-│   ├── report.md
-│   ├── review-quality-constraints.md
-│   └── ...
+│   ├── archive-reports.sh               # CI で使用するレポートアーカイブ補助
+│   └── diagnose-content-exclusion.sh     # ローカルソース除外診断
+├── templates/                           # 28個の prompt/report/summary/rubber-duck Markdown template
 ├── src/main/java/dev/logicojp/reviewer/
-│   ├── ReviewApp.java                   # コンポジションルート: CLI エントリポイントと DI グラフ組み立て
+│   ├── ReviewApp.java                   # 薄い process entry: startup、context、CliApplication、exit code
+│   ├── ApplicationPortFactory.java      # 第0層 inbound port/use case binding
+│   ├── ReviewPortFactory.java           # 第0層 RunReviewPort binding
 │   ├── presentation/                    # CLI アダプタ層（infrastructure を参照してはならない）
 │   │   ├── command/                     # コマンド 1 つにつき 1 クラス: review / list-agents / skill / doctor
 │   │   ├── parser/                      # 手書き引数パーサ、usage 表示、終了コード
 │   │   ├── formatter/                   # コンソール出力整形
 │   │   └── ...                          # コマンド coordinator、option model、対象/エージェント解決
 │   ├── application/                     # ユースケース調整（SDK 型・DI アノテーションを持たない）
-│   │   ├── port/inbound/                # presentation から駆動される契約（RunReviewPort, GenerateReportPort など）
-│   │   ├── port/outbound/               # infrastructure を駆動する契約（RunCopilotSessionPort, WriteReportPort など）
-│   │   ├── review/                      # 仮想スレッド調整、パス実行、リトライ、result pipeline
-│   │   ├── report/                      # レポート生成ユースケースと AI サマリ調整
+│   │   ├── port/inbound/                # presentation が駆動する8個の interface
+│   │   ├── port/outbound/               # infrastructure が実装する15個の interface
 │   │   ├── agent/                       # エージェント読込ユースケース
-│   │   └── skill/                       # スキル実行ユースケース
+│   │   ├── auth/                        # token 解決ユースケース
+│   │   ├── report/                      # レポート生成と AI summary 調整
+│   │   ├── review/                      # structured orchestration、pass、retry、result pipeline
+│   │   ├── skill/                       # スキル実行ユースケース
+│   │   └── startup/                     # logging startup ユースケース
 │   ├── domain/                          # 業務ルールとモデル（shared と java.* のみ）
 │   │   ├── agent/                       # エージェント設定、プロンプト構築、検証
-│   │   ├── report/                      # レビュー結果、指摘抽出/マージ、サニタイズ
-│   │   ├── review/                      # レビューコンテキスト、レビュー対象、ローカルファイル選択
-│   │   ├── skill/                       # スキル定義モデル
 │   │   ├── instruction/                 # instruction frontmatter モデルと安全性検証
-│   │   └── resilience/                  # ドメイン例外とリトライ意味論
+│   │   ├── report/                      # レビュー結果、指摘抽出、サニタイズ
+│   │   ├── resilience/                  # ドメイン例外とリトライ意味論
+│   │   ├── review/                      # レビューコンテキスト、対象、ローカルファイル選択
+│   │   └── skill/                       # スキル定義モデル
 │   ├── infrastructure/                  # 外部世界へのアダプタ（outbound ポートを実装）
-│   │   ├── copilot/                     # Copilot SDK ライフサイクル、セッション実行、health probe、DI factory
 │   │   ├── auth/                        # GitHub トークン解決、gh CLI 検出、Copilot CLI パス解決
 │   │   ├── config/                      # Micronaut @ConfigurationProperties レコード
+│   │   ├── copilot/                     # Copilot SDK lifecycle と session adapter
 │   │   ├── file/                        # ローカルソース収集と安全なレポート書き込み
-│   │   ├── parsing/                     # YAML / frontmatter / SKILL.md 解析とレジストリ
-│   │   ├── template/                    # テンプレートカタログ読み込み
-│   │   └── logging/                     # Logback レベル切替、セキュリティ監査ログ
+│   │   ├── logging/                     # Logback level/correlation/security-audit adapter
+│   │   ├── parsing/                     # YAML/frontmatter/SKILL 解析と registry
+│   │   ├── startup/                     # process environment adapter
+│   │   └── template/                    # テンプレートカタログ読み込み
 │   └── shared/                          # 層をまたぐ純粋ユーティリティと既定値（java.* のみ）
-└── src/main/resources/
-    ├── application.yml                  # Micronaut reviewer 既定設定
-    ├── logback.xml / logback-json.xml   # ログ設定
-    ├── META-INF/native-image/
-    │   └── reachability-metadata.json   # Logback / Copilot SDK 実行向け Native Image metadata
-    ├── defaults/                        # local source defaults と機密ファイル filter
-    └── safety/
-        └── suspicious-patterns.txt      # プロンプトインジェクション疑わしいパターン定義
+├── src/main/resources/
+│   ├── application.yml                  # Micronaut reviewer 既定設定
+│   ├── logback.xml / logback-json.xml   # ログ設定とシンク遮蔽
+│   ├── META-INF/native-image/
+│   │   ├── reachability-metadata.json   # generic exact-member Native Image metadata
+│   │   └── dev.logicojp/multi-agent-reviewer/ # artifact-scoped metadata/configuration
+│   ├── defaults/                        # local-source default と機密ファイル filter
+│   └── safety/
+│       └── suspicious-patterns.txt      # prompt-injection 疑わしい pattern 定義
+└── src/test/java/dev/logicojp/reviewer/
+    └── architecture/                    # import matrix、cycle、composition-root、control rule
 ```
 
 ## ライセンス

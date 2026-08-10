@@ -34,6 +34,9 @@ class PromptBudgetConfigTest {
     @Test
     @DisplayName("デフォルトコンストラクタはPromptBudgetの既定値と一致する")
     void defaultsMatchPromptBudgetDefaults() {
+        // Cheap smoke test only. Since t27 both sides read PromptBudget's constants, so
+        // this cannot detect a duplicated default; PromptBudgetConfigBindingTest carries
+        // the real negative control for that.
         assertThat(new PromptBudgetConfig().toPromptBudget()).isEqualTo(new PromptBudget());
     }
 }

@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,7 +20,11 @@ class ExecuteSkillUseCaseTest {
     @Test
     @DisplayName("存在しないスキルIDは失敗結果を返す")
     void unknownSkillReturnsFailureResult() {
-        ExecuteSkillUseCase useCase = new ExecuteSkillUseCase(_ -> "unused");
+        ExecuteSkillUseCase useCase = new ExecuteSkillUseCase(
+            _ -> "unused",
+            TestSkillCatalog.of(),
+            "model"
+        );
 
         SkillResult result = useCase.execute("missing", Map.of());
 
@@ -47,8 +50,7 @@ class ExecuteSkillUseCaseTest {
         };
         ExecuteSkillUseCase useCase = new ExecuteSkillUseCase(
             runner,
-            id -> "id-1".equals(id) ? Optional.of(skill) : Optional.empty(),
-            () -> List.of(skill),
+            TestSkillCatalog.of(skill),
             "model"
         );
 
@@ -67,13 +69,12 @@ class ExecuteSkillUseCaseTest {
         SkillDefinition skill = SkillDefinition.of("id-1", "name", "desc", "prompt");
         ExecuteSkillUseCase useCase = new ExecuteSkillUseCase(
             _ -> "unused",
-            id -> "id-1".equals(id) ? Optional.of(skill) : Optional.empty(),
-            () -> List.of(skill),
+            TestSkillCatalog.of(skill),
             "model"
         );
 
         assertThat(useCase.listSkills()).containsExactly(skill);
     }
 
-    // not ported: registering skills from AgentConfig moved out of ExecuteSkillUseCase; it only consumes lookup/listing ports.
+    // Discovery and catalog replacement remain infrastructure concerns; this use case only queries the outbound port.
 }

@@ -3,8 +3,6 @@ package dev.logicojp.reviewer.shared;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,34 +10,37 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("SensitiveHeaderMasking")
 class SensitiveHeaderMaskingTest {
 
+    // ADR-0007 D5 deleted `wrapHeaders`/`MaskedHeadersMap`. The two tests that used to live here
+    // asserted that a wrapped map masked in `toString()` while `get()` returned the raw value --
+    // which is exactly the half-measure the ADR removed: everything except `toString()` leaked, and
+    // the guard vanished on the first copy. Masking is now the log sink's job; the behavioural
+    // control for it is `SensitiveHeaderMaskingSinkCanaryTest`, and `LayerDependencyRulesTest`
+    // Rule 4b stops a port from depending on this class again.
+    //
+    // What is left here is the pure API the ADR kept: judgement (`isSensitiveHeaderName`) and
+    // formatting (`maskHeaderValue`, `maskSensitiveValue`, `buildMaskedMapString`).
+
     @Test
-    @DisplayName("AuthorizationヘッダーはtoStringでマスクされる")
-    void masksSensitiveHeadersInToString() {
+    @DisplayName("buildMaskedMapStringは機密ヘッダーのみをマスクする")
+    void buildsMaskedMapStringMaskingOnlySensitiveHeaders() {
         Map<String, String> headers = Map.of(
             "Authorization", "Bearer secret-token",
             "X-Request-Id", "abc"
         );
 
-        Map<String, String> wrapped = SensitiveHeaderMasking.wrapHeaders(headers);
+        String masked = SensitiveHeaderMasking.buildMaskedMapString(headers);
 
-        assertThat(wrapped.get("Authorization")).isEqualTo("Bearer secret-token");
-        assertThat(wrapped.toString()).contains("Authorization=Bearer ***");
-        assertThat(wrapped.toString()).contains("X-Request-Id=abc");
+        assertThat(masked).doesNotContain("secret-token");
+        assertThat(masked).contains("X-Request-Id=abc");
     }
 
     @Test
-    @DisplayName("values()のiterator経由でも機密ヘッダー値をマスクする")
-    void masksSensitiveHeadersInValuesIterator() {
-        Map<String, String> headers = Map.of(
-            "Authorization", "Bearer secret-token",
-            "X-Request-Id", "abc"
-        );
-
-        Map<String, String> wrapped = SensitiveHeaderMasking.wrapHeaders(headers);
-        Iterator<String> values = wrapped.values().iterator();
-        List<String> collected = List.of(values.next(), values.next());
-
-        assertThat(collected).containsExactlyInAnyOrder("Bearer ***", "abc");
+    @DisplayName("maskHeaderValueはヘッダー名で判定し非機密値はそのまま返す")
+    void masksByHeaderNameAndPassesThroughBenignValues() {
+        assertThat(SensitiveHeaderMasking.maskHeaderValue("Authorization", "Bearer secret-token"))
+            .doesNotContain("secret-token");
+        assertThat(SensitiveHeaderMasking.maskHeaderValue("X-Request-Id", "abc"))
+            .isEqualTo("abc");
     }
 
     @Test

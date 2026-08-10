@@ -31,7 +31,13 @@ blocking_gaps: []
 
 ## Backend
 
-- **Target framework**: Java 26 (GraalVM 26 EA) CLI application with Micronaut 5 DI; single Maven module preserved
+- **Target framework**: Java 28 CLI application with Micronaut 5 DI; single Maven module preserved
+  <!-- CORRECTED 2026-08-06T01:51:53Z by coordinator (F5). Was "Java 26 (GraalVM 26 EA)" at generation time
+       (2026-08-05T02:05Z). pom.xml:22 declares <java.version>28</java.version>, introduced by
+       repo-owner commit 98b095c (2026-07-21), an ancestor of origin/main and merged in via cd91bb0.
+       THE POM IS CORRECT; this record was stale. Do NOT "fix" pom.xml toward 26 -- the build
+       requires JDK 28 (--enable-preview is on, so a JDK mismatch yields misleading errors).
+       .sdkmanrc still pins 25.0.3-graal; that is for pom-native.xml only. -->
 - **API contract preservation**: Not applicable to external HTTP/RPC APIs; project has no frontend, UI, database, or API server. CLI option names and `application.yml` keys may break only when justified by architecture quality, with ADR and migration notes.
 - **Data migration strategy**: No migration — the project has no database or persistent application data store.
 - **Auth framework**: Preserve existing external GitHub authentication flow through GitHub CLI / GitHub Copilot CLI integration (`gh auth`, `gh copilot`).

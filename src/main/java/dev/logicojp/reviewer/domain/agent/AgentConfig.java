@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.domain.agent;
 
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
+import dev.logicojp.reviewer.shared.SkillBudget;
 
 import java.util.List;
 
@@ -9,6 +10,19 @@ import java.util.List;
 ///
 /// This record is a pure data carrier. Prompt construction logic is
 /// in {@code AgentPromptBuilder}. No Micronaut, SLF4J, or SDK imports.
+///
+/// @param skillBudget budget governing how much of [#skills()] may be rendered into the
+///                    instruction prompt. Carried here — rather than read as a static constant
+///                    by `AgentPromptBuilder` — because the budget bounds exactly these skills,
+///                    and `domain` may not read the configured value itself (ADR-0006 Rule 1).
+///                    Never null; a null argument normalises to [SkillBudget#SkillBudget()].
+/// @param source      provenance of the definition file this config was parsed from
+///                    (ADR-0007 D1). Decided once at the composition root and never
+///                    recomputed. Retained on the record — rather than discarded after
+///                    validation — so that any later decision about what this agent may
+///                    influence can still ask where it came from. Never null; a null
+///                    argument normalises to [AgentSource#defaultWhenUnknown()], i.e.
+///                    fails closed to the strict profile.
 public record AgentConfig(
     String name,
     String displayName,
@@ -21,7 +35,9 @@ public record AgentConfig(
     String peerModel,
     boolean rubberDuckEnabled,
     int dialogueRounds,
-    String language
+    String language,
+    SkillBudget skillBudget,
+    AgentSource source
 ) {
 
     /// Hardcoded last-resort default model — mirrors {@code ModelConfig.DEFAULT_MODEL}.
@@ -40,7 +56,8 @@ public record AgentConfig(
         List<SkillDefinition> skills
     ) {
         this(name, displayName, model, systemPrompt, instruction, outputFormat,
-            focusAreas, skills, null, false, DEFAULT_DIALOGUE_ROUNDS, DEFAULT_LANGUAGE);
+            focusAreas, skills, null, false, DEFAULT_DIALOGUE_ROUNDS, DEFAULT_LANGUAGE, null,
+            AgentSource.defaultWhenUnknown());
     }
 
     public AgentConfig {
@@ -52,6 +69,10 @@ public record AgentConfig(
         skills = skills == null ? List.of() : List.copyOf(skills);
         peerModel = (peerModel != null && peerModel.isBlank()) ? null : peerModel;
         language = (language == null || language.isBlank()) ? DEFAULT_LANGUAGE : language;
+        skillBudget = skillBudget == null ? new SkillBudget() : skillBudget;
+        // Fail closed: an unstated provenance is treated as repository-supplied, so a call
+        // site that forgets to thread it gets the strict profile rather than the lenient one.
+        source = source == null ? AgentSource.defaultWhenUnknown() : source;
     }
 
     public AgentConfig withModel(String overrideModel) {
@@ -77,8 +98,30 @@ public record AgentConfig(
         return Builder.from(this).skills(newSkills).build();
     }
 
+    /// Returns a copy carrying the given rendered-skill-section budget.
+    ///
+    /// Called by `infrastructure.parsing.AgentConfigLoader` so that the configured
+    /// `reviewer.skills.max-parameter-value-length` reaches `AgentPromptBuilder` as a value
+    /// rather than being read there as a compile-time constant (F4).
+    public AgentConfig withSkillBudget(SkillBudget newSkillBudget) {
+        return Builder.from(this).skillBudget(newSkillBudget).build();
+    }
+
     public AgentConfig withPeerModel(String overridePeerModel) {
         return Builder.from(this).peerModel(overridePeerModel).build();
+    }
+
+    /// Returns a copy tagged with the given provenance.
+    ///
+    /// Called by `infrastructure.parsing.AgentConfigLoader` immediately after a definition
+    /// is parsed, so that the provenance decided at the composition root reaches the record
+    /// (ADR-0007 D1). There is deliberately no path that *raises* trust: callers may only
+    /// stamp the value the composition root already decided for the containing directory.
+    ///
+    /// @param newSource provenance of the file this config was parsed from
+    /// @return a copy carrying `newSource`
+    public AgentConfig withSource(AgentSource newSource) {
+        return Builder.from(this).source(newSource).build();
     }
 
     public AgentConfig withRubberDuckEnabled(boolean enabled) {
@@ -115,6 +158,8 @@ public record AgentConfig(
         private boolean rubberDuckEnabled;
         private int dialogueRounds;
         private String language = DEFAULT_LANGUAGE;
+        private SkillBudget skillBudget;
+        private AgentSource source = AgentSource.defaultWhenUnknown();
 
         private Builder() {
         }
@@ -132,7 +177,9 @@ public record AgentConfig(
                 .peerModel(source.peerModel)
                 .rubberDuckEnabled(source.rubberDuckEnabled)
                 .dialogueRounds(source.dialogueRounds)
-                .language(source.language);
+                .language(source.language)
+                .skillBudget(source.skillBudget)
+                .source(source.source);
         }
 
         public Builder name(String name) { this.name = name; return this; }
@@ -147,10 +194,13 @@ public record AgentConfig(
         public Builder rubberDuckEnabled(boolean rubberDuckEnabled) { this.rubberDuckEnabled = rubberDuckEnabled; return this; }
         public Builder dialogueRounds(int dialogueRounds) { this.dialogueRounds = dialogueRounds; return this; }
         public Builder language(String language) { this.language = language; return this; }
+        public Builder skillBudget(SkillBudget skillBudget) { this.skillBudget = skillBudget; return this; }
+        public Builder source(AgentSource source) { this.source = source; return this; }
 
         public AgentConfig build() {
             return new AgentConfig(name, displayName, model, systemPrompt, instruction, outputFormat,
-                focusAreas, skills, peerModel, rubberDuckEnabled, dialogueRounds, language);
+                focusAreas, skills, peerModel, rubberDuckEnabled, dialogueRounds, language, skillBudget,
+                source);
         }
     }
 

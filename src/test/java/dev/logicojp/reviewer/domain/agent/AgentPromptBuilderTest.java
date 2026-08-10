@@ -1,6 +1,7 @@
 package dev.logicojp.reviewer.domain.agent;
 
 import dev.logicojp.reviewer.domain.skill.SkillDefinition;
+import dev.logicojp.reviewer.shared.SkillBudget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -149,30 +150,158 @@ class AgentPromptBuilderTest {
             assertThat(result).doesNotContain("GLOBAL PROMPT");
         }
 
+        /// Rendered-section arithmetic used by the budget tests below, so that each test proves
+        /// it actually reaches the drop branch instead of assuming a "big" input does.
+        ///
+        /// section = HEADER (71 chars) + Σ fragment, where
+        /// fragment = "\n### " + name + "\n\n" + (description.isBlank() ? "" : description + "\n\n")
+        ///            + expandedPrompt + "\n"
+        private static final int HEADER_CHARS = 71;
+
+        private SkillDefinition skill(String id, String name, String prompt) {
+            return new SkillDefinition(id, name, "", prompt, List.of(), Map.of("agent", "security"));
+        }
+
+        private AgentConfig securityConfig(SkillBudget budget, List<SkillDefinition> skills) {
+            return AgentConfig.builder()
+                .name("security")
+                .displayName("Security")
+                .model("model")
+                .instruction("Review ${repository}")
+                .focusAreas(List.of("security"))
+                .skills(skills)
+                .skillBudget(budget)
+                .build();
+        }
+
         @Test
-        @DisplayName("展開後の担当SKILLセクションが上限を超える場合は拒否する")
-        void rejectsOversizedExpandedSkillGuidance() {
+        @DisplayName("予算内に収まる場合はセクションを1文字も変えずに描画する")
+        void rendersByteIdenticalSectionWhenWithinBudget() {
             SkillDefinition assigned = new SkillDefinition(
-                "review-skill",
-                "Review Skill",
-                "",
-                "Inspect ${repository}.",
-                List.of(),
-                Map.of("agent", "security")
-            );
+                "sql-check", "SQL Check", "Finds SQL flaws",
+                "Inspect ${repository}.", List.of(), Map.of("agent", "security"));
+
+            String result = AgentPromptBuilder.buildInstruction(
+                securityConfig(new SkillBudget(10_000), List.of(assigned)), "owner/repo");
+
+            // Golden string, written out in full rather than rebuilt from the production
+            // constants, so that any drift in the header or fragment layout fails here.
+            assertThat(result).isEqualTo(
+                "Review owner/repo"
+                    + "\n\n## Assigned Review Skills\n\n"
+                    + "以下のSKILL仕様を、このエージェントの必須レビュー観点として適用してください。\n"
+                    + "\n### SQL Check\n\n"
+                    + "Finds SQL flaws\n\n"
+                    + "Inspect owner/repo.\n");
+        }
+
+        @Test
+        @DisplayName("展開後の担当SKILLセクションが上限を超える場合は中断せず当該SKILLを除外する")
+        void dropsOversizedExpandedSkillInsteadOfThrowing() {
+            // "Inspect " + 11000 + "." = 11_009 chars expanded; fragment adds
+            // "\n### Review Skill\n\n" (19) + "\n" (1) => 11_029.
+            // 71 + 11_029 = 11_100 > 10_000, so the drop branch is reached.
+            AgentConfig config = securityConfig(
+                new SkillBudget(10_000), List.of(skill("review-skill", "Review Skill", "Inspect ${repository}.")));
+
+            String result = AgentPromptBuilder.buildInstruction(config, "x".repeat(11_000));
+
+            assertThat(result).isEqualTo("Review " + "x".repeat(11_000));
+            assertThat(result).doesNotContain("## Assigned Review Skills");
+        }
+
+        @Test
+        @DisplayName("設定された上限を引き上げると、除外されていたSKILLが描画される")
+        void raisingConfiguredBudgetAdmitsPreviouslyDroppedSkill() {
+            // The F4 fix itself: the ceiling now follows the configured value instead of
+            // being pinned to the ConfigDefaults constant. Same skill, same input, two budgets.
+            List<SkillDefinition> skills =
+                List.of(skill("review-skill", "Review Skill", "Inspect ${repository}."));
+            String repository = "x".repeat(11_000);
+
+            String atDefaultBudget = AgentPromptBuilder.buildInstruction(
+                securityConfig(new SkillBudget(10_000), skills), repository);
+            String atRaisedBudget = AgentPromptBuilder.buildInstruction(
+                securityConfig(new SkillBudget(20_000), skills), repository);
+
+            assertThat(atDefaultBudget).doesNotContain("## Assigned Review Skills");
+            assertThat(atRaisedBudget).contains("## Assigned Review Skills");
+            assertThat(atRaisedBudget).contains("Review Skill");
+        }
+
+        @Test
+        @DisplayName("予算超過は累積判定であり、単独なら収まるSKILLも先行SKILLの後では除外される")
+        void budgetIsCumulativeNotPerSkill() {
+            // Alpha and Bravo render to identical 113-char fragments.
+            // Budget 184 = HEADER_CHARS + 113 admits exactly one of them.
+            SkillDefinition alpha = skill("a", "Alpha", "A".repeat(100));
+            SkillDefinition bravo = skill("b", "Bravo", "B".repeat(100));
+            SkillBudget budget = new SkillBudget(HEADER_CHARS + 113);
+
+            String alphaAlone = AgentPromptBuilder.buildInstruction(
+                securityConfig(budget, List.of(alpha)), "owner/repo");
+            String bravoAlone = AgentPromptBuilder.buildInstruction(
+                securityConfig(budget, List.of(bravo)), "owner/repo");
+            String both = AgentPromptBuilder.buildInstruction(
+                securityConfig(budget, List.of(alpha, bravo)), "owner/repo");
+
+            // Each fits on its own — so neither is intrinsically oversized.
+            assertThat(alphaAlone).contains("Alpha");
+            assertThat(bravoAlone).contains("Bravo");
+            // Together, only the first survives: the gate is cumulative, not per-skill.
+            assertThat(both).contains("Alpha");
+            assertThat(both).doesNotContain("Bravo");
+        }
+
+        @Test
+        @DisplayName("予算超過SKILLを飛ばした後も、後続の小さなSKILLは描画される")
+        void continuesPastDroppedSkillSoLaterSmallerOnesStillFit() {
+            // Budget 214 = HEADER_CHARS + 113 + 30.
+            // Alpha (113): 71+113=184 <= 214 -> kept
+            // Bravo (113): 184+113=297 > 214 -> dropped
+            // Tiny  (10):  184+10 =194 <= 214 -> kept
+            SkillDefinition alpha = skill("a", "Alpha", "A".repeat(100));
+            SkillDefinition bravo = skill("b", "Bravo", "B".repeat(100));
+            SkillDefinition tiny = skill("t", "T", "x");
+
+            String result = AgentPromptBuilder.buildInstruction(
+                securityConfig(new SkillBudget(HEADER_CHARS + 113 + 30), List.of(alpha, bravo, tiny)),
+                "owner/repo");
+
+            assertThat(result).contains("Alpha");
+            assertThat(result).doesNotContain("Bravo");
+            assertThat(result).contains("### T");
+        }
+
+        @Test
+        @DisplayName("全SKILLが予算超過の場合は空のセクション見出しを出力しない")
+        void omitsSectionEntirelyWhenNoSkillFits() {
+            // Budget equals the header alone, so no fragment can ever be admitted.
+            AgentConfig config = securityConfig(
+                new SkillBudget(HEADER_CHARS), List.of(skill("a", "Alpha", "A".repeat(100))));
+
+            String result = AgentPromptBuilder.buildInstruction(config, "owner/repo");
+
+            assertThat(result).isEqualTo("Review owner/repo");
+            assertThat(result).doesNotContain("## Assigned Review Skills");
+        }
+
+        @Test
+        @DisplayName("予算が未指定のAgentConfigは既定値で描画される")
+        void defaultsBudgetWhenConfigCarriesNone() {
             AgentConfig config = AgentConfig.builder()
                 .name("security")
                 .displayName("Security")
                 .model("model")
                 .instruction("Review ${repository}")
                 .focusAreas(List.of("security"))
-                .skills(List.of(assigned))
+                .skills(List.of(skill("a", "Alpha", "A".repeat(100))))
                 .build();
 
-            assertThatThrownBy(() ->
-                AgentPromptBuilder.buildInstruction(config, "x".repeat(11_000)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Assigned review skill guidance");
+            assertThat(config.skillBudget()).isNotNull();
+            assertThat(config.skillBudget().renderedSkillSectionMaxChars())
+                .isEqualTo(SkillBudget.DEFAULT_RENDERED_SKILL_SECTION_MAX_CHARS);
+            assertThat(AgentPromptBuilder.buildInstruction(config, "owner/repo")).contains("Alpha");
         }
     }
 

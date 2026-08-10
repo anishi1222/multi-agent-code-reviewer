@@ -20,7 +20,6 @@
 
     <properties>
         <java.version>28</java.version>
-        <micronaut.version>5.1.2</micronaut.version>
         <micronaut.runtime>none</micronaut.runtime>
         <exec.mainClass>dev.logicojp.reviewer.ReviewApp</exec.mainClass>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -31,6 +30,7 @@
         <dependency.check.version>13.0.0</dependency.check.version>
         <cyclonedx.plugin.version>2.9.3</cyclonedx.plugin.version>
         <maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
+        <maven.failsafe.plugin.version>3.5.6</maven.failsafe.plugin.version>
         <maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
 
         <!-- Security: override BOM-managed tools.jackson.core:jackson-databind to a patched version.
@@ -138,6 +138,16 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>templates</directory>
+                <targetPath>templates</targetPath>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.cyclonedx</groupId>
@@ -231,6 +241,28 @@
                 <version>${maven.surefire.plugin.version}</version>
                 <configuration>
                     <argLine>--enable-preview</argLine>
+                </configuration>
+            </plugin>
+            <!-- Run after packaging so the shipped JAR, not target/classes, owns CLI startup health. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>${maven.failsafe.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <!-- Override the Micronaut parent's default Failsafe binding instead of adding a duplicate run. -->
+                        <id>default</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <argLine>--enable-preview</argLine>
+                    <systemPropertyVariables>
+                        <packaged.cli.jar>${project.build.directory}/${project.build.finalName}.jar</packaged.cli.jar>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <!-- Keep parent-provided Shade execution, but suppress benign overlap noise -->

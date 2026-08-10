@@ -3,16 +3,21 @@ package dev.logicojp.reviewer.application.review;
 import dev.logicojp.reviewer.infrastructure.logging.MdcCorrelationAdapter;
 import dev.logicojp.reviewer.application.port.inbound.ReviewRequest;
 import dev.logicojp.reviewer.application.port.outbound.CollectLocalSourcePort;
+import dev.logicojp.reviewer.application.port.outbound.CreateReviewSessionPortsPort;
+import dev.logicojp.reviewer.application.port.outbound.CreateReviewSessionPortsPort.ReviewSessionPorts;
 import dev.logicojp.reviewer.application.port.outbound.LoadTemplatePort;
 import dev.logicojp.reviewer.application.port.outbound.ManageCopilotClientPort;
 import dev.logicojp.reviewer.application.port.outbound.RunCopilotSessionPort;
 import dev.logicojp.reviewer.application.port.outbound.RunRubberDuckSessionPort;
+import dev.logicojp.reviewer.application.port.outbound.ResolveReviewSettingsPort;
+import dev.logicojp.reviewer.application.port.outbound.ResolveReviewSettingsPort.ReviewSettings;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.domain.agent.DialogueRound;
 import dev.logicojp.reviewer.domain.review.LocalFileCandidate;
 import dev.logicojp.reviewer.domain.review.LocalFileSelectionConfig;
 import dev.logicojp.reviewer.domain.review.PromptTexts;
 import dev.logicojp.reviewer.domain.review.ReviewTarget;
+import dev.logicojp.reviewer.shared.PromptBudget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -53,20 +58,32 @@ class ReviewOrchestratorTest {
             assertThat(request.prompt()).contains("instruction");
             return "ok";
         };
+        ResolveReviewSettingsPort settings = input -> {
+            assertThat(input.reasoningEffortOverride()).isNull();
+            return new ReviewSettings(
+                10,
+                5,
+                1,
+                0,
+                true,
+                null,
+                false,
+                2,
+                new PromptBudget()
+            );
+        };
+        CreateReviewSessionPortsPort sessionPorts = options -> {
+            assertThat(options.agentTimeoutMinutes()).isEqualTo(5);
+            assertThat(options.invocationTimestamp()).isEqualTo("2026-03-05-12-34-56");
+            return new ReviewSessionPorts(copilotSession, unusedRubberDuckSession());
+        };
         var orchestrator = new ReviewOrchestrator(
             lifecycle,
             unusedCollectLocalSource(),
             unusedTemplates(),
-            copilotSession,
-            unusedRubberDuckSession(),
-            new MdcCorrelationAdapter(),
-            OrchestratorConfig.builder()
-                .githubToken("secret-token")
-                .reviewPasses(1)
-                .maxRetries(0)
-                .invocationTimestamp("2026-03-05-12-34-56")
-                .promptTexts(new PromptTexts("focus guidance", "local source header", "local result request"))
-                .build()
+            settings,
+            sessionPorts,
+            new MdcCorrelationAdapter()
         );
 
         var agentConfig = new AgentConfig(

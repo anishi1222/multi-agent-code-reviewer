@@ -2,7 +2,7 @@
 
 ## 更新ルール（テンプレート）
 
-参照チェックリスト: `reports/anishi1222/multi-agent-code-reviewer/documentation_sync_checklist_2026-02-17.md`
+正規手順: [Release Procedure](./docs/runbook.md#release-procedure)
 
 1. EN/JA 両方に同一構成で新しい日付セクションを追加する。
 2. 注釈付きタグ（例: `vYYYY.MM.DD-notes`）を作成して push する。
@@ -12,21 +12,65 @@
 ## Unreleased
 
 ### 概要
-- 次回リリース向け項目のプレースホルダー。
+- 5つの名前付き層と第0層コンポジションルートからなる Ports & Adapters への in-place
+  リライトを完了し、全挙動を明示的な inbound/outbound port の背後に維持しました。
+- JVM runtime を Java 28、Micronaut を 5.1.0、`copilot-sdk-java` を 1.0.8 へ更新しつつ、
+  Java 25 / GraalVM 25.0.4 の分離 native build も検証しました。
+- エージェント定義 trust、Unicode 検証、log sink 遮蔽、依存関係 security、shaded JAR
+  packaging、exact-member Native Image reachability metadata を最終化しました。
+- 本作業は Unreleased のままです。`v2026.07.21-review-contract` より新しいリリースタグは作成していません。
 
 ### 主な変更
 
 #### 追加
-- TBD
+- 薄い `ReviewApp` process entry を囲む第0層 `ApplicationPortFactory` /
+  `ReviewPortFactory` binding。最終契約は inbound port interface 8個、outbound port interface
+  15個です。
+- JDK `java.lang.classfile` を使い、import matrix、composition root、control ownership、
+  package/layer 循環を強制する bytecode-level `LayerDependencyRulesTest`。
+- 型付き `AgentSource` / `AgentSourceDirectory` provenance、差分のある
+  `USER_SUPPLIED` / `REPOSITORY_SUPPLIED` 検証 profile、Unicode/default-ignorable sweep、
+  provider-family model-prefix test。
+- shaded JAR の resource/startup と、exact member 登録を持つ mirrored Native Image
+  reachability metadata の配布検証。
 
 #### 変更
-- TBD
+- 本番 Java source 201個を `presentation`、`application`、`domain`、`infrastructure`、
+  `shared` に再配置し、framework/SDK 設定と I/O が port 経由でのみ application 境界を
+  越えるようにしました。
+- 標準レビューのマルチパスは実際に有効な
+  `reviewer.execution.concurrency.review-passes` で利用でき、削除済み merge/checkpoint
+  pipeline を復元せずパス別レポートを返します。現行 adapter は pass 呼び出しごとに
+  1 session を生成するため、`--no-shared-session` は session reuse の切替ではなく
+  compatibility switch です。Rubber-duck は1つの統合結果を返します。
+- runtime default を `claude-sonnet-5`、`gpt-5.3-codex`、`gpt-5.6-sol` へ更新し、
+  prompt-budget default の単独所有者を `shared/PromptBudget` にしました。
+- dependency 制約を Jackson 3.1.5 / Jackson 2 BOM 2.22.1 へ更新しました。稼働中の JVM CI、
+  dependency submission、audit、release job は Java 28 を使用し、native CI は別途
+  GraalVM 25.0.4 を検証します。native release job は無効のままです。
 
 #### 修正
-- TBD
+- review plan/banner/executor の pass 数を
+  `reviewer.execution.concurrency.review-passes` に単一化しました。廃止済み
+  `reviewer.execution.review-passes` は履歴説明にのみ残します。
+- 秘匿値マスキングを両方の Logback output sink へ移し、任意の stringification 経路を
+  保護できない object-level masking wrapper を廃止しました。
+- Copilot SDK、Jackson、Logback 実行経路の Native Image reflection/resource gap を解消し、
+  28個の Markdown template が配布 JAR に入ることを検証しました。
+- repository-supplied agent 定義、許可 model family、architecture 境界、dependency/CVE scan
+  に positive/negative behavioral control を固定しました。
 
 ### 検証
-- Pending
+- JVM: `JAVA_HOME="$HOME/.sdkman/candidates/java/28.ea.9-open" PATH="$JAVA_HOME/bin:$PATH" ./mvnw -B clean verify`
+  — Surefire 1,107件 + Failsafe 5件、failure/error/skip 0件。shaded JAR の `--help` /
+  `--version` はともに return code 0、template 28個を同梱。
+- Native: `JAVA_HOME="$HOME/.sdkman/candidates/java/25.0.4-graal" PATH="$JAVA_HOME/bin:$PATH" ./mvnw -B clean verify -Pnative -f pom-native.xml`
+  — JVM 1,107件 + native 1,107件 + Failsafe 5件、failure/error/skip 0件。
+  `target/review --help` / `--version` はともに return code 0。
+- dependency-security gate: runtime coordinate 31件を評価し既知 CVE 0件。空の scan でないことを
+  positive control で確認。
+- ドキュメント: EN/JA heading/marker parity、Markdown/Mermaid fence balance、local link、
+  stale current-state scan、release heading chronology、履歴本文不変比較。
 
 ## 2026-07-21 (v2026.07.21-review-contract)
 
@@ -111,7 +155,7 @@
 ### 検証
 - `JAVA_HOME=... mvn -q clean test` — 871 tests, 0 failures, 0 errors.
 - Git タグ: `v2026.07.21-sdk-upgrade`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.07.21-sdk-upgrade
+- GitHub Release: 利用不可 — 履歴上の `v2026.07.21-sdk-upgrade` 参照先は存在せず、代替タグは推定していません。
 
 ## 2026-06-24 (v2026.06.24-refactor-seams-tests)
 
@@ -156,7 +200,7 @@
 - `JAVA_HOME=/Users/logico_jp/.sdkman/candidates/java/27.ea.25-open ./mvnw -B -ntp -q clean test` — 871 tests, 0 failures, 0 errors
 - Code-review agents で refactor/test 変更をレビューし、重要指摘は最終検証前に修正済み。
 - Git タグ: `v2026.06.24-refactor-seams-tests`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.06.24-refactor-seams-tests
+- GitHub Release: 利用不可 — 履歴上の `v2026.06.24-refactor-seams-tests` 参照先は存在せず、代替タグは推定していません。
 
 ## 2026-06-24 (v2026.06.24-dependency-ci-hardening)
 
@@ -968,7 +1012,7 @@
 - ローカルコンパイル検証: `mvn -q -DskipTests compile` 成功
 
 ### マージ済み PR
-- [#67](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/67): `CopilotSession` のマルチパス再利用と関連更新
+- #67（履歴上の PR 参照先は利用不可。番号は置換せず保持）: `CopilotSession` のマルチパス再利用と関連更新
 
 ---
 
@@ -1021,7 +1065,7 @@
 - CI: 全PR で全必須チェック合格
 
 ### マージ済み PR
-- [#41](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/41)〜[#49](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/49)、[#56](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/56)、[#60](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/60)〜[#65](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/65)
+- #41〜#49、#56、#60〜#65（履歴上の PR 参照先は利用不可。番号は置換せず保持）
 
 ---
 
@@ -1088,7 +1132,7 @@
 - 実行確認: `mvn clean package` + `run --repo ... --all` 終了コード 0
 
 ### マージ済み PR
-- [#34](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/34)〜[#40](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/40)
+- #34〜#40（履歴上の PR 参照先は利用不可。番号は置換せず保持）
 
 ---
 
@@ -1116,7 +1160,7 @@
 - 最終サマリー: `reports/anishi1222/multi-agent-code-reviewer/final_remediation_summary_2026-02-17.md`
 - RELEASE_NOTES 日英対応ガイド: `reports/anishi1222/multi-agent-code-reviewer/release_notes_bilingual_alignment_2026-02-17.md`
 - リリースタグ: `v2026.02.17-notes`
-- GitHub Release: https://github.com/anishi1222/multi-agent-code-reviewer-java/releases/tag/v2026.02.17-notes
+- GitHub Release: 利用不可 — 履歴上の `v2026.02.17-notes` 参照先は存在せず、代替タグは推定していません。
 
 ## 2026-02-16
 
@@ -1172,7 +1216,7 @@
   - `required_conversation_resolution` 有効
 
 ### マージ済み PR
-- [#10](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/10): enforce dependency policy and required checks
+- #10（履歴上の PR 参照先は利用不可。番号は置換せず保持）: enforce dependency policy and required checks
 
 ### 変更ファイル（PR #10）
 - `.github/workflows/dependency-review.yml`
@@ -1206,7 +1250,7 @@
 - テスト結果: 431 run, 0 failures, 0 errors
 
 ### マージ済み PR
-- [#13](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/13): fix: resolve all findings from 2026-02-15 reports
+- #13（履歴上の PR 参照先は利用不可。番号は置換せず保持）: fix: resolve all findings from 2026-02-15 reports
 
 ### 参照
 - 詳細対応表: `reports/anishi1222/multi-agent-code-reviewer/remediation_checklist_2026-02-15.md`
@@ -1224,7 +1268,9 @@
 - 各エージェントが `review-passes` 回（デフォルト: 1）レビューを実施し、結果を `ReviewResultMerger` で統合。
 - 全パスを Virtual Thread プールに同時投入し、`Semaphore(parallelism)` で同時実行数を制御。
 - マージは文字列連結のみ（追加 AI 呼び出しなし）。
-- `application.yml` の `reviewer.execution.review-passes` で設定可能。
+- 履歴訂正（2026-08-07）: 実行回数は
+  `reviewer.execution.concurrency.review-passes` で設定します。従来記載していた
+  `reviewer.execution.review-passes` はバナー表示のみを変更し、実行回数を制御していませんでした。
 
 #### セキュリティ強化
 - `ReviewTarget` のパスバリデーション強化。
@@ -1253,12 +1299,12 @@
 - README（日英）にマルチパスレビュー機能の説明、設定例、アーキテクチャ図を追加。
 
 ### マージ済み PR
-- [#16](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/16): fix: add default reviewer.local-files settings
-- [#17](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/17): fix: update build-native-image job dependencies
-- [#18](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/18): fix: remediate 2026-02-15 report findings (all severities)
-- [#19](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/19): feat: マルチパスレビュー機能の追加
-- [#20](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/20): docs: README にマルチパスレビュー機能の説明を追加
-- [#21](https://github.com/anishi1222/multi-agent-code-reviewer-java/pull/21): fix: all review findings and strengthen coverage
+- #16（履歴上の PR 参照先は利用不可。番号は置換せず保持）: fix: add default reviewer.local-files settings
+- #17（履歴上の PR 参照先は利用不可。番号は置換せず保持）: fix: update build-native-image job dependencies
+- #18（履歴上の PR 参照先は利用不可。番号は置換せず保持）: fix: remediate 2026-02-15 report findings (all severities)
+- #19（履歴上の PR 参照先は利用不可。番号は置換せず保持）: feat: マルチパスレビュー機能の追加
+- #20（履歴上の PR 参照先は利用不可。番号は置換せず保持）: docs: README にマルチパスレビュー機能の説明を追加
+- #21（履歴上の PR 参照先は利用不可。番号は置換せず保持）: fix: all review findings and strengthen coverage
 
 ### 検証
 - `mvn test`: 453 run, 0 failures, 0 errors

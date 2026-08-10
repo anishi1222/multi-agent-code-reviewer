@@ -1,5 +1,6 @@
 package dev.logicojp.reviewer.presentation.command;
 
+import dev.logicojp.reviewer.application.port.inbound.ReviewPlan;
 import dev.logicojp.reviewer.infrastructure.logging.MdcCorrelationAdapter;
 import dev.logicojp.reviewer.application.port.inbound.GenerateReportPort;
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
@@ -19,6 +20,7 @@ import dev.logicojp.reviewer.presentation.ReviewTargetResolver;
 import dev.logicojp.reviewer.presentation.formatter.ReviewOutputFormatter;
 import dev.logicojp.reviewer.presentation.parser.ReviewOptionsParser;
 import dev.logicojp.reviewer.shared.ExecutionCorrelation;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -110,22 +112,24 @@ class ReviewCommandTest {
             "security", "Security", "model", "system", "instruction", null, List.of(), List.of());
         LoadAgentPort loadAgentPort = new LoadAgentPort() {
             @Override
-            public List<AgentConfig> loadAll(List<Path> directories) {
+            public List<AgentConfig> loadAll(List<AgentSourceDirectory> directories) {
                 return List.of(agent);
             }
 
             @Override
-            public Optional<AgentConfig> loadByName(String name, List<Path> directories) {
+            public Optional<AgentConfig> loadByName(String name, List<AgentSourceDirectory> directories) {
                 return "security".equals(name) ? Optional.of(agent) : Optional.empty();
             }
         };
 
-        ReviewModelConfigResolver modelConfigResolver = new ReviewModelConfigResolver(null, null, "summary-model", null);
-        ReviewOptionsParser optionsParser = new ReviewOptionsParser(2);
+        dev.logicojp.reviewer.application.port.inbound.DescribeReviewPlanPort reviewPlan =
+            () -> new ReviewPlan(1, 2, "review-model", "report-model", "summary-model", "high");
+        ReviewModelConfigResolver modelConfigResolver = new ReviewModelConfigResolver(reviewPlan);
+        ReviewOptionsParser optionsParser = new ReviewOptionsParser(reviewPlan);
         ReviewTargetResolver targetResolver = new ReviewTargetResolver(githubToken -> Optional.of("token"));
         ReviewAgentConfigResolver agentConfigResolver = new ReviewAgentConfigResolver(loadAgentPort);
-        ReviewOutputFormatter outputFormatter = new ReviewOutputFormatter(output, 1);
-        ReviewPreparationService preparationService = new ReviewPreparationService(outputFormatter);
+        ReviewOutputFormatter outputFormatter = new ReviewOutputFormatter(output);
+        ReviewPreparationService preparationService = new ReviewPreparationService(outputFormatter, reviewPlan);
         ReviewRunRequestFactory runRequestFactory = new ReviewRunRequestFactory();
         ReviewExecutionCoordinator executionCoordinator = new ReviewExecutionCoordinator(stubExecutor(executionFn, output));
 
@@ -157,7 +161,7 @@ class ReviewCommandTest {
                 return Optional.empty();
             }
         };
-        return new ReviewRunExecutor(runReviewPort, generateReportPort, new ReviewOutputFormatter(output, 1)) {
+        return new ReviewRunExecutor(runReviewPort, generateReportPort, new ReviewOutputFormatter(output)) {
             @Override
             public int execute(ReviewRequest request) {
                 return executionFn.execute(request);

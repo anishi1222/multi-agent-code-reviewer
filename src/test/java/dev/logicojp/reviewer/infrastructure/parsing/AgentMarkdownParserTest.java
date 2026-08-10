@@ -7,9 +7,15 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentSource;
 
 @DisplayName("AgentMarkdownParser")
 class AgentMarkdownParserTest {
+
+    /// Existing parser cases describe the permissive contract and therefore state
+    /// `USER_SUPPLIED` explicitly. ADR-0007 provides no defaulting overload on purpose —
+    /// an omitted trust level is what let the strict limits go unreferenced (SEC-H1).
+    private static final AgentSource TRUSTED = AgentSource.USER_SUPPLIED;
 
     private final AgentMarkdownParser parser = new AgentMarkdownParser();
 
@@ -47,7 +53,7 @@ class AgentMarkdownParserTest {
                 レビュー結果を出力してください。
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "security.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "security.agent.md", TRUSTED);
 
             assertThat(config.name()).isEqualTo("security");
             assertThat(config.displayName()).isEqualTo("セキュリティレビュー");
@@ -79,7 +85,7 @@ class AgentMarkdownParserTest {
                 - テスト項目
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "my-agent.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "my-agent.agent.md", TRUSTED);
 
             assertThat(config.name()).isEqualTo("my-agent");
         }
@@ -105,7 +111,7 @@ class AgentMarkdownParserTest {
                 - 項目
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "test.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "test.agent.md", TRUSTED);
 
             assertThat(config.model()).isEqualTo(ModelConfig.DEFAULT_MODEL);
         }
@@ -133,7 +139,7 @@ class AgentMarkdownParserTest {
                 - 命名規則
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "simple.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "simple.agent.md", TRUSTED);
 
             // New policy: frontmatter is required, so content without it is rejected
             assertThat(config).isNull();
@@ -164,7 +170,7 @@ class AgentMarkdownParserTest {
                 
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "minimal.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "minimal.agent.md", TRUSTED);
 
             assertThat(config).isNotNull();
             assertThat(config.focusAreas()).isNotEmpty();
@@ -197,7 +203,7 @@ class AgentMarkdownParserTest {
                 - 項目B
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "multi.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "multi.agent.md", TRUSTED);
 
             assertThat(config).isNotNull();
             assertThat(config.systemPrompt()).contains("ロール内容");
@@ -230,7 +236,7 @@ class AgentMarkdownParserTest {
                 - item
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "code-quality.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "code-quality.agent.md", TRUSTED);
 
             assertThat(config).isNotNull();
             assertThat(config.name()).isEqualTo("code-quality");
@@ -255,7 +261,7 @@ class AgentMarkdownParserTest {
                 - item
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "reviewer.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "reviewer.md", TRUSTED);
 
             assertThat(config).isNotNull();
             assertThat(config.name()).isEqualTo("reviewer");
@@ -285,7 +291,7 @@ class AgentMarkdownParserTest {
                 - item
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "disabled-agent.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "disabled-agent.agent.md", TRUSTED);
             assertThat(config).isNull();
         }
 
@@ -308,7 +314,7 @@ class AgentMarkdownParserTest {
                 - item
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "bad-model.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "bad-model.agent.md", TRUSTED);
             assertThat(config).isNull();
         }
 
@@ -330,7 +336,7 @@ class AgentMarkdownParserTest {
                 - item
                 """;
 
-            AgentConfig config = parser.parseContent(content.stripIndent(), "BadName.agent.md");
+            AgentConfig config = parser.parseContent(content.stripIndent(), "BadName.agent.md", TRUSTED);
             assertThat(config).isNull();
         }
 
@@ -353,7 +359,7 @@ class AgentMarkdownParserTest {
                 - item
                 """;
 
-            var result = parser.parseContentSafe(content.stripIndent(), "test.agent.md");
+            var result = parser.parseContentSafe(content.stripIndent(), "test.agent.md", TRUSTED);
             assertThat(result.accepted()).isFalse();
             assertThat(result.rejectionReason()).contains("not in the allowed model list");
         }

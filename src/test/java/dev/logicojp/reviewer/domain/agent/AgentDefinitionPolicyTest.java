@@ -13,6 +13,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("AgentDefinitionPolicy")
 class AgentDefinitionPolicyTest {
 
+    /// These cases describe the **permissive** half of the contract, so they state
+    /// `USER_SUPPLIED` explicitly rather than relying on a default.
+    ///
+    /// ADR-0007 deliberately gives the policy no defaulting overload: a caller that omitted
+    /// provenance is exactly how the untrusted limits ended up unreferenced (SEC-H1). Making
+    /// every test name its trust level means a reader can tell which half of the contract a
+    /// case pins, and a case can no longer silently change meaning when the default moves.
+    /// The strict half is pinned by [AgentTrustLevelDifferentialTest] and by the
+    /// `RepositorySupplied` cases below.
+    private static final AgentSource TRUSTED = AgentSource.USER_SUPPLIED;
+    private static final AgentSource UNTRUSTED = AgentSource.REPOSITORY_SUPPLIED;
+
     // ── raw-content validation ──────────────────────────────────
 
     @Nested
@@ -23,14 +35,14 @@ class AgentDefinitionPolicyTest {
         @DisplayName("正常なフロントマター付きコンテンツは受け入れる")
         void acceptsValidContent() {
             String content = "---\nname: test\n---\n## Role\ntest";
-            var result = AgentDefinitionPolicy.validateRawContent(content, "test.agent.md");
+            var result = AgentDefinitionPolicy.validateRawContent(content, "test.agent.md", TRUSTED);
             assertThat(result.accepted()).isTrue();
         }
 
         @Test
         @DisplayName("nullコンテンツは拒否する")
         void rejectsNullContent() {
-            var result = AgentDefinitionPolicy.validateRawContent(null, "test.agent.md");
+            var result = AgentDefinitionPolicy.validateRawContent(null, "test.agent.md", TRUSTED);
             assertThat(result.accepted()).isFalse();
             assertThat(result.reason()).contains("empty");
         }
@@ -38,7 +50,7 @@ class AgentDefinitionPolicyTest {
         @Test
         @DisplayName("空のコンテンツは拒否する")
         void rejectsBlankContent() {
-            var result = AgentDefinitionPolicy.validateRawContent("   ", "test.agent.md");
+            var result = AgentDefinitionPolicy.validateRawContent("   ", "test.agent.md", TRUSTED);
             assertThat(result.accepted()).isFalse();
             assertThat(result.reason()).contains("empty");
         }
@@ -47,7 +59,7 @@ class AgentDefinitionPolicyTest {
         @DisplayName("最大サイズを超えるコンテンツは拒否する")
         void rejectsOversizedContent() {
             String content = "---\n" + "x".repeat(AgentDefinitionPolicy.MAX_AGENT_FILE_SIZE + 1);
-            var result = AgentDefinitionPolicy.validateRawContent(content, "huge.agent.md");
+            var result = AgentDefinitionPolicy.validateRawContent(content, "huge.agent.md", TRUSTED);
             assertThat(result.accepted()).isFalse();
             assertThat(result.reason()).contains("exceeds maximum size");
         }
@@ -56,7 +68,7 @@ class AgentDefinitionPolicyTest {
         @DisplayName("フロントマターなしのコンテンツは拒否する")
         void rejectsWithoutFrontmatter() {
             String content = "# No Frontmatter\nJust text";
-            var result = AgentDefinitionPolicy.validateRawContent(content, "no-fm.agent.md");
+            var result = AgentDefinitionPolicy.validateRawContent(content, "no-fm.agent.md", TRUSTED);
             assertThat(result.accepted()).isFalse();
             assertThat(result.reason()).contains("frontmatter");
         }
@@ -283,7 +295,7 @@ class AgentDefinitionPolicyTest {
         void knownKeysDoNotThrow() {
             Map<String, String> metadata = Map.of("name", "test", "model", "claude-sonnet-4");
             // Should not throw
-            AgentDefinitionPolicy.auditFrontmatterKeys(metadata, "test.agent.md");
+            AgentDefinitionPolicy.auditFrontmatterKeys(metadata, "test.agent.md", TRUSTED);
         }
 
         @Test
@@ -295,7 +307,7 @@ class AgentDefinitionPolicyTest {
                 "another-unknown", "value2"
             );
             // Should not throw — just logs warnings
-            AgentDefinitionPolicy.auditFrontmatterKeys(metadata, "test.agent.md");
+            AgentDefinitionPolicy.auditFrontmatterKeys(metadata, "test.agent.md", TRUSTED);
         }
     }
 }

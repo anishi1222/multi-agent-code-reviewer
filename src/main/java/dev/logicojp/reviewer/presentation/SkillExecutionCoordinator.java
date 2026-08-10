@@ -31,8 +31,7 @@ public class SkillExecutionCoordinator {
     public int execute(String skillId,
                        Map<String, String> parameters,
                        String resolvedToken,
-                       String model,
-                       long timeoutMinutes) {
+                       String model) {
         output.println("Executing skill: " + skillId);
         output.println("Parameters: " + parameters.keySet());
 

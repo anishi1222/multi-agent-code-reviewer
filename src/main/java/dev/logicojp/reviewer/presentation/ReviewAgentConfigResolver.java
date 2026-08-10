@@ -2,6 +2,7 @@ package dev.logicojp.reviewer.presentation;
 
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -29,7 +30,12 @@ public class ReviewAgentConfigResolver {
 
     public AgentResolution resolve(ReviewOptions options) {
         List<Path> additionalDirs = options.additionalAgentDirs();
-        List<AgentConfig> agents = loadAgentPort.loadAll(additionalDirs);
+        // `--agents-dir` values can only originate from argv, so they are user-supplied by
+        // definition (ADR-0007 D1, boundary B1). The repository under review cannot reach this
+        // call site, and there is deliberately no option that raises a repository directory to
+        // this level.
+        List<AgentConfig> agents =
+            loadAgentPort.loadAll(AgentSourceDirectory.allUserSupplied(additionalDirs));
 
         List<AgentConfig> filtered = filterBySelection(agents, options.agents());
         Map<String, AgentConfig> adjusted = applyReviewModelOverride(toMap(filtered), options.reviewModel());

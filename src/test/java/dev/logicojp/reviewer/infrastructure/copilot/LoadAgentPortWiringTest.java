@@ -3,6 +3,7 @@ package dev.logicojp.reviewer.infrastructure.copilot;
 import dev.logicojp.reviewer.application.agent.LoadAgentUseCase;
 import dev.logicojp.reviewer.application.port.inbound.LoadAgentPort;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import io.micronaut.context.env.Environment;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
@@ -46,7 +47,7 @@ class LoadAgentPortWiringTest {
     @Test
     @DisplayName("ユースケース経由で実際のエージェント定義を読み込む")
     void loadsRealAgentDefinitionsThroughTheUseCase() {
-        List<AgentConfig> agents = loadAgentPort.loadAll(List.of(AGENTS_DIR));
+        List<AgentConfig> agents = loadAgentPort.loadAll(List.of(AgentSourceDirectory.userSupplied(AGENTS_DIR)));
 
         // Exercises the full path: use case -> injected AgentLoader lambda -> AgentConfigLoader
         // -> frontmatter parsing -> domain AgentConfig.
@@ -59,7 +60,7 @@ class LoadAgentPortWiringTest {
     @Test
     @DisplayName("名前を指定してエージェントを取得できる")
     void findsAgentByName() {
-        Optional<AgentConfig> agent = loadAgentPort.loadByName("security", List.of(AGENTS_DIR));
+        Optional<AgentConfig> agent = loadAgentPort.loadByName("security", List.of(AgentSourceDirectory.userSupplied(AGENTS_DIR)));
 
         assertThat(agent).isPresent();
         assertThat(agent.orElseThrow().name()).isEqualTo("security");
@@ -68,13 +69,18 @@ class LoadAgentPortWiringTest {
     @Test
     @DisplayName("存在しないエージェント名は空を返す")
     void returnsEmptyForUnknownAgentName() {
-        assertThat(loadAgentPort.loadByName("no-such-agent", List.of(AGENTS_DIR))).isEmpty();
+        assertThat(loadAgentPort.loadByName("no-such-agent", List.of(AgentSourceDirectory.userSupplied(AGENTS_DIR)))).isEmpty();
     }
 
     @Test
-    @DisplayName("ディレクトリが空の場合は読み込みを行わない")
-    void returnsEmptyWhenNoDirectoriesGiven() {
-        assertThat(loadAgentPort.loadAll(List.of())).isEmpty();
-        assertThat(loadAgentPort.loadByName("security", List.of())).isEmpty();
+    @DisplayName("追加ディレクトリなしでも設定済み既定ディレクトリから読み込む")
+    void loadsConfiguredDefaultsWhenNoAdditionalDirectoriesGiven() {
+        assertThat(loadAgentPort.loadAll(List.of()))
+            .as("empty add-ons must not bypass reviewer.agents.directories")
+            .extracting(AgentConfig::name)
+            .contains("security");
+        assertThat(loadAgentPort.loadByName("security", List.of()))
+            .as("name lookup must use the same configured defaults")
+            .isPresent();
     }
 }

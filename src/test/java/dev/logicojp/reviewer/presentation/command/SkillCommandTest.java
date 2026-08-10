@@ -12,6 +12,7 @@ import dev.logicojp.reviewer.presentation.SkillExecutionPreparation;
 import dev.logicojp.reviewer.presentation.SkillOptions;
 import dev.logicojp.reviewer.presentation.formatter.SkillOutputFormatter;
 import dev.logicojp.reviewer.presentation.parser.SkillOptionsParser;
+import dev.logicojp.reviewer.domain.agent.AgentSourceDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +35,7 @@ class SkillCommandTest {
 
     @FunctionalInterface
     private interface ExecuteFn {
-        int execute(String skillId, Map<String, String> parameters, String resolvedToken, String model, long timeoutMinutes);
+        int execute(String skillId, Map<String, String> parameters, String resolvedToken, String model);
     }
 
     @Test
@@ -42,7 +43,7 @@ class SkillCommandTest {
     void returnsOkOnSuccessfulExecution() {
         SkillCommand command = createCommand(
             options -> new SkillExecutionPreparation.PreparationResult(false, "token", Map.of("k", "v")),
-            (skillId, parameters, resolvedToken, model, timeoutMinutes) -> ExitCodes.OK
+            (skillId, parameters, resolvedToken, model) -> ExitCodes.OK
         );
 
         int exit = command.execute(new String[]{"secret-scan"});
@@ -55,7 +56,7 @@ class SkillCommandTest {
     void returnsOkWhenHelpRequested() {
         SkillCommand command = createCommand(
             options -> new SkillExecutionPreparation.PreparationResult(true, null, Map.of()),
-            (skillId, parameters, resolvedToken, model, timeoutMinutes) -> ExitCodes.OK
+            (skillId, parameters, resolvedToken, model) -> ExitCodes.OK
         );
 
         int exit = command.execute(new String[]{"--help"});
@@ -70,7 +71,7 @@ class SkillCommandTest {
             options -> {
                 throw new IllegalStateException("boom");
             },
-            (skillId, parameters, resolvedToken, model, timeoutMinutes) -> ExitCodes.OK
+            (skillId, parameters, resolvedToken, model) -> ExitCodes.OK
         );
 
         int exit = command.execute(new String[]{"secret-scan"});
@@ -111,9 +112,8 @@ class SkillCommandTest {
             public int execute(String skillId,
                                Map<String, String> parameters,
                                String resolvedToken,
-                               String model,
-                               long timeoutMinutes) {
-                return executorFunction.execute(skillId, parameters, resolvedToken, model, timeoutMinutes);
+                               String model) {
+                return executorFunction.execute(skillId, parameters, resolvedToken, model);
             }
         };
 
@@ -123,20 +123,19 @@ class SkillCommandTest {
             coordinator,
             new SkillOptionsParser(),
             new SkillOutputFormatter(output),
-            output,
-            5
+            output
         );
     }
 
     private static LoadAgentPort stubLoadAgentPort() {
         return new LoadAgentPort() {
             @Override
-            public List<AgentConfig> loadAll(List<Path> directories) {
+            public List<AgentConfig> loadAll(List<AgentSourceDirectory> directories) {
                 return List.of();
             }
 
             @Override
-            public Optional<AgentConfig> loadByName(String name, List<Path> directories) {
+            public Optional<AgentConfig> loadByName(String name, List<AgentSourceDirectory> directories) {
                 return Optional.empty();
             }
         };

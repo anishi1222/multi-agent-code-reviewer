@@ -325,3 +325,340 @@
   had I trusted the "Java 26" line I'd have failed the build. Verify claims against build files.
 - No source changed in this addendum (docs/learnings only), so the 942/0 build result stands unchanged.
 - Learnings consumed: [same set as t26, plus reconciliation of clarification.md]
+
+## [t29] F4 closed — skill budget injected into AgentPromptBuilder as a pure value, drop-and-warn replaces throw
+
+- **Seam picked by measurement.** Before choosing where to thread the budget I scanned
+  `new AgentConfig(` arities: 70/71 call sites use the 8-arg convenience ctor, the only wide call is
+  inside `Builder.build()`. So a 13th record component + null-normalisation broke **zero** call
+  sites. The "obvious" fix (add a parameter to `AgentPromptBuilder`'s static methods) would have
+  broken ~18 call sites and forced `ReviewTargetInstructionResolver` and `ReviewPassRunner` to carry
+  a budget neither uses. **Count call sites before arguing about design.**
+- **Gotcha: `SkillConfig.defaults().directory()` points at the *real* project skills dir.** A loader
+  test that doesn't override it silently loads real global skills from disk, so
+  `assertThat(agent.skills()).isEmpty()` fails for reasons unrelated to the test. Cost one red run.
+  Always point loader fixtures at an isolated temp dir.
+- **Gotcha: `applySkills` early-returns** (`if (agentSkills.isEmpty()) return config;`). Attaching
+  the budget inside it would silently skip skill-less agents. Attached in `parseAgent` instead.
+  Related subtlety: `enforceAssignedSkillBudget` *passes through* skills whose `metadata.agent`
+  doesn't match, so global skills count toward non-emptiness — the early return fires only when the
+  skills dir yields literally zero skills.
+- **A mutant that kills too many tests is a defect signal, not a win.** M9 (move the attach point
+  past the early return) killed all three loader tests. That looked strong; it actually meant all
+  three fixtures took the *same* path and nothing covered the with-skills path. After
+  parameterising skill-presence, M9 kills exactly one test and its inverse M10 kills the other two —
+  complementary sets, which is the result that actually proves both paths are guarded.
+- **Predicting kill sets beforehand paid off.** I predicted algebraically that M2 (re-introduce F4:
+  ignore the injected budget, hardcode 10_000) would *survive* `dropsOversizedExpandedSkillInsteadOfThrowing`,
+  because 11,100 > 10,000 under both fixed and mutated code. Confirmed. That proves the intuitive
+  "drops instead of throws" test verifies only half the remedy and says nothing about configurability.
+- **Byte-identity pinned with a literal golden string**, written out in full rather than rebuilt from
+  production constants — so header drift fails the test instead of silently tracking it.
+  `ASSIGNED_SKILLS_HEADER` measures 71 chars (computed, not assumed).
+- **Concurrent worktree co-tenancy.** `RubberDuckPromptBuilderTest` and
+  `ReviewOverallSummaryAppenderTest` were modified inside my task window by another agent working in
+  the same worktree. I left them alone and raised it to the coordinator. Practical consequence: the
+  962-test total is not solely attributable to t29 (+15 is mine). If you see unexpected `git status`
+  entries, check mtimes against your own start time before assuming your tooling did it.
+- Build: `clean verify` → 962 tests, 0 failures/errors/skipped, `LayerDependencyRulesTest` 10/10, 0 cycles.
+- Learnings consumed: [backend/one-knob-many-budgets-erases-provenance, backend/domain-purification-patterns,
+  backend/architecture-rule-negative-control, backend/verify-clarification-against-the-repo,
+  backend/merging-upstream-into-restructured-tree, architect/pre-check-predicting-downstream-is-duplicated-invariant,
+  architect/purity-displaced-capabilities-become-ports]
+
+## [t27] F2 — defaults single-sourced; the prescribed remedy was unsafe and the finding undercounted the sources
+- The prescribed fix (delete `@Bindable(defaultValue=…)`, let unbound `int`s arrive as `0`)
+  does not work on Micronaut 5.1.2. An absent key for a primitive record component throws
+  `DependencyInjectionException` during parameter resolution — the compact constructor never
+  runs, so it cannot rescue the value. Probed it before touching production code, which is the
+  only reason this didn't ship as a startup crash.
+- Working shape: box the components, mark them `@Nullable`, normalise `null` in the compact
+  constructor. Absent → `null` → default. Already the in-tree idiom (`LocalFileConfig`,
+  `ExecutionConfig.sharedSessionEnabled`, t29's `SkillBudget`).
+- **The finding named two sources; there were three.** `application.yml` restated all eight
+  values. Mutating one `@Bindable` literal to `424242` and watching the bean still bind `12000`
+  proved the yaml won and the annotations were dead code. Deleting only the annotations would
+  have been a fix that fixed nothing. Grep the key prefix; don't trust the finding's file list.
+- Behaviour-neutral duplication is invisible to behavioural tests. Re-adding the yaml key with
+  its *original* value (M4) — literally the state that shipped — changes nothing observable, so
+  only a structural guard (scan the yaml, reflect over the annotation) rejects it. Two of the
+  six mutants were of this kind.
+- First draft of the reflection guard checked only `RecordComponent.getAnnotation`, and the
+  mutant survived: `@Bindable` is retained on the **canonical constructor parameter**. A guard
+  that never fails is indistinguishable from a broken one — the mutant run is what caught it.
+- Self-inflicted: used `git checkout <file>` to revert mutants and wiped my own uncommitted
+  implementation mid-run. The next mutant then "failed" in an unrelated test, which looked like
+  a real kill. Restore from a `/tmp` copy, and always run a baseline through the harness first.
+- Learnings consumed: [backend/one-knob-many-budgets-erases-provenance,
+  backend/duplicate-utility-consolidation-semantic-drift,
+  backend/injecting-config-into-pure-domain-as-values,
+  backend/architecture-rule-negative-control, backend/merging-upstream-into-restructured-tree,
+  architect/inherited-defect-is-not-a-merge-finding]
+
+## [t28] F3 — banner and executor read different config keys; fixed via a new inbound port
+- **The finding was mis-shaped as a typo.** t24 described F3 as "reads the wrong key". Correcting
+  the string would have passed every existing test and left the actual defect — a `presentation`
+  class naming an `infrastructure` config key by string — fully intact. The architect was right to
+  insist on the port. Worth remembering: when a finding says "wrong key/name/path", ask *what made
+  the wrongness invisible* before fixing the spelling.
+- **`@Value` in `presentation` is an ADR-0006 D1 blind spot.** Rule 5b (`presentation ⊥
+  infrastructure`) inspects **imports**. A `@Value("${some.infra.key}")` is the same coupling with
+  none of the compile-time safety, and no static rule sees it. `presentation/ReviewModelConfigResolver`
+  still does this. Flagged to architect; deliberately did not add a rule myself.
+- **The obvious test would have been worthless.** "set property to 3, assert banner prints 3" passes
+  identically against the broken code — the broken code also printed what *its* key said. The only
+  test with any power sets the two keys to **contradictory** values and compares the port's answer
+  against `ReviewOrchestratorFactory#buildConfig(...)`, i.e. the executor's own derivation. Compare
+  two independently-derived values, never a value against a literal.
+- **Mutation-verify any test written as a regression control.** I reintroduced the defect in the
+  isolated copy and confirmed red (`expected: 3 but was: 7`), then restored and confirmed green.
+  Cheap, and it is the only actual evidence that a "regression test" regresses.
+- **Bind a method reference, not a snapshotted value.** `new DescribeReviewPlanUseCase(executionConfig::reviewPasses)`
+  makes the wiring itself read as "the same accessor the executor uses". Passing an `int` would be
+  runtime-identical but reintroduces a *second independent read* — the exact shape of the bug.
+- **Normalisation belongs to one owner (ADR-0006 D6).** `ReviewPlan` **throws** on `< 1` rather than
+  clamping. `ExecutionConfig` already normalises; a second clamp would silently mask that owner
+  breaking. Parameterized cases `-4`/`0` prove the port inherits normalisation instead of copying it.
+- **Banner prints before `ReviewRequest` exists** (`ReviewCommand` L124 vs L128) — that is why the
+  value cannot ride on `ReviewRequest` without reordering the command. Checked this before designing.
+- **Grep for call sites *before* changing a public signature.** I changed `ReviewOutputFormatter`'s
+  ctor, then discovered 3 more test files mid-build. `grep -rn "new Type(\|methodName("` up front
+  would have cost 10 seconds and saved a failed build cycle.
+- **Shared-worktree builds:** `rsync --exclude target/ --exclude .git/ --exclude logs/` to `/tmp`,
+  and afterwards `diff -r src /tmp/<iso>/src` to prove the verified tree is the worktree. The stale
+  first sync cost me a wasted 5-error build.
+- Result: 990 tests, 0 failures (baseline 980, +10). `LayerDependencyRulesTest` needed no edits.
+- Learnings consumed: [backend/derived-exemptions-for-generated-beans, backend/micronaut-factory-port-binding]
+
+## [t18.2] Closed SEC-H1/SEC-H2 at the root — ADR-0007 D1–D4
+
+SEC-H1 and SEC-H2 turned out to be one defect: `ApplicationPortFactory` concatenated
+operator-supplied and repository-supplied directories into one `List<Path>`, and provenance died
+there. Downstream there was only "a path", so only one limit could apply (SEC-H2) and the strict
+constants had nothing to attach to (SEC-H1). Neither is fixable without D1 first — the
+coordinator's D1→D2→D3 ordering is a correctness constraint, not a preference.
+
+### Gotchas that cost real time
+
+- **`surefire:test` does not recompile tests.** `./mvnw -B -o surefire:test` silently runs stale
+  `.class` files. I burned a long stretch chasing a phantom "fixture bug" (`Missing required agent
+  fields: instruction` at 8193 chars) that did not exist — the source edit simply had not been
+  compiled. Always `test-compile surefire:test` when iterating. A standalone probe I wrote to
+  investigate then failed with `NoClassDefFoundError: org/slf4j/LoggerFactory`, a classpath error
+  in the probe, which I briefly misread as a second symptom. There is no size limit in the parser.
+- **The inbox test baseline (981) was stale.** Other tasks landed 9 tests in this shared worktree
+  since it was measured. I re-measured HEAD with `git archive HEAD | tar -x -C /tmp/...` — read-only,
+  never touches the shared worktree — and got 990. Delta is then +51, reconciling exactly against
+  the new files. Reporting "+60" against the stale figure would have implied tests I never wrote.
+
+### Things the new tests caught that I would otherwise have shipped
+
+- **I recreated SEC-H1 while fixing it.** After moving the constants to `AgentDefinitionPolicy`, I
+  wrote the profiles with literals (`16 * 1024`). Numerically right; the constants still had zero
+  references. `AgentPolicyConstantsAreLiveTest` failed 6/8 and named each one. Note this test *must*
+  scan source text — these are JLS §4.12.4 constant variables, inlined by `javac`, so a bytecode
+  scan sees no `Fieldref` and reports a live constant as dead-free. Bytecode analysis cannot detect
+  this class of defect at all.
+- **The charset whitelist admitted the characters it existed to exclude.** `ALLOWED_CHAR_RANGE`
+  whitelisted `\u2000-\u206F` wholesale — which contains the bidi overrides (`U+202A`–`U+202E`) and
+  zero-width/invisible characters. A routine boundary test failed on first run. Activating dead code
+  forces you to ask what it actually does; worth checking other block-range whitelists.
+- **A record field name broke the architecture test.** `Rule 1` reported a dependency on `ines` — not
+  a class. `javac` emits the record's component names as a `;`-joined string constant, and the
+  descriptor regex's optional package separator matched `Lines;` inside `maxInstructionLines;`. The
+  trigger is positional (a sibling record has the same hazard in its *last* component and escapes),
+  so a field reorder could break the build spontaneously. Fixed at the detector, verified detection
+  power via the exact-equality exemption lists, added a default-package guard. Renaming my field
+  would also have gone green while leaving the trap armed.
+
+### Technique worth reusing
+
+Mutation verification per ADR-0007 D7 is cheap and repeatedly informative: back up to `/tmp` with
+md5s (**never** `git checkout` in a shared worktree), reintroduce the exact defect, confirm the
+named test fails, restore, re-verify the checksum. Four mutations, four confirmed reds. Mutation C
+(making both trust profiles identical) reproduces SEC-H2 verbatim and fails 3/3 differential tests —
+that is the strongest single piece of evidence in the artifact.
+
+Also: writing the D1 differential test first and *watching it go red* was what proved the limits are
+genuinely provenance-aware. Without the captured red, a passing test after the fact is compatible
+with a validator that ignores provenance entirely.
+
+- Learnings consumed: [backend/mutation-verify-regression-tests, backend/never-git-checkout-to-revert-a-mutant, backend/one-knob-many-budgets-erases-provenance, backend/surefire-declared-vs-actual-test-counts, backend/architecture-rule-negative-control, backend/archunit-java27-bytecode-ceiling, backend/self-cleaning-architecture-exclusions, backend/derived-exemptions-for-generated-beans, backend/java-subpackage-visibility, backend/domain-purification-patterns, backend/verify-clarification-against-the-repo]
+
+## [t18.3] SEC-H3 closed by subtracting Unicode categories from the charset allowlist, proven by exhaustive sweep
+
+- **The block-range trap generalises.** t18.2/F1 hand-narrowed `\u2000-\u206F` and got it
+  exactly right; the identical defect sat untouched in three other ranges of the same constant.
+  Correct hand-curation still does not generalise. Subtracting a *property* fixed all 15 ranges
+  at once.
+- **Derivation beat recall, measurably.** Security recommended excluding 5 blank-rendering
+  fillers. Sweeping the BMP against `Character.getName()` found **6** — `U+A8F9 DEVANAGARI GAP
+  FILLER` was on nobody's list. Never hand-write a set you can derive from JDK data.
+- **The coordinator's `Mn` count was low.** Reported 4 (U+302A–302D); actual is **6** — U+3099
+  and U+309A (combining dakuten/handakuten) come in via `\u3040-\u309F`, a different range than
+  the one audited. Re-derive counts rather than inheriting them.
+- **Order the exemption before the mask.** `\t \n \r` are category `Cc` and are in the allowlist
+  deliberately. `PERMITTED_CONTROL_CHARACTERS` has to be checked *before* `BLOCKED_CATEGORIES`
+  or every multi-line definition breaks. Cost me nothing here only because a test covered it.
+- **The over-block mutant is the one that taught me something.** M1 (remove the control) killed
+  the 4 rejection pins as expected. M4 (add `SPACE_SEPARATOR` to the blocked set) killed 15
+  tests including `japaneseIsAllowed` — proving the *acceptance* side is pinned and the rule
+  cannot drift too strict. A removal-only mutation matrix would have missed that entirely.
+- **Turn a tradeoff debate into a number.** Blocking all `Mn` rejects NFD kana and Ainu セ+U+309A,
+  which sounded expensive. Scanning 1,332 repo files for "admitted before, rejected after" gave
+  **0**, which settled it. Wrote `/tmp/t18_3/RepoImpact2.java` calling the *shipped* class, and
+  had to correct a first version that forgot to intersect with "currently admitted" — it flagged
+  U+FE0F in 240 files, which was already rejected. Always diff against current behaviour, not
+  against the new rule alone.
+- **Staging the RED honestly.** Added the constants as inert data first and left the predicate
+  unwired. That made the sweep and `subtractionIsNotANoOp` fail while the derivation test passed
+  — a much more informative RED than a compile error, and it doubled as mutation M1.
+- **Sweep cost is a non-issue.** 1.1M regex matches ≈ 80 ms; 1M `Character.getType` ≈ 5 ms.
+  Exhaustive enumeration of a codepoint domain is cheap enough to run on every build.
+- Learnings consumed: [security/charset-allowlist-block-ranges, backend/architecture-rule-negative-control,
+  backend/mutation-verify-regression-tests, backend/never-git-checkout-to-revert-a-mutant,
+  backend/self-cleaning-architecture-exclusions, security/dead-security-controls]
+
+## [t16.3] Bound `RunReviewPort` to application and split review composition responsibilities
+
+- RED-first controls exposed both aspects of ADR-0006 deviation #8: the Micronaut test resolved
+  `RunReviewPort` to infrastructure (6 tests, 1 failure), and un-exempted Rule 4 named the
+  infrastructure source plus generated bean definition (10 violators / 8 exemptions).
+- The final binding lives in root-package `ReviewPortFactory`, a true layer-zero factory containing
+  wiring only. `application.review.ReviewOrchestrator` is the resolved implementation and keeps no
+  invocation state; it resolves settings and creates SDK-backed session ports per call.
+- Split configuration mapping into outbound `ResolveReviewSettingsPort` implemented by
+  `ReviewContextFactory`, and SDK construction into `CreateReviewSessionPortsPort` implemented by
+  the historically named `ReviewOrchestratorFactory`.
+- Corrected an over-broad first design before verification: a configuration DTO had echoed the
+  GitHub token, timestamp, and output constraints through infrastructure. The final settings DTO
+  excludes all three; the application combines external settings with request-owned values.
+- Rule 4 now has 7/7 exact violators/exemptions, all from the still-open `ApplicationPortFactory`
+  deviation. `ReviewContextFactory` and `ReviewOrchestratorFactory` need no exemptions.
+- Java 28 full build: 1058 tests, 0 failures/errors/skipped, exit 0; focused architecture/review
+  suite: 38/38; Rule 0 parsed 345/345 classes.
+- Learnings consumed: [backend/inbound-port-implemented-in-infrastructure,
+  backend/micronaut-factory-port-binding, backend/architecture-rule-negative-control,
+  backend/derived-exemptions-for-generated-beans, backend/orchestrator-per-invocation-resources,
+  architect/port-direction-by-implementer, architect/composition-root-as-layer-zero,
+  architect/relocation-must-not-conceal-inversion]
+
+## [t17.1] Added RED-first layer-zero and application-port dependency rules
+
+- Codebase/domain discoveries: Rule 3a analyzes 339 compiled named-layer classes backed by 185 source primary types; Rule 4a analyzes 30 compiled port classes backed by 26 source primary types. Test-tree controls can exercise the same bytecode analyzer without entering the production graph rooted at `target/classes`.
+- Wrong assumptions and corrections: a non-empty compiled subject set alone is not a sufficient vacuity guard because generated classes may keep it non-empty; the final rules independently enumerate production sources and require source-to-bytecode correspondence.
+- Debugging dead-ends and what actually worked: the required `context.md`, checklist, and topology/fanout artifacts are absent. The supplied t17 report, ADR-0006, implementation task T012, current source, and isolated `/tmp` mutants provided the authoritative contract and proof.
+- Techniques/patterns worth reusing for future tasks: preserve published rule numbers with suffixes, use exact-shape test-only mutation fixtures, require zero exemptions, and run production mutants only in a disposable repository copy before a full restored `clean verify`.
+- Learnings consumed: [backend/architecture-rule-negative-control, backend/java-classfile-parser-major-version, backend/layered-package-boundary-first, tester/java-architecture-test-fixtures]
+
+## [t17.2] Thinned ReviewApp and split the remaining application-wide factory
+
+- Codebase/domain discoveries: the old factory mixed five different seams (trust provenance,
+  filesystem I/O, framework configuration, SDK construction, and inbound use-case binding);
+  moving it wholesale would have hidden rather than resolved deviation #4.
+- Wrong assumptions and corrections: Micronaut generated-definition names did not need preserving;
+  they are implementation details tied to factory method indices. Preserving actual port bindings
+  through a real container test is the durable contract.
+- Debugging dead-ends and what actually worked: a first settings-adapter test assumed bean
+  constructor/accessor order from memory and failed test compilation. Reading the concrete records
+  and adapter signature fixed the test without changing production.
+- Techniques/patterns worth reusing: keep the stable main FQN as a tiny process shell, route
+  presentation-triggered technical changes through inbound→use-case→outbound ports, split adapter
+  factories by external mechanism, and delete generated exemptions once the source exception is
+  gone.
+- Verification: Java 28 full clean verify passed 1073 Surefire + 4 Failsafe testcases; Rule 0 parsed
+  364/364 and Rule 4 inspected 122 classes with 0 violators / 0 exemptions.
+- Learnings consumed: [backend/review-composition-root-split,
+  backend/derived-exemptions-for-generated-beans,
+  backend/source-backed-architecture-rule-subjects,
+  architect/layer-zero-needs-two-controls]
+
+## [t32.2] Migrated presentation defaults through ReviewPlan and enforced ADR/Rule 5c traceability
+
+- Codebase/domain discoveries: three presentation classes owned direct Micronaut bindings even
+  though the canonical values were already normalized by `ExecutionConfig` and `ModelConfig`.
+  Expanding the existing plan port let parallelism and stage-model defaults cross the boundary as
+  one coherent application DTO while preserving explicit CLI precedence.
+- Wrong assumptions and corrections: the outbound accessor is named `defaultParallelism`, not
+  `maxParallelism`; the first focused compile RED exposed the mismatch and the implementation was
+  aligned to the architect contract rather than changing the test.
+- Debugging dead-ends and what actually worked: mutation proofs ran in three disposable copies
+  under `/tmp`, avoiding checkout/restore against the shared dirty worktree. Rule 5c killed a real
+  `ReviewModelConfigResolver -> @Value` mutant, and the ADR guard independently killed primary-rule
+  and D-item renames while the Rule 4b control remained unchanged.
+- Techniques/patterns worth reusing: source-enumerate every zero-violation structural subject,
+  retain an exact test-tree detector fixture, inventory only primary `@Test` display names, and pin
+  real ADR anchors so both sides of a bidirectional guard are non-vacuous.
+- Verification: focused 62/62; Java 28 full clean verify 1082 Surefire + 4 Failsafe, 0 failures,
+  errors, or skips; Rule 5c inspected 72 classes backed by 31 primary sources with 0 violations and
+  0 exemptions.
+- Learnings consumed: [backend/route-config-to-presentation-through-an-inbound-port,
+  backend/source-backed-architecture-rule-subjects,
+  backend/never-git-checkout-to-revert-a-mutant,
+  backend/architecture-rule-negative-control]
+
+## [t32.3] Killed the duplicate agent-load summary mutant with exact cardinality assertions
+
+- Codebase/domain discoveries: production already had one post-scan `reportOutcome(...)` call; the
+  defect was exclusively in the D4 test oracle, whose `findFirst()` proved existence but discarded
+  duplicate events.
+- Wrong assumptions and corrections: making the default-level visibility test another cardinality
+  assertion caused the mutant to over-kill 3 tests. Keeping that test on observability and assigning
+  exact size-one checks only to rejection and zero-rejection behavior produced the intended 2-test
+  kill set.
+- Debugging dead-ends and what actually worked: copied the complete dirty worktree to
+  `/tmp/t32_3_mutant`, added a second production summary invocation only there, and copied in the
+  final test source. Both cardinality branches failed with size 2 while the other 3 D4 tests passed.
+- Techniques/patterns worth reusing: collect the complete filtered event set before asserting
+  cardinality; keep existence, severity, continuation, and cardinality assertions independently
+  attributable; mutation-test in an isolated copy.
+- Verification: focused 8/8; duplicate mutant RED 2/5; Java 28 full `clean verify` 1082 Surefire +
+  4 Failsafe, 0 failures/errors/skips.
+- Learnings consumed: [architect/event-cardinality-needs-duplicate-mutant,
+  backend/mutation-verify-regression-tests, backend/never-git-checkout-to-revert-a-mutant,
+  backend/surefire-declared-vs-actual-test-counts, backend/architecture-rule-negative-control]
+
+## [t14.2] Restored skill resilience and deprecated-token warning
+
+- Codebase/domain discovery: the deleted legacy `SkillExecutor`, not the current outbound
+  session adapter, had owned the complete skill retry/circuit/timeout policy. The shared
+  retry mechanism and skill-domain breaker survived the rewrite but had no live caller.
+- Wrong assumption corrected: a session port throwing a timeout does not preserve
+  `SKL-07`; the application boundary must translate that technical cause into the
+  skill-specific result contract and decide whether it is retryable.
+- Debugging dead-end: `origin/main` no longer contained the flat `SkillService` path.
+  Locating the last add/modify commit recovered the source policy constants and prevented
+  inventing new retry behavior.
+- Reusable technique: use the tester's original red run as the negative control, edit
+  production only, and rerun the exact same classes before the full build. This produced
+  2 pass / 5 fail before and 7 pass / 0 fail after, without touching test source.
+- Verification: Java 28 full `clean verify` passed 1,106 Surefire and 4 Failsafe cases;
+  Rule 0 parsed 365/365 and Rule 5 found zero application-to-adapter violations.
+- Learnings consumed: [backend/architecture-rule-negative-control,
+  backend/mutation-verify-regression-tests, backend/one-knob-many-budgets-erases-provenance,
+  backend/duplicate-utility-consolidation-semantic-drift,
+  backend/redacted-literals-compare-by-hash,
+  backend/surefire-declared-vs-actual-test-counts, tester/test-conventions]
+
+## [t22.1] Restored default agent discovery and one executable discovered-skill catalog
+
+- Codebase/domain discoveries: configured agent directories were already correctly owned and
+  merged by `AgentDefinitionLoaderAdapter`; only the application short circuit made that behavior
+  unreachable. `AgentConfigLoader` also already performed the authoritative global-skill scan, so
+  a second registry scan would have created another source of truth.
+- Wrong assumptions and corrections: an empty list from presentation means "no additional
+  directories", not "load nothing". The use case now always delegates, while infrastructure
+  interprets configured defaults.
+- Debugging dead-ends and what actually worked: exposing the exact valid-skill list on
+  `AgentLoadReport` let the adapter publish the same discovery pass. A new outbound catalog port
+  removed the concrete `SkillRegistry` method-reference wiring from the application factory.
+- Techniques/patterns worth reusing: publish complete immutable snapshots rather than append-only
+  discovery results; atomically swap them so stale entries disappear without an observable partial
+  refresh; isolate packaged regressions with named fixtures and explicitly reject empty-inventory
+  output.
+- Verification: RED-first 16 run / 3 expected failures; focused post-fix 36/36; Java 28 full
+  `clean verify` 1,107 Surefire + 5 Failsafe, 0 failures/errors/skips; 22/22 architecture checks.
+- Learnings consumed: [teamlead/default-discovery-smoke-controls,
+  devops/packaged-cli-smoke-at-verify, backend/find-which-duplicate-actually-wins,
+  backend/mutation-verify-regression-tests, backend/micronaut-factory-port-binding,
+  backend/skill-resilience-use-case-boundary, tester/test-conventions]

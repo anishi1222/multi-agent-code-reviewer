@@ -217,3 +217,132 @@ site* — turned on the coordinator: **a question's premise is invisible at the 
 2nd occurrence (after ADR-0006 D3, t16.2). Countermeasure: briefs must cite evidence for load-bearing premises, or
 mark them explicitly as unverified assumptions to be checked first. Captured in
 `learnings/architect/rule-the-premise-before-the-question.md`.
+
+## [architect] [t24 round-1] — 2026-08-06T01:51:53Z
+
+**Decision**: Three config-contract escalations ruled as **ONE defect with ONE remedy**.
+
+- **(A) Split `reviewer.skills.max-parameter-value-length` into per-budget keys — DEFER.** Correct in
+  principle, but *not* a breaking change: additive keys defaulting to the existing knob need no
+  migration notes. Superseded in practice by the remedy below.
+- **(B) bytes-vs-chars conflation — DEFER, MEDIUM, no ADR.** Make the file gate an explicit byte budget
+  at a documented multiple (4x) of the char budget. It is a DoS guard, not the semantic limit.
+- **(C) Make site 1 a true pre-check for site 5 — REJECTED.** A pre-check that must exactly predict a
+  downstream computation is a **duplicated invariant**: `AgentConfigLoader` would have to track
+  `AgentPromptBuilder`'s header text, per-skill markup, and placeholder expansion forever — an
+  inward-pointing knowledge leak from infrastructure to a domain class's *rendering format* that **no
+  import-level rule would catch**. Adopting it would re-create the systemic pattern in a new place
+  while claiming to fix it.
+
+**Remedy (one change, resolves F4 + A's motivation + C):** give `AgentPromptBuilder` the effective
+budget as an **injected pure value** — exactly the `PromptBudget` precedent already CONFIRMed — and make
+its breach **graceful** (drop the overflowing skill and warn, per ADR-0007 D4) instead of aborting the
+agent's review. No new config key, no contract change, and it removes the `domain -> ConfigDefaults`
+static read that Rule 8 would forbid.
+
+**Rationale**: the real defect is not the ceiling's value — it is that **four gates skip-and-warn and one
+throws**. Two controls over the same resource with opposite failure modes is the inconsistency worth
+removing. Fixing the throw is strictly smaller than teaching one layer to predict another's rendering.
+
+---
+
+## [coordinator] [F5 — stale canonical record] — 2026-08-06T01:51:53Z
+
+**Decision**: Corrected `clarification.md` Java target 26 -> 28 in place, with provenance recorded.
+
+**Rationale**: `clarification.md:34` (generated 2026-08-05T02:05Z) declared "Java 26 (GraalVM 26 EA)"
+while `pom.xml:22` declares `<java.version>28</java.version>`. Provenance verified independently:
+the bump arrived via **`98b095c` "fix: update Java version from 27 to 28 in pom.xml"**, authored by the
+repo owner (Akihiro Nishikawa, 2026-07-21) and an **ancestor of `origin/main`** — so no worker violated
+the no-version-upgrade rule and **the pom is correct**. The clarification artifact simply predates the
+merge that carried the bump in.
+
+Left uncorrected this was actively hazardous, not merely untidy: `clarification.md` is the canonical
+answer-of-record injected into **every** worker's `dependencyArtifacts`, so a future worker reconciling
+pom against it would "correct" 28 -> 26 and silently break a build that requires JDK 28.
+
+**Generalisation**: *a canonical record that outlives its generation context becomes an instruction to
+regress.* Staleness in a normative artifact is not neutral — it actively points work backwards.
+
+## [architect] [t30] — 2026-08-06T02:45:00Z
+**Decision**: ADR-0008 accepted — 制御の適用範囲は、その呼び出し箇所から見えなければならない.
+Mechanized as **Rule 8**: no class under `domain` may reference `shared.ConfigDefaults`.
+Currently 0 violators, 0 exemptions. A limit needed inside `domain` must be injected as a
+value object (`PromptBudget` / `SkillBudget`), which stays legal under Rule 1.
+**Rationale**: F4 existed because `AgentPromptBuilder` read a static default directly, so the
+control's real scope was invisible at the call site. Rule 8 makes that shape impossible rather
+than relying on review. Rule 8 ships with a *permanent* negative control because with 0 violators
+and 0 exemptions its self-proving assertion compares `[]` to `[]` and would pass identically with
+a broken predicate — the rule meant to catch invisible controls had itself become one.
+**Cost disclosed, not glossed**: detectability rests on a javac ghost `CONSTANT_Class` entry —
+compiler behaviour, not a JVMS guarantee. `case`-label constant reads leave zero bytecode trace
+and are an accepted, documented blind spot.
+
+
+## architect [t31] — 2026-08-06
+
+**Decision**: Discharge ADR-0007 D5 + D6 — remove object-level secret masking from
+`application.port.outbound.McpServerSpec`, and make the **log sink** the single masking boundary
+(`HEADER_MASK_PATTERN` in both logback profiles). Enforced by `LayerDependencyRulesTest` **Rule 4b**
+plus `SensitiveHeaderMaskingSinkCanaryTest`.
+
+**Rationale**: The removed wrapper protected nothing — measured, not assumed. `copilot-sdk-java:1.0.8`
+overrides `toString()` on neither `McpHttpServerConfig` nor `McpServerConfig`, stores headers via a
+plain `putfield` with no defensive copy, and **zero** `src/main` call sites log an `McpServerSpec`.
+Its only genuine coverage beyond the pre-existing sink was **opaque custom header values**
+(`X-API-Key:` with no recognizable prefix) — name-based and value-shape-based masking are different
+sets. D6's `HEADER_MASK_PATTERN` closes exactly that gap, mutation-proven.
+
+**Ordering**: ADR-0007 carries a HIGH migration risk that **D5 must not precede D6**. The task brief
+omitted it; t31 caught it from the ADR itself and executed ①RED ②D6 ③D5 ④GREEN.
+
+**Residual limit (recorded, not a regression)**: sink masking is text-shaped — it does not cover
+serialized JSON bodies, heap/core dumps, debuggers, or SDK-internal paths bypassing our logback.
+Equally true before this change. Token lifetime and least-privilege remain security's.
+
+## architect [t16.2] — 2026-08-07
+
+**Decision**: ADR-0006 D3 の初版前提を棄却し、実装事実に合わせて訂正する。
+`ApplicationPortFactory` / `ReviewContextFactory` / `ReviewOrchestratorFactory` は「3 件の
+Micronaut `@Factory`」ではない。実際に `@Factory` なのは `ApplicationPortFactory` だけであり、
+`ReviewContextFactory` は設定写像を行う通常クラス、`ReviewOrchestratorFactory` は
+`@Singleton` かつ inbound `RunReviewPort` の実装である。
+
+`ReviewOrchestratorFactory implements RunReviewPort` は **ADR-0006 deviation #8（HIGH）** とする。
+これはレビュー経路の依存方向反転であり、Rule 4 の名前指定例外によってのみ green になっている。
+ファイルをコンポジションルートへ移して例外内に隠す案は明示的に拒否する。DI から解決される
+`RunReviewPort` 実装を `application` に置き、設定写像と SDK アダプタ組み立てを outbound adapter /
+ルート配線へ分離して Rule 4 例外を削除することが完了条件である。
+
+**Rationale**: 初版 D3 を字面どおり実行すると、D1 の「配線のみ」を越える設定写像と D2 が禁止する inbound-port
+実装を、全層参照可能なルートへ移すだけになる。ルールが green でも反転は残り、可視だった欠陥が
+不可視になる。レビュー経路は影響範囲が大きく、9 依存の組み立て・呼び出し単位の設定写像・DI 束縛を
+分ける必要があるため、t16.2 では半端な source refactor を行わず、ADR-of-record と追随契約を先に確定した。
+
+---
+
+## architect [t32.1] — 2026-08-08
+
+**Decision**: ADR-0007 D3 / D4 / D7 を実装事実と双方向の非空虚性に合わせて改定する。
+D3 は `AgentConfig` の現在の 14 要素を記述するが、強制側は固定数を持たず
+`getRecordComponents()` と被覆集合の完全一致で追随する。D4 は存在しない `--quiet` を
+基準にせず、毎回 1 件の `Agent load summary:`（拒否 0 = INFO、拒否あり = WARN）と
+出荷時ログレベルを基準にする。D7 は under-block だけでなく over-block 変異も必須とし、
+有限領域は独立オラクルから全列挙して完全一致させる。
+
+**Decision**: 設定キーを文字列で名指しすることも層依存である。`presentation` から
+Micronaut の configuration-binding annotation package への依存を禁止する **Rule 5c** を
+0 例外で採択する。既存 3 箇所は例外化しない。review の既定値は既存
+`DescribeReviewPlanPort` を拡張して運び、未使用の skill-timeout binding は削除する。
+
+**Decision**: `AdrRuleReferenceGuardTest` は Accepted ADR の `### Dn.` に現れる
+`Rule N[x]` と、`LayerDependencyRulesTest` の実行可能 `@Test` / `@DisplayName` 在庫を
+**双方向**に照合する。実在 anchor 3 件と test-side / ADR-side の改名変異を必須証拠とする。
+在庫に数えるのは `Rule N[x]:` / `Rule N[x] scope:` の主テストだけであり、`control`
+だけが残って主テストの欠落を隠さないよう `Rule N[x] control:` は除外する。
+`Rule 7 — RESERVED` は実行可能テストではないため在庫に入らず、番号は保持される。
+
+**Rationale**: Rule 5b は型の辺しか見ず、t28 の誤キーに加えて現在も 3 クラスの直接束縛を
+見逃している。ADR-0007 D5 が存在しない Rule 4b を数週間宣言していた事例も、文章側だけ、
+テスト側だけの検査では再発する。責務の所在と参照の両端を同時に機械化し、空集合なら
+anchor が落ちる形にしなければ、同じ欠陥を別名で繰り返す。

@@ -5,11 +5,300 @@
 > 責務分担を明確にしたLayered architectureで再構築して。
 
 **Project started**: 2026-08-05T02:07:48Z
+**Project completed**: 2026-08-09T11:58:17Z
+**Total duration**: 4d 9h 50m 29s
+**Documentation follow-up started**: 2026-08-09T12:06:13Z
+**Documentation follow-up completed**: 2026-08-09T22:52:43Z (10h 46m 30s)
 
 **Pull request opened**: 2026-08-05T23:47Z — `anishi1222-layered-architecture-rebuild` -> `main`, 37 commits, 567 files (+26,101/-16,361). Opened at the user's request as a checkpoint on the verified-green tree (945 tests, BUILD SUCCESS), **not** at pipeline completion: the security gate (t18) is still `failed[findings]`, and t16.2 / t17 / t18.2 / t19 / t14.1 / t20-t22 remain. Open items are disclosed in the PR body, including the two coordinator-verified **pre-existing** build defects (non-executable jar, `pom-native.xml` does not compile at HEAD) so they are not misread as regressions from this change.
 **Run**: 6F90BA68-0FFD-486B-B11A-0094E573B3B3
 **Baseline commit**: fb2e795c569a56021e5ff680b3c8682dae9165ee
 **Classification**: brownfield-rewrite / grouping=none / deep_planning=true
+
+
+> ### ⚠️ SITUATION CHANGE — PR #245 was MERGED into `main` (2026-08-06T01:37:55Z)
+>
+> **The user's original request has shipped.** PR #245 *"Rebuild into a layered Ports and Adapters
+> architecture with enforced boundaries"* was merged by the repo owner as `469cfde`.
+>
+> **It was a squash merge, not a merge commit** — `469cfde` has a single parent, `5844456`. So the
+> ~40 individual commits of this branch exist in `main` as one commit. Git therefore cannot see that
+> the content is already present, which is normally a setup for large phantom conflicts.
+>
+> **Measured rather than assumed.** Tip-to-tip (`git diff HEAD..origin/main`, 2-dot — *not* the
+> 3-dot form, which misleadingly reports the whole squashed PR as "their" change):
+>
+> | Scope | Files | Delta |
+> |---|---|---|
+> | Everything | 35 | +67 / −2302 |
+> | `src/` only | 10 | +43 / −562 |
+>
+> The direction matters: HEAD → `origin/main` **deletes** our work, which means `main` contains
+> everything this branch had at PR time, and the branch's unique content is exactly the work done
+> *after* the merge — **t29** (`SkillBudget`, `AgentConfig`, `AgentPromptBuilder`, `AgentConfigLoader`,
+> `ConfigDefaults` + 3 test files) and **t25** (2 test files), plus coordination artifacts.
+>
+> **Consequence for the next merge:** merge-base is `5844456`, and both sides made largely identical
+> changes from it, so most files auto-resolve. Conflicts should be confined to the ~10 `src/` files
+> where our side is strictly newer, and **"ours" is the correct resolution** in those — the branch is
+> ahead, not divergent.
+>
+> **Deliberately NOT merging yet:** t30 and t27 are live in this worktree. Merging under two running
+> workers is precisely the shared-worktree corruption t25 documented, only worse than a `target/`
+> race. Merge happens after both land.
+>
+> **Signal worth recording:** the owner merged with **t18 still `❌ failed[findings]` (2 HIGH)** and
+> F2/F3 open. That is the owner's call to make and it supersedes the coordinator's §3.7 gate — but it
+> means those findings are now **`main`'s** problem, not this branch's, and should be re-raised
+> against `main` rather than treated as blocking here.
+
+### Upstream merge complete — `dd10b3d`
+
+`origin/main` (squash `469cfde`) merged and pushed. Branch **0 behind**, 48 ahead.
+
+All **31 conflicts** were squash artifacts, not real divergence. Resolved as *ours* on **evidence**:
+every conflicted path's `origin/main` blob was searched for in this branch's own history and **all 31
+matched a commit we already made** (newest `cd91bb0`) — **zero novel content**, so the owner edited
+nothing during or after the squash. Had any path come back NOVEL it would have required a real
+three-way merge.
+
+Post-merge invariants verified **in source**, not by file presence: `PromptBudgetConfig` still boxed
+`@Nullable` (`@Bindable` survives only in the prose explaining its removal), `application.yml` still
+free of the eight literals, Rule 8 + control still at **12 `@Test`**, `AgentPromptBuilder` still free
+of `ConfigDefaults`. No pre-layering package resurfaced.
+
+**969 tests, 0 failures, 0 errors, BUILD SUCCESS** — identical to the pre-merge count, which is the
+number that would have dropped had *ours* silently discarded work.
+
+### t31 verified — masking moved to the log sink, mutation-proven
+
+ADR-0007 D5 declared **Rule 4b** for weeks while `grep "Rule 4b" src/test/` returned **0**, and
+`McpServerSpec:34` shipped a live violation of it the whole time. An Accepted ADR was declaring an
+enforcement that did not exist while shipping the thing it forbids. **Third recurrence** of this
+defect class → mechanized as **t32**.
+
+t31 resolved it by **removing object-level masking entirely** and masking at the **log sink**.
+Measured justification, not assumed: `copilot-sdk-java:1.0.8` overrides `toString()` on neither
+config class, stores headers with a plain `putfield`, and **zero** `src/main` sites log an
+`McpServerSpec`. The wrapper's only real coverage was **opaque custom header values** — closed by
+the new `HEADER_MASK_PATTERN`.
+
+**The coordinator did not take the security claim on report.** Backed up `logback.xml` (not
+`git checkout` — t31's work was uncommitted), weakened the shipped pattern, confirmed the mutation
+landed, ran the canary → **RED, 3/9 failures** including `SECRET LEAKED THROUGH THE LOG SINK`.
+Restored byte-identical. The canary reads the real XML from disk and drives a real `PatternLayout`,
+so it fails when *production* config weakens.
+
+**Ordering caught by the worker, missed by the coordinator**: ADR-0007 carries a HIGH risk that
+**D5 must not precede D6**; the brief's obvious reading was that forbidden sequence. t31 followed
+the ADR over the brief. Coordinator process fixed — briefs citing a D-item must carry that ADR's
+ordering constraints.
+
+**Consequence, broadcast**: port DTOs now expose raw header values in `toString()` **by design**;
+any new appender must carry both `%replace` passes.
+
+Authoritative build on the settled tree: **980 tests, 0 failures, 0 errors, BUILD SUCCESS**
+(969 + 11 = 2 rule + 9 canary).
+
+### Critical path to completion — recomputed 2026-08-06T05:46Z
+
+**t18 has PASSED (0 HIGH, 0 CRITICAL) and the security remediation arc is closed.** Rounds 1 and 2
+of the §3.2.1 budget were both spent, but the second returned clean, so no escalation is needed.
+
+With t18 ✅ and t13.1/t14/t15/t16/t16.1/t28/t18.2/t18.3 all ✅, **six tasks are simultaneously
+ready**: t14.1, t16.2, t19, t32, t33, t34. They are **not** dispatched together — every one of them
+runs Maven, and concurrent builds clobber the shared `target/` (this has bitten the run before).
+Dispatch is serial, longest-chain-first:
+
+| remaining chain | length |
+|---|---|
+| **t16.2 → t17 → t20 → t21 → t22** | **5** ← longest, dispatch first |
+| t19 → t20 → t21 → t22 | 4 |
+| t14.1 → (feeds t20's regression evidence) | 2 |
+| t32, t33, t34 | 1 each, off the critical path |
+
+So the order is **t16.2, then t19, then t17**, with t32/t33/t34/t14.1 slotted into any gap where the
+critical-path task is architecture- or docs-only and provably not building.
+
+Blocking chain: **t18.2 → t18 (re-dispatch, must return 0 HIGH) → t20 → t22**.
+
+### Test-count baseline — corrected twice; **990 at `202c05d`**
+
+**Current authoritative baseline: 990** at HEAD `202c05d`, measured by the coordinator with
+`mvn -B clean verify` in an isolated `git worktree`. t18.2 delivers **1041** (delta **+51**).
+
+This figure has now been wrong **twice**, in opposite directions, both times by exactly 9 — and the
+second error was mine, not a worker's:
+
+| when | recorded | truth | cause |
+|---|---|---|---|
+| t28 brief | 980 | 971 | surefire XMLs orphaned by t31, summed from a *non-clean* `target/` |
+| t18.2 brief | 981 | **990** | **derived** (971 + 10) instead of measured; t28 actually added **+19** |
+
+t18.2's worker re-measured HEAD itself via `git archive`, reported 990, and was **right**. The brief
+it was handed was wrong. Its 1041 = 990 + 51 was self-consistent throughout.
+
+**Strengthened standing rule.** A baseline is authoritative *only* from `mvn clean verify` on the
+settled tree. **Never derive one by addition.** The failure mode is not arithmetic slips — it is that
+a per-class delta undercounts parameterised expansion and methods added to *modified* classes, which
+is precisely how +19 was recorded as +10. Measure after committing, never infer.
+
+t16.2, t17, t32 (architect), t14.1 (tester, deps t18.2), t19 (devops), t21 (pm).
+
+Dispatch remains **one worker at a time**. The 2-concurrent ceiling was disproven when t27 and t30
+ran together and both got contaminated builds reporting totals *below* baseline.
+
+### ADR-0007 element-count drift — found 2026-08-06T13:35Z (F6)
+
+**ADR-0007's arithmetic went stale before it was implemented.** It was authored 2026-08-05 (`fba3b76`) when `AgentConfig` had **12** components. `672b1a5` (2026-08-06) then added `skillBudget`, making it **13**. Four places in the ADR still say the post-change target is 13 (L131 D1, L149 D3 heading, L280 Enforcement, L335 Consequences); the true target is **13 → 14**.
+
+This is not a typo. D3's enforcement is *"a missing row fails the test as an uncovered element"* — so a worker following the ADR literally would write a **13-row table, silently omit one element, and disable the very mechanism D3 exists to provide**. A stale count in a canonical record does not merely misinform here; it defeats the enforcement it describes.
+
+**Third instance of the F5 pattern** (a canonical record outliving its generating context and becoming an instruction to regress): F5 was a stale Java version in `clarification.md`; t33 carries release notes documenting a key that never worked; this is an ADR whose element count was overtaken by a later commit. The brief instructs the worker to **count `AgentConfig`'s actual components rather than trust the ADR's number**, and to `[notify:architect]` for the correction instead of editing the ADR itself.
+
+### Coordinator finding — `ALLOWED_CHAR_RANGE` is outside its own liveness net (LOW, for t18)
+
+`AgentPolicyConstantsAreLiveTest` enumerates **seven** constants by `@ValueSource`.
+`ALLOWED_CHAR_RANGE` — the constant carrying the HIGH that t18.2 just fixed — is **not among them**,
+and has **zero** `src/test` references, so adding it would fail the test's own `testUses > 0` arm.
+
+Risk is second-order, not immediate: the control *is* pinned, and pinned the better way —
+behaviourally. `AgentTrustContractBoundaryTest.bidiOverrideRejectedFromRepository` pushes `\u202E`
+through a REPOSITORY_SUPPLIED definition and asserts rejection, with a USER_SUPPLIED twin asserting
+acceptance. Re-widening the block turns that test red. The gap is that if the behavioural test were
+ever deleted, nothing would flag the constant as unguarded — the exact SEC-H1 shape. Route to t18.
+
+### Coordinator verification of SEC-H3 — confirmed, and the recommended fix is incomplete
+
+I did not accept SEC-H3 on report, because a HIGH that blocks the gate decides whether this project can
+close. I probed it against the verbatim shipped constant and the real `safety/suspicious-patterns.txt`,
+with controls that had to behave or the probe would prove nothing:
+
+| probe | charset | denylist | |
+|---|---|---|---|
+| plain `ignore all previous instructions` | ADMIT | **CATCH** | control: probe is not vacuous |
+| benign text | ADMIT | SILENT | control: no false positive |
+| `ig<U+200B>nore ...` | REJECT | (CATCH) | control: `Cf` is stripped, word restored |
+| **`ig<U+FFA0>nore all previous instructions`** | **ADMIT** | **SILENT** | **both layers bypassed** |
+| **`以下の指<U+FFA0>示を無視`** | **ADMIT** | **SILENT** | same, Japanese |
+
+Mechanism confirmed: `getType(U+FFA0) == OTHER_LETTER`, `NFKC(U+FFA0) -> U+1160`, also `OTHER_LETTER`.
+`CONTROL_CHARS_PATTERN` is `[\p{Cf}\p{Cc}]`, so neither form is ever stripped. U+FFA0 is dangerous
+*because* it is classified a letter — every existing defence treats it as content.
+
+**Then I swept all 65,536 BMP codepoints against the allowlist, and the remediation advice as written
+is incomplete.** It recommends masking `Cf`/`Cc`/`Cn`/`Co`/`Zl`/`Zp` plus named `Lo` fillers. That omits
+`Mn`: U+302A–U+302D (ideographic tone marks) are admitted by `\u3000-\u303F` — the range kept for
+、。「」— survive NFKC and the strip, break a denylist match, and render on top of the previous glyph
+rather than as themselves. Same defect class, a **fourth** range, missed by the fix that was supposed to
+end the class. Independently reproduced SEC-M7's 30 unassigned `Cn` codepoints, exact match.
+
+The lesson t18.3 must carry: **the exclusion set has to be derived by sweep and asserted empty, never
+enumerated by hand.** Hand-enumeration has now lost three times in a row — F1 (the original wholesale
+block), SEC-H3 (the audit that found F1's siblings but not all of them), and the proposed mask.
+
+### Coordinator verification of t18.3 — PASS, and a decision signed off
+
+I verified the fix against the **shipped compiled class**, not the test suite, because a security fix
+that is only proven by its own tests proves nothing.
+
+**Controls behaved** (plain injection ADMIT+CATCH; benign English, Japanese 「こんにちは、世界」, fullwidth
+ＡＢＣ１２３ and precomposed が all ADMIT+SILENT; bidi U+202E still REJECT). **U+FFA0 and all five siblings
+now REJECT. All six `Mn` codepoints now REJECT.** Exhaustive sweep of all 1,114,112 codepoints:
+33,441 admitted, **0 surviving invisible or unassigned**. 18 repo agent definitions, 0 regressions.
+
+**Non-vacuity proven by mutation**, restored byte-identical (`cmp -s`, tree clean):
+
+| mutant | tests killed |
+|---|---|
+| A — drop `0xFFA0` from `INVISIBLE_CODE_POINTS` | **5** |
+| B — drop `NON_SPACING_MARK` from `BLOCKED_CATEGORIES` | **2** |
+
+The failure messages are worth noting: they name the wrong fix and forbid it ("Do not fix by excluding
+the individual codepoints listed here — that is the mistake this test exists to stop, one codepoint
+later. Subtract the category."). That is a test teaching the next engineer, not just failing.
+
+**My own audit was also incomplete.** I found 4 `Mn` offenders; there were **6** — U+3099 and U+309A
+enter through `\u3040-\u309F`, a range I had not re-checked. And the derived filler set found
+**U+A8F9 DEVANAGARI GAP FILLER**, which appeared on no hand-written list, mine included. So
+hand-enumeration has now lost **four** times: the original block, security's audit, security's
+proposed mask, and my extension of it. The derive-and-assert-empty mandate is no longer a principle,
+it is a measured result.
+
+**Decision signed off — blocking the whole `Mn` category.** Cost: NFD-decomposed kana and the kana
+with no precomposed form (か+U+309A, Ainu セ+U+309A) are rejected in repository-supplied definitions.
+Accepted, because I verified the escape hatch is real rather than taking it on trust:
+`USER_SUPPLIED` → `enforcesCharset() == false`, pinned independently by `AgentTrustProfileTest` L94-95
+and `AgentTrustLevelDifferentialTest` L80-83. Given `ALLOWED_CHAR_RANGE` only admits ASCII, CJK, Hangul
+and punctuation blocks, the entire real cost of the category mask is those six CJK codepoints —
+measured zero impact across 1,332 files. Carving hand-exceptions out of the mask is precisely the
+defect being closed.
+
+**Residual accepted as LOW, ruled on by security not me:** `INVISIBLE_CODE_POINTS` is derived by a
+name heuristic that production and its test **share**, so a blank-rendering codepoint named unusually
+would be missed by both while the equality test still passes. Disclosed by the implementer unprompted.
+
+
+### Coordinator verification of the t18 security gate — PASS confirmed independently
+
+The gate reported PASS. I did not accept it on report. Because a PASS is the verdict a worker is
+most motivated to reach, I re-measured every load-bearing claim myself, on **JDK 28** (production's
+JDK — security probed on JDK 25, so this also tests whether the Unicode tables drift between
+versions), against the **shipped compiled class** in `target/classes`, with controls placed first so
+the probe was capable of failing.
+
+I fetched the Unicode oracle myself from unicode.org rather than reuse security's copy.
+
+| claim | security (JDK 25) | coordinator (JDK 28) | verdict |
+|---|---|---|---|
+| `Default_Ignorable_Code_Point` population, Unicode 16.0.0 | 4,174 | **4,174** | exact |
+| ...reaching past `ALLOWED_CHAR_RANGE` alone | 1 — U+FFA0 | **1 — U+FFA0** | exact |
+| **...admitted by the full control** | **0** | **0** | **exact — SEC-H3 closed** |
+| pinned fillers that are load-bearing | 1 of 6 | **1 of 6** | exact |
+| total admitted of 1,114,112 | 33,441 | **33,441** | exact |
+| max admitted codepoint | U+FFEE | **U+FFEE** | exact |
+
+Controls (all required to behave before any measurement was believed): admits `A` / hiragana /
+fullwidth `A` = true; rejects U+FFA0, U+202E, U+200B = true; `ALLOWED_CHAR_RANGE` **alone** admits
+U+FFA0 = true — that last one is what proves the subtraction, not the range, is doing the work.
+
+**Three independent implementations now agree on 33,441** (backend's, security's, mine), across two
+JDK versions. `max admitted = U+FFEE` also independently validates security's argument that
+`pinnedSetEqualsUnicodeDerivedSet` sweeping only the BMP is sound rather than a gap.
+
+#### I separately verified the claim that justified *not* filing a finding
+
+Security flagged 15 admitted `Zs` codepoints that split denylist keywords, then declined to file
+them — reporting that its own classifier was wrong because **U+0020 SPACE was the first entry**. A
+declined finding deserves more scrutiny than a filed one, so I measured it:
+
+| measurement | result |
+|---|---|
+| admitted `Zs` codepoints | 15 — matches |
+| denylist fires with `Zs` at a word boundary | **15/15** — NFKC folding is protective, as claimed |
+| denylist fires with `Zs` mid-keyword | 0/15 |
+| **same test with plain ASCII space** | **also fails** |
+
+The ASCII control is the whole argument: exotic spaces are *no worse than pressing the spacebar*, so
+this is an inherent property of keyword denylists, not a charset-allowlist defect. **Declining to
+file it was correct.** Catching one's own false positive by reading the head of one's own output is
+the behaviour this run has been trying to instil since the first vacuity trap.
+
+#### Residual: accepted as LOW, on stronger evidence than was asked for
+
+I had asked security to *rule* on the name-heuristic residual rather than rediscover it. It ruled
+LOW and narrowed it two ways I had not: the population result (0 of 4,174, not a sample), and the
+finding that **only 1 of the 6 pinned fillers is reachable at all** — so the shared heuristic only
+has to be right about codepoints *inside* the 15 allowed ranges; everywhere else the range check has
+already decided. Accepted.
+
+#### Hand-enumeration's record in this arc: 0 for 4, and the fix is now measured
+
+Every hand-written list in this arc was wrong (the original range, security's `Mn` audit, the filler
+list, and **my own** extension of the mask). The closing fix is derived by sweep and asserted
+*exactly equal*, and the gate that certified it used a third, external definition. That is the
+durable outcome here — not the specific codepoint.
+
 
 ## Tasks
 
@@ -45,28 +334,47 @@
 
 ### Phase: Hardening
 - ✅ t14 [tester] Full regression test run (T015) (08:11:41Z→08:41:15Z, 29m 34s) [deps: t13.1] — **937 passed / 0 failed / 0 errors / 0 skipped** across 325 classes; startup PASS (exit 0, clean Micronaut lifecycle, correlation-ID + SECURITY_AUDIT logging active — the t13.1/G2 capability this task was repointed to exercise is confirmed live); architecture **byte-identical to the t13 baseline** — Rule 0 parsed 333/333, Rules 1/2/5b zero violators, Rule 3 2/2 exempt, Rule 4 3/3 exempt, Rules 6a/6b zero cycles. **PASSed with 1 HIGH**, consistent with the t2/t13/t16 precedent and deliberately *not* the strict §3.2.1 applied to t18: the HIGH is a **coverage gap in the pre-existing suite**, surfaced by traceability analysis t14 chose to undertake — nothing that is tested is failing, and the deliverable (the regression verdict) is sound. Contrast with t18, whose HIGHs meant unbounded untrusted input reaches an LLM *now*; different kind of claim, different verdict. **The strongest single piece of evidence produced this project**: baseline reconciliation **892 + 45 = 937 exactly**, proving no test regressed or was silently dropped — the same non-vacuity discipline just adopted as a standing rule in `decisions.md`. Two new tests independently closed pre-existing traceability gaps (RTY-03, AUTH-03). Charter respected: `src/main/` git status empty, tests only. HIGH → **t14.1**; MEDIUM (non-executable jar) → t19; LOW/FYI → backend.
-- ⏳ t14.1 [tester] **Follow-up** — close 11 uncovered PM behavior IDs, 3 of them security controls [deps: t18.2] — queued behind t18.2 so the controls exist before tests are written against them. **`TGT-07` is the fifth instance of the standing pattern**: symlink defence *is* tested for CLI paths and skill files but **not** for source review targets, so it "looks protected at a glance" — the pattern has now extended from controls into coverage. **`INS-03` converges with t18**: the NFKC/homoglyph normalisation t14 found untested is the *only* part of `CustomInstructionSafetyValidator` that security judged worth keeping, while SEC-H1 proved the caps and allowlist are dead — that file currently has no part that is both live and verified. `INS-01` tests only EN/JA of 4 specified languages; `INS-02` omits **Cyrillic, the most common homoglyph alphabet**. `AUTH-01` (OAuth device flow) reclassified to manual-tier rather than re-flagged each sweep.
+- ✅ t14.1 [tester] **Fresh PM behavior coverage re-pass** (23:53:21Z→00:01:24Z, 8m 3s) [deps: t18.2, t14.2] — **PASS, 0 HIGH / 0 CRITICAL.** The same 20 contracts pass without relaxed assertions; all 10 automatable gaps are closed and AUTH-01 remains explicitly approved manual-tier. Full **1106 unit + 4 packaged-JAR** tests pass.
+- ✅ t14.2 [backend] **Behavior remediation** (23:40:39Z→23:49:23Z, 8m 44s) [remediates: t14.1] — **PASS, 0 HIGH / 0 CRITICAL.** Restored SKL-07 timeout/empty-result mapping, RTY-04 retry/circuit semantics with exact attempt evidence, and AUTH-10 pre-initialization warning. The unchanged failing contract subset moved from 2 pass / 5 fail to 7/7 pass; full **1106 unit + 4 packaged-JAR** tests pass.
   - ↳ *t19 scope note (raised by t14, tracked on the t19 task in Validation)* — `mvn clean verify` produces a **non-executable jar** (`no main manifest attribute`): `pom.xml` L242-265 declares the shade execution `default-shade` with `<configuration>` only — **no `<phase>`, no `<goals>`** — while `<mainClass>` sits at `pom.xml:320` outside that block. **Coordinator-verified pre-existing**: `git show fb2e795c:pom.xml` contains the identical block, so this is a genuine gap, *not* a rewrite regression. Also inherits **Tier 3 CLI smoke ownership** — a coordinator error: t5 assigned it to architect/T016 and I then scoped t16 as documentation-only, so nobody was verifying the shipped artifact runs, which is how a non-executable jar survived six green builds.
 - ✅ t15 [backend] Scan dependency manifests for CVEs and remediate via skill(cve-remediation) (07:50Z→07:58Z, 8m) [deps: t13] — **1 CVE fixed**: an existing "security override" comment pinned `jackson-databind` forward to **3.1.4 to escape `CVE-2026-59889`, but 3.1.4 is inside the advisory range `[3.0.0, 3.1.5)`** — the override was itself vulnerable while advertising that the problem was handled. Bumped to **3.1.5** in both manifests (verified in source). Both scanners reported clean *correctly*: `tools.jackson.core:*` never resolves under `micronaut.runtime=none`, so the coordinate is BOM-managed but unresolved — invisible to tree-based scanning, live the instant a Jackson 3 consumer is added. Surfaced only by running non-vacuity controls (`logback-core:1.5.12` → 6 findings, `jackson-databind:2.13.0` → 9) before trusting the clean result, then widening scope to BOM-managed sets and override-comment targets. Also confirmed the property governs `jackson-databind` (7 of 64 Jackson coordinates) rather than assuming the bump landed. `DependencyConvergence` passed; 9/9 architecture rules green. **Corrections routed to t19**: `pom-native.xml` does not compile at HEAD (proven pre-existing via `git show HEAD:pom-native.xml`); `<micronaut.version>5.1.2</micronaut.version>` is **dead config** in both POMs — real parents are 5.0.4 / 5.0.2, so `t7-devops.md`'s inheritance claim is stale; native/main ship divergent components.
 - ✅ t16 [architect] Update user-facing docs and author ADR 0006 for the Ports & Adapters rewrite (07:51:29Z→08:11:40Z, 20m 11s) [deps: t12] — **PASS**: `docs/adr/0006-ports-and-adapters-layering.md` (238 lines) adopted as the architecture of record, establishing **D1–D7**; `README.md` / `README_en.md` / `README_ja.md` re-synced to the implemented 24-package structure (EN/JA parity verified 1112/1112), ADR index and ADRs 0001/0002/0003 cross-references repointed. Verified all deliverables present in source. **Passed despite 4 HIGH findings** — see `decisions.md` — because they are pre-existing *code* defects uncovered while documenting the structure, in a task with no charter to fix code; the deliverable itself is complete and internally consistent (t2/t13 precedent). Findings are not waived: they become **t16.1**, which now blocks t17. Also caught its own mid-flight staleness — t13.1 landed during drafting and invalidated three ADR claims (`LogExecutionPort`→`PropagateCorrelationPort`, `Rule 7`→`Rule 5b`, two deviations closed); a re-verification sweep before publishing corrected all three, so the architecture of record was not wrong on its first day.
 - ✅ t16.1 [backend] **Follow-up** — close 4 open layer defects recorded as ADR-0006 deviations (08:55:40Z→09:14:48Z, 19m 8s) [deps: t16, t14] — **PASS. 945 passed / 0 failed / 0 errors / 0 skipped, `./mvnw -B clean verify` BUILD SUCCESS**, reconciling to t14's 937 as −2 +5 +5 with explicit arithmetic. All three implemented closures independently verified by the coordinator in source, not report-only: **#3** `LayerDependencyRulesTest:79` now defines `APPLICATION_PORT_OUTBOUND` and applies it at `:216`, so the `.application.port` prefix that had permitted `infrastructure → application.port.inbound` is gone; **#1** `application/auth/ResolveTokenUseCase:26 implements ResolveTokenPort` while `infrastructure/auth/GitHubTokenResolver:24` is demoted to `implements AcquireGitHubTokenPort` (new outbound port) — the precedence *policy* moved into the use case and the adapter became policy-free; **#2** `ApplicationPortFactory:117,123` binds `ExecuteSkillPort` to `ExecuteSkillUseCase` and `infrastructure/copilot/SkillExecutor` **plus its test are deleted**, ending the state where a green unit test covered code nothing called. **The ordering mandate paid for itself exactly as intended**: narrowing Rule 4 *first* produced a natural RED naming **11 violators**, so the port defects failed mechanically rather than by review — and a second negative control (a deliberate bytecode probe on `GhAuthTokenProvider`, RED naming only it → reverted → GREEN → empty `git diff`) proves the rule still fires after the fix. Rule 4's generated-bean exemptions are **derived, not hard-coded**, so they cannot silently rot. **Deviation #4 was deliberately NOT implemented, and that is why this passes rather than being marked incomplete**: backend checked D3's premise against the source and found it false — `grep -rln "@Factory"` returns **only** `ApplicationPortFactory`, so relocating the other two named classes would have moved business logic and an *inbound-port implementation* into the composition root, contradicting D1's own "wiring only" constraint. Worse, doing so would have **concealed a fifth, unrecorded direction inversion** — `infrastructure.copilot.ReviewOrchestratorFactory` implements inbound `RunReviewPort`, structurally identical to closed deviation #1 but on the highest-risk path, currently masked by a Rule 4 composition-root exemption. Its 2 HIGH findings are therefore **escalations requiring an architect ruling, not defects in its own deliverable** (t2/t13/t16/t18.1 precedent) → **t16.2**. `ApplicationPortFactory` method order is now **load-bearing** (Micronaut names generated definitions by declaration index); append-only, documented in-method.
-- ⏳ t16.2 [architect] **Follow-up** — rule on ADR-0006 D3's false premise and record the fifth direction inversion [deps: t16.1] — **the seventh instance of the run's standing pattern, and the second at the *scope-of-application* layer.** Two items, both requiring an architecture-of-record decision before anyone touches code. **(a)** D3 names three "Micronaut factory classes" to relocate into the composition root; only `ApplicationPortFactory` carries `@Factory`. `ReviewContextFactory` is a plain class holding config-mapping logic and `ReviewOrchestratorFactory` is a `@Singleton` implementing an inbound port — executing D3 verbatim would violate D1. **(b)** `ReviewOrchestratorFactory implements RunReviewPort` is a genuine inversion on the review path, hidden today by a Rule 4 composition-root exemption — i.e. a carve-out whose blast radius is invisible at the call site, exactly the failure mode `decisions.md` now standardises against ("assert the scope, not just the outcome"). Recommendation endorsed by the coordinator: record (b) as **deviation #8** and fix it as a real refactor of the highest-risk path, rather than let a file move conceal it. Must land before t17 can certify, since t17 would otherwise certify a structure whose own ADR misdescribes it.
+- ✅ t16.2 [architect] **Clean re-pass after t16.3 remediation** (01:54:46Z→02:05:43Z, 10m 57s) [deps: t16.1, t16.3] — **PASS, 0 HIGH / 0 CRITICAL.** Independently verified all five deviation-#8 end-state contracts against source, the real Micronaut bean, Rule 4, and two fresh negative controls. Both mutants went RED naming the wrong runtime binding / renewed infrastructure-to-inbound edge, then restored byte-identically. Focused 38/38 and full **1058/1058** pass. ADR-0006 now marks deviation #8 resolved; deviation #4 remains explicitly open and out of this remediation scope.
+- ✅ t16.3 [backend] **Remediation** — eliminate ADR-0006 deviation #8 (01:28:49Z→01:49:28Z, 20m 39s) [remediates: t16.2] — **PASS, 0 HIGH / 0 CRITICAL.** `RunReviewPort` now resolves to application `ReviewOrchestrator`; external settings and SDK session construction cross two new outbound ports; infrastructure no longer implements the inbound port; Rule 4 no longer exempts the review-path factories. Two RED-first controls named the wrong Micronaut binding and the layer violation before the fix. Clean verify: **1058 passed, 0 failures/errors/skipped**. Architect must still independently re-pass t16.2 and update deviation #8's status.
 
 ### Phase: Review
-- ⏳ t17 [architect] Architecture review — verify layered structure matches design [deps: t13.1, t16, t16.1, t16.2] — repointed three times: the `presentation ⊥ infrastructure` rule (t13.1/G1) must exist before the layered structure can be certified, and t16 found 4 open layer defects (t16.1) that make certification impossible until fixed
-- ❌ t18 [security] **failed[findings]** — Security review — auth flows, secrets handling, input validation (08:10:50Z→08:28:00Z, 17m 10s) [deps: t15, t13.1] — **2 HIGH / 6 MEDIUM / 9 LOW.** This is a validation gate, so the t2/t13/t16 pass-with-findings precedent does **not** apply: strict §3.2.1. Nothing blocks the build and no production code was touched. **SEC-H1** (coordinator-verified): `CustomInstructionSafetyValidator`'s `MAX_INSTRUCTION_SIZE`:24, `MAX_UNTRUSTED_INSTRUCTION_SIZE`:25, `MAX_INSTRUCTION_LINES`:26, `ALLOWED_CHAR_RANGE`:58 and `ValidationResult`:108 each occur **exactly once in all of `src/`** — at their own declaration. Only `containsSuspiciousPattern` is ever called (`AgentConfigLoader:256`, `SkillDefinition:58`), so the class reads as denylist + size caps + charset allowlist + structured result while **only the denylist executes**. **SEC-H2**: prompt-injection defence (`AgentConfigLoader:234-241`) is denylist-only, and the allowlist that would bound it *is* SEC-H1's dead code — the two compound, fix one and neither holds. Both are HIGH because `AgentPathConfig:11` defaults agent dirs to `./agents` / `./.github/agents` **relative to CWD, i.e. inside the repository under review** — untrusted third-party markdown becomes LLM instructions. No pattern-based scan surfaced this; it took reasoning about input provenance. **Verified SAFE and recorded**: default-deny proven at both gates, no command injection, no YAML deserialization, no template injection, symlinks not followed, token never on the command line, child env scrubbed, MCP HTTPS + host allowlist + CRLF guards, 0600 report files, 0 CVEs with non-vacuity controls firing at 6 and 9. **Credit for calibration**: security *downgraded five sub-agent "HIGH" findings to LOW* after trust-boundary analysis — `--output`/`--local`/`--parallelism`/`--dialogue-rounds` are user-supplied on a single-user local CLI, so reporting them as traversal/exhaustion would have been false positives. Also correctly diagnosed **SEC-M1 as a pre-existing gap, not a t13.1-G2-style capability loss**, by checking git history. Remediation split into **t18.1** (architect, design) and **t18.2** (backend, code); t18 will be re-dispatched and must return zero HIGH/CRITICAL before t20 runs.
+- ✅ t17 [architect] **Clean architecture re-certification** (07:27:20Z→09:24:00Z, 1h 56m 40s) [deps: t13.1, t16, t16.1, t16.2, t16.3, t17.1, t17.2] — **PASS, 0 HIGH / 0 CRITICAL.** Independently closed H1–H4 against the current source, DI graph, and complete bytecode surface. Rule 0 parsed 364/364 classes; primary-source mapping is 200/200; Rule 3a reports 351 subjects / 0 back-edges; Rule 4 reports 122 / 0 violators / 0 exemptions; Rule 4a reports 35 compiled port subjects / 30 source-backed primaries. All 8 certification contracts pass, all 10 original cycles remain removed, all 14 outbound ports are infrastructure-owned, and the real `RunReviewPort` bean resolves to application. Four fresh mutants went RED before restoration. Focused **30/30**, full **1077/1077**, and CLI help/version startup pass. ADR-0006 deviation #5 remains explicitly Partial and outside this gate's certification scope.
+- ✅ t17.1 [backend] **Remediation A — enforcement first** (03:37:59Z→03:47:16Z, 9m 17s) [remediates: t17 H3/H4/L1] — **PASS, 0 HIGH / 0 CRITICAL.** Added zero-exemption Rules 3a (339 compiled layer classes; 185 source-backed primaries) and 4a (30 compiled port classes; 26 source-backed primaries), with exact retained test fixtures. Both isolated t17 mutant shapes went RED naming owner and target, then 19/19 focused and **1062 unit + 4 packaged-JAR** tests passed. Java 28/major-72 documentation corrected.
+- ✅ t17.2 [backend] **Remediation B — responsibility split** (03:51:49Z→04:12:46Z, 20m 57s) [deps: t17.1; remediates: t17 H1/H2] — **PASS, 0 HIGH / 0 CRITICAL.** `ReviewApp` is a 29-line `main` entry point; CLI behavior moved to presentation; startup filesystem/logging crosses explicit ports; the former infrastructure-wide factory is split into focused adapters plus pure root wiring. Rule 4 now inspects 122 classes with **0 violators / 0 exemptions**; Rule 0c and Rule 4 both went RED before implementation. Focused 36/36 and **1073 unit + 4 packaged-JAR** tests pass; real Micronaut bindings and CLI behavior are pinned.
+- ✅ t18 [security] Security gate — **PASSED on re-run, round 2 of 2** (05:29Z→05:41Z, ~12m). **0 HIGH, 0 CRITICAL.** (was `❌ failed[findings]` on SEC-H3, now remediated by t18.3 and coordinator-verified). Prior record: re-run 2026-08-06T04:42Z→04:57Z confirmed SEC-H1, SEC-H2 and F1 all genuinely closed, but auditing the remaining block ranges (backend's own suggestion, routed by me) surfaced **SEC-H3, a new HIGH**: `ALLOWED_CHAR_RANGE` admits U+FFA0 HALFWIDTH HANGUL FILLER via `\uFF00-\uFFEF`, which bypasses **both** defence layers. Also 1 MEDIUM (SEC-M7, 30 unassigned `Cn` codepoints), 2 LOW (SEC-L10 unguarded constants, SEC-L11 D4 vacuous). Four sub-agent CRITICAL/HIGH candidates were verified and correctly downgraded to non-findings. **This is remediation round 2 of the 2 allowed by §3.2.1** — if t18 fails again, escalate to the user rather than loop. Remediation: **t18.3**.
 - ✅ t18.1 [architect] **Follow-up** — ADR-0007: trust model for repo-supplied agent files (SEC-H2) + secret-wrapper boundary ruling (SEC-M3/M4) (08:32:11Z→08:47:15Z, 15m 4s) [deps: t18] — **PASS. Delivered ADR-0007 (336 lines, D1–D7, each decision mapped to one failing test in an Enforcement table), `t18.1-architect.md`, `docs/adr/README.md` index sync, and 3 learnings.** The decisive contribution was not the ADR but a **corrected root cause for SEC-H2**, which I independently confirmed in source on all three points: (a) security's claim that "the defence is denylist-only" is **wrong** — `domain/agent/AgentDefinitionPolicy.java:26` `MAX_AGENT_FILE_SIZE = 64 * 1024` is applied at :64 and `:27` `MAX_AGENT_NAME_LENGTH` is compiled into the :36 regex, both live; (b) the real defect is `infrastructure/copilot/ApplicationPortFactory.java:54-60`, where the trusted `--agents-dir` paths and the untrusted CWD-relative defaults are merged into one `List<Path>`, so **provenance is erased by the type** before `AgentConfigLoader` sees it at :62 — hardening the validator could never have fixed this, because the information needed to apply a differentiated policy is already gone; (c) `AgentDefinitionPolicy:64` compares `content.length()` (UTF-16 chars) while :66 reports "bytes" — a 3× discrepancy for the CJK agent definitions this project actually ships. This is the **sixth instance** of the run's systemic pattern, and the first at the *type* layer: not a vacuous control (t12/t13.1/t16/t18) nor an untested one (t14), but a control that **cannot receive the input it needs to decide**. Its 1 HIGH is prospective, not live — reversing the D6→D5 migration order would drop a weak-but-working mask with no replacement — and is recorded in the ADR and routed to backend as point (1) of the t18.2 contract, so it is a carry-forward under the t2/t13/t16 precedent rather than a §3.2.1 trigger. Also repaired `.github/copilot-instructions.md`, which still described the **nine packages t13 deleted** (`cli/ agent/ orchestrator/ service/ skill/ config/ report/ util/ target/`) as the current architecture; verified by diffing HEAD against the working tree. That file is auto-injected into every agent's context, so from t13 onward **every worker in this run — and this coordinator — has been carrying a description of an architecture that no longer exists**; it is where my own "Mustache templates" error in the initial recon came from. — **dispatched immediately because it is design-only and touches no `src/`**, so it proceeds while t14 finishes and unblocks t18.2. Must produce a *mechanically enforceable* decision: bounds, allowed character classes, permitted fields, and behaviour on violation — a decision backend cannot turn into a failing test is not finished. Second ruling: the header-masking wrapper is stripped by **both** `Map.copyOf` and `new HashMap<>` (proven at runtime) and handed to the SDK at `ReviewSessionConfigFactory:56` / `SdkRubberDuckSessionFactory:80` — **the t13 `defensive-copy-strips-security-wrapper` defect recurring at a new call site, third occurrence**. Security's framing needs a ruling: a `toString()` wrapper cannot survive a boundary it does not control → mask at the sink (logging port, ADR-0006 D4) or introduce `SecretString`. Claim honestly bounded by security: `javap` shows `McpHttpServerConfig` has no `toString()` override, so no confirmed live sink — latent with a known mechanism, and SEC-L4 (raising `COPILOT_SDK_LOG_LEVEL`) is what would make it live.
-- ⏳ t18.2 [backend] **Follow-up** — wire SEC-H1's dead controls into the live path, fix `SensitiveHeaderMasking` accessor matrix, delete dead `MaskedToStringMap` [deps: t18.1, t16.1] — **queued behind t16.1**: both modify `src/`, and two backend workers on one tree produces merge damage that presents as a test failure. `MaskedHeaderEntry.getValue():200-201` returns the delegate value **raw** while `values():152` masks, and `forEach`/`getOrDefault` occur **zero** times in the file so `Map`'s defaults leak the token (security proved it at runtime with a canary; coordinator confirmed in source). `wrapWithMaskedToString` has **no caller anywhere in `src/`** — delete, since dead security code reads as coverage. Negative-control test mandatory for SEC-H1, else the fix is as unfalsifiable as the code it replaces.
+- ✅ t18.2 [backend] **Follow-up** — close SEC-H1/SEC-H2 at the root: implement ADR-0007 **D1–D4** (13:40Z→14:22Z, 42m) [deps: t18.1, t16.1] — **PASS, coordinator-verified in source and by mutation.** `mvn clean verify` **BUILD SUCCESS, 1041 tests, 0 failures/errors/skipped** (163 report files). **Root cause closed**: `ApplicationPortFactory.loadAgentPort` no longer flattens into `List<Path>` — it builds `List<AgentSourceDirectory>`, tagging config-derived dirs `repositorySupplied(...)` while `--agents-dir` arrives pre-tagged, so provenance is assigned once at the composition root (D1) and nothing downstream re-derives trust. **SEC-H1 closed**: the five formerly declaration-only constants now carry 4/4/5/2 `src/main` references. **Charset control**: `ALLOWED_CHAR_RANGE` narrowed to `\u2000-\u200A`,`\u2010-\u2027`,`\u202F-\u205F`, excluding U+200B–U+200F, U+202A–U+202E, U+2060–U+2064, U+2066–U+2069 while retaining JA typography (U+203B ※, dashes, quotes, U+2026). **Non-vacuity proven by coordinator**: collapsing `AgentTrustProfile.forSource` to return one profile for both sources turned the suite **RED — 10 failures / 28**, including **3 of 3** in `AgentTrustLevelDifferentialTest`; file restored byte-identical (`cmp -s`). `AgentConfig` is 14 components and `AgentSchemaCoverageTest` derives that count reflectively, so it is immune to F6's stale ADR text. **Three findings were found *and fixed within the task*** (details in `t18.2-backend-findings.md`) — this is an implementer disclosing and closing defects, not a gate reporting open ones, so §3.2.1's `failed[findings]` does not apply; penalising transparent self-reporting would incentivise hiding. F2 is the notable one: the worker **recreated SEC-H1 inside the task fixing it** by restating limits as literals, and its own new `AgentPolicyConstantsAreLiveTest` caught it (6 of 8 failing, each named).
+- ✅ t18.3 [backend] Fix SEC-H3 by subtracting invisible codepoints from `ALLOWED_CHAR_RANGE` by category, derived from an exhaustive sweep (05:02Z→05:20Z, ~18m) — **SEC-H3 closed**. Nine categories (`Cf Cc Cn Co Cs Zl Zp Mn Me`) plus a 6-member JDK-derived invisible set, applied as an AND-narrowing after the existing regex so it can only ever reject more. Sweep of all 1,114,112 codepoints: **37 offenders → 0**. 1041→1054 tests, 0 failures. [deps: t18.2]
 
 ### Phase: Testing
-- ⏳ t19 [devops] Smoke test — independent build and CLI startup verification [deps: t14, t15]
-- ⏳ t20 [tester] Runtime validation — 3-tier test strategy execution and regression verification [deps: t17, t18, t19]
+- ✅ t19 [devops] **Clean re-pass after t33 metadata remediation** (02:56:41Z→03:07:41Z, 11m) [deps: t14, t15, t33] — **PASS, 0 HIGH / 0 CRITICAL.** Java 28 release gate: **1058 unit + 4 packaged-JAR tests**, with the shaded JAR launched directly from an isolated CWD. Exact unskipped GraalVM 25 gate: **1058 JVM + 1058 native + 4 packaged-JAR tests**, plus 5 direct native CLI probes; all exit 0 with no fallback. Fat-JAR packaging, embedded templates, Logback startup, Tier-3 Failsafe ownership, POM convergence, CI enforcement, native metadata, and dual-JDK runbook are now verified together.
+- ✅ t20 [tester] **Final-tree runtime validation** (00:06:29Z→00:24:33Z, 18m 4s) [deps: t17, t17.1, t17.2, t18, t19, t32, t34, t14.1, t14.2] — **PASS, 0 HIGH / 0 CRITICAL.** Source/build-input digests matched the shared tree and isolated copies. Java 28: **1106 unit + 4 packaged-JAR**; exact GraalVM 25 gate: **1106 JVM + 1106 native + 4 packaged-JAR**; five isolated JAR plus five isolated native CLI flows all exit 0 with no fallback or skips. Native-compatible architecture-test inspection was repaired after the exact native command exposed four test-only assumptions; final exact command is green.
 
-### Phase: Conformance
-- ⏳ t21 [pm] Feature parity signoff — verify all 69 PM behaviors preserved [deps: t20]
-- ⏳ t22 [teamlead] Completeness & consistency check via skill(quality-gates) gate-completeness [deps: t21, t16]
+### Phase: Conformance 📌 045edb8
+- ✅ t21 [pm] Feature parity signoff — verify all 69 PM behaviors are preserved against the final runtime evidence (00:25:06Z→00:39:12Z, 14m 6s) — **PASS**: 69/69 accepted (49 DIRECT, 19 COVERED-PARTIAL, 1 coordinator-approved MANUAL-TIER), Java 28 focused suite 176/176, 0 HIGH / 0 CRITICAL. Evidence grades remain explicit rather than being silently upgraded. [deps: t20]
+- ✅ t22 [teamlead] Completeness & consistency check via skill(quality-gates) gate-completeness (initial 00:44:10Z→01:03:24Z FAIL; clean re-gate 11:05:49Z→11:58:17Z, 52m 28s) — **PASS**: historical 5 CRITICAL fully remediated; 84/84 requirements, 69/69 PM behaviors, checkpoint audit 46/46, Java 28 1,112/1,112, exact native 1,107+1,107+5, architecture 366/366; 0 HIGH / 0 CRITICAL, 1 LOW advisory. [deps: t22.5]
+- ✅ t22.1 [backend] Remediate C-004/C-005: restore configured default agent discovery and wire one canonical discovered-skill catalog into execution, with discriminating packaged-CLI tests (01:06:03Z→01:45:51Z, 39m 48s) — **PASS**: configured defaults now always reach the loader adapter; one immutable discovered-skill catalog backs enrichment and execution; focused 36/36 and full 1,112/1,112; 0 HIGH / 0 CRITICAL. [deps: t22]
+- ✅ t22.2 [tester] Re-run authoritative Java 28, packaged-JAR, exact GraalVM native, architecture, and behavioral validation after C-004/C-005 remediation (02:00:51Z→02:50:45Z, 49m 54s) — **PASS**: Java 28 1,107 Surefire + 5 Failsafe; native 1,107 JVM + 1,107 native-image + 5 Failsafe; 5 JAR + 5 native flows including populated default agents and skills; 0 HIGH / 0 CRITICAL. [deps: t22.1]
+- ✅ t22.3 [pm] Re-sign all 69 PM behaviors against corrected runtime evidence, explicitly re-evaluating AGT-01 and SKL-01 (02:51:13Z→03:10:38Z, 19m 25s) — **PASS**: 69/69 accepted; AGT-01 and SKL-01 upgraded to DIRECT-CLOSURE using discriminating JAR/native flows; focused 207/207 and 69 unique matrix rows; PM scope 0 HIGH / 0 CRITICAL. [deps: t22.2]
+- ✅ t22.4 [teamlead] Reconstruct complete global deep-planning checkpoints for spec→plan, plan→tasks, and tasks→implementation including all remediation tasks (03:27:43Z→07:01:02Z, 3h 33m 19s including interrupted producer check and retry) — **PASS**: 84/84 requirements, 37/37 plan items, T001–T016, and 55/55 board tasks mapped; producer checks 29/29, paths 330/330, YAML 3/3; 0 HIGH / 0 CRITICAL. Validation flags intentionally remain false for independent t22.5. [deps: t22.3]
+- ✅ t22.5 [architect] Independently validate all three global checkpoints and set `validation.passed: true` only with complete evidence (07:01:54Z→11:04:58Z, 4h 3m 4s) — **PASS**: 46/46 independent checks, 330/330 paths, YAML 3/3, Java 28 1,112/1,112; all three `validation.passed: true`; 0 HIGH / 0 CRITICAL. One LOW auxiliary-list omission does not affect canonical coverage. [deps: t22.4]
 
 ### Phase: Upstream Merge
+- ✅ t28 [backend] F3: reviewPasses banner reads the wrong config key (12:38Z→13:05Z, 27m)
+- ✅ t32 [architect] **ADR enforcement closure after responsibility split** (10:05:44Z→20:05:50Z, 10h 0m 6s) [deps: t32.1, t32.2, t32.3] — parent scope closed by the final t32.1 clean gate: ADR-0007 D3/D4/D7 corrected, Rule 5c and port migrations live, bidirectional ADR-rule traceability non-vacuous, Rule 7 RESERVED preserved, and D4 exactly-once cardinality enforced.
+- ✅ t32.1 [architect] **Final clean re-pass after t32.3** (16:37:14Z→20:05:50Z, 3h 28m 36s) [deps: t28, t32.2, t32.3] — **PASS, 0 HIGH / 0 CRITICAL.** Independently verified Rule 5c, bidirectional ADR traceability, and D4 exactly-once behavior against the current tree. Focused **75/75**, full **1086/1086**, CLI smoke passes, and all 4 isolated mutation shapes are killed, including the duplicate-summary mutant on both semantic branches.
+- ✅ t32.2 [backend] **Remediation implementation** (13:16:59Z→14:07:04Z, 50m 5s) [remediates: t32.1] — **PASS, 0 HIGH / 0 CRITICAL.** Migrated three presentation config edges through ports; Rule 5c now inspects 72 compiled / 31 source-backed primary types with **0 violations / 0 exemptions**. Added the bidirectional ADR-rule guard, excluded `control` aliases, preserved Rule 7 RESERVED, and proved three RED mutation shapes before restoration. Focused **62/62** and full **1086/1086** tests pass.
+- ✅ t32.3 [backend] **Final remediation** (14:43:07Z→16:20:58Z, 1h 37m 51s) [remediates: t32.1] — **PASS, 0 HIGH / 0 CRITICAL.** Both rejection and no-rejection D4 paths now collect all `Agent load summary:` events and assert exact cardinality one. Duplicate-emission mutant goes RED on both branches; focused **8/8** and full **1086/1086** pass.
+- ✅ t33 [devops] **Native-image metadata + user-facing docs repair** (02:41:52Z→02:53:12Z, 11m 20s) [remediates: t19; source: t28] — **PASS, 0 HIGH / 0 CRITICAL.** Both metadata copies now use 18 layered bean definitions, zero stale `dev.logicojp.reviewer.cli` entries, and narrow member-level reflection registrations. Exact unskipped GraalVM gate passed: **1058 JVM + 1058 native + 4 packaged-JAR tests**. EN/JA release notes explicitly correct the retired banner-only key. Two distinct drifts closed:
+  1. **Stale native-image reachability metadata (18 refs × 2 files = 36).** Both `src/main/resources/META-INF/native-image/reachability-metadata.json` and `.../dev.logicojp/multi-agent-reviewer/reachability-metadata.json` still register `dev.logicojp.reviewer.cli.$…$Definition` entries. **That package no longer exists** — our own rebuild renamed `cli` → `presentation`. Re-rated MEDIUM because this is **fallout from this project's own work**, not inherited, and it is invisible to `mvn verify`: the entries only matter on the `-Pnative` path, where missing DI bean registrations surface as *runtime* failures in the produced binary rather than build errors. Native image is a documented deliverable (§9 completion condition), so this sits directly on our own acceptance criteria. Note `pom-native.xml` does **not** compile at HEAD (known, pre-existing) — t33 must say plainly whether it fixed that too or only the metadata, and must not report success on a build it never actually ran.
+  2. **`RELEASE_NOTES_{en,ja}.md` instruct users to set a key that never worked.** `RELEASE_NOTES_en.md:1276` / `RELEASE_NOTES_ja.md:1227` say multi-pass is “Configurable via `reviewer.execution.review-passes`”. Per t28 that key only ever moved the **banner**; the executor always read `reviewer.execution.concurrency.review-passes`. So this was **wrong when written**, not merely stale — anyone following it changed a number on screen and nothing else. This is the **F5 pattern** (a canonical record that outlives its context becomes an instruction to regress) and is user-facing, so it needs an explicit correction rather than silent deletion of history.
+- ✅ t34 [tester] **SEC-L10 model-prefix behavior coverage** (22:00:09Z→22:21:55Z, 21m 46s) [deps: t18.3] — **PASS, 0 HIGH / 0 CRITICAL.** Added 30 boundary inputs covering every accepted prefix family plus rejected near-misses; registered `ALLOWED_MODEL_PREFIXES` in the liveness inventory. Full **1090/1090** tests and **4/4 packaged-JAR** flows pass; SEC-L10 is closed.
 > `origin/main` advanced 36 commits past merge-base `fb2e795c` (Java 27->28, micronaut-parent 5.1.0,
 > copilot-sdk 1.0.8, prompt-budget/compaction + Good Points features, removal of the merger/similarity
 > cluster). Merge attempted -> **82 unmerged paths**. Conflicts are structural, not textual: main added
@@ -74,13 +382,29 @@
 > the layers. Safety tag `pre-merge-origin-main-backup` = `d3a499c`. `pom.xml` auto-merged correctly and
 > **kept `jackson.version` 3.1.5**, so the CVE-2026-59889 fix survived the merge.
 - ✅ t23 [backend] Resolve the origin/main merge into the layered tree (00:06:06Z→00:52:39Z, 46m33s) — **82 conflicts → 0**, 108 files staged (+4576/−2380), 6 upstream features ported, **2 silent regressions caught** (`--no-shared-session` case label + builder call dropped though still advertised at `CliUsage:48`; a test removed by a *clean auto-merge* in `ReviewResultPipelineTest`). `BUILD SUCCESS`, **939 tests** — arithmetic reconciled `945 − 26 + 20 = 939` by an independent `@Test`-annotation diff that matched the executed delta exactly. Merge deliberately **left staged, not committed**; `MERGE_HEAD = 5844456`. Coordinator verified in source: 0 unmerged paths, top level is `ReviewApp.java` + 5 layer dirs, `jackson.version` 3.1.5 intact, prompt-budget keys and 13 template edits present.
-- 🔄 t24 [architect] **re-dispatched, round 1/2** (dispatched 2026-08-06T01:42Z) — must now rule on F1 closure, **F4**, backend's 3 escalated config-contract decisions, and re-confirm F2/F3 severity. Prior run: post-merge architecture conformance re-check (00:56:35Z→01:08:10Z, 11m35s) [deps: t23]. **The merge verdict itself is PASS** — 0 CRITICAL, **0 layering violations**, 11/11 arch rules green, Rule 0 parsed **331/331**, plus the independent scope proof Rule 0 structurally cannot give (it is self-referential: both sides come from one `target/classes` walk) — **175/175 source files have a compiled `.class`, incl. all 28 merge-touched**. Gate marked failed **solely** because it surfaced **1 HIGH (F1)** — per §3.2.1 a surfaced HIGH is a pipeline FAIL, not a deliverable. All four decision items ruled; **3-A's premise was disproven** (see `decisions.md`). Must be re-dispatched after t26 for a clean PASS before §3.7 completion.
-- ⏳ t25 [tester] **Follow-up** — restore the rubber-duck compaction test coverage that taking `ours` on 10 test conflicts dropped: `RubberDuckPromptBuilderTest.compactsPeerContentWhenEnabled` and a `### Good Points` assertion [deps: t24]. Disclosed by backend, not hidden. The compaction *logic* stays covered (main's 6-test `PromptContentCompactorTest` survived); what is thinner is its *invocation from the rubber-duck builder* — i.e. the wiring, which is the half that regressions actually hit.
-- ❌ t26 [backend] **failed[findings]** — F1 remediation (HIGH) (01:20:22Z→01:30:41Z, 10m19s) — add a negative control for the cumulative assigned-skill budget at `infrastructure/parsing/AgentConfigLoader:189` (ADR-0007 D7) [deps: t24-findings]. The existing `rejectsOversizedSkillFile` **cannot** reach it: line 227 checks `Files.size(f) > maxSkillPromptLength` and line 189 checks `assignedPromptLength + skillLength > maxSkillPromptLength` — **the same cap** — so any single file big enough to trip the cumulative branch is already rejected per-file. The branch is only reachable via **multiple** skills for one agent summing past the cap. **8th instance of the systemic pattern** (SEC-H1 shape). Coordinator verified inherited-not-introduced: `enforceAssignedSkillBudget` **exists in `origin/main`** and is **absent at merge-base `fb2e795c`** — upstream's gap, ported faithfully by t23.
+- ✅ t24 [architect] **CLEAN PASS (round 1)** (01:42:59Z→01:47:56Z, ~5m) — ruled F1 closure, **F4**, backend's 3 escalated config-contract decisions, and re-confirmed F2/F3 severity. Prior run: post-merge architecture conformance re-check (00:56:35Z→01:08:10Z, 11m35s) [deps: t23]. **The merge verdict itself is PASS** — 0 CRITICAL, **0 layering violations**, 11/11 arch rules green, Rule 0 parsed **331/331**, plus the independent scope proof Rule 0 structurally cannot give (it is self-referential: both sides come from one `target/classes` walk) — **175/175 source files have a compiled `.class`, incl. all 28 merge-touched**. Gate marked failed **solely** because it surfaced **1 HIGH (F1)** — per §3.2.1 a surfaced HIGH is a pipeline FAIL, not a deliverable. All four decision items ruled; **3-A's premise was disproven** (see `decisions.md`). Must be re-dispatched after t26 for a clean PASS before §3.7 completion.
+  **Round-1 outcome — CLEAN PASS: 0 CRITICAL, 0 HIGH, 3 MEDIUM (F2, F3, F4-as-inherited).** Build exit 0, **942 tests**, 15/15 arch rules green, Rule 0 parsed 331/331, 0 cycles. **F1 CLOSED** — verified in source: `assertPerFileGatesCannotFire` removes sites 2 and 3 as explanations, so the drop is attributable to site 1 alone. **F4 downgraded HIGH → MEDIUM and excluded as inherited**, on grounds the gate *verified* rather than asserted: bit-identical to `origin/main` at `5844456`; the cited live trigger **falsified** (the 12,908 B skill is dropped at the *byte* gate with a different message, and declares no `metadata.agent` so `AgentPromptBuilder:127` filters it out — it can never reach site 5); and a full 9-agent × 25-skill gate-chain simulation shows worst case **3,858/10,000 — 61% headroom**, zero warnings, zero throws. Coordinator verified independently and found the corpus *more* favourable than reported: **both** skills over 10 KB (22,286 B and 12,908 B) are in the 9-skill no-agent set — the only two files large enough to matter are precisely the unreachable ones. **This overturns the coordinator's own "worse than reported" reading**: the structural defect is real, but reachability is bounded, and severity is likelihood × impact. Two false premises falsified this round — backend's, and one of the architect's own from a mis-shaped grep. **Disclosed cost, not glossed:** the layering made F4 *harder* to fix — `AgentPromptBuilder` is in `domain`, so Rule 1 removes the one-line option. Recorded as attributable to our architecture.
+- ✅ t25 [tester] **Follow-up** (01:55:57Z→02:14:26Z, 18m29s) — restore the rubber-duck compaction test coverage that taking `ours` on 10 test conflicts dropped: `RubberDuckPromptBuilderTest.compactsPeerContentWhenEnabled` and a `### Good Points` assertion [deps: t24]. Disclosed by backend, not hidden. The compaction *logic* stays covered (main's 6-test `PromptContentCompactorTest` survived); what is thinner is its *invocation from the rubber-duck builder* — i.e. the wiring, which is the half that regressions actually hit.
+- ✅ t26 [backend] — F1 remediation (HIGH) (01:20:22Z→01:30:41Z, 10m19s) — add a negative control for the cumulative assigned-skill budget at `infrastructure/parsing/AgentConfigLoader:189` (ADR-0007 D7) [deps: t24-findings]. The existing `rejectsOversizedSkillFile` **cannot** reach it: line 227 checks `Files.size(f) > maxSkillPromptLength` and line 189 checks `assignedPromptLength + skillLength > maxSkillPromptLength` — **the same cap** — so any single file big enough to trip the cumulative branch is already rejected per-file. The branch is only reachable via **multiple** skills for one agent summing past the cap. **8th instance of the systemic pattern** (SEC-H1 shape). Coordinator verified inherited-not-introduced: `enforceAssignedSkillBudget` **exists in `origin/main`** and is **absent at merge-base `fb2e795c`** — upstream's gap, ported faithfully by t23.
+  **`[findings]` CLEARED BY ADJUDICATION, not by remediation** (t24 round-1): the sole reason t26 was failed was that it proposed F4 as HIGH. The architect gate — which owns severity — ruled F4 **MEDIUM and inherited from `origin/main`**, so t26 now carries **zero HIGH/CRITICAL**. Its own deliverable (F1 closure) was already verified clean in source. Re-dispatching to "produce a clean PASS" would be ceremony over a finding that no longer exists at that severity, so t26 is closed ✅ with the adjudication recorded rather than re-run. F4 survives as **t29**; nothing is dropped.
   **Scope widened by the coordinator after source inspection**: `AgentConfigLoader:83` assigns `maxSkillPromptLength = skillConfig.maxParameterValueLength()`, and that single knob is then compared against at **three semantically different budgets** — L189 cumulative assigned-skill prompt, L227 per-file size on disk, L249 expanded injected content. `shared/PromptBudget` has **no** skill-related field, so the reuse is "nothing better available" rather than a considered choice. The alias assignment **erases provenance** at the call sites, which is the same shape as t18.1's `ApplicationPortFactory:54-60`. t26 must therefore both (A) add the D7 negative control and (B) **rule** on whether one knob may govern three budgets — keeping it is an acceptable verdict if justified, but it may not pass silently.
   **Outcome — F1 is closable, Task B ruled (not deferred).** Delivered 3 negative controls (`AgentConfigLoaderTest.AssignedSkillBudget`: cumulative drop / order-sensitivity isolation / matched-pair `metadata.agent` guard) plus a **2-mutant kill matrix with disjoint kills**, which is what proves no test is vacuous — the exact failure t12 taught us to check for. Ruled that one knob may **not** govern these budgets; landed the provenance-restoring half and escalated the config-contract half. Corrected the coordinator's brief on two points: it is **five** budget sites, not three, and the bytes-vs-chars conflation is **latent, not active** (27 shipped skills diverge up to 2× but **zero** are currently mis-gated — measured, not assumed). Coordinator verified in source: the production diff is a **pure rename** — `AgentConfigLoader:98` derives `sharedSkillBudget` once and assigns it to all three new unit-bearing fields, so behaviour is **bit-identical**; no mutant residue in `src/main`. Independent build: **942 tests, 0 failures, BUILD SUCCESS** (939 → 942 = the 3 added tests exactly). Marked failed **solely** because it proposed **1 new HIGH (F4)** — same rule applied to t24, applied consistently here.
   **F4 (HIGH, proposed)** — `AgentPromptBuilder:145` measures the rendered skill section against the **hardcoded** `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH` and **throws**, while `AgentConfigLoader`'s gates read the **configured** knob and **skip**. Coordinator verified in source and found it **worse than reported**: the constant has **5 consumers** and its name is accurate for exactly **one** of them (`SkillDefinition:54`, a single parameter value). The loader gate is not a valid pre-check for the builder gate — it under-counts on **two independent axes**: (a) the builder counts section markup the loader omits (`71 + 10n` chars) and (b) the builder counts **placeholder-expanded** content (`PlaceholderUtils.replaceDollarPlaceholders`, L141) while the loader counts it **unexpanded**, with no upper bound on the delta. So "raising the knob is a trap" is only a symptom; the gates are **mutually inconsistent by construction**, and a set that clears the loader can crash the builder **at default config**. **9th instance of the systemic pattern**, in its purest form yet.
-- ⏳ t27 [backend] **F2 (MEDIUM)** — `PromptBudgetConfig`'s eight `@Bindable(defaultValue=…)` literals redefine `PromptBudget.DEFAULT_*`, contra ADR-0006 D6 bullet 2. Values agree today; drift would be silent. `SkillConfig:22` is the model delegation. Architect confirmed deleting the seven numeric defaults is behaviour-preserving — the compact constructor already normalises non-positive to default and every consumer goes through `toPromptBudget()` [deps: t26].
-- ⏳ t28 [backend] **F3 (MEDIUM)** — `ReviewOutputFormatter:26` reads `reviewer.execution.review-passes` but the bound key is `reviewer.execution.concurrency.review-passes`: the banner and the executor read **different keys**, so the banner can misreport the pass count. Pre-existing, not merge-introduced [deps: t26].
-- ⏳ t29 [backend] **F4 remediation** — *contingent on t24's ruling*; raised now so the finding is not lost if the ruling upholds it. Align the `AgentPromptBuilder:145` ceiling and failure mode with the `AgentConfigLoader` gates (configured-vs-hardcoded source, throw-vs-skip behaviour), and decide whether the loader's cumulative gate becomes a true pre-check — which requires it to count section markup and placeholder-expanded content. Scope and direction come from t24, **not** from this line [deps: t24].
+- ✅ t27 [backend] **F2 (MEDIUM)** (02:21Z→02:40Z, 18m) — `8a10609`. **The prescribed remedy was refuted twice.** (1) F2 named the wrong source: there were **three**, not two — `application.yml` restated all eight keys, and a mutant setting a `@Bindable` default to `424242` still bound `12000`, so **the yaml won and the annotations were dead code**; deleting only the annotations would have removed the *inert* duplicate and left the *live* one. (2) The prescribed mechanism **crashes**: an absent key for a primitive `@ConfigurationProperties` component throws `DependencyInjectionException` during parameter resolution — the compact constructor never runs. Shipped instead: boxed `@Nullable` + compact-ctor normalisation, yaml literals removed. Control cross-compares binder output against `PromptBudget` through the real binding path (asserting literals would be vacuous). Its own first draft was vacuous — `@Bindable` lives on the canonical ctor parameter, not the record component — caught by mutation. ~~(dispatched 2026-08-06T02:22Z)~~ *(hold released — t29 landed as `672b1a5`)* — `PromptBudgetConfig`'s eight `@Bindable(defaultValue=…)` literals redefine `PromptBudget.DEFAULT_*`, contra ADR-0006 D6 bullet 2. Values agree today; drift would be silent. `SkillConfig:22` is the model delegation. Architect confirmed deleting the seven numeric defaults is behaviour-preserving — the compact constructor already normalises non-positive to default and every consumer goes through `toPromptBudget()` [deps: t26].
+- ✅ t28 [backend] **F3 (MEDIUM)** *(CLOSED 13:05Z — clean PASS, 0 HIGH/0 CRITICAL. Fixed structurally: the value now flows through a new inbound port (`DescribeReviewPlanPort`), so `presentation` holds no config key at all, rather than merely renaming the string. Coordinator verified in source, and independently mutation-tested the anti-vacuity control — re-sourcing the port from the legacy key fails exactly `legacyBannerKeyNoLongerReachesTheBanner:112` and nothing else. Commit `b53f4b6`)* — the banner and the executor read **different keys**, so the banner could misreport the pass count in both directions. Pre-existing, not merge-introduced [deps: t26].
+- ✅ t29 [backend] **F4 remediation (MEDIUM, inherited)** (01:55:34Z→02:14:22Z, 18m48s) [deps: t24] — **ruling in, contingency resolved: upheld as a real defect, ruled MEDIUM.** Architect-specified remedy, not open for re-litigation: (1) inject the effective budget into `AgentPromptBuilder` as a **pure value** (the `PromptBudget` precedent, already CONFIRMed), removing the `domain → shared.ConfigDefaults` static limit read that proposed Rule 8 forbids; (2) make breach **graceful** — drop the overflowing skill and warn per ADR-0007 D4 — instead of aborting the review. **Explicitly rejected:** making the loader's cumulative gate a true pre-check for the builder gate — a pre-check that must exactly predict a downstream computation is a *duplicated invariant*, forcing infrastructure to track domain's rendering format forever, an inward knowledge leak **no import rule catches**. The real defect is that **four gates skip-and-warn and one throws**; fixing the throw is strictly smaller than teaching one layer to predict another's rendering. Behaviour preservation for all shipped configs is the hard constraint (latent defect).
+- ✅ t30 [architect] **ADR-0008 + Rule 8** (02:22Z→02:41Z, 18m) — `36ea1bc`. ADR-0008 accepted; Rule 8 live (58 classes, 0 violators, 0 exemptions); rule count 10 → 12. **Nearly shipped green and blind**: with 0 violators *and* 0 exemptions the self-proving assertion compared `[]` to `[]` and would have passed with a broken predicate — the rule meant to catch invisible controls had become one. Fixed by a *permanent* control that reintroduces F4's exact shape; watched failing before sign-off. Costs disclosed: detectability rests on a javac ghost `CONSTANT_Class` entry (not a JVMS guarantee), and `case`-label reads leave zero trace (measured, accepted). Rule 7 reserved, not reused. ~~(dispatched 2026-08-06T02:22Z)~~ [deps: t29 ✅] — promote the systemic pattern *"a control's scope of application is invisible at its call site"* (**9 instances**: t12, t13.1/G1, t16, t18/SEC-H1, t14/TGT-07, t18.1, t16.2, F1, F4) to an ADR, and — per ADR-0006 line 124, *"a matrix row with no enforcement rule is itself a defect"* — ship it **with** a mechanizable rule or it is a slogan. **Rule 8**: no class under `domain` may reference a limit constant on `shared.ConfigDefaults`. Blast radius verified = **exactly 1 violator** (F4 itself), which t29 clears — hence the dependency. First mechanization of a pattern documented nine times. Must also carry round-0's corollary that **Rule 0 is self-referential** (both sides from one `target/classes` walk) and the disclosed cost that layering made F4 harder to fix.
+- ✅ t31 [architect] **NEW HIGH — ADR-0007 D5 is unfulfilled, with a live violation** (dispatched 2026-08-06T11:52Z, **alone** — no co-tenant, the 2-concurrent ceiling is disproven) [deps: t30 ✅] — ADR-0007 **D5 (L240)** mandates **Rule 4b** (no `application.port` class may reference `shared.SensitiveHeaderMasking`). Coordinator verified independently: `grep -rn "Rule 4b" src/test/` → **0 matches** — never implemented — while `application/port/outbound/McpServerSpec.java:34` **genuinely calls** `SensitiveHeaderMasking.wrapHeaders(...)` (real import + call, not javadoc). An **Accepted** ADR has been declaring an enforcement that does not exist while the thing it forbids ships. Same defect shape as ADR-0006 D5, which is how t30 found it. Deliberately **not** bundled into t30 — Rule 4b goes red immediately and forces a design decision on `McpServerSpec`, which would have made Rule 8's green unattributable. **security is reviewer of record on semantics**: the fix relocates where masking happens, and getting it wrong silently unmasks headers, so t31 must ship a control proving masking still occurs for the same inputs. — **RESOLVED**: Rule 4b + control implemented; object-level masking removed entirely and relocated to the log sink (`HEADER_MASK_PATTERN` in both logback profiles) after the worker measured that the wrapper protected nothing (SDK overrides `toString()` on neither config class; zero `src/main` sites log an `McpServerSpec`). Its only real coverage — opaque custom header values — is now closed at the sink. **Coordinator mutation-tested the claim independently**: weakened the shipped `logback.xml`, canary went RED 3/9 with `SECRET LEAKED THROUGH THE LOG SINK`, restored byte-identical. 980 tests green. Worker caught an ordering constraint the coordinator's brief omitted (ADR-0007: D5 must not precede D6) and executed D6→D5 correctly.
 
+
+  **t29 outcome — F4 CLOSED, verified in source by the coordinator.** `AgentPromptBuilder:157` now reads `config.skillBudget()`; the F4 `IllegalStateException` is deleted (the two remaining at L74/L114 are the pre-existing "Instruction is not configured" guard — a different concern, correctly untouched); `shared/SkillBudget` is a pure value on the `PromptBudget` precedent; `grep ConfigDefaults` over `domain/` returns **zero**, so **Rule 8's blast radius is now empty and t30 should pass first run**. Degradation is drop-and-**`continue`**, not `break`, so a later smaller skill still fits; output is byte-identical when nothing is dropped, so **no shipped agent's prompt changes**. `AgentConfig` gained a 13th component, but the 8-arg convenience ctor absorbed it — **70 of 71 call sites untouched** (chosen by measurement, not guess). Authoritative `clean verify` on the settled worktree: **962 tests, 0 failures, BUILD SUCCESS, exit 0**. Committed `672b1a5`.
+  **The result worth keeping from t29 is a negative one.** The mutant that re-introduces F4 exactly — ignore the injected value, hardcode `10_000` — **survives** the obvious regression test `dropsOversizedExpandedSkillInsteadOfThrowing`, because `11,100 > 10,000` holds under both fixed and broken code. Backend predicted this algebraically *before* running it. Only `raisingConfiguredBudgetAdmitsPreviouslyDroppedSkill` closes the gap. **Had the task stopped at the intuitive test, the suite would have shipped green against the original defect** — 10th instance of the vacuity trap t12 taught us to check. Separately, mutant M9 killing *all three* loader tests looked like strong coverage and was actually a **fixture defect** (all three fixtures took the skill-less path); after parameterising, M9/M10 kill **disjoint** sets, which is the result that actually proves both paths are guarded.
+  **t25 outcome — both merge-dropped assertions restored, test-only (0 production lines).** 962/0/0/0, exit 0. Each restored assertion is paired with a negative control proven non-vacuous by a targeted mutant kill, with **differing kill sets**. Test-count reconciliation cross-verified from both sides independently and agreed exactly: **942 + 15 (t29) + 5 (t25) = 962**. Committed `f5e17c7`, split from t29 by path as both workers requested.
+  **Two operational findings from t25 worth carrying forward.** (1) A `perl` mutation **silently no-op'd** against an escaped Java regex literal and *reported success* — had the diff not been printed immediately after applying, the run would have recorded "mutant survived → test is weak" and rewritten a test that was fine. **Verifying that a mutation landed is now part of the protocol.** (2) A `924/23F/184E` run looked like catastrophic regression but was a shared-`target/` race between two concurrent agents; the tell is a total dropping *below* baseline with `NoClassDefFoundError` on classes untouched by the change, including tests older than it. Both dispatches from here on carry that warning.
+  **Board correction — no architecture rules were ever lost.** Round 0 recorded "11/11" and round 1 "15/15" arch rules; the file actually has **10 `@Test` methods** (Rule 0, 1, 2, 3, 4, 5, 5b, 6a, 6b, 6-scope = 10). Coordinator checked the file's full history rather than assuming: `@Test` count went **6 → 9 → 9 → 10 → 10** across `43d84bf → 9b5d78c → 210e96d → 5c767ef → ce09610` — **monotonically increasing, never once decreasing.** The earlier figures were mis-transcriptions (11 = `@DisplayName` incl. the class-level one), not evidence of deletion. Recorded because a phantom "we lost 5 rules" would otherwise be chased later — the same F5 hazard where a stale record becomes an instruction to regress.
+  **Numbering hazard raised to the architect before t30 starts.** `Rule 7` is **already reserved** by a *different* proposal in `t24-architect.md:229` (group `dependencies.keySet()` by simple name) and is unimplemented, so shipping Rule 8 leaves a visible gap at 7. ADR-0006 L143's suffix convention (`5b`) governs **insertions** protecting the `6a`/`6b` pair, not appends, so `8` does not violate it. Coordinator recommends **keeping the name Rule 8** plus a one-line reservation marker for 7 — renumbering would desync `t24-architect.md` §5A.4, `decisions.md`, and three inboxes to gain one integer, and **traceability beats tidiness**. Architect owns ADR-0006 and may overrule.
+
+### Phase: Documentation Follow-up 📌 1e762f5
+- ✅ t35 [architect] Update `README.md`, `README_en.md`, `README_ja.md`, `RELEASE_NOTES_en.md`, and `RELEASE_NOTES_ja.md` to the final layered-architecture, runtime, security, packaging, and release state while preserving EN/JA parity and release-note chronology (12:06:13Z→16:09:32Z, 4h 3m 19s) — **PASS**: final Unreleased/current-state content synchronized; local links 0 broken; paired structure, fences, and Mermaid checks pass; JVM 1,112 and native 2,219 validation; 0 HIGH / 0 CRITICAL. [deps: t16, t22]
+- ✅ t36 [teamlead] Independently review the five updated documents for source-of-truth accuracy, cross-file consistency, working references, and English/Japanese parity (initial 16:10:58Z→21:27:13Z FAIL; clean re-gate 22:37:31Z→22:52:43Z, 15m 12s) — **PASS**: F-01–F-06 closed; source 25/25, local links 23/23, factual external targets 39/39, EN/JA parity 6/6, chronology 4/4, Java tests 2/2; 0 findings. [deps: t36.1]
+- ✅ t36.1 [architect] Remediate F-01–F-06 across the five documents; permit verified URL-only historical corrections, render unavailable historical targets as explicit non-links, preserve chronology, and never invent replacement tags or PRs (21:27:41Z→22:37:05Z, 1h 9m 24s) — **PASS**: all F-01–F-06 closed; two additional invalid historical releases made explicit non-links; 25/25 document checks, `PlaceholderUtilsTest` 2/2, zero dead targeted links; 0 HIGH / 0 CRITICAL. [remediates: t36]

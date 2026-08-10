@@ -30,7 +30,7 @@ class SkillExecutionCoordinatorTest {
             cliOutput()
         );
 
-        int exit = coordinator.execute("scan", Map.of("env", "prod"), "token", "gpt-5", 1);
+        int exit = coordinator.execute("scan", Map.of("env", "prod"), "token", "gpt-5");
 
         assertThat(exit).isEqualTo(ExitCodes.OK);
         assertThat(receivedParameters.get()).containsEntry("env", "prod");
@@ -44,7 +44,7 @@ class SkillExecutionCoordinatorTest {
             cliOutput()
         );
 
-        int exit = coordinator.execute("scan", Map.of(), "token", "gpt-5", 1);
+        int exit = coordinator.execute("scan", Map.of(), "token", "gpt-5");
 
         assertThat(exit).isEqualTo(ExitCodes.SOFTWARE);
     }
@@ -59,7 +59,7 @@ class SkillExecutionCoordinatorTest {
             cliOutput()
         );
 
-        assertThatThrownBy(() -> coordinator.execute("scan", Map.of(), "token", "gpt-5", 1))
+        assertThatThrownBy(() -> coordinator.execute("scan", Map.of(), "token", "gpt-5"))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("boom");
     }

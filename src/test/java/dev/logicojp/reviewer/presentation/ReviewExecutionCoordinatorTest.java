@@ -97,7 +97,7 @@ class ReviewExecutionCoordinatorTest {
                 return Optional.empty();
             }
         };
-        return new ReviewRunExecutor(runReviewPort, generateReportPort, new ReviewOutputFormatter(output, 1)) {
+        return new ReviewRunExecutor(runReviewPort, generateReportPort, new ReviewOutputFormatter(output)) {
             @Override
             public int execute(ReviewRequest request) {
                 return fn.execute(request);

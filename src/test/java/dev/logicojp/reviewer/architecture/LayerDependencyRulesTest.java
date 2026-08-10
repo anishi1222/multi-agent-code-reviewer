@@ -5,11 +5,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.PoolEntry;
 import java.lang.classfile.constantpool.Utf8Entry;
+import java.lang.reflect.AccessFlag;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -31,6 +33,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /// Enforces the layered / ports-and-adapters boundaries defined in
@@ -38,14 +41,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 ///
 /// ## Why this test does not use ArchUnit
 ///
-/// This project compiles with `--release 27`, emitting class files at major version **71**.
+/// This project compiles with `--release 28`, emitting class files at major version **72**.
 /// ArchUnit shades ASM internally, and its newest release (1.4.1) tops out at `V25 = 69`.
-/// ArchUnit therefore throws `IllegalArgumentException: Unsupported class file major version 71`
+/// ArchUnit therefore throws `IllegalArgumentException: Unsupported class file major version 72`
 /// for every application class, then **catches it, logs it, and silently continues with a partial
 /// class set**. Measured on this repository: ArchUnit imported 107 of 687 classes, and those 107
 /// were exclusively Micronaut-generated glue compiled at major 61. Every boundary rule was
 /// consequently vacuous — it inspected zero hand-written classes and passed unconditionally.
-/// Because ASM is shaded it cannot be overridden from the POM, and the Java 27 target is fixed.
+/// Because ASM is shaded it cannot be overridden from the POM, and the Java 28 target is fixed.
 ///
 /// This test instead uses the JDK's own `java.lang.classfile` API (JEP 484, final since JDK 24),
 /// which parses the current release by construction and cannot fall behind it.
@@ -67,6 +70,7 @@ class LayerDependencyRulesTest {
 
     private static final String BASE = "dev.logicojp.reviewer";
     private static final Path CLASSES = Path.of("target", "classes");
+    private static final Path SOURCES = Path.of("src", "main", "java");
 
     private static final String DOMAIN = BASE + ".domain";
     private static final String APPLICATION = BASE + ".application";
@@ -81,6 +85,23 @@ class LayerDependencyRulesTest {
     private static final String PRESENTATION = BASE + ".presentation";
     private static final String SHARED = BASE + ".shared";
 
+    /// The whole port set — both directions. Rule 4b constrains this, not just the outbound half:
+    /// ADR-0007 D5 is about what a *port declaration* may depend on, and an inbound port carrying a
+    /// masking dependency would be the same defect.
+    private static final String APPLICATION_PORT = BASE + ".application.port";
+
+    /// The configuration-defaults holder guarded by Rule 8 (ADR-0008).
+    private static final String CONFIG_DEFAULTS = SHARED + ".ConfigDefaults";
+
+    /// The masking helper guarded by Rule 4b (ADR-0007 D5).
+    private static final String SENSITIVE_HEADER_MASKING = SHARED + ".SensitiveHeaderMasking";
+
+    /// Framework-owned annotation packages guarded by Rule 5c (ADR-0006 D1/D5).
+    private static final List<String> CONFIGURATION_BINDING_ANNOTATION_PACKAGES = List.of(
+        "io.micronaut.context.annotation",
+        "io.micronaut.core.bind.annotation"
+    );
+
     /// The five layers introduced by the rearchitecture. Everything else under [#BASE] is
     /// pre-migration code scheduled for deletion in t13.
     private static final List<String> NEW_LAYERS =
@@ -91,10 +112,20 @@ class LayerDependencyRulesTest {
     /// Scanning `Utf8Entry` values in addition to `ClassEntry` is required, not optional:
     /// annotation types (`@Singleton`, `@Inject`) and generic signatures appear *only* as UTF-8
     /// descriptors, never as `ClassEntry`. Detecting exactly those annotations is the whole point
-    /// of Rule 1. The sweep slightly over-approximates — a string constant shaped like a
-    /// descriptor would be counted — which can only produce a false failure, never a false pass.
+    /// of Rule 1.
+    ///
+    /// The package separator is **required** (`(?:/…)+`, not `*`). Without it the sweep matched
+    /// unqualified `L…;` runs inside ordinary string constants, and one such constant is emitted
+    /// for every record: `javac` bootstraps `equals`/`hashCode`/`toString` via `ObjectMethods`
+    /// with a `;`-joined list of component names. A record component containing an uppercase `L`
+    /// that is not the final component therefore produced a phantom dependency — the name list
+    /// `…;maxInstructionLines;enforcesCharset` yielded a "class" called `ines`. The trigger was
+    /// positional (the last component has no trailing `;`), so merely reordering fields could
+    /// break the build. Requiring a package separator removes the whole class of false positives
+    /// and costs nothing: every framework annotation and signature is package-qualified, and
+    /// `noProjectClassLivesInTheDefaultPackage` pins the only assumption this relies on.
     private static final Pattern TYPE_DESCRIPTOR =
-        Pattern.compile("L([a-zA-Z_$][a-zA-Z0-9_$]*(?:/[a-zA-Z_$][a-zA-Z0-9_$]*)*);");
+        Pattern.compile("L([a-zA-Z_$][a-zA-Z0-9_$]*(?:/[a-zA-Z_$][a-zA-Z0-9_$]*)+);");
 
     /// Fully-qualified class name -> every type it references.
     private static Map<String, Set<String>> dependencies;
@@ -140,15 +171,71 @@ class LayerDependencyRulesTest {
             // Named anchors spanning every layer. If a package is ever renamed, these fail first
             // and say so, instead of a rule quietly narrowing to an empty subject set.
             () -> assertAnchorPresent(BASE + ".ReviewApp"),
+            () -> assertAnchorPresent(BASE + ".ReviewPortFactory"),
+            () -> assertAnchorPresent(BASE + ".ApplicationPortFactory"),
             () -> assertAnchorPresent(PRESENTATION + ".CliOutput"),
             () -> assertAnchorPresent(PRESENTATION + ".SkillOptions"),
             () -> assertAnchorPresent(APPLICATION + ".port.inbound.LoadAgentPort"),
-            () -> assertAnchorPresent(INFRASTRUCTURE + ".copilot.ApplicationPortFactory")
+            () -> assertAnchorPresent(INFRASTRUCTURE + ".config.ApplicationSettingsAdapter")
         );
 
         System.out.printf("[arch] Rule 0: parsed %d/%d classes%n", dependencies.size(), classFilesOnDisk);
         NEW_LAYERS.forEach(layer ->
             System.out.printf("[arch]   %-44s %4d classes%n", layer, classesIn(layer).size()));
+    }
+
+    @Test
+    @DisplayName("Rule 0b: no class lives in the default package (pins the descriptor-scan assumption)")
+    void noProjectClassLivesInTheDefaultPackage() {
+        // TYPE_DESCRIPTOR requires a package separator, so an unqualified descriptor such as
+        // `LFoo;` is not recognised as a type reference. That narrowing is only safe while every
+        // compiled class is package-qualified. If a default-package class ever appears, this fails
+        // and says so, rather than letting Rules 1-5 quietly stop seeing a dependency.
+        Set<String> defaultPackage = new TreeSet<>();
+        for (String owner : dependencies.keySet()) {
+            if (owner.indexOf('.') < 0) {
+                defaultPackage.add(owner);
+            }
+        }
+
+        assertEquals(Set.of(), defaultPackage,
+            "Classes in the default package are invisible to the UTF-8 descriptor scan. Either "
+                + "move them into a package, or relax TYPE_DESCRIPTOR and re-verify that no record "
+                + "component name reintroduces phantom dependencies.");
+    }
+
+    @Test
+    @DisplayName("Rule 0c: ReviewApp is a thin process entry point")
+    void reviewAppOwnsNoCliPolicyOrExternalIo() throws IOException {
+        String entryPoint = BASE + ".ReviewApp";
+        Set<String> projectDependencies = dependencies.getOrDefault(entryPoint, Set.of()).stream()
+            .filter(dep -> dep.startsWith(BASE + "."))
+            .filter(dep -> !dep.equals(entryPoint))
+            .collect(Collectors.toCollection(TreeSet::new));
+
+        Set<String> expectedDependencies = Set.of(
+            PRESENTATION + ".CliApplication",
+            INFRASTRUCTURE + ".startup.StartupEnvironment",
+            INFRASTRUCTURE + ".startup.SystemStartupEnvironment");
+
+        ClassModel entryPointModel = parseClassFile(CLASSES, entryPoint);
+        Set<String> declaredMethods = entryPointModel.methods().stream()
+            .filter(method -> !method.flags().has(AccessFlag.SYNTHETIC))
+            .map(method -> method.methodName().stringValue())
+            .filter(methodName -> !methodName.equals("<init>") && !methodName.equals("<clinit>"))
+            .collect(Collectors.toCollection(TreeSet::new));
+
+        assertAll(
+            () -> assertEquals(expectedDependencies, projectDependencies,
+                "ReviewApp may delegate only to the presentation entry component and the "
+                    + "infrastructure startup abstraction; CLI policy, formatting, logging, and "
+                    + "filesystem I/O belong in those collaborators."),
+            () -> assertEquals(Set.of("main"), declaredMethods,
+                "ReviewApp must expose only main; CLI parsing/dispatch and startup policy belong "
+                    + "outside layer zero."),
+            () -> assertEquals(0, entryPointModel.fields().size(),
+                "ReviewApp must hold no injected collaborators or runtime state.")
+        );
     }
 
     // ------------------------------------------------------------------------------------------
@@ -181,37 +268,42 @@ class LayerDependencyRulesTest {
 
         assertNoViolations("Rule 3 (presentation is a leaf)", subjects,
             dep -> dep.startsWith(PRESENTATION),
-            // Composition root: the Micronaut entry point must name the commands it wires up.
-            // `$ReviewApp$Definition` is the DI metadata Micronaut generates for ReviewApp; it
-            // mirrors ReviewApp's injection points, so it reproduces the same dependency and is
-            // exempted for the same reason. Generated classes are otherwise fully in scope — the
-            // previous revision excluded every class whose name contained `$`, which silently
-            // removed most of the class set from this rule.
-            //
-            // Note for ADR-0006 — t4 §1 places ReviewApp *inside* presentation/, which would
-            // remove the need for both exemptions entirely. Relocating it is outside the scope of
-            // t12.1 (scoped to the enforcement layer), so it is exempted here, explicitly.
-            Set.of(
-                BASE + ".ReviewApp",
-                BASE + ".$ReviewApp$Definition"));
+            // Layer-zero entry point: it resolves the one presentation entry component. ReviewApp
+            // is no longer a bean, so there is no generated definition and exactly one exemption
+            // remains. Rule 0c constrains that dependency to CliApplication.
+            Set.of(BASE + ".ReviewApp"));
+    }
+
+    @Test
+    @DisplayName("Rule 3a: no named layer depends on a direct layer-zero type")
+    void layersDoNotDependOnLayerZero() throws IOException {
+        // ADR-0006 D1 makes the root package the graph's entry, never one of its components.
+        // The opposite direction is intentionally legal: layer-zero wiring must name types from
+        // every layer. Rule 3 constrains references *to presentation* and therefore cannot guard
+        // this edge.
+        Set<String> subjects = classesInLayers();
+        assertSourceBackedSubjects(
+            "Rule 3a (five layers \u22a5 layer zero)", subjects, NEW_LAYERS);
+
+        assertNoViolations("Rule 3a (five layers \u22a5 layer zero)",
+            subjects,
+            dep -> packageOf(dep).equals(BASE),
+            Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 3a control: a layer-to-root field reference is detectable")
+    void rule3aCanSeeALayerToRootReference() throws IOException {
+        assertForbiddenFixtureReference(
+            "Rule 3a control (layer-to-root reference is detectable)",
+            "/dev/logicojp/reviewer/application/probe/T17RootReferenceViolation.class",
+            dep -> packageOf(dep).equals(BASE),
+            BASE + ".ReviewPortFactory");
     }
 
     @Test
     @DisplayName("Rule 4: infrastructure reaches application only through its outbound ports")
     void infrastructureUsesApplicationPortsOnly() {
-        // Micronaut @Factory / @Singleton classes form the composition root: binding a port to its
-        // implementation necessarily names that implementation, and this is the one place in the
-        // system where that is legitimate.
-        //
-        // Note for ADR-0006 D3 — relocating these to the composition root package would retire the
-        // exemptions, but only `ApplicationPortFactory` is actually a Micronaut `@Factory`; the
-        // other two carry config-mapping logic and an inbound-port implementation, which D1 forbids
-        // the root from holding. See t16.1's artifact before acting on D3.
-        Set<String> compositionRoot = Set.of(
-            INFRASTRUCTURE + ".copilot.ApplicationPortFactory",
-            INFRASTRUCTURE + ".copilot.ReviewContextFactory",
-            INFRASTRUCTURE + ".copilot.ReviewOrchestratorFactory");
-
         Predicate<String> reachesApplicationOffPort =
             dep -> dep.startsWith(APPLICATION) && !dep.startsWith(APPLICATION_PORT_OUTBOUND);
 
@@ -228,7 +320,129 @@ class LayerDependencyRulesTest {
         assertNoViolations("Rule 4 (infrastructure -> application.port.outbound only)",
             classesIn(INFRASTRUCTURE),
             reachesApplicationOffPort,
-            withGeneratedBeanDefinitions(compositionRoot, reachesApplicationOffPort));
+            Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 4a: port declarations do not depend on application implementations")
+    void portsDoNotDependOnApplicationImplementations() throws IOException {
+        Set<String> subjects = classesIn(APPLICATION_PORT);
+        assertSourceBackedSubjects(
+            "Rule 4a (application.port \u22a5 application implementations)",
+            subjects,
+            List.of(APPLICATION_PORT));
+
+        // This is an explicit allowlist row, not a cycle proxy. A one-way
+        // application.port.inbound -> application.policy edge remains acyclic and must still fail.
+        assertNoViolations("Rule 4a (application.port \u22a5 application implementations)",
+            subjects,
+            LayerDependencyRulesTest::isApplicationImplementation,
+            Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 4a control: a one-way port-to-implementation reference is detectable")
+    void rule4aCanSeeAPortToImplementationReference() throws IOException {
+        assertForbiddenFixtureReference(
+            "Rule 4a control (port-to-implementation reference is detectable)",
+            "/dev/logicojp/reviewer/application/port/inbound/T17PortImplementationViolation.class",
+            LayerDependencyRulesTest::isApplicationImplementation,
+            APPLICATION + ".policy.T17ApplicationPolicy");
+    }
+
+    @Test
+    @DisplayName("Rule 4b: no port declaration depends on shared.SensitiveHeaderMasking")
+    void portsDoNotDependOnSensitiveHeaderMasking() {
+        // ADR-0007 D5. A port is a *declaration of intent* — it says what the application needs from
+        // the outside world. Masking is a property of a **sink** (a log line, a diagnostic dump), not
+        // a property of the data. When a port type masks its own fields it makes three promises it
+        // cannot keep:
+        //
+        //   1. It only guards `toString()`. Any consumer that reads the map — `get()`, `entrySet()`,
+        //      a JSON serializer, a debugger — sees the raw value. Measured on this tree: the SDK's
+        //      `McpHttpServerConfig.setHeaders` stores the map by `putfield` with no defensive copy,
+        //      and neither `McpHttpServerConfig` nor `McpServerConfig` overrides `toString()`. The
+        //      wrapper therefore protected *nothing* once the value crossed into the SDK.
+        //   2. It is object-identity bound. Copy the map, stream it, rebuild it, and the guard is
+        //      gone silently — no compiler or test notices.
+        //   3. It makes the port's compile-time surface depend on a security helper, so the port can
+        //      no longer be read as a pure contract.
+        //
+        // The sink owns masking instead: `logback.xml` / `logback-json.xml` mask on every appender,
+        // by value shape (`MASK_PATTERN`) and by header name (`HEADER_MASK_PATTERN`), regardless of
+        // which object produced the text. `SensitiveHeaderMaskingSinkCanaryTest` is the control.
+        assertNoViolations("Rule 4b (application.port ⊥ shared.SensitiveHeaderMasking)",
+            classesIn(APPLICATION_PORT),
+            dep -> dep.equals(SENSITIVE_HEADER_MASKING)
+                || dep.startsWith(SENSITIVE_HEADER_MASKING + "$"),
+            Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 4b control: the rule has subjects and can see a masking reference")
+    void rule4bCanSeeAMaskingReference() throws IOException {
+        // Once `McpServerSpec` was fixed, Rule 4b sits at 0 violators *and* 0 exemptions — the same
+        // vacuity trap Rule 8 fell into. At that point its exact-match assertion observes nothing:
+        // it would pass identically if `SENSITIVE_HEADER_MASKING` were misspelled, if
+        // `APPLICATION_PORT` pointed at a package that does not exist, or if `referencedTypes` never
+        // reported the dependency at all. This control pins both halves.
+        //
+        // Half 1 — the rule has subjects. `classesIn` returns the empty set for a prefix that
+        // matches nothing, and `assertNoViolations` is perfectly happy inspecting zero classes.
+        // Rule 0 guards *parsing*, not this prefix.
+        Set<String> subjects = classesIn(APPLICATION_PORT);
+        assertFalse(subjects.isEmpty(), () -> """
+            Rule 4b inspected zero classes: nothing under `%s` was found in %s.
+
+            The rule is vacuous — it cannot fail. Either the package was renamed and the constant \
+            was not updated, or the ports moved. Fix the prefix; do not delete this control.
+            """.formatted(APPLICATION_PORT, CLASSES));
+
+        // Half 2 — a masking reference is actually detectable. The fixture calls a surviving
+        // `SensitiveHeaderMasking` method and nothing else from that class, reproducing the exact
+        // shape of the violation ADR-0007 D5 removed (`McpServerSpec` called `wrapHeaders`).
+        String fixture = "LayerDependencyRulesTest$MaskingReferenceProbe.class";
+        byte[] bytes;
+        try (InputStream in = LayerDependencyRulesTest.class.getResourceAsStream(fixture)) {
+            assertNotNull(in, "Rule 4b control fixture not found on the test classpath: " + fixture);
+            bytes = in.readAllBytes();
+        }
+
+        Set<String> references = referencedTypes(ClassFile.of().parse(bytes));
+
+        System.out.printf("[arch] %-48s %d subject(s), fixture references %s%n",
+            "Rule 4b control (masking reference is detectable)", subjects.size(),
+            references.contains(SENSITIVE_HEADER_MASKING)
+                ? SENSITIVE_HEADER_MASKING : "NOTHING — Rule 4b IS BLIND");
+
+        assertTrue(MaskingReferenceProbe.probe("Authorization"),
+            "Fixture must genuinely call the helper, not merely mention it.");
+        assertTrue(references.contains(SENSITIVE_HEADER_MASKING), () -> """
+            Rule 4b cannot detect a call to `%s`.
+
+            The fixture calls it and nothing else from that class, yet the type does not appear in \
+            its constant pool. Rule 4b is therefore vacuous: it would pass even with a live \
+            violator under `application.port`.
+
+            Fixture references: %s
+            """.formatted(SENSITIVE_HEADER_MASKING, references));
+    }
+
+    /// Fixture for [#rule4bCanSeeAMaskingReference]. Reproduces the shape of the ADR-0007 D5
+    /// violation: a class calling [dev.logicojp.reviewer.shared.SensitiveHeaderMasking] with no
+    /// other reference to it, so the only thing that can put `shared.SensitiveHeaderMasking` in
+    /// this class's constant pool is that call.
+    ///
+    /// It lives in the test tree, so it is never a Rule 4b subject: the analyzer walks
+    /// `target/classes` only.
+    static final class MaskingReferenceProbe {
+
+        private MaskingReferenceProbe() {
+        }
+
+        static boolean probe(String headerName) {
+            return dev.logicojp.reviewer.shared.SensitiveHeaderMasking.isSensitiveHeaderName(headerName);
+        }
     }
 
     @Test
@@ -265,6 +479,37 @@ class LayerDependencyRulesTest {
         assertNoViolations("Rule 5b (presentation ⊥ infrastructure)", classesIn(PRESENTATION),
             dep -> dep.startsWith(INFRASTRUCTURE),
             Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 5c: presentation declares no framework-owned configuration binding")
+    void presentationDeclaresNoFrameworkConfigurationBinding() throws IOException {
+        // A configuration key named by presentation is an infrastructure dependency expressed as
+        // a string. Rule 5b can see Java type edges only, so it stayed green while three classes
+        // bound wrong or dead keys directly. Effective values must cross DescribeReviewPlanPort;
+        // presentation may then apply explicit CLI overrides without owning defaults.
+        Set<String> subjects = classesIn(PRESENTATION);
+        assertSourceBackedSubjects(
+            "Rule 5c (presentation \u22a5 framework configuration binding)",
+            subjects,
+            List.of(PRESENTATION));
+
+        assertNoViolations(
+            "Rule 5c (presentation \u22a5 framework configuration binding)",
+            subjects,
+            LayerDependencyRulesTest::isConfigurationBindingAnnotation,
+            Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 5c control: a presentation configuration-binding annotation is detectable")
+    void rule5cDetectsAConfigurationBindingAnnotation() throws IOException {
+        assertForbiddenFixtureReference(
+            "Rule 5c control (configuration-binding annotation is detectable)",
+            "/dev/logicojp/reviewer/presentation/T32ConfigurationBindingViolation.class",
+            LayerDependencyRulesTest::isConfigurationBindingAnnotation,
+            PRESENTATION + ".T32ConfigurationBindingViolation",
+            "io.micronaut.context.annotation.Value");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -326,7 +571,11 @@ class LayerDependencyRulesTest {
         // This replaces the former `legacyPackagesAreExplicitlyOutOfCycleScope` self-destruct,
         // whose job was to fail once the legacy tree was deleted. It has now fired and been
         // removed, as its own failure message instructed.
-        Set<String> allowedAtRoot = Set.of(BASE + ".ReviewApp", BASE + ".$ReviewApp$Definition");
+        Set<String> allowedRootSources =
+            Set.of(
+                BASE + ".ReviewApp",
+                BASE + ".ApplicationPortFactory",
+                BASE + ".ReviewPortFactory");
 
         Map<String, Integer> strays = new TreeMap<>();
         List<String> rootDwellers = new ArrayList<>();
@@ -340,11 +589,10 @@ class LayerDependencyRulesTest {
                 continue;
             }
             if (topLevel.equals(BASE)) {
-                // A class sitting directly in the base package belongs to no layer, so only the
-                // two entries exempted by Rule 3 may live there. Nested types (ReviewApp$Xxx)
-                // are part of their enclosing class and inherit its exemption.
-                String enclosing = owner.contains("$") ? owner.substring(0, owner.indexOf('$')) : owner;
-                if (!allowedAtRoot.contains(owner) && !allowedAtRoot.contains(enclosing)) {
+                // Layer zero admits only the entry point and explicit composition-root wiring,
+                // plus their nested/generated bean definitions. Generated names are derived from
+                // the declaring source rather than hard-coded method indices.
+                if (!isRootSourceOrGenerated(owner, allowedRootSources)) {
                     rootDwellers.add(owner);
                 }
                 continue;
@@ -363,90 +611,278 @@ class LayerDependencyRulesTest {
 
         assertTrue(rootDwellers.isEmpty(),
             () -> "Class(es) in the base package " + BASE + " belong to no layer: " + rootDwellers
-                + ". Only " + allowedAtRoot + " may live there.");
+                + ". Only layer-zero sources " + allowedRootSources
+                + " and their generated definitions may live there.");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Rule 7 — RESERVED, not implemented.
+    //
+    // t24-architect.md §5 proposes a "one simple name per type" rule (group `dependencies.keySet()`
+    // by simple name, assert every group has size 1). The number is held here rather than reused so
+    // that "Rule 8" keeps the identity it already has in t24-architect.md §5A.4, decisions.md and
+    // three role inboxes. ADR-0006 L143's `5b` suffix convention governs *insertions* between
+    // existing rules — it exists to protect the 6a/6b pair — so appending 8 is compliant.
+    // ------------------------------------------------------------------------------------------
+
+    // ------------------------------------------------------------------------------------------
+    // Rule 8 — domain reads no configuration default directly (ADR-0008)
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Rule 8: domain reads no configuration default from shared.ConfigDefaults")
+    void domainReadsNoConfigurationDefault() {
+        // ADR-0008: a control's scope of application must be visible at its call site.
+        //
+        // F4 was the ninth instance of that pattern. Two gates guarded one resource -- skill
+        // parameter length -- with different quantities from different sources: one read the
+        // *configured* value and skipped with a warning, the other read the *hardcoded*
+        // `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH` and threw. Nothing at either call site
+        // revealed that the other gate existed, or that they could disagree. The remedy was to
+        // inject the resolved budget inward as a pure value (`shared.SkillBudget`), so the number
+        // in force arrives through the seam instead of being reached for.
+        //
+        // ## Why this rule names a type, not a field
+        //
+        // `SKILL_MAX_PARAMETER_VALUE_LENGTH` is a `public static final int` -- a JLS §4.12.4
+        // *constant variable*. JLS §13.1 requires the compiler to resolve it at compile time, so
+        // the read compiles to `sipush 10000` and **no `Fieldref` is ever emitted**. Field-level
+        // precision is therefore not merely awkward here, it is unavailable: there is nothing in
+        // the bytecode naming the field. The enforceable unit is the type.
+        //
+        // That makes the rule *wider* than the sentence it enforces -- it also forbids `domain`
+        // from calling the pure helpers (`defaultIfBlank`, `defaultIfNonPositive`). That widening
+        // is deliberate and currently free (0 violators): a default belongs at the configuration
+        // seam, and `infrastructure.config` + `shared` -- the only two layers that legitimately
+        // materialise defaults -- retain full access. Stated plainly so the rule is not read as
+        // narrower than it is.
+        //
+        // ## What this rule does not touch
+        //
+        // `shared.PromptBudget` and `shared.SkillBudget` are pure value objects injected *inward*.
+        // `domain` depending on them is the remedy, not the defect, and Rule 1 already permits it.
+        // Only `ConfigDefaults` itself is forbidden. If this rule ever flags a budget value object,
+        // the rule is wrong -- not the value object.
+        assertNoViolations("Rule 8 (domain ⊥ shared.ConfigDefaults)", classesIn(DOMAIN),
+            dep -> dep.equals(CONFIG_DEFAULTS),
+            Set.of());
+    }
+
+    @Test
+    @DisplayName("Rule 8 control: an inlined constant read is still visible to the analyzer")
+    void rule8DetectsAnInlinedConstantRead() throws IOException {
+        // Rule 8 is the one rule in this file that its own exemption mechanism cannot prove.
+        //
+        // Rules 3 and 4 carry non-empty exemption sets, so `assertNoViolations`' exact-equality
+        // check observes them firing on every run. Rule 8 has 0 violators *and* 0 exemptions, so
+        // that check observes nothing: it would pass identically if the predicate were broken, if
+        // `CONFIG_DEFAULTS` were misspelled, or if the constant-pool reference did not exist at all.
+        // Shipping it without this control would reproduce, inside the enforcement mechanism, the
+        // very defect ADR-0008 exists to prevent -- a control whose scope of application is
+        // invisible at its call site.
+        //
+        // The detectability Rule 8 depends on is real but *not* guaranteed by the JVM spec: javac
+        // records the compile-time dependency as an unreferenced `CONSTANT_Class` entry even though
+        // it inlined the value and emitted no instruction that uses it. That is compiler behaviour,
+        // not language semantics. This control pins it: if a toolchain change ever elides the ghost
+        // entry, this test goes red and says Rule 8 has gone blind -- instead of Rule 8 passing
+        // green forever while enforcing nothing.
+        //
+        // Known blind spot, measured on JDK 28 and stated rather than papered over: a constant read
+        // in a `case` label (`case ConfigDefaults.SOME_MAX ->`) leaves *no* trace in the reading
+        // class's constant pool. Rule 8 cannot see that shape. It is not a budget-gate idiom
+        // (budgets are compared, not switched on), so the gap is accepted and recorded here.
+        String fixture = "LayerDependencyRulesTest$InlinedConstantReadProbe.class";
+        byte[] bytes;
+        try (InputStream in = LayerDependencyRulesTest.class.getResourceAsStream(fixture)) {
+            assertNotNull(in, "Rule 8 control fixture not found on the test classpath: " + fixture);
+            bytes = in.readAllBytes();
+        }
+
+        Set<String> references = referencedTypes(ClassFile.of().parse(bytes));
+
+        System.out.printf("[arch] %-48s fixture references %s%n",
+            "Rule 8 control (inlined constant is detectable)",
+            references.contains(CONFIG_DEFAULTS) ? CONFIG_DEFAULTS : "NOTHING — Rule 8 IS BLIND");
+
+        assertTrue(InlinedConstantReadProbe.overBudget(Integer.MAX_VALUE),
+            "Fixture must genuinely read the constant, not merely mention it.");
+        assertTrue(references.contains(CONFIG_DEFAULTS), () -> """
+            Rule 8 cannot detect a direct read of an inlined `static final` constant.
+
+            The fixture reads `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH` and nothing else \
+            from that class, yet %s does not appear in its constant pool. Rule 8 is therefore \
+            vacuous: it would pass even with a live violator in `domain`.
+
+            Fix Rule 8's detection strategy (a source-text scan of `src/main/java/**/domain/**` is \
+            the fallback) -- do not delete this control.
+
+            Fixture references: %s
+            """.formatted(CONFIG_DEFAULTS, references));
+    }
+
+    /// Fixture for [#rule8DetectsAnInlinedConstantRead]. Reproduces F4's original shape exactly: a
+    /// class reading the hardcoded limit straight off [ConfigDefaults], with no other reference to
+    /// it — no method call, no field of that type — so the *only* thing that can put
+    /// `shared.ConfigDefaults` in this class's constant pool is the inlined constant read.
+    ///
+    /// It lives in the test tree, so it is never a Rule 8 subject: the analyzer walks
+    /// `target/classes` only.
+    static final class InlinedConstantReadProbe {
+
+        private InlinedConstantReadProbe() {
+        }
+
+        static boolean overBudget(int length) {
+            return length > dev.logicojp.reviewer.shared.ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH;
+        }
     }
 
     // ------------------------------------------------------------------------------------------
     // Rule assertion helper
     // ------------------------------------------------------------------------------------------
 
-    /// Expands a set of exempt, hand-written classes to include the Micronaut bean-definition
-    /// classes generated *from* them — `$ApplicationPortFactory$ExecuteSkillPort5$Definition` and
-    /// friends.
-    ///
-    /// Narrowing Rule 4 to `application.port.outbound` brought these into scope for the first time:
-    /// a factory method returning an inbound port produces a `$…$Definition` naming that port, so
-    /// the generated mirror violates the rule for exactly the reason its source class is exempt.
-    /// Listing them by hand is possible but hostile — the numeric infix is the factory method's
-    /// declaration index, so inserting a method silently renames several of them.
-    ///
-    /// This is **not** the blanket "skip anything containing `$`" exclusion that an earlier revision
-    /// used and that Rule 3's comment warns about. Two conditions must both hold, and together they
-    /// make the expansion provably non-loosening:
-    ///
-    /// 1. the generated class's declaring source class is itself already exempt, and
-    /// 2. its forbidden dependencies are a **subset** of the source's forbidden dependencies.
-    ///
-    /// So a generated class can only ever inherit an exemption that a human already justified for
-    /// the code it was generated from. A generated class whose source is *not* exempt still fails
-    /// the rule — which is what caught `$GitHubTokenResolver$Definition` alongside
-    /// `GitHubTokenResolver` in t16.1 — and a generated class that somehow acquired a dependency its
-    /// source does not have also still fails.
-    private static Set<String> withGeneratedBeanDefinitions(Set<String> exemptSources,
-                                                             Predicate<String> forbidden) {
-        Set<String> expanded = new TreeSet<>(exemptSources);
-        Set<String> derived = new TreeSet<>();
-
-        for (String candidate : dependencies.keySet()) {
-            String declaring = declaringClassOfGenerated(candidate);
-            if (declaring == null || !exemptSources.contains(declaring)) {
-                continue;
+    private static boolean isRootSourceOrGenerated(String owner, Set<String> allowedSources) {
+        for (String source : allowedSources) {
+            if (owner.equals(source) || owner.startsWith(source + "$")) {
+                return true;
             }
-            Set<String> candidateDeps = forbiddenDepsOf(candidate, forbidden);
-            // Only classes that actually violate may be exempted: `assertNoViolations` requires the
-            // exemption set to equal the violator set exactly, so listing a clean class would
-            // register as a stale exemption and fail the build.
-            if (candidateDeps.isEmpty()) {
-                continue;
-            }
-            if (forbiddenDepsOf(declaring, forbidden).containsAll(candidateDeps)) {
-                expanded.add(candidate);
-                derived.add(candidate.substring(candidate.lastIndexOf('.') + 1));
+            String simpleName = source.substring(source.lastIndexOf('.') + 1);
+            if (owner.startsWith(BASE + ".$" + simpleName + "$")) {
+                return true;
             }
         }
-
-        if (!derived.isEmpty()) {
-            System.out.printf("[arch] Rule 4: %d generated bean definition(s) inherit a "
-                + "composition-root exemption: %s%n", derived.size(), String.join(", ", derived));
-        }
-        return Set.copyOf(expanded);
+        return false;
     }
 
-    /// Maps a Micronaut-generated class to the class it was generated from, or `null` when the name
-    /// is not of that shape. `a.b.$Foo$Definition` and `a.b.$Foo$Bar5$Definition` both map to
-    /// `a.b.Foo`.
-    private static String declaringClassOfGenerated(String fqn) {
-        int lastDot = fqn.lastIndexOf('.');
-        String simpleName = lastDot < 0 ? fqn : fqn.substring(lastDot + 1);
-        if (!simpleName.startsWith("$")) {
-            return null;
+    private static Set<String> classesInLayers() {
+        Set<String> members = new TreeSet<>();
+        for (String layer : NEW_LAYERS) {
+            members.addAll(classesIn(layer));
         }
-        int end = simpleName.indexOf('$', 1);
-        if (end < 0) {
-            return null;
-        }
-        String declaringSimpleName = simpleName.substring(1, end);
-        return lastDot < 0 ? declaringSimpleName : fqn.substring(0, lastDot + 1) + declaringSimpleName;
+        return members;
     }
 
-    private static Set<String> forbiddenDepsOf(String owner, Predicate<String> forbidden) {
-        Set<String> forbiddenDeps = new TreeSet<>();
-        for (String dep : dependencies.getOrDefault(owner, Set.of())) {
-            if (!dep.equals(owner) && forbidden.test(dep)) {
-                forbiddenDeps.add(dep);
-            }
+    private static boolean isApplicationImplementation(String type) {
+        return type.startsWith(APPLICATION + ".")
+            && !type.startsWith(APPLICATION_PORT + ".");
+    }
+
+    private static boolean isConfigurationBindingAnnotation(String type) {
+        return CONFIGURATION_BINDING_ANNOTATION_PACKAGES.stream()
+            .anyMatch(prefix -> type.equals(prefix) || type.startsWith(prefix + "."));
+    }
+
+    /**
+     * Proves that a rule's compiled subject set is backed by every primary type in the independent
+     * source tree, rather than only by generated bytecode.
+     */
+    private static void assertSourceBackedSubjects(String ruleName,
+                                                   Set<String> subjects,
+                                                   List<String> packagePrefixes) throws IOException {
+        Set<String> sourceTypes = new TreeSet<>();
+
+        for (String packagePrefix : packagePrefixes) {
+            Set<String> typesForPrefix = sourceTypesIn(packagePrefix);
+            assertFalse(typesForPrefix.isEmpty(),
+                ruleName + " has no Java sources under " + packagePrefix
+                    + ". A generated-only subject set is not architecture coverage.");
+            sourceTypes.addAll(typesForPrefix);
         }
-        return forbiddenDeps;
+
+        Set<String> missingFromSubjects = new TreeSet<>(sourceTypes);
+        missingFromSubjects.removeAll(subjects);
+
+        System.out.printf("[arch] %-48s %4d compiled subject(s), %d source-backed primary type(s)%n",
+            ruleName + " source coverage", subjects.size(), sourceTypes.size());
+
+        assertTrue(missingFromSubjects.isEmpty(), () -> """
+            %s does not inspect every primary type represented by its source scope.
+
+            Source types missing from the compiled subject set:
+            %s
+            The rule is incomplete even if its dependency assertion is green.
+            """.formatted(ruleName, missingFromSubjects));
+    }
+
+    private static Set<String> sourceTypesIn(String packagePrefix) throws IOException {
+        Path packageRoot = SOURCES.resolve(packagePrefix.replace('.', '/'));
+        assertTrue(Files.isDirectory(packageRoot),
+            "Source package is missing for architecture rule: " + packageRoot);
+
+        try (Stream<Path> files = Files.walk(packageRoot)) {
+            return files
+                .filter(path -> path.toString().endsWith(".java"))
+                .filter(path -> !path.getFileName().toString().equals("package-info.java"))
+                .filter(path -> !path.getFileName().toString().equals("module-info.java"))
+                .map(SOURCES::relativize)
+                .map(Path::toString)
+                .map(relative -> relative.substring(0, relative.length() - ".java".length()))
+                .map(relative -> relative.replace('\\', '.').replace('/', '.'))
+                .collect(Collectors.toCollection(TreeSet::new));
+        }
+    }
+
+    /**
+     * Permanent negative-control support. The fixtures reproduce t17's real one-way mutants but
+     * remain under {@code target/test-classes}, outside the production rule subjects.
+     */
+    private static void assertForbiddenFixtureReference(String controlName,
+                                                        String fixtureResource,
+                                                        Predicate<String> forbidden,
+                                                        String expectedTarget) throws IOException {
+        assertForbiddenFixtureReference(
+            controlName, fixtureResource, forbidden, null, expectedTarget);
+    }
+
+    private static void assertForbiddenFixtureReference(String controlName,
+                                                        String fixtureResource,
+                                                        Predicate<String> forbidden,
+                                                        String expectedOwner,
+                                                        String expectedTarget) throws IOException {
+        String relativeFixture = fixtureResource.startsWith("/")
+            ? fixtureResource.substring(1)
+            : fixtureResource;
+        Path fixtureClass = Path.of("target", "test-classes").resolve(relativeFixture);
+        assertTrue(Files.isRegularFile(fixtureClass),
+            controlName + " fixture not found: " + fixtureClass);
+        byte[] bytes = Files.readAllBytes(fixtureClass);
+
+        ClassModel model = ClassFile.of().parse(bytes);
+        String owner = toFqn(model.thisClass().asInternalName());
+        Set<String> forbiddenTargets = referencedTypes(model).stream()
+            .filter(forbidden)
+            .collect(Collectors.toCollection(TreeSet::new));
+
+        System.out.printf("[arch] %-48s %s -> %s%n",
+            controlName, owner,
+            forbiddenTargets.isEmpty() ? "NOTHING — RULE IS BLIND" : forbiddenTargets);
+
+        assertAll(
+            () -> {
+                if (expectedOwner != null) {
+                    assertEquals(expectedOwner, owner, () -> """
+                        %s loaded the wrong fixture owner.
+
+                        Expected owner: %s
+                        Actual owner: %s
+                        """.formatted(controlName, expectedOwner, owner));
+                }
+            },
+            () -> assertEquals(Set.of(expectedTarget), forbiddenTargets, () -> """
+                %s failed to detect the exact forbidden edge retained as a test-tree fixture.
+
+                Fixture owner: %s
+                Expected target: %s
+                Detected forbidden targets: %s
+                """.formatted(controlName, owner, expectedTarget, forbiddenTargets))
+        );
+    }
+
+    private static ClassModel parseClassFile(Path classesRoot, String className) throws IOException {
+        Path classFile = classesRoot.resolve(className.replace('.', '/') + ".class");
+        assertTrue(Files.isRegularFile(classFile), "Compiled class not found: " + classFile);
+        return ClassFile.of().parse(Files.readAllBytes(classFile));
     }
 
     /// Asserts that no class in `subjects` references a type matching `forbidden`, other than the

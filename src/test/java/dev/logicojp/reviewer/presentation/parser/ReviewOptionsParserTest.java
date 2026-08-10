@@ -45,6 +45,16 @@ class ReviewOptionsParserTest {
     }
 
     @Test
+    @DisplayName("--parallelism指定はplanの実効既定値を上書きする")
+    void explicitParallelismOverridesEffectivePlanDefault() {
+        ReviewOptions options = newParser().parse(
+            new String[]{"--repo", "owner/repo", "--all", "--parallelism", "3"}
+        ).orElseThrow();
+
+        assertThat(options.parallelism()).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("compact promptとrubber-duck無効化指定を正しく解釈する")
     void parsesPromptSavingFlags() {
         var parser = newParser();
@@ -94,6 +104,8 @@ class ReviewOptionsParserTest {
     }
 
     private static ReviewOptionsParser newParser() {
-        return new ReviewOptionsParser(7);
+        return new ReviewOptionsParser(() ->
+            new dev.logicojp.reviewer.application.port.inbound.ReviewPlan(
+                1, 7, "review", "report", "summary", "high"));
     }
 }

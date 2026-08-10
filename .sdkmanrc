@@ -1,3 +1,3 @@
-# Enable auto-env through sdkman_auto_env config
-# GraalVM 25.0.3 for Java 25
-java=25.0.3-graal
+# Default JVM build and local development toolchain (pom.xml).
+# Native-image builds require explicit GraalVM 25 activation; see docs/runbook.md.
+java=28.ea.9-open

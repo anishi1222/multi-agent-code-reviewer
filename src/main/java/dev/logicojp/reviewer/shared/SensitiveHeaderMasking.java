@@ -1,24 +1,32 @@
 package dev.logicojp.reviewer.shared;
 
-import java.util.AbstractCollection;
-import java.util.AbstractMap;
-import java.util.AbstractSet;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/// Utility for creating {@link Map} wrappers that mask sensitive header values
-/// (e.g. Authorization tokens) in their string representations.
+/// Judgement and formatting helpers for sensitive HTTP header values.
 ///
-/// Prevents token leakage via SDK/framework debug logging of {@code Map.toString()}.
-/// Originally package-private in {@code config}; promoted to {@code public} in the
-/// shared layer so that both infrastructure and presentation layers can use it.
+/// ## This class does not hide anything by itself (ADR-0007 D5)
+///
+/// It used to hand out `Map` wrappers whose `toString()` masked auth values, so that a header map
+/// leaked into a debug log would render as `***`. Those wrappers were deleted. They were a control
+/// in appearance only:
+///
+///   - they guarded `toString()` and nothing else — `get()` and `entrySet()` returned raw values
+///     **by design**, so serializers, debuggers and the SDK were never covered;
+///   - they were bound to one object instance, so any copy silently dropped the guard;
+///   - the class they were built to protect (`copilot-sdk-java`'s `McpHttpServerConfig`) stores the
+///     map without a defensive copy and overrides no `toString()` — measured, not assumed — so the
+///     one surface they did guard was unreachable through it.
+///
+/// Masking now happens where output is actually produced: the Logback sink masks every appender by
+/// value shape and by header name, independent of which object rendered the text. See
+/// `SensitiveHeaderMaskingSinkCanaryTest`.
+///
+/// What remains here are **pure functions**: they decide whether a header name looks sensitive and
+/// format a masked replacement. Callers choose when to apply them. Do not add a wrapper factory
+/// back — `LayerDependencyRulesTest` Rule 4b exists to catch the first step of that regression.
 public final class SensitiveHeaderMasking {
 
     private static final Set<String> SENSITIVE_PATTERNS = Set.of(
@@ -68,159 +76,4 @@ public final class SensitiveHeaderMasking {
         return "***";
     }
 
-    /// Map wrapper that delegates {@code toString()} to a pre-computed masked string.
-    public static Map<String, Object> wrapWithMaskedToString(Map<String, Object> delegate, String maskedString) {
-        return new MaskedToStringMap(delegate, maskedString);
-    }
-
-    /// Creates a header map that masks sensitive values in string representations.
-    public static Map<String, String> wrapHeaders(Map<String, String> headers) {
-        return new MaskedHeadersMap(headers);
-    }
-
-    private static final class MaskedToStringMap extends AbstractMap<String, Object> {
-        private final Map<String, Object> delegate;
-        private final String maskedString;
-
-        MaskedToStringMap(Map<String, Object> delegate, String maskedString) {
-            this.delegate = Map.copyOf(delegate);
-            this.maskedString = maskedString;
-        }
-
-        @Override public Set<Entry<String, Object>> entrySet() { return delegate.entrySet(); }
-        @Override public Object get(Object key) { return delegate.get(key); }
-        @Override public int size() { return delegate.size(); }
-        @Override public boolean isEmpty() { return delegate.isEmpty(); }
-        @Override public boolean containsKey(Object key) { return delegate.containsKey(key); }
-        @Override public boolean containsValue(Object value) { return delegate.containsValue(value); }
-        @Override public Set<String> keySet() { return delegate.keySet(); }
-        @Override public Collection<Object> values() { return delegate.values(); }
-        @Override public String toString() { return maskedString; }
-    }
-
-    private static final class MaskedHeadersMap extends AbstractMap<String, String> {
-        private final Map<String, String> delegate;
-
-        MaskedHeadersMap(Map<String, String> delegate) {
-            this.delegate = Map.copyOf(delegate);
-        }
-
-        @Override
-        public Set<Map.Entry<String, String>> entrySet() {
-            return new AbstractSet<>() {
-                @Override
-                public Iterator<Map.Entry<String, String>> iterator() {
-                    Iterator<Map.Entry<String, String>> iterator = delegate.entrySet().iterator();
-                    return new Iterator<>() {
-                        @Override
-                        public boolean hasNext() {
-                            return iterator.hasNext();
-                        }
-
-                        @Override
-                        public Map.Entry<String, String> next() {
-                            return new MaskedHeaderEntry(iterator.next());
-                        }
-                    };
-                }
-
-                @Override
-                public int size() {
-                    return delegate.size();
-                }
-
-                @Override
-                public String toString() {
-                    return buildMaskedMapString(delegate);
-                }
-            };
-        }
-
-        /// Returns the raw (unmasked) value so downstream SDK calls can use real credentials.
-        @Override
-        public String get(Object key) {
-            return delegate.get(key);
-        }
-
-        @Override public Set<String> keySet() { return delegate.keySet(); }
-        @Override public int size() { return delegate.size(); }
-        @Override public boolean isEmpty() { return delegate.isEmpty(); }
-        @Override public boolean containsKey(Object key) { return delegate.containsKey(key); }
-        @Override public boolean containsValue(Object value) { return delegate.containsValue(value); }
-
-        @Override
-        public Collection<String> values() {
-            var values = delegate.values();
-            return new AbstractCollection<>() {
-                @Override
-                public int size() { return values.size(); }
-
-                @Override
-                public Iterator<String> iterator() {
-                    Iterator<Map.Entry<String, String>> entryIterator = delegate.entrySet().iterator();
-                    return new Iterator<>() {
-                        @Override
-                        public boolean hasNext() { return entryIterator.hasNext(); }
-
-                        @Override
-                        public String next() {
-                            Map.Entry<String, String> entry = entryIterator.next();
-                            return maskHeaderValue(entry.getKey(), entry.getValue());
-                        }
-                    };
-                }
-
-                @Override
-                public String toString() {
-                    List<String> maskedValues = new ArrayList<>(delegate.size());
-                    for (Entry<String, String> entry : delegate.entrySet()) {
-                        maskedValues.add(maskHeaderValue(entry.getKey(), entry.getValue()));
-                    }
-                    return maskedValues.toString();
-                }
-            };
-        }
-
-        @Override
-        public String toString() {
-            return buildMaskedMapString(delegate);
-        }
-    }
-
-    private static final class MaskedHeaderEntry implements Map.Entry<String, String> {
-        private final Map.Entry<String, String> delegate;
-
-        MaskedHeaderEntry(Map.Entry<String, String> delegate) {
-            this.delegate = delegate;
-        }
-
-        @Override
-        public String getKey() { return delegate.getKey(); }
-
-        @Override
-        public String getValue() { return delegate.getValue(); }
-
-        @Override
-        public String setValue(String value) {
-            throw new UnsupportedOperationException("MaskedHeadersMap entries are immutable");
-        }
-
-        @Override
-        public String toString() {
-            return getKey() + "=" + maskHeaderValue(getKey(), getValue());
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (other == this) return true;
-            if (!(other instanceof Map.Entry<?, ?> entry)) return false;
-            return Objects.equals(getKey(), entry.getKey())
-                && Objects.equals(getValue(), entry.getValue());
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(getKey()) ^ Objects.hashCode(getValue());
-        }
-    }
 }

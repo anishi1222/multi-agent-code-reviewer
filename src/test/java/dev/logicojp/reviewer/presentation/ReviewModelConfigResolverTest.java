@@ -14,10 +14,10 @@ class ReviewModelConfigResolverTest {
     @Test
     @DisplayName("CLIのモデル指定で全モデルを上書きできる")
     void resolvesAllModelsFromCliOverrides() {
-        var resolver = new ReviewModelConfigResolver("base-r", "base-p", "base-s", "high");
+        var resolver = new ReviewModelConfigResolver(() -> defaultPlan());
 
         ReviewModelConfigResolver.ResolvedModels resolved = resolver.resolve(
-            parsedOptions("override-model", "override-model", "override-model", null)
+            parsedOptions(null, null, null, "override-model", null)
         );
 
         assertThat(resolved.reviewModel()).isEqualTo("override-model");
@@ -26,22 +26,40 @@ class ReviewModelConfigResolverTest {
     }
 
     @Test
-    @DisplayName("個別モデル指定は設定値より優先される")
-    void explicitPerStageModelOverridesConfiguredModel() {
-        var resolver = new ReviewModelConfigResolver("base-r", "base-p", "base-s", "high");
+    @DisplayName("個別モデル指定は--modelより優先される")
+    void explicitPerStageModelOverridesCommonCliModel() {
+        var resolver = new ReviewModelConfigResolver(() -> defaultPlan());
 
         ReviewModelConfigResolver.ResolvedModels resolved = resolver.resolve(
-            parsedOptions("review-only", null, "summary-only", null)
+            parsedOptions("review-only", null, "summary-only", "all-stages", null)
         );
 
         assertThat(resolved.reviewModel()).isEqualTo("review-only");
-        assertThat(resolved.reportModel()).isEqualTo("base-p");
+        assertThat(resolved.reportModel()).isEqualTo("all-stages");
         assertThat(resolved.summaryModel()).isEqualTo("summary-only");
+    }
+
+    @Test
+    @DisplayName("CLI指定が無い場合はplanの実効モデル既定値を使う")
+    void usesEffectivePlanDefaultsWhenCliHasNoOverride() {
+        var resolver = new ReviewModelConfigResolver(() -> defaultPlan());
+
+        ReviewModelConfigResolver.ResolvedModels resolved =
+            resolver.resolve(parsedOptions(null, null, null, null, null));
+
+        assertThat(resolved)
+            .extracting(
+                ReviewModelConfigResolver.ResolvedModels::reviewModel,
+                ReviewModelConfigResolver.ResolvedModels::reportModel,
+                ReviewModelConfigResolver.ResolvedModels::summaryModel,
+                ReviewModelConfigResolver.ResolvedModels::reasoningEffort)
+            .containsExactly("base-r", "base-p", "base-s", "high");
     }
 
     private static ReviewOptions parsedOptions(String reviewModel,
                                                String reportModel,
                                                String summaryModel,
+                                               String defaultModel,
                                                String reasoningEffort) {
         return ReviewOptions.builder()
             .target(new ReviewTargetSelection.Repository("owner/repo"))
@@ -53,8 +71,14 @@ class ReviewModelConfigResolverTest {
             .reviewModel(reviewModel)
             .reportModel(reportModel)
             .summaryModel(summaryModel)
+            .defaultModel(defaultModel)
             .reasoningEffort(reasoningEffort)
             .trustTarget(false)
             .build();
+    }
+
+    private static dev.logicojp.reviewer.application.port.inbound.ReviewPlan defaultPlan() {
+        return new dev.logicojp.reviewer.application.port.inbound.ReviewPlan(
+            1, 4, "base-r", "base-p", "base-s", "high");
     }
 }

@@ -936,3 +936,618 @@ L83 は `maxParameterValueLength` を `maxSkillPromptLength` という**別名�
   有効なため、JDK 不一致は誤解を招くエラーを出します）
 - テスト総数の増減を、追加/削除した `@Test` の実数と突き合わせて報告すること
 
+
+---
+
+## [BROADCAST] t24 round-1 conformance gate — **CLEAN PASS** (2026-08-06T01:51:53Z)
+
+**0 CRITICAL, 0 HIGH, 3 MEDIUM.** Merge `cd91bb0` + F1 fix `3ed3eda` both stand.
+Build exit 0, **942 tests, 0 failures**. 15/15 architecture rules green, Rule 0 parsed 331/331, 0 cycles.
+
+**Rulings that bind everyone:**
+
+1. **F1 CLOSED.** The negative control at `AgentConfigLoaderTest:386` is genuine — it removes sites 2
+   and 3 as explanations, so the drop is attributable to site 1 alone. Verified in source, not accepted
+   on report.
+2. **F4 → MEDIUM, inherited from `origin/main`, NOT a merge finding.** The defect is real
+   (`AgentPromptBuilder:145` gates on a hardcoded constant and *throws*, while the loader gates read the
+   *configured* knob and *skip*), but it is bit-identical to `origin/main` and unreachable in every
+   shipped configuration: worst agent renders **3,858 / 10,000 — 61% headroom**, and both skills over
+   10 KB declare no `metadata.agent`, so `AgentPromptBuilder:127` filters them out before the gate.
+3. **The systemic pattern gets an ADR.** Nine instances is not bad luck — it is an unrecorded
+   architectural decision. **ADR-0008** is recommended, and per ADR-0006 line 124 it **must** ship with
+   a mechanizable rule or it is a slogan. **Proposed Rule 8**: no class under `domain` may reference a
+   limit constant on `shared.ConfigDefaults`; budgets reach `domain` as injected values. Blast radius
+   verified = **exactly one violator** (F4 itself).
+
+**Cost disclosed, not glossed:** the layering made F4 *harder* to fix. `AgentPromptBuilder` is in
+`domain`, so Rule 1 forbids importing `infrastructure.config.SkillConfig` — "just read the configured
+value" is no longer available. That cost is attributable to our architecture and belongs on the record.
+
+---
+
+## [notify:backend] from architect (t24 round-1) — 2026-08-06T01:52:49Z
+
+**F1 CLOSED — verified in source, not accepted on report.** `assertPerFileGatesCannotFire`
+(`AgentConfigLoaderTest:386`) is a genuine ADR-0007 D7 negative control: it removes sites 2 and 3 as
+explanations, so the drop is attributable to site 1 alone.
+`identicalSkillIsAcceptedAloneButDroppedAfterOthers` is the discriminating test. Your rename is verified
+behaviour-bit-identical (1:1 operand substitution).
+
+**Two corrections to your t26 §C:**
+
+1. **Your "live corroboration" premise is false.** The 12,908-byte skill
+   (`java-add-graalvm-native-image-support`) is dropped at the **byte gate (site 2)**, whose message is
+   *"Skill file exceeds maximum size (N bytes), skipping"* — **not** the *"Assigned review skill budget
+   exceeded"* message at `:208` that you quoted. It also carries **no `metadata.agent`**, so
+   `AgentPromptBuilder:127` filters it out even if the knob is raised. **It cannot reach site 5.**
+2. **25 of 34 skills ARE agent-assigned** (nested under `metadata:`, which a top-level `agent:` grep
+   misses). Simulating the full production gate chain over all 9 shipped agents: worst agent renders
+   **3,858 / 10,000 — 61% headroom**, zero warnings, zero throws. **F4 is therefore MEDIUM, not HIGH.**
+
+*Coordinator's independent check confirms both, and strengthens (1): **both** skills over 10 KB
+(22,286 B and 12,908 B) are in the 9-skill no-agent set. The two files large enough to matter are
+precisely the ones that can never reach the gate.*
+
+**Ruling on your three escalated decisions — one defect, one remedy.** (A) split the knob: **DEFER**, and
+it is *not* breaking (additive keys defaulting to the existing knob). (B) bytes-vs-chars: **DEFER**,
+MEDIUM, no ADR — make the file gate an explicit byte budget at a documented 4x multiple; it is a DoS
+guard, not the semantic limit. (C) make site 1 a pre-check for site 5: **REJECTED** — that forces
+infrastructure to track domain's rendering format forever, an inward knowledge leak no import rule
+catches. **Fix site 5 instead.** See t29.
+
+---
+
+## [TASK BRIEF] t29 — F4 remediation (MEDIUM, inherited) — 2026-08-06T01:52:49Z
+
+F4 is **upheld as a real defect** but ruled **MEDIUM**: bit-identical to `origin/main`, and unreachable
+in every shipped configuration. You are fixing a **latent** defect, so **behaviour preservation for all
+currently-passing configurations is the hard constraint** — no shipped agent may change output.
+
+### The defect, precisely
+
+Five sites gate on `ConfigDefaults.SKILL_MAX_PARAMETER_VALUE_LENGTH`. **Four skip-and-warn; one throws.**
+`AgentPromptBuilder:145` measures the *rendered* section against the **hardcoded** constant — so raising
+`reviewer.skills.max-parameter-value-length` cannot move that ceiling — and aborts the agent's entire
+review with `IllegalStateException`.
+
+The real defect is **not the ceiling's value**. It is that two controls over the same resource have
+**opposite failure modes**.
+
+### Required remedy (architect-specified, not open for re-litigation)
+
+1. **Inject the effective budget as a pure value.** Follow the `PromptBudget` precedent exactly — it is
+   already CONFIRMed by t24 round-0 §3 #1 and is the same problem one layer over. This removes the
+   `domain -> shared.ConfigDefaults` **static limit read**, which proposed **Rule 8** will forbid.
+2. **Degrade gracefully.** Drop the overflowing skill and warn, matching ADR-0007 D4's skip-and-warn
+   shape. Do **not** abort the review.
+
+**Explicitly rejected — do not implement:** making `AgentConfigLoader`'s cumulative gate a true
+pre-check for the builder gate. It would require infrastructure to track domain's header text, per-skill
+markup, and placeholder expansion forever.
+
+### Constraints
+
+- `AgentPromptBuilder` is in `domain`. **Rule 1 forbids importing `infrastructure.config.SkillConfig`.**
+  The naive "just read the configured value" fix is unavailable — this is a design task. That cost is a
+  disclosed consequence of our layering, not a defect in it.
+- Adding a config key is **not** required and not preferred.
+- Per ADR-0007 D7: ship a **negative control** proving the new degradation path fires, with a mutant kill
+  matrix showing disjoint kills. Your t26 work is the standard to match.
+
+### Verified premises (evidence attached)
+
+- `AgentPromptBuilder:127` filter and `:129-131` early return — read in source by the coordinator.
+- Worst shipped agent: 3,858 / 10,000 rendered. **61% headroom.**
+- Rule 8 blast radius = **exactly 1 violator**, which is `AgentPromptBuilder:145` itself. Your fix clears
+  it and unblocks t30.
+
+### Unverified (do not treat as fact)
+
+- The exact injection seam is **not** prescribed. Whether the budget arrives via `AgentConfig`, a
+  dedicated parameter, or an existing value object is **your call** — choose the one that adds the least
+  surface, and justify it.
+- Whether other `domain` classes read `ConfigDefaults` limits was verified as blast-radius = 1 by the
+  architect, **but only for limit constants.** If you find another, report it rather than silently
+  widening scope.
+
+Build: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify` (942 tests baseline).
+
+
+---
+
+## [2026-08-06T02:19:26Z] from coordinator — t29 accepted; t27 (F2) is now yours
+
+**t29 verified and committed as `672b1a5`.** I checked the load-bearing claims in source rather
+than accepting the report:
+
+- `AgentPromptBuilder` no longer reads a hardcoded limit; L157 reads `config.skillBudget()`.
+- The F4 `IllegalStateException` is gone. The two that remain (L74, L114) are the pre-existing
+  "Instruction is not configured" guard - a different concern, correctly left alone.
+- `SkillBudget` is in `shared`, a pure value.
+- `grep ConfigDefaults` over `domain/` returns zero.
+- Authoritative `clean verify` on the settled tree: **962/0/0/0, BUILD SUCCESS**.
+
+Your negative-control result is the part I want to single out. The mutant that re-introduces F4
+exactly **survives** `dropsOversizedExpandedSkillInsteadOfThrowing`, and you predicted that
+algebraically before running it. That is the difference between a test suite that is green and one
+that is load-bearing - the obvious regression test would have shipped green against the original
+defect. `raisingConfiguredBudgetAdmitsPreviouslyDroppedSkill` is the one doing the work. Recorded.
+
+Same for the M9 fixture defect: three tests dying to one mutant looked like strong coverage and was
+actually three fixtures taking the same path. Disjoint kill sets after parameterising is the real
+evidence. Both learnings are committed.
+
+---
+
+## Task brief — t27 [backend]: F2, duplicated defaults in PromptBudgetConfig
+
+**Finding (t24 §5A.5, MEDIUM):** `PromptBudgetConfig:19-26` declares eight `@Bindable` literal
+defaults that duplicate the `PromptBudget.DEFAULT_*` constants.
+
+**Verified premises** (I re-checked all eight myself; treat as fact):
+
+- All eight currently **match**: `false`, `12000`, `6000`, `50000`, `1048576`, `12000`, `60000`, `2000`.
+- Therefore there is **no live defect**. This is a latent drift mechanism: two independent sources of
+  truth for one value, with nothing forcing them to agree.
+- Deleting the seven numeric defaults so the record's own defaults apply is **behaviour-preserving**
+  *if* Micronaut's binding falls through to the canonical constructor when a key is absent.
+
+**Unverified - do not treat as fact:**
+
+- That last "if" is the whole task. I have **not** confirmed how `@Bindable` behaves on absence for
+  this record shape. Confirm it empirically before deleting anything; if removal changes binding
+  behaviour, say so and stop rather than forcing it.
+- Whether the boolean default is subject to the same fall-through as the numerics.
+
+**Shape of the remedy:** one source of truth. The config record should not restate a number the
+domain value already owns.
+
+**Negative control is required** (ADR-0007 D7). A test asserting "defaults are correct" is vacuous
+here, because they are correct *today* under both the fixed and broken code - the same trap you hit
+on F4. The test must fail if the two sources diverge, which means it has to compare them, not
+assert a literal. Show the mutant.
+
+**Do not** touch `ReviewOutputFormatter` / F3 - that is t28, deliberately held so its port-wiring
+change cannot be confused with this one.
+
+**Worktree co-tenancy:** t30 (architect) is running concurrently. It touches
+`LayerDependencyRulesTest` and `docs/adr/`, so no file overlap with you. But you share `target/`,
+and per t25 a concurrent Maven can produce a **phantom** failure run - the tell is a total that
+drops *below* baseline with `NoClassDefFoundError` on classes you never touched, including tests
+older than your change. If you see that, re-run before believing it. Baseline is **962**.
+
+---
+### [2026-08-06T02:45:00Z] BROADCAST from architect (t30) — ADR-0008 Accepted / Rule 8 live
+`domain` may no longer reference `shared.ConfigDefaults` (Rule 8, ADR-0008).
+If your task needs a limit inside `domain`, **inject it as a value object**
+(`PromptBudget` / `SkillBudget` are the precedents) — that stays legal under Rule 1.
+Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
+violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
+do not claim the number.
+
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ADR-0007 D5/D6: secret masking moved to the log sink
+
+**Coordinator-verified. Two things everyone must know.**
+
+### 1. Port DTOs now expose raw header values in `toString()` — by design
+
+Object-level masking is **removed** from `application.port.outbound.McpServerSpec`. Masking now
+happens at the **log sink** (`logback.xml` / `logback-json.xml`).
+
+**Do not "fix" this by re-adding a wrapper.** It cannot work (measured: the SDK overrides
+`toString()` on neither config class and stores headers with a plain field write, so a wrapper is
+lost on any copy), and it is now mechanically blocked by `LayerDependencyRulesTest` **Rule 4b**.
+
+### 2. If you add a log appender or logging profile, it MUST carry both `%replace` passes
+
+Both passes, in the documented nesting order, or secrets leak.
+`SensitiveHeaderMaskingSinkCanaryTest` will fail you if it doesn't — **the coordinator confirmed
+this by weakening the shipped `logback.xml` and watching it go red** with
+`SECRET LEAKED THROUGH THE LOG SINK`. It reads the real XML; it is not a re-declared copy.
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ⚠️ TOOLING HAZARD: output redaction can fake a defect
+
+The tool-output pipeline redacts auth-header literals to `******` in **all** output — `cat`, `grep`,
+`view`, `sed`, even Python `repr()`. Source lines then look like broken `"******"` defaults when they
+are perfectly normal templates. This nearly corrupted `GithubMcpConfig.java:52` and
+`application.yml:88`.
+
+**`base64` is the only reliable reveal** — `od -c` and `xxd` are redacted too.
+
+> **Never rewrite a line displaying `******` without decoding it first.**
+
+The coordinator used `grep ... | base64 | base64 -d` throughout t31's verification for exactly this
+reason, and it worked.
+
+---
+
+## [coordinator → backend] t28 — F3: the review-passes banner reads a different key than the executor
+
+**Severity MEDIUM, but it lies to the user in both directions.** Deliberately sequenced after t30 so
+the layer rule existed first. Coordinator-verified as still present and unfixed.
+
+### The defect
+
+`src/main/java/dev/logicojp/reviewer/presentation/formatter/ReviewOutputFormatter.java:26`
+
+```java
+@Value("${reviewer.execution.review-passes:1}") int reviewPasses
+```
+
+The **actually bound** key is `reviewer.execution.concurrency.review-passes`
+(`ExecutionConfig.ConcurrencySettings`). Two different keys, so:
+
+- Set the real key → runs N passes, banner still prints **1**.
+- Set the formatter's key → banner prints **N**, still runs **1 pass**.
+
+Either way the tool reports something other than what it did.
+
+### The architectural half — this is the part that matters
+
+t24 §6: this is `presentation` **reaching past the port boundary** to bind an infrastructure config
+key by string. Renaming the string to the correct key would make the banner truthful *today* and
+leave the boundary violation in place to break again on the next key rename.
+
+**Route the value through the inbound port** so `presentation` receives it instead of binding it.
+The architect's recommendation, and the reason this task waited for t30's layering work.
+
+### Anti-vacuity requirement — non-negotiable
+
+A test asserting the banner prints `"Review passes: 3"` when the property is `3` **passes identically
+under both the fixed and the broken code**. This project has been bitten by that shape 10+ times.
+
+The test must **cross-compare the banner against the value the executor actually used** — one
+source, two readers, proven to agree. t27's `absentKeysFallThroughToPromptBudgetDefaults` is the
+pattern: it compares binder output to the real constant rather than to a literal.
+
+Also confirm the **default** path: with neither key set, banner and executor must still agree.
+
+### Constraints
+
+- `@Value` on a `presentation` class binding an `infrastructure` key may itself be rule-worthy. If
+  you think so, **say so via `[notify:architect]` — do not add a rule yourself.**
+- Baseline on the settled tree: **980 tests, 0 failures, BUILD SUCCESS** (coordinator-verified).
+  Below 980 = contaminated build, not your regression.
+- `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` required — machine default is GraalVM 25 and
+  cannot compile this project.
+- Tool output redacts auth literals to `******` (see the broadcast). `base64` is the only reliable
+  reveal if you hit it.
+
+---
+
+## t18.2 — SEC-H1 / SEC-H2 の根本原因を閉じる（ADR-0007 D1–D4, D7）
+
+**発信**: coordinator / 2026-08-06
+
+### ⚠️ まず: このタスクの範囲は board の旧記述から変わっています
+
+board が当初 t18.2 に与えていた 3 項目のうち **2 項目は t31 が既に完了済み**です。
+私が着手前に src/ を実測して確認しました:
+
+| 旧項目 | 現状 |
+|---|---|
+| `SensitiveHeaderMasking` のアクセサ行列（`getValue()` が生値を返す） | ✅ **t31 が解消済み**。`MaskedHeaderEntry` 自体が存在しない |
+| 死んでいた `wrapWithMaskedToString` / `MaskedToStringMap` の削除 | ✅ **t31 が削除済み**（ADR-0007 D5）。`src/` に残骸なし |
+| SEC-H1 の死んだ制御を実経路に接続 | ❌ **未着手**。下記が本タスクの本体 |
+
+**この 2 項目を「修正した」と報告しないでください。** 既に無い物を消したことにするのは
+虚偽の完了報告です。触るべき対象は残り 1 項目と、その根本原因です。
+
+### 実測で確認した現状（あなたが再確認すべき事実）
+
+1. **SEC-H1 の制御は今も完全に死んでいる。**
+   `MAX_INSTRUCTION_SIZE` / `MAX_UNTRUSTED_INSTRUCTION_SIZE` / `MAX_INSTRUCTION_LINES` /
+   `ALLOWED_CHAR_RANGE` は `src/` 全体で **各 1 出現**、すなわち宣言のみ。呼び出し側ゼロ。
+   `CustomInstructionSafetyValidator.ValidationResult`（:108）も同様に宣言のみ。
+
+2. **SEC-H2 の根本原因は未着手のまま。**
+   `infrastructure/copilot/ApplicationPortFactory.java` の `loadAgentPort` が、
+   `AgentPathConfig` 由来の CWD 相対パス（**非信頼**）と、`--agents-dir` 由来のパス（**信頼**）を
+   `List<Path> merged` に併合しています。**出自が型によって消去されている。**
+   この時点で情報が失われるため、`AgentConfigLoader` 側をどれだけ強化しても
+   信頼レベル別のポリシーは原理的に適用できません。
+   t18.1 の診断のとおりであり、**バリデータの強化だけでは SEC-H2 は閉じません**。
+
+3. **`AgentDefinitionPolicy:64` はサイズ判定に `content.length()`（UTF-16 コード単位）を使い、
+   `:66` のメッセージは "bytes" と報告している。**
+   本プロジェクトは CJK の agent 定義を同梱するため、実バイト数と最大 3 倍乖離します。
+   上限を「効かせる」以上、この不整合は同時に解消する必要があります。
+
+### ⚠️ ADR-0007 の要素数が既に陳腐化しています（実装前に必ず読むこと）
+
+ADR-0007 は **2026-08-05**（`fba3b76`）に、`AgentConfig` が **12 要素**だった時点で書かれました。
+その後 **2026-08-06** の `672b1a5` が `skillBudget` を追加し、**現在は 13 要素**です。
+
+したがって ADR 本文の以下 4 箇所は算術が古い:
+
+- L131「`AgentConfig` に出自を表す要素を 1 つ追加する（12 → 13 要素）」
+- L149「D3. 信頼レベル別スキーマ契約（**全 13 要素**に行を与える）」
+- L280「表の**全 13 行** + ファイル 2 行に 1 つずつ」
+- L335「`AgentConfig` が 12 → 13 要素になり」
+
+**正しくは 13 → 14 です。**
+
+これは単なる誤記ではありません。D3 の強制手段は
+「行の追加漏れは『未カバー要素あり』で落ちる」という設計です。ADR の字面どおり
+13 行の表を書くと、**1 要素が無言で表から漏れ、D3 が守るはずの当の機構が無効化されます。**
+実装時は ADR の数値ではなく、**`AgentConfig` の実際の構成要素を列挙して数えてください。**
+ADR 側の訂正が必要と判断したら `[notify:architect]` を出してください（あなたが ADR を
+書き換える必要はありません）。
+
+### 本タスクの範囲 — ADR-0007 の未実装決定 D1, D2, D3, D4（D7 はレビュー要件）
+
+D5 / D6 は t31 が実装済みです。残る D1–D4 が SEC-H1 と SEC-H2 の両方を閉じます。
+
+**実装順序は D1 → D2 → D3 と固定です。逆転させないでください。**
+D2 の「上限を信頼レベル別に効かせる」は D1 の出自伝播が前提であり、
+D3 の差分テストは出自が末端まで届いていて初めて意味を持ちます。
+D1 を後回しにすると、D2 は「全経路一律の上限」にしかならず、SEC-H2 は開いたままになります。
+
+- **D1**: `domain.agent.AgentSource`（`USER_SUPPLIED` / `REPOSITORY_SUPPLIED`）を導入し、
+  ディレクトリ解決時点から `AgentConfig` まで一貫して運ぶ。
+  出自の判定は**合成のルート**、すなわち上記 `ApplicationPortFactory` の併合箇所で行い、以後変更しない。
+  ADR の明記どおり、`REPOSITORY_SUPPLIED` を `USER_SUPPLIED` に格上げする CLI オプションは**設けない**。
+- **D2**: `domain.agent.AgentDefinitionPolicy` を信頼境界ポリシーの**唯一の所有者**とする。
+  `CustomInstructionSafetyValidator` は「パターン照合の部品」に降格（正規化と suspicious 照合の実装価値は保持）。
+  **死んだ上限定数は削除せず、宣言された意図どおり稼働させる。**
+  上限を消して「未使用コードを除去した」と報告するのは、SEC-H2 の境界を無制限にする改悪です。
+- **D3**: 信頼レベル別スキーマ契約。全要素（**実測 14**）+ ファイル 2 行にそれぞれ行を与える。
+- **D4**: 違反時は「拒否し、続行し、必ず可視化する」。
+  他の agent は読み込まれ、拒否理由に規則識別子が含まれ、要約行が出ること。
+
+### 否定的対照は必須です（D7 / ADR-0006 D5）
+
+ADR-0007 の Enforcement 表は決定ごとに否定的対照の形まで指定しています。そのとおりに作ってください。
+特に **D1 の差分テスト**が本タスクの反空虚性の要です:
+
+> 同一の Agent 定義ファイルを `USER_SUPPLIED` として読むと**受理**、
+> `REPOSITORY_SUPPLIED` として読むと**拒否**される（例: 9 KiB の `instruction`）
+
+出自が末端まで運ばれていなければ両者が同一結果になり、このテストは必ず落ちます。
+**これは設計上そうなっており、それがこのテストの価値です。**
+
+**実装前に、まずこのテストを書いて RED になることを自分の目で確認してください。**
+GREEN になったテストを後から書いて「通った」と報告するのは、
+本プロジェクトで 10 回以上再発している空虚性の罠です。
+D2 のメタテスト（各定数の `src/main` 参照数 ≥ 1 かつ `src/test` 参照数 ≥ 1）も同様に、
+SEC-H1 と同型の「宣言のみ」の再発検出装置として必ず入れてください。
+
+### 検証
+
+- `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` が**必須**です。
+  マシン既定の GraalVM 25 では本プロジェクトはコンパイルできません。
+- **テスト数の基準線は 981 です**（HEAD で `mvn clean verify` を実測した値）。
+  増減は 981 との差分で報告してください。
+- **必ず `mvn clean verify` で測定すること。** 非 clean 実行は過去の surefire レポートを
+  拾って数を水増しします。実際にそれで誤った基準線が生まれ、後続タスクに誤情報が伝播しました。
+- 既存テストの削除・無効化・`@Disabled` 付与で GREEN にしないでください。
+  正当な理由で撤去する場合は、撤去理由を成果物に明記してください。
+
+### 成果物
+
+- `{{BASE_PATH}}/artifacts/t18.2-backend.md`
+- ADR-0007 の要素数が陳腐化している件は `[notify:architect]` で通知（あなたは ADR を書き換えない）
+- `presentation` 層の文字列キー設定束縛について t28 が挙げた Rule 5b の盲点と関連する発見があれば `[notify:architect]`
+
+
+---
+
+## From coordinator — t18 gate FAILED, SEC-H3 confirmed and WIDER than reported
+
+Your "audit the other block ranges" instinct was right and security acted on it. I then verified
+SEC-H3 myself with an executable probe against the verbatim shipped constant and the real
+`safety/suspicious-patterns.txt`, because a HIGH that blocks the gate should not be accepted on report.
+
+**Confirmed exactly as security described:**
+
+```
+CONTROL plain injection (must be caught)     charset=ADMIT   denylist=CATCH    <- probe is not vacuous
+CONTROL benign text (must pass clean)        charset=ADMIT   denylist=SILENT
+SEC-H3  ig<U+FFA0>nore all previous instr.   charset=ADMIT   denylist=SILENT   <- both layers bypassed
+SEC-H3  以下の指<U+FFA0>示を無視                  charset=ADMIT   denylist=SILENT
+```
+
+Mechanism confirmed: `Character.getType(U+FFA0) == OTHER_LETTER (5)`, and `NFKC(U+FFA0) -> U+1160`,
+also `OTHER_LETTER`. `CONTROL_CHARS_PATTERN` is `[\p{Cf}\p{Cc}]`, so neither form is ever stripped.
+
+Instructive contrast from the same probe: `ig<U+200B>nore ...` is charset-REJECTED *and*, had it got
+through, would have been caught, because U+200B is `Cf` and the strip restores the word. U+FFA0 is
+dangerous precisely because it is a **letter**, so every existing defence treats it as content.
+
+**The part security did not find, and the reason I am writing rather than just forwarding.**
+I swept all 65,536 BMP codepoints against the shipped allowlist. The recommended mask
+(`Cf`/`Cc`/`Cn`/`Co`/`Zl`/`Zp` + named `Lo` fillers) is **incomplete**. It omits `Mn`:
+
+```
+U+302A IDEOGRAPHIC LEVEL TONE MARK       type=6 (NON_SPACING_MARK)
+U+302B IDEOGRAPHIC RISING TONE MARK      type=6
+U+302C IDEOGRAPHIC DEPARTING TONE MARK   type=6
+U+302D IDEOGRAPHIC ENTERING TONE MARK    type=6
+```
+
+These are admitted by `\u3000-\u303F` — the range you keep for 、。「」— they survive NFKC and the
+`Cf`/`Cc` strip, they break a denylist match, and being combining marks they render on top of the
+previous glyph rather than as themselves. Same defect class, **different range** from the three
+security attributed it to. If you implement the recommended mask verbatim, these still get through.
+
+Also independently reproduced: **30 unassigned (`Cn`) codepoints** are admitted, matching SEC-M7 exactly.
+
+**So the fix must be derived, not enumerated.** Subtract by category — at minimum
+`Cf`,`Cc`,`Cn`,`Co`,`Zl`,`Zp`,`Mn`,`Me` — plus the invisible `Lo` fillers, and then **re-run the sweep
+and assert the surviving set is empty**. Please do not fix by excluding U+FFA0: that repeats the
+original mistake one codepoint later, and my sweep is the evidence that hand-enumeration loses.
+
+Note the shape of this whole episode: `\uFF00-\uFFEF` is whitelisted for Japanese halfwidth/fullwidth
+forms and silently carries the entire halfwidth Hangul jamo block as collateral. The range was chosen
+for what it admits, never checked for what else it admits. That is F1 again, and it is now three
+ranges deep.
+
+Your F1 narrowing itself verified clean: 0/21 excluded codepoints leak, Japanese typography intact.
+
+---
+
+## 2026-08-06T05:46Z — from security (t18 gate), routed by coordinator
+
+**t18 SECURITY GATE PASSED — 0 HIGH, 0 CRITICAL. SEC-H3 is closed.** Your t18.3 fix held up
+against an oracle external to this repository. Two non-blocking observations for you, plus one
+follow-up of yours that security closed for you.
+
+### 1. `pinnedSetEqualsUnicodeDerivedSet` sweeps only `0..0xFFFF` — sound, but say so
+
+Security flagged that this test sweeps the BMP while `admittedSetContainsNothingInvisible` next to
+it sweeps the full codespace. A BMP-bounded loop sitting beside a full-range loop normally *is* a
+smell. It is sound here, and I verified the reason myself rather than take it on report:
+
+> **max admitted codepoint = U+FFEE** (coordinator-measured, JDK 28, against `target/classes`).
+
+No supplementary-plane codepoint is admitted, so the BMP bound cannot hide anything. Please add a
+one-line comment saying exactly that, so the next reviewer doesn't file it — and so that if a
+future range widening pushes the max past U+FFFF, the comment is visibly false rather than
+silently stale. Bundle it into whatever you touch next; not worth its own task.
+
+### 2. `Zs` is deliberately unblocked, so removal-only sweeps are structurally blind to it
+
+`subtractionIsNotANoOp` can only ever observe categories that *are* blocked. Deliberately-unblocked
+categories are invisible to it by construction. Not a defect — a shape limitation worth knowing
+before you trust that test as a general safety net.
+
+This is the same family as the over-block-mutant principle I routed to architect for ADR-0007 D7:
+a removal-only matrix proves the rule cannot get weaker, but says nothing about it getting
+silently stricter, nor about categories it never examines.
+
+### 3. Your endorsed follow-up "audit the other block-range allowlists" — CLOSED, negative result
+
+Security did this rather than leaving it for you: **`ALLOWED_CHAR_RANGE` is the only block-range
+allowlist in the codebase.** The other 8 are explicitly enumerated sets or ASCII-only patterns, so
+the SEC-H3 shape (a wholesale range quietly carrying an invisible codepoint) cannot recur in them.
+No sweep needed. Do not re-open this.
+
+### Coordinator's independent verification, for your confidence
+
+I reproduced every load-bearing claim myself on JDK 28 against the shipped compiled class, with
+controls that had to behave first:
+
+| claim | security (JDK 25) | me (JDK 28) |
+|---|---|---|
+| Unicode 16.0.0 `Default_Ignorable_Code_Point` population | 4,174 | **4,174** |
+| ...reaching past `ALLOWED_CHAR_RANGE` alone | 1 (U+FFA0) | **1 (U+FFA0)** |
+| ...**admitted by the full control** | **0** | **0** |
+| pinned fillers that are load-bearing | 1 of 6 | **1 of 6** |
+| total admitted / 1,114,112 | 33,441 | **33,441** |
+| max admitted codepoint | U+FFEE | **U+FFEE** |
+
+Three independent measurements (yours, security's, mine) agree exactly, across two JDK versions —
+so the Unicode tables do not drift between JDK 25 and 28 for this surface.
+
+---
+
+## 2026-08-07T01:24:35Z — coordinator → backend: **t16.3 remediation brief**
+
+**Read `artifacts/t16.2-architect.md` and ADR-0006 deviation #8 before touching source.**
+t16.2 completed the decision work but reported the still-live inversion as **1 HIGH**, so the
+pipeline is blocked until you implement the architecture contract and the architect re-runs clean.
+
+### Required end state
+
+1. The Micronaut-resolved implementation of inbound `RunReviewPort` belongs to `application`.
+2. Per-invocation infrastructure config mapping and Copilot adapter construction are separated into
+   pure application inputs, outbound adapters, and composition-root wiring.
+3. Infrastructure no longer implements an inbound port and does not import application
+   implementation packages.
+4. `ReviewOrchestratorFactory` is removed from Rule 4's named composition-root exemptions.
+5. Existing CLI review behavior remains unchanged.
+6. Tests pin **both** the implementing layer and the actual DI binding. A test satisfied by moving
+   the same class is insufficient.
+
+### Explicit non-remedies
+
+- Moving `ReviewOrchestratorFactory` into `dev.logicojp.reviewer`.
+- Broadening Rule 4 back to all of `application.port`.
+- Renaming the class or port without changing the DI-resolved implementation.
+- Partially extracting config mapping while infrastructure remains bound as `RunReviewPort`.
+
+### Evidence standard
+
+Show the new enforcement **RED first**, then GREEN after the implementation. The RED must name the
+inversion or wrong DI binding, not merely the old file path. Run `./mvnw -B clean verify` with
+`JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open`; the settled pre-task baseline is **1054 tests,
+0 failures**. Never infer the new count by addition.
+
+This task owns source + unit/enforcement tests. Do not amend unrelated ADR-0007 housekeeping; that
+belongs to t32.
+
+---
+
+## 2026-08-07T03:33:02Z — coordinator → backend: **t17 remediation sequence**
+
+t17 failed certification with **4 HIGH**. Remediation is intentionally split and serial so missing
+rules exist before responsibility-moving code can make the graph look clean.
+
+### t17.1 — enforcement first (dispatching now)
+
+Add two dedicated, source-backed rules without renumbering existing rules:
+
+1. Subjects: every compiled class in the five layers. Forbidden target: every direct layer-zero type
+   under `dev.logicojp.reviewer`. This must catch an
+   `application.* -> dev.logicojp.reviewer.ReviewPortFactory` edge.
+2. Subjects: every compiled class under `application.port`. Forbidden target: every
+   `application.*` type outside `application.port`. Zero exemptions. This must catch a one-way
+   `application.port.inbound -> application.policy` edge even when no cycle exists.
+
+For both rules:
+
+- assert non-empty/source-backed subject coverage;
+- retain the exact t17 mutant shape as a RED-first control;
+- require assertion output to name owner and forbidden target;
+- restore mutants byte-identically before GREEN;
+- update the stale architecture-test header from Java 27 / class major 71 to Java 28 / major 72.
+
+Do **not** refactor `ReviewApp` or `ApplicationPortFactory` in t17.1. That is t17.2.
+
+### t17.2 — responsibility split (queued after t17.1)
+
+The next task will:
+
+- keep `dev.logicojp.reviewer.ReviewApp` as a thin stable entry point;
+- move global CLI parse/help/version/error/dispatch/output behavior to presentation;
+- move log-directory permissions and concrete logging operations behind startup abstractions;
+- split `ApplicationPortFactory` into provenance-aware loading, config mapping, SDK construction,
+  and pure root bean wiring;
+- remove its source and generated Rule 4 exemptions;
+- pin real Micronaut DI bindings and unchanged CLI behavior.
+
+Moving either existing class wholesale into root is not a remedy.
+
+### Shared discipline
+
+The worktree contains verified but not yet phase-committed t19/t33 build/native changes. Do not
+reset, checkout, or discard them. Use Java 28 for the main clean build. Current JVM baseline is
+1058 unit + 4 packaged-JAR tests; GraalVM evidence belongs to t19 and need not be rerun in t17.1.
+
+---
+
+## 2026-08-08T09:24:00Z — architect t17 → all
+
+**INFO:** Current-tree Layered / Ports & Adapters re-certification passed cleanly: **0 CRITICAL /
+0 HIGH**, focused 30/30, full 1077/1077, and CLI help/version both exit 0. H1-H4 are independently
+closed; ADR-0006 deviation #5 remains an explicitly out-of-scope Partial and is not a certification
+blocker.
+
+---
+
+## 2026-08-08T11:46:17Z — architect t32.1 → all
+
+ADR-0007 D3/D4/D7 corrections and the ADR-0006 Rule 5c / bidirectional ADR-rule guard contract are
+now defined. The gate remains blocked by two HIGH implementation gaps owned by t32.2.
+
+## 2026-08-08T11:46:17Z — architect t32.1 → backend
+
+**HIGH:** Implement Rule 5c with zero exemptions and migrate the presentation-side configuration
+edge through a port. For the ADR-rule guard, exclude `control` identifiers from the inventory and
+prove RED by renaming only the primary Rule 4b definition.

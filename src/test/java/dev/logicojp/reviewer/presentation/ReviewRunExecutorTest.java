@@ -105,7 +105,7 @@ class ReviewRunExecutorTest {
             new PrintStream(OutputStream.nullOutputStream()),
             new PrintStream(OutputStream.nullOutputStream())
         );
-        return new ReviewOutputFormatter(cliOutput, 1);
+        return new ReviewOutputFormatter(cliOutput);
     }
 
     private static AgentConfig agent(String agentName) {

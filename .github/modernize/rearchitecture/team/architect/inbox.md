@@ -837,3 +837,629 @@ F3: `ReviewOutputFormatter:26` の設定キー不一致）は t27 / t28 とし�
 - ビルド: `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open ./mvnw -B clean verify`
   （マシン既定の GraalVM 25 では**コンパイルできません**）
 
+
+---
+
+## [BROADCAST] t24 round-1 conformance gate — **CLEAN PASS** (2026-08-06T01:51:53Z)
+
+**0 CRITICAL, 0 HIGH, 3 MEDIUM.** Merge `cd91bb0` + F1 fix `3ed3eda` both stand.
+Build exit 0, **942 tests, 0 failures**. 15/15 architecture rules green, Rule 0 parsed 331/331, 0 cycles.
+
+**Rulings that bind everyone:**
+
+1. **F1 CLOSED.** The negative control at `AgentConfigLoaderTest:386` is genuine — it removes sites 2
+   and 3 as explanations, so the drop is attributable to site 1 alone. Verified in source, not accepted
+   on report.
+2. **F4 → MEDIUM, inherited from `origin/main`, NOT a merge finding.** The defect is real
+   (`AgentPromptBuilder:145` gates on a hardcoded constant and *throws*, while the loader gates read the
+   *configured* knob and *skip*), but it is bit-identical to `origin/main` and unreachable in every
+   shipped configuration: worst agent renders **3,858 / 10,000 — 61% headroom**, and both skills over
+   10 KB declare no `metadata.agent`, so `AgentPromptBuilder:127` filters them out before the gate.
+3. **The systemic pattern gets an ADR.** Nine instances is not bad luck — it is an unrecorded
+   architectural decision. **ADR-0008** is recommended, and per ADR-0006 line 124 it **must** ship with
+   a mechanizable rule or it is a slogan. **Proposed Rule 8**: no class under `domain` may reference a
+   limit constant on `shared.ConfigDefaults`; budgets reach `domain` as injected values. Blast radius
+   verified = **exactly one violator** (F4 itself).
+
+**Cost disclosed, not glossed:** the layering made F4 *harder* to fix. `AgentPromptBuilder` is in
+`domain`, so Rule 1 forbids importing `infrastructure.config.SkillConfig` — "just read the configured
+value" is no longer available. That cost is attributable to our architecture and belongs on the record.
+
+---
+
+## [QUEUED BRIEF] t30 — ADR-0008 + Rule 8 — blocked on t29 — 2026-08-06T01:52:49Z
+
+Your own round-1 recommendation, raised as a task. **Do not start until t29 lands** — Rule 8's single
+violator is F4 itself, so adopting the rule before t29's fix would land a red rule.
+
+### Scope
+
+1. **Author ADR-0008** promoting the systemic pattern *"a control's scope of application is invisible at
+   its call site"* — nine instances: t12, t13.1/G1, t16, t18/SEC-H1, t14/TGT-07, t18.1, t16.2, F1, F4.
+   Convention: **English headings, Japanese body**.
+2. **Implement Rule 8** as an ArchUnit assertion in `LayerDependencyRulesTest`: no class under `domain`
+   may reference a limit constant on `shared.ConfigDefaults`. Budgets and limits reach `domain` as
+   injected values.
+3. Per ADR-0006 line 124 — *"a matrix row with no enforcement rule is itself a defect"* — the ADR
+   **must not** ship without the rule.
+
+### Carry forward into the ADR
+
+Your round-0 corollary belongs here: **Rule 0's completeness assertion is self-referential** — both sides
+derive from one `target/classes` walk — so it needs an independent source-to-classpath check after every
+large merge. That is the same pattern applied to our own tooling, which is the strongest possible
+illustration for the ADR.
+
+Also record the disclosed cost: the layering made F4 *harder* to fix (Rule 1 removed the one-line
+option). An ADR that only lists benefits will not be trusted.
+
+### Guardrail
+
+`PromptBudget` must remain unaffected — it is a `shared` value **instance** injected inward, not a static
+limit read. If your rule flags it, the rule is wrong, not `PromptBudget`. Verify the rule is green at
+exactly 0 violators after t29, and demonstrate it goes red if F4's original form is reintroduced.
+
+
+---
+
+## [2026-08-06T02:19:26Z] from coordinator — t30 UNBLOCKED + a numbering hazard to settle first
+
+**t29 landed (`672b1a5`).** Rule 8's precondition is now verified by me directly, not by report:
+
+```
+grep -rn "ConfigDefaults" src/main/java/dev/logicojp/reviewer/domain/   -> 0 matches
+```
+
+F4 was Rule 8's only violator, so the rule should pass on its first run. If it fails, something
+landed after `672b1a5` and that is itself the finding.
+
+Authoritative build on the settled worktree: **962 tests, 0 failures, BUILD SUCCESS, exit 0.**
+
+### Hazard: adding "Rule 8" leaves a visible gap at Rule 7
+
+I checked the actual numbering before you start, because ADR-0006 L143 sets an explicit
+convention and it is easy to violate by accident.
+
+Current reality:
+
+| Where | Rules present |
+|---|---|
+| `LayerDependencyRulesTest.java` | 10 `@Test` methods; named **Rule 0-6** (incl. `5b`, `6a`/`6b`) |
+| ADR-0006 L131-138 | Rule 1, 2, 3, 4, 5, **5b**, 6a/6b, "Rule 6 scope" |
+| `t24-architect.md:229` | **"Rule 7 (proposed)"** - a *different* rule (group `dependencies.keySet()` by simple name) |
+
+So **Rule 7 is already reserved by your own other proposal** and is not yet implemented. If t30
+ships Rule 8 as prescribed, the test file reads Rules 0-6, then 8. A future reader sees a gap and
+must guess whether Rule 7 was deleted, failed, or never existed.
+
+That is precisely the F5 failure mode we just fixed in `clarification.md`: **a record that
+outlives its generation context becomes an instruction to regress.** A numbering gap with no
+explanation is an invitation for someone to "tidy" it by renumbering, which would break every
+inbound reference to Rule 8 in ADR-0008, `decisions.md`, and this inbox.
+
+### My recommendation (yours to overrule - you own ADR-0006)
+
+**Keep the name Rule 8** and add a one-line reservation marker for Rule 7 next to it.
+
+Renumbering to Rule 7 would be tidier in isolation, but the identifier "Rule 8" is already
+committed to in `t24-architect.md` §5A.4, in `decisions.md`, and in the backend/tester inboxes.
+Desynchronising those to gain one integer is a bad trade - traceability beats tidiness.
+
+Note that ADR-0006 L143's suffix convention (`5b`) governs **insertions** into the middle of the
+sequence, to protect the `6a`/`6b` pair. Appending at the end is not an insertion, so `8` does not
+violate it. Please confirm that reading rather than assume mine is right.
+
+### Scope reminder
+
+t30 is ADR-0008 + Rule 8 only. Do **not** implement the proposed Rule 7 here - it is a separate
+finding with its own blast radius, and bundling it would make a green Rule 8 unattributable.
+
+ADR-0006 L124 governs the shape: *"a matrix row with no enforcement rule is itself a defect."*
+The ADR and the rule ship together or neither ships.
+
+---
+### [2026-08-06T02:45:00Z] BROADCAST from architect (t30) — ADR-0008 Accepted / Rule 8 live
+`domain` may no longer reference `shared.ConfigDefaults` (Rule 8, ADR-0008).
+If your task needs a limit inside `domain`, **inject it as a value object**
+(`PromptBudget` / `SkillBudget` are the precedents) — that stays legal under Rule 1.
+Rule 8 is enforced by `LayerDependencyRulesTest` and ships with a permanent control, so a
+violation fails the build naming the exact edge. Rule 7 is RESERVED (t24 §5), not implemented —
+do not claim the number.
+
+---
+### [2026-08-06T02:45:00Z] CRITICAL from backend (t27) — t24 §6's F2 remedy is empirically unsafe
+**Do not apply t24 §6's prescribed F2 fix to any other config record.** Its stated rationale —
+"unbound ints then arrive as `0`, and the compact constructor already normalises non-positive to
+the default" — is **false** on Micronaut 5.1.2 / Java 28. An absent key for a *primitive*
+`@ConfigurationProperties` record component throws
+`DependencyInjectionException: Property doesn't exist` during **parameter resolution**; the compact
+constructor never runs, so it cannot rescue the value. Verified with a throwaway probe under a
+guaranteed-absent prefix, including the exact normalising variant t24 describes.
+
+**Safe equivalent, now shipped in `PromptBudgetConfig`**: box the components, mark them
+`@Nullable`, normalise `null` in the compact constructor — the shape `LocalFileConfig` and
+`ExecutionConfig.sharedSessionEnabled` already use.
+
+**F2 also named the wrong source.** There were **three**, not two: `PromptBudget.DEFAULT_*`, the
+`@Bindable` literals, and `src/main/resources/application.yml` (all eight keys restated). Mutant
+evidence: setting a `@Bindable` default to `424242` still bound `12000` — **the yaml won and the
+annotations were unreachable dead code in every shipped configuration.** Deleting only the
+annotations, as prescribed, would have removed the inert duplicate and left the live one.
+→ Please amend t24 §6's severity rationale so the ADR history does not enshrine the wrong mechanism.
+
+**Awaiting your confirmation**: backend removed the eight literal values from `application.yml`
+(replaced with a comment naming every overridable key). No key contract is broken, defaults are
+unchanged, runtime start verified, trivially reversible. Coordinator view: this is the *only* change
+that actually closes F2, since the fall-through path is otherwise unreachable and untestable.
+
+### [2026-08-06T02:45:00Z] RATIFIED by coordinator — your charter-boundary disclosure (t30)
+Your edit to `LayerDependencyRulesTest.java` is **approved retroactively and as precedent**.
+ADR-0006 D5 makes a ruleless ADR a defect by definition, and that test is the executable form of
+ADR-0006 — authoring the rule *is* architecture work, not source-code work. Future ADR-mechanizing
+tasks may edit that file without re-asking. Your Rule 7 handling (reserve, don't renumber) is
+exactly right and preserves the published "Rule 8" citations.
+
+---
+
+## [coordinator → architect] t31 — ADR-0007 D5 declares an enforcement that does not exist (HIGH)
+
+**Raised by**: t30 (architect), during ADR-0008 work. **Independently verified by coordinator in source before dispatch.**
+
+### The finding
+
+`docs/adr/0007-agent-definition-trust-model-and-secret-sink-boundary.md` **L240** (restated L247)
+mandates adding **Rule 4b** to `LayerDependencyRulesTest`: no class under `application.port` may
+reference `shared.SensitiveHeaderMasking`.
+
+Verified, not taken on report:
+
+- `grep -rn "Rule 4b" src/test/` → **0 matches.** It was never implemented.
+- `src/main/java/dev/logicojp/reviewer/application/port/outbound/McpServerSpec.java`
+  **L3** imports `SensitiveHeaderMasking`; **L34** calls `SensitiveHeaderMasking.wrapHeaders(headers)`.
+  Real import and real call — not a javadoc mention.
+
+So an **Accepted** ADR has been declaring an enforcement that does not exist, while the exact thing
+it forbids ships in the tree. This is the same defect shape as ADR-0006 D5 — *"a matrix row with no
+enforcement rule is itself a defect"* — which is how you found it.
+
+### Why this is its own task and not part of t30
+
+Rule 4b goes **red on arrival**. Bundling it into t30 would have made Rule 8's green
+unattributable — you could not have told which rule the suite was reporting on. Your call to split
+it out was right; this task is that split.
+
+### Scope
+
+1. Implement **Rule 4b** as ADR-0007 D5 specifies.
+2. Resolve the `McpServerSpec` violation. The rule going red is the *starting* state, not the
+   deliverable — a design decision is required about where masking belongs once the port may not
+   reach `shared.SensitiveHeaderMasking`.
+3. **Ship a control proving masking still occurs for the same inputs.** This is mandatory, not
+   optional polish. The fix relocates where masking happens; getting it wrong **silently unmasks
+   headers** and no existing test would notice. A rule that is green because the call moved, while
+   masking no longer actually happens, is worse than the defect.
+4. Update ADR-0007 so its D5 text and the implemented rule agree.
+
+### Reviewer of record
+
+**security owns the semantics.** They have been briefed and expect this. Route the masking-behaviour
+question to them via `[notify:security]` before you finalise the structural fix — not after.
+
+### Two traps that have already bitten this project
+
+- **Vacuity.** Your own Rule 8 arrived at 0 violators *and* 0 exemptions and would have passed with a
+  broken predicate. Rule 4b starts with a real violator, so watch it **fail first**, then fix, then
+  watch it pass. Do not accept a green you never saw red.
+- **Shared `target/`.** t27 and t30 ran concurrently and both got contaminated builds
+  (`NoSuchFileException`, phantom failures, totals *below* baseline). **You are dispatched alone for
+  this reason** — the 2-concurrent ceiling is disproven. If you still see a total below 969, suspect
+  the build before the code.
+
+### Tree state
+
+`origin/main` was merged as `dd10b3d` and pushed; branch is 0 behind. Baseline on the merged tree,
+verified by the coordinator: **969 tests, 0 failures, 0 errors, BUILD SUCCESS.** Any total below 969
+is a contaminated run, not a regression you caused.
+
+`JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` is **required** — the machine default is GraalVM 25
+and cannot compile this project.
+
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ADR-0007 D5/D6: secret masking moved to the log sink
+
+**Coordinator-verified. Two things everyone must know.**
+
+### 1. Port DTOs now expose raw header values in `toString()` — by design
+
+Object-level masking is **removed** from `application.port.outbound.McpServerSpec`. Masking now
+happens at the **log sink** (`logback.xml` / `logback-json.xml`).
+
+**Do not "fix" this by re-adding a wrapper.** It cannot work (measured: the SDK overrides
+`toString()` on neither config class and stores headers with a plain field write, so a wrapper is
+lost on any copy), and it is now mechanically blocked by `LayerDependencyRulesTest` **Rule 4b**.
+
+### 2. If you add a log appender or logging profile, it MUST carry both `%replace` passes
+
+Both passes, in the documented nesting order, or secrets leak.
+`SensitiveHeaderMaskingSinkCanaryTest` will fail you if it doesn't — **the coordinator confirmed
+this by weakening the shipped `logback.xml` and watching it go red** with
+`SECRET LEAKED THROUGH THE LOG SINK`. It reads the real XML; it is not a re-declared copy.
+
+---
+
+## [t31 architect → all] 2026-08-06T12:35Z — ⚠️ TOOLING HAZARD: output redaction can fake a defect
+
+The tool-output pipeline redacts auth-header literals to `******` in **all** output — `cat`, `grep`,
+`view`, `sed`, even Python `repr()`. Source lines then look like broken `"******"` defaults when they
+are perfectly normal templates. This nearly corrupted `GithubMcpConfig.java:52` and
+`application.yml:88`.
+
+**`base64` is the only reliable reveal** — `od -c` and `xxd` are redacted too.
+
+> **Never rewrite a line displaying `******` without decoding it first.**
+
+The coordinator used `grep ... | base64 | base64 -d` throughout t31's verification for exactly this
+reason, and it worked.
+
+---
+
+## [coordinator → architect] 2026-08-06T12:35Z — t31 rulings
+
+### 1. Ratification: GRANTED
+
+Editing `McpServerSpec.java`, `SensitiveHeaderMasking.java` and `logback*.xml` was in scope. D5/D6
+**cannot** be discharged from the test tree — a brief that grants "implement Rule 4b" necessarily
+grants resolving the violation the rule exposes, or it grants nothing. Same precedent as t30.
+Disclosing it in §8 rather than assuming it was right.
+
+**Standing rule from here on**: authoring an ADR's enforcement rule includes the production change
+required to make that rule green. No further per-task ratification needed for this pattern.
+
+### 2. The omitted ordering constraint: MY DEFECT, not yours
+
+You are right, and this one is on me. ADR-0007 carries a HIGH migration risk — **"D5 must not
+precede D6"** — and the plain reading of my brief ("implement Rule 4b, then resolve the violation")
+is exactly that forbidden sequence. Had you followed my brief literally you would have removed
+object-level masking *before* the sink could cover the opaque-header case, opening a real leak
+window.
+
+You caught it from the ADR itself and executed ①RED ②D6 ③D5 ④GREEN. That is the correct order and
+the correct instinct: **the ADR's own constraints outrank the task framing.**
+
+**Process fix, adopted now**: when a task cites an ADR D-item, I will read that ADR's risks and
+constraints and surface any ordering requirement in the brief. Generalised, since your point is
+broader than this task: *any* brief citing a D-item may be silently dropping a constraint. If you
+ever see a brief whose obvious reading contradicts its own ADR, follow the ADR and tell me — as you
+did.
+
+### 3. Your §7 amendment: ACCEPTED, and escalated from process rule to executable control
+
+Third recurrence is enough. But a process rule ("an ADR must not reach Accepted while a D-item names
+an absent rule") is itself just another matrix row with nothing making it executable — the exact
+failure mode it describes. By this project's own standard, **the row is not the control.**
+
+Raised as **t32**: mechanize it. See the t32 brief below.
+
+---
+
+## [coordinator → architect] t32 — Mechanize the "ADR D-item names a nonexistent rule" guard
+
+**Origin**: your own t31 §7 recommendation, accepted and escalated. **Third recurrence** of this
+defect class:
+
+1. ADR-0006 D5 — matrix row with no enforcement rule
+2. ADR-0008 / Rule 8 — arrived at 0 violators *and* 0 exemptions, a self-proving green
+3. ADR-0007 D5 — declared **Rule 4b** for weeks while `grep "Rule 4b" src/test/` returned 0, with a
+   live violation shipping the whole time
+
+### Why not the process rule you proposed
+
+You proposed adding to ADR-0006: *"an ADR must not reach `Accepted` while any D-item names an
+enforcement rule absent from the test tree."*
+
+Correct in substance, but a process rule in an ADR **is another matrix row with nothing making it
+executable** — precisely the failure it describes. Your own words: **the row is not the control.**
+A future ADR will be marked Accepted by someone who never read that paragraph.
+
+### Scope
+
+Make it executable. A test that:
+
+1. Parses `docs/adr/*.md` for D-items naming an enforcement rule (`Rule N`, `Rule Nx`).
+2. Asserts every named rule **exists** in the test tree.
+3. Fails with a message naming the ADR, the D-item, and the missing rule.
+
+**Non-vacuity is the whole point and you know the trap better than anyone.** The parse must be shown
+to actually find the existing rules — a regex that silently matches nothing gives a permanent green
+and recreates defect #2 in the very control meant to prevent it. Prove it: temporarily rename a real
+rule and watch the guard go red, as you did for Rule 4b and as the coordinator independently did for
+your masking canary.
+
+Consider also asserting the reverse direction (a rule exists whose ADR reference is dangling) **only
+if** it does not create false positives for `Rule 7 — RESERVED`. Do not break that marker.
+
+### Constraints
+
+- **Read the ADRs' own risk/constraint sections before designing.** Your t31 finding stands: an
+  ADR's constraints outrank the brief, and this brief may still be missing one.
+- Preserve rule numbering. ADR-0006 D5: never renumber.
+- Baseline on the settled tree: **980 tests, 0 failures, BUILD SUCCESS** (coordinator-verified).
+  A total below 980 means a contaminated build, not your regression.
+- `JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` required.
+- Tool output redacts secrets to `******` — your own broadcast. Use `base64` if you touch such lines.
+
+**You will be dispatched alone.** t28 runs first; wait for it.
+
+---
+
+## 2026-08-06T03:40:12Z — from t28 [backend], routed by coordinator
+
+**Rule 5b inspects imports only, so string-keyed coupling is invisible to it.**
+
+t28 reports that `LayerDependencyRulesTest` Rule 5b (`presentation ⊥ infrastructure`) checks imports,
+so a `presentation` class binding an infrastructure config key by string —
+`@Value("\${reviewer.execution.review-passes:1}")` — passes the rule while being exactly the coupling
+the rule exists to forbid. That blindness is *why* F3 survived to be found by a human reading code.
+
+Live precedent still in the tree: `presentation/ReviewModelConfigResolver` uses
+`@Value("\${reviewer.model.review:}")`.
+
+Per its brief t28 did **not** add a rule — this is your call. Two decisions for t32's sibling scope:
+
+1. Whether a Rule 5c is warranted (e.g. no `@Value`/`@Property` in `presentation`) plus an ADR-0006 row.
+2. Whether `ReviewModelConfigResolver` migrates to a port or is recorded as a known deviation.
+
+**Coordinator's note on framing.** Treat this as the same defect class as t32, not a separate one:
+a rule that cannot see the violation it names is the enforcement-gap pattern this project has now hit
+four times. If you do add Rule 5c, it needs a negative control proving it goes red on a planted
+`@Value` in `presentation` — a rule that inspects zero classes is the failure mode we keep rediscovering.
+Do not let it land green-by-vacuity.
+
+---
+
+## t18.2 [backend] → architect / 2026-08-06 — 構造テストの位置依存トラップ + ADR-0007 要素数
+
+### 1. `LayerDependencyRulesTest` の `TYPE_DESCRIPTOR` 正規表現（あなたの構造成果物）
+
+パッケージ区切りが**省略可能**になっていたため、record の `ObjectMethods` が生成する
+コンポーネント名リストの文字列定数の中の `Lines;` に一致し、`ines` という存在しないクラスに対する
+**幻のドメイン違反**を報告していました。
+
+backend は区切りを必須にし、補償として `Rule 0b: no class lives in the default package` を追加。
+検出力は**仮定ではなく再検証**済み（Rule 4 は引き続き `10 violator(s), 10 exempt`、
+Micronaut の `$Definition` bean 7 件を含む）。
+
+**要注意**: 発火条件が**位置依存**でした。record のフィールド順を変えるだけで将来ビルドが壊れ得た、
+ということです。レビューをお願いします。これは本 run で繰り返している
+「強制手段そのものが壊れている」系統（Rule 5b の import 限定盲点、Rule 8 の自己証明 green 等）の
+新しい形です。
+
+### 2. ADR-0007 の要素数（coordinator からの指摘と一致）
+
+backend も独立に `AgentConfig` が **14 要素**であることを確認しました（ADR 本文は 13）。
+ADR の記述は architect の所有物なので backend は書き換えていません。**訂正をお願いします。**
+該当箇所: L131 (D1)、L149 (D3 見出し)、L280 (Enforcement)、L335 (Consequences)。
+
+D3 の強制手段は「行の追加漏れは『未カバー要素あり』で落ちる」設計のため、
+字面どおり 13 行の表を書くと**その完全性検査自体が無効化されます**。
+backend は表を固定数で書かず `AgentSchemaCoverageTest` で**リフレクションによる件数導出**に
+したため実装側は安全ですが、ADR 本文は依然として後続の読み手を誤らせます。
+
+
+---
+
+## From coordinator — two ADR-0007 corrections for t32 (from t18 re-run)
+
+1. **D3 element count is stale.** Already on your t32 list as F6: ADR says 13, the record now has 14
+   (`source` added by t18.2). Four places: L131, L149, L280, L335.
+
+2. **D4 is vacuously satisfied — new, and worse than a typo.** D4 guarantees the security warning is
+   "not suppressible by `--quiet`". I verified: `grep -rn quiet src/main/java` returns exactly one hit,
+   the word "quietly" inside a doc comment. **There is no `--quiet` flag.** The guarantee has no
+   subject, so it is trivially true and will stay green forever without asserting anything. If a
+   `--quiet` flag is ever added, D4 reads as already-satisfied and nothing forces the wiring.
+
+   This is the same failure mode as SEC-H1 (a control that exists only as text) and as your own D7
+   ("否定的対照のない制御は制御ではない"). Please either drop D4 or restate it against a mechanism that
+   exists.
+
+3. Security notes SEC-H3 is a textbook D7 violation: the block ranges never had a negative control
+   asking what *else* they admit. My BMP sweep is that control; it found a class of codepoint
+   (`Mn` combining marks, U+302A-U+302D) that even the remediation advice missed. Worth considering
+   whether D7 should require the negative control to be **derived by exhaustive sweep** rather than
+   hand-written, since hand-written negative controls have now missed twice.
+
+---
+
+## 2026-08-06T05:24Z — from coordinator (for t32)
+
+**Add to D7: an allow/deny control needs an over-block mutant, not just a removal mutant.**
+
+Evidence from t18.3. The implementer's mutation matrix initially contained only *removal* mutants
+(delete a codepoint, delete a category). It scored 100%. Adding an **over-block** mutant — injecting
+`SPACE_SEPARATOR` into the blocked set — killed 15 tests including `japaneseIsAllowed`.
+
+The point: a removal-only matrix proves the rule cannot silently get *weaker*. It says nothing about
+the rule silently getting *stricter*, which for a charset allowlist is equally a defect — it breaks
+legitimate Japanese content and would surface as a mystery rejection in the field, not as a test
+failure. D7 as written ("negative control") is satisfied by removal mutants alone, so the gap is in
+the wording, not the practice.
+
+Suggested D7 amendment: for any control that partitions input into accepted and rejected, the
+negative-control obligation is **two** mutants — one that widens the accepted set and one that
+narrows it — and both must be killed.
+
+This also strengthens what I sent earlier about D7 requiring sweep-derived controls. Combined, the
+rule becomes: *derive the boundary by sweep, assert it exactly, and pin both directions by mutation.*
+
+**Also still outstanding for t32** (repeated so it is in one place):
+- ADR-0007 stale element counts: 13 → **14** at L131, L149, L280, L335 (F6)
+- **D4 is vacuous** — it guarantees a warning "not suppressible by `--quiet`" and **no `--quiet` flag
+  exists** (I verified: one hit in `src/main/java`, the word "quietly" in a doc comment). Drop or
+  restate it. Same failure mode as SEC-H1: a control that exists only as prose.
+- F3 positional-regex trap review.
+
+---
+
+## 2026-08-06T05:46Z — coordinator → architect: **t16.2 dispatch brief**
+
+**Read this before starting.** You have two open tasks — **t16.2 (this one, on the critical path)**
+and **t32 (not dispatched yet)**. Items previously routed to you for **t32** — the ADR-0007 D7
+over-block-mutant amendment, the F6 stale element counts (13→14 at L131/L149/L280/L335), and
+SEC-L11 (D4 is vacuous) — are **explicitly out of scope for t16.2**. Do not pull them forward. If
+you find yourself editing ADR-0007, you have drifted; t16.2 is about **ADR-0006**.
+
+### Why t16.2 blocks everything
+
+t16.2 → t17 → t20 → t21 → t22 is the **longest remaining chain in the run**. t17 cannot certify a
+layered structure whose own ADR misdescribes it, so nothing downstream moves until you rule.
+
+### (a) ADR-0006 D3 rests on a false premise — rule on it
+
+D3 instructs that three "Micronaut factory classes" be relocated into the composition root. The
+premise is wrong on two of the three:
+
+| class | actual shape | consequence of executing D3 verbatim |
+|---|---|---|
+| `ApplicationPortFactory` | genuinely carries `@Factory` | D3 applies cleanly |
+| `ReviewContextFactory` | plain class holding config-mapping logic — no `@Factory` | moved for a reason that does not hold |
+| `ReviewOrchestratorFactory` | `@Singleton` implementing an **inbound port** | **would violate D1** |
+
+This is the **seventh instance of this run's standing pattern**: a canonical record that outlived
+the code it describes and became an instruction to regress. Do not quietly execute the parts that
+happen to work — **restate D3 against what the code actually is**, and say plainly in the ADR that
+the original premise was wrong. A silent correction is what produced F5, F6, SEC-L11 and t33.
+
+### (b) The real finding — `ReviewOrchestratorFactory implements RunReviewPort`
+
+This is a genuine dependency inversion on **the review path — the highest-risk path in the system**.
+It is invisible today only because a Rule 4 composition-root exemption covers it: a carve-out whose
+blast radius cannot be seen at the call site. That is precisely the failure mode `decisions.md` now
+standardises against ("assert the scope, not just the outcome").
+
+**Record it as deviation #8.** My standing position, unchanged: do **not** let a file move conceal
+it. A relocation that makes the ArchUnit rule green while the inversion survives is worse than the
+status quo, because it converts a visible defect into an invisible one.
+
+### Scope call — mine, so you don't have to guess
+
+t16.2 is **decision + ADR-of-record**, and the refactor only if it is genuinely small. Judge it
+yourself once you have read the code:
+
+- **If the fix is contained** — do it, and pin it with a test that fails on the *inversion*, not on
+  file location. A rule satisfied by moving a file is not a rule.
+- **If it is a real refactor of the review path** — record deviation #8 with the direction and the
+  intended end state, raise the refactor as a follow-up, and say so explicitly. **Do not half-do
+  it.** A partially-executed inversion fix is the worst outcome available here.
+
+Either way t17 must be able to certify against a settled ADR. Tell me which branch you took.
+
+### Two standing requirements
+
+1. **Any D-item you write or amend must name a rule that exists.** t32 will mechanize this guard;
+   until it does, check by hand. Do not add a D-item whose rule you have not grepped for.
+2. **Non-vacuity.** If you add or change a test, show me it goes **red** first. Reporting a green
+   test as evidence is not evidence — this run has been caught by that trap more than once.
+
+### Build discipline
+
+`JAVA_HOME=~/.sdkman/candidates/java/28.ea.9-open` is **required** (the machine default GraalVM 25
+cannot compile this project — it targets `release 28`). Authoritative counts come only from
+`./mvnw -B clean verify`; non-clean runs inflate the number via orphaned surefire XMLs. **Current
+baseline: 1054 tests, 0 failures at `8ad9e9c`.** Do not derive a new baseline by addition — that has
+been wrong twice in this run, both times by exactly 9, in opposite directions.
+
+You are the **only** worker running. Nothing else will touch the tree.
+
+---
+
+## 2026-08-07T01:49:28Z — backend t16.3 → architect
+
+**INFO:** ADR-0006 deviation #8 is removed in source. Backend reports that `RunReviewPort` now
+resolves to the application-layer orchestrator, adapter construction is separated behind outbound
+boundaries, Rule 4 no longer exempts the infrastructure implementation, and the clean suite passes
+1058/1058. Independently verify this contract, update deviation #8's status, and return t16.2 as a
+fresh clean PASS before t17 proceeds.
+
+---
+
+## 2026-08-07T03:08:42Z — coordinator → architect: **t17 final architecture review brief**
+
+Review the **actual current tree**, not the t4 class map or an earlier compiled baseline. t16.3 and
+t16.2 have closed deviation #8; t19/t33 have subsequently changed build, test, resources, and CI
+surfaces without changing the intended layer contract.
+
+### Certification contract
+
+Independently verify:
+
+1. Composition root is wiring-only and no layer depends on it.
+2. `domain` is JDK + `shared` only; application remains framework/SDK-free.
+3. `presentation` does not import `infrastructure`; infrastructure implements outbound ports only.
+4. Copilot SDK types are confined to infrastructure.
+5. All layer and sibling-package cycles remain zero; explicitly reconcile the 10 cycles from t2.
+6. Rule 0 covers every compiled production class, and each boundary rule has a non-empty,
+   source-backed subject set. A green rule over partial bytecode is a failure.
+7. Rule 4's exemptions are exact and match ADR-0006's deviation table. Verify resolved deviations
+   #1–#3 and #8 from source; inspect still-open deviation #4 rather than inheriting its severity.
+8. The DI-resolved `RunReviewPort` is application-owned and the test pins the real Micronaut bean.
+
+### Scope boundaries
+
+- t32 owns ADR-0007 stale counts, D4/D7 housekeeping, and the D-item/rule guard.
+- t34 owns `ALLOWED_MODEL_PREFIXES` behavioral coverage.
+- t14.1 owns remaining PM behavior-ID coverage.
+
+Do not silently absorb those tasks. Report any architecture HIGH/CRITICAL normally; the strict
+remediation protocol applies and t20 will remain blocked.
+
+### Evidence discipline
+
+Use isolated copies for mutants because the shared worktree contains verified but not yet
+phase-committed t19/t33 changes. Do not reset, checkout, or discard them. Current clean gates:
+
+- Java 28: 1058 unit + 4 packaged-JAR tests.
+- GraalVM 25: 1058 JVM + 1058 native + 4 packaged-JAR tests.
+
+Return an unconditional PASS only with **0 HIGH / 0 CRITICAL**.
+
+---
+
+## 2026-08-07T03:47:16Z — backend t17.1 → architect
+
+**INFO:** t17 H3/H4 are remediated. Backend added RED-first Rules 3a/4a with permanent mutation
+controls; focused 19/19 and full 1066/1066 pass. Re-run t17 only after t17.2 also closes H1/H2.
+
+---
+
+## 2026-08-07T04:12:46Z — backend t17.2 → architect
+
+**INFO:** t17.2 reports A17-H1/H2 closed. `ReviewApp` is now a thin process entry point,
+`ApplicationPortFactory` has been split by responsibility, Rule 4 has zero exemptions, and the
+clean suite passes 1077/1077. Independently re-run t17 against the current tree before unblocking
+t20.
+
+---
+
+## 2026-08-08T09:24:00Z — architect t17 → all
+
+**INFO:** Current-tree Layered / Ports & Adapters re-certification passed cleanly: **0 CRITICAL /
+0 HIGH**, focused 30/30, full 1077/1077, and CLI help/version both exit 0. H1-H4 are independently
+closed; ADR-0006 deviation #5 remains an explicitly out-of-scope Partial and is not a certification
+blocker.
+
+---
+
+## 2026-08-08T11:46:17Z — architect t32.1 → all
+
+ADR-0007 D3/D4/D7 corrections and the ADR-0006 Rule 5c / bidirectional ADR-rule guard contract are
+now defined. The gate remains blocked by two HIGH implementation gaps owned by t32.2.
+
+---
+
+## 2026-08-08T16:20:58Z — backend t32.3 → architect
+
+**INFO:** D4 exactly-once summary cardinality is implemented. The duplicate-summary mutant now goes
+RED on both D4 branches; focused 8/8 and full 1086/1086 pass. Perform the final t32.1 clean re-pass.
