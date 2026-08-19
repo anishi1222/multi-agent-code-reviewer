@@ -38,7 +38,7 @@
              (@JsonView bypassed for @JsonUnwrapped container properties); fixed in 3.1.5. -->
         <jackson.version>3.1.5</jackson.version>
         <!-- Security: centralize BOM-managed com.fasterxml.jackson:* 2.x transitives; see osv-scanner.toml for GHSA-5jmj-h7xm-6q6v. -->
-        <jackson2.version>2.22.1</jackson2.version>
+        <jackson2.version>2.22.2</jackson2.version>
     </properties>
 
     <repositories>
