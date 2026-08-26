@@ -47,7 +47,8 @@ Canonical procedure: [Release Procedure](./docs/runbook.md#release-procedure)
 - Bumped `io.micronaut.platform:micronaut-parent` from 5.1.0 to 5.1.1.
 - Bumped `com.github:copilot-sdk-java` from 1.0.8 to 1.0.11 (via 1.0.9).
 - Bumped the Jackson 2.x BOM (`jackson2.version`) from 2.22.1 to 2.22.2.
-- Bumped the Maven Wrapper distribution from `apache-maven` 3.9.14 to 3.9.16.
+- Bumped the Maven Wrapper distribution from `apache-maven` 3.9.14 to 3.9.16 directly (a single
+  Dependabot patch-level bump; 3.9.15 was never adopted).
 - Bumped `github/codeql-action` (`init`/`analyze`/`upload-sarif`) from 4.37.6 to 4.37.8,
   `step-security/harden-runner` from 2.20.1 to 2.21.0, and `graalvm/setup-graalvm` from 1.6.3 to
   1.6.4 across all workflows.

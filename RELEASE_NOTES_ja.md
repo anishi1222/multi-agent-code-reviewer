@@ -47,7 +47,8 @@
 - `io.micronaut.platform:micronaut-parent` を 5.1.0 から 5.1.1 へ更新。
 - `com.github:copilot-sdk-java` を 1.0.8 から 1.0.11 へ更新（1.0.9 を経由）。
 - Jackson 2.x BOM（`jackson2.version`）を 2.22.1 から 2.22.2 へ更新。
-- Maven Wrapper の配布物を `apache-maven` 3.9.14 から 3.9.16 へ更新。
+- Maven Wrapper の配布物を `apache-maven` 3.9.14 から 3.9.16 へ直接更新（単一の Dependabot
+  パッチレベル更新で、3.9.15 は採用されていません）。
 - 全 workflow で `github/codeql-action`（`init`/`analyze`/`upload-sarif`）を 4.37.6 から 4.37.8 へ、
   `step-security/harden-runner` を 2.20.1 から 2.21.0 へ、`graalvm/setup-graalvm` を 1.6.3 から
   1.6.4 へ更新。
