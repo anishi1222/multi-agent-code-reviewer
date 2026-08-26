@@ -28,9 +28,10 @@ A parallel code review application using multiple AI agents with GitHub Copilot 
 ## Release Status
 
 The current repository tree is published as
-[`v2026.08.10-layered-architecture`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture);
+[`v2026.08.25-dependency-refresh`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.25-dependency-refresh);
 the release details are recorded in [RELEASE_NOTES_en.md](./RELEASE_NOTES_en.md).
 
+- 2026-08-25 ([v2026.08.25-dependency-refresh](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.25-dependency-refresh)): Dependency refresh — bumped Micronaut parent to 5.1.1, `copilot-sdk-java` to 1.0.11, the Jackson 2.x BOM to 2.22.2, and the Maven Wrapper to 3.9.16; pinned `github/codeql-action` to v4.37.8, `step-security/harden-runner` to v2.21.0, and `graalvm/setup-graalvm` to v1.6.4; re-aligned the `AssistantMessageEventData` test fixture and Native Image reachability metadata with the `copilot-sdk-java` 1.0.9 constructor shape. No application behavior changes.
 - 2026-08-10 ([v2026.08.10-layered-architecture](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture)): Layered-architecture completion — completed the five-layer Ports & Adapters rewrite with
   three layer-zero entry/wiring files, 8 inbound port interfaces, 15 outbound port interfaces, and
   mechanically enforced zero-cycle boundaries; preserved the CLI/review/report contracts while restoring

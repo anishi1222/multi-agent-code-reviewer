@@ -28,9 +28,10 @@ GitHub Copilot SDK for Java を使用した、複数のAIエージェントに�
 ## リリース状況
 
 現在のリポジトリツリーは
-[`v2026.08.10-layered-architecture`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture)
+[`v2026.08.25-dependency-refresh`](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.25-dependency-refresh)
 として公開しており、詳細は [RELEASE_NOTES_ja.md](./RELEASE_NOTES_ja.md) に記録しています。
 
+- 2026-08-25 ([v2026.08.25-dependency-refresh](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.25-dependency-refresh)): 依存関係更新 — Micronaut parent を 5.1.1、`copilot-sdk-java` を 1.0.11、Jackson 2.x BOM を 2.22.2、Maven Wrapper を 3.9.16 へ更新。`github/codeql-action` を v4.37.8、`step-security/harden-runner` を v2.21.0、`graalvm/setup-graalvm` を v1.6.4 に固定。`copilot-sdk-java` 1.0.9 のコンストラクタ形状に合わせて `AssistantMessageEventData` テストフィクスチャと Native Image reachability metadata を再整合。アプリケーションの挙動変更はありません。
 - 2026-08-10 ([v2026.08.10-layered-architecture](https://github.com/anishi1222/multi-agent-code-reviewer/releases/tag/v2026.08.10-layered-architecture)): 層構造の完成 — 3つの第0層エントリ/配線ファイル、8個の inbound port interface、
   15個の outbound port interface、機械的に強制される循環ゼロ境界からなる5層 Ports & Adapters
   リライトを完了。CLI/review/report 契約を維持しつつ、実際に有効な

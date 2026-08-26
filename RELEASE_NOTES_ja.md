@@ -28,6 +28,39 @@
 ### 検証
 - Pending
 
+## 2026-08-25 (v2026.08.25-dependency-refresh)
+
+### 概要
+- Micronaut parent、`copilot-sdk-java`、Jackson 2.x BOM、Maven Wrapper など JVM ビルド/実行時
+  依存関係を更新し、CodeQL / Harden Runner / GraalVM setup の CI Action バージョンを固定しました。
+  アプリケーションの挙動変更はありません。
+- `copilot-sdk-java` 1.0.9 のコンストラクタ形状（`chunkIndex`、`chunkCount`、`rte` フィールド追加）
+  に合わせて `AssistantMessageEventData` テストフィクスチャと Native Image reachability metadata
+  を再整合させ、CI を回復しました。
+
+### 主な変更
+
+#### 追加
+- なし
+
+#### 変更
+- `io.micronaut.platform:micronaut-parent` を 5.1.0 から 5.1.1 へ更新。
+- `com.github:copilot-sdk-java` を 1.0.8 から 1.0.11 へ更新（1.0.9 を経由）。
+- Jackson 2.x BOM（`jackson2.version`）を 2.22.1 から 2.22.2 へ更新。
+- Maven Wrapper の配布物を `apache-maven` 3.9.14 から 3.9.16 へ更新。
+- 全 workflow で `github/codeql-action`（`init`/`analyze`/`upload-sarif`）を 4.37.6 から 4.37.8 へ、
+  `step-security/harden-runner` を 2.20.1 から 2.21.0 へ、`graalvm/setup-graalvm` を 1.6.3 から
+  1.6.4 へ更新。
+
+#### 修正
+- `copilot-sdk-java` 1.0.9 のコンストラクタ形状に合わせて `AssistantMessageEventData` テスト
+  フィクスチャと両方の Native Image `reachability-metadata.json` を修正し、SDK 更新に起因する
+  CI テストコンパイル失敗を解消しました。
+
+### 検証
+- CI: Dependabot による `chore(deps)` パイプラインおよび追補 CI 修正 PR（#254）が GitHub Actions
+  上でフルビルド/テスト/CodeQL スイートに合格。
+
 ## 2026-08-10 (v2026.08.10-layered-architecture)
 
 ### 概要
