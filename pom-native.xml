@@ -31,7 +31,7 @@
 
         <!-- Application dependencies -->
         <assertj.version>3.27.7</assertj.version>
-        <copilot.sdk.version>1.0.8</copilot.sdk.version>
+        <copilot.sdk.version>1.0.11</copilot.sdk.version>
         <dependency.check.version>12.2.2</dependency.check.version>
 
         <!-- Security: override BOM-managed tools.jackson.core:jackson-databind to a patched version.
