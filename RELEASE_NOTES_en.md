@@ -28,6 +28,40 @@ Canonical procedure: [Release Procedure](./docs/runbook.md#release-procedure)
 ### Validation
 - Pending
 
+## 2026-08-25 (v2026.08.25-dependency-refresh)
+
+### Summary
+- Refreshed the JVM build/runtime dependency set (Micronaut parent, `copilot-sdk-java`, Jackson 2.x
+  BOM, Maven Wrapper) and pinned CI Action versions (CodeQL, Harden Runner, GraalVM setup) with no
+  application behavior changes.
+- Re-aligned the `AssistantMessageEventData` test fixture and Native Image reachability metadata
+  with the `copilot-sdk-java` 1.0.9 constructor signature (added `chunkIndex`, `chunkCount`, `rte`
+  fields) to keep CI green.
+
+### Highlights
+
+#### Added
+- N/A
+
+#### Changed
+- Bumped `io.micronaut.platform:micronaut-parent` from 5.1.0 to 5.1.1.
+- Bumped `com.github:copilot-sdk-java` from 1.0.8 to 1.0.11 (via 1.0.9).
+- Bumped the Jackson 2.x BOM (`jackson2.version`) from 2.22.1 to 2.22.2.
+- Bumped the Maven Wrapper distribution from `apache-maven` 3.9.14 to 3.9.16 directly (a single
+  Dependabot patch-level bump; 3.9.15 was never adopted).
+- Bumped `github/codeql-action` (`init`/`analyze`/`upload-sarif`) from 4.37.6 to 4.37.8,
+  `step-security/harden-runner` from 2.20.1 to 2.21.0, and `graalvm/setup-graalvm` from 1.6.3 to
+  1.6.4 across all workflows.
+
+#### Fixed
+- Aligned the `AssistantMessageEventData` test fixture and both Native Image
+  `reachability-metadata.json` files with the `copilot-sdk-java` 1.0.9 constructor shape, fixing a
+  CI test-compilation failure introduced by the SDK bump.
+
+### Validation
+- CI: `chore(deps)` Dependabot pipeline runs and the follow-up CI-fix PR (#254) passed the full
+  build/test/CodeQL suite on GitHub Actions.
+
 ## 2026-08-10 (v2026.08.10-layered-architecture)
 
 ### Summary
