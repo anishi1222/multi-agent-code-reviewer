@@ -33,11 +33,9 @@
         <maven.failsafe.plugin.version>3.5.6</maven.failsafe.plugin.version>
         <maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
 
-        <!-- Security: override BOM-managed tools.jackson.core:jackson-databind to a patched version.
-             3.1.3 and 3.1.4 are both vulnerable to CVE-2026-59889 / GHSA-5gvw-p9qm-jgwh
-             (@JsonView bypassed for @JsonUnwrapped container properties); fixed in 3.1.5. -->
-        <jackson.version>3.1.5</jackson.version>
-        <!-- Security: centralize BOM-managed com.fasterxml.jackson:* 2.x transitives; see osv-scanner.toml for GHSA-5jmj-h7xm-6q6v. -->
+        <!-- Security: override BOM-managed tools.jackson.core artifacts with the patched 3.1.6 release. -->
+        <jackson.version>3.1.6</jackson.version>
+        <!-- Security: centralize BOM-managed com.fasterxml.jackson:* 2.x transitives on a patched release. -->
         <jackson2.version>2.22.2</jackson2.version>
     </properties>
 
