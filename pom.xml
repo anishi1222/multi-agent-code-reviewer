@@ -30,7 +30,7 @@
         <dependency.check.version>13.0.0</dependency.check.version>
         <cyclonedx.plugin.version>2.9.3</cyclonedx.plugin.version>
         <maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
-        <maven.failsafe.plugin.version>3.5.6</maven.failsafe.plugin.version>
+        <maven.failsafe.plugin.version>3.6.0</maven.failsafe.plugin.version>
         <maven.surefire.plugin.version>3.6.0</maven.surefire.plugin.version>
 
         <!-- Security: override BOM-managed tools.jackson.core artifacts with the patched 3.1.6 release. -->
