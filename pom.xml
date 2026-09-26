@@ -36,7 +36,7 @@
         <!-- Security: override BOM-managed tools.jackson.core artifacts with the patched 3.1.6 release. -->
         <jackson.version>3.1.6</jackson.version>
         <!-- Security: centralize BOM-managed com.fasterxml.jackson:* 2.x transitives on a patched release. -->
-        <jackson2.version>2.22.2</jackson2.version>
+        <jackson2.version>2.22.3</jackson2.version>
     </properties>
 
     <repositories>
