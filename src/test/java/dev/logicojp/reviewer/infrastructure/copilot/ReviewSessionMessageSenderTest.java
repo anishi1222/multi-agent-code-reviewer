@@ -253,14 +253,15 @@ class ReviewSessionMessageSenderTest {
     private static AssistantMessageEvent assistantEvent(String content) {
         var event = new AssistantMessageEvent();
         event.setData(new AssistantMessageEventData(
-            /* messageId */ "msg-id", /* model */ null, /* content */ content,
+            /* messageId */ "msg-id", /* originatingMessageId */ null,
+            /* model */ null, /* content */ content,
             /* toolRequests */ null, /* reasoningOpaque */ null, /* reasoningText */ null,
             /* reasoningWireField */ null, /* encryptedContent */ null, /* phase */ null,
             /* chunkIndex */ null, /* chunkCount */ null, /* outputTokens */ null,
             /* interactionId */ null, /* requestId */ null, /* clientRequestId */ null,
             /* serviceRequestId */ null, /* rte */ null, /* apiCallId */ null,
-            /* serverTools */ null, /* turnId */ null, /* parentToolCallId */ null,
-            /* citations */ null));
+            /* serverTools */ null, /* reasoningBlocks */ null, /* turnId */ null,
+            /* parentToolCallId */ null, /* citations */ null, /* fusion */ null));
         return event;
     }
 
