@@ -1,8 +1,8 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.rpc.PermissionInvocation;
-import com.github.copilot.rpc.PermissionRequest;
-import com.github.copilot.rpc.PermissionRequestResultKind;
+import com.microsoft.copilot.rpc.PermissionInvocation;
+import com.microsoft.copilot.rpc.PermissionRequest;
+import com.microsoft.copilot.rpc.PermissionRequestResultKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

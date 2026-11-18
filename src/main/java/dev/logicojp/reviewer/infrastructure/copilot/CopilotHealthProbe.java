@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.ConnectionState;
-import com.github.copilot.CopilotClient;
-import com.github.copilot.rpc.GetAuthStatusResponse;
-import com.github.copilot.rpc.GetStatusResponse;
+import com.microsoft.copilot.ConnectionState;
+import com.microsoft.copilot.CopilotClient;
+import com.microsoft.copilot.rpc.GetAuthStatusResponse;
+import com.microsoft.copilot.rpc.GetStatusResponse;
 import dev.logicojp.reviewer.domain.resilience.CopilotCliException;
 import dev.logicojp.reviewer.infrastructure.config.CopilotConfig;
 import jakarta.inject.Inject;

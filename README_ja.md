@@ -180,7 +180,7 @@ WAF レビュー skill は Microsoft Learn MCP による公式ドキュメント
 
 ## Copilot SDK ライセンスとサーバーサイド利用
 
-このプロジェクトは `com.github:copilot-sdk-java`（現在は `1.0.8`）に依存しています。SDK artifact と upstream repository は MIT License を宣言しており、SDK コード自体はサーバーサイド組み込み、改変、再配布に使いやすい permissive license です。
+このプロジェクトは `com.microsoft:copilot-sdk:2.0.0`（MIT License）を使用します。JVM 版・Native Image 版ともに、認証済みの外部 Copilot CLI と標準入出力で通信します。SDK プロトコル 4 対応の CLI が必要です。プラットフォーム別のインプロセスランタイム JAR は不要です。
 
 ただし MIT License が対象にするのは SDK コードのみです。GitHub Copilot への呼び出しは、認証済みユーザーまたは組織の Copilot 権利と GitHub Copilot の製品利用条件に従います。単一の Copilot ログインを無関係な複数エンドユーザーで共有する設計や、Copilot を透過的な SaaS バックエンドとして再提供する設計は、事前に契約・法務確認してください。
 

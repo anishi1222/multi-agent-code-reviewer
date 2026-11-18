@@ -1,9 +1,9 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.SystemMessageMode;
-import com.github.copilot.rpc.MessageOptions;
-import com.github.copilot.rpc.SessionConfig;
-import com.github.copilot.rpc.SystemMessageConfig;
+import com.microsoft.copilot.SystemMessageMode;
+import com.microsoft.copilot.rpc.MessageOptions;
+import com.microsoft.copilot.rpc.CreateSessionOptions;
+import com.microsoft.copilot.rpc.SystemMessageConfig;
 import dev.logicojp.reviewer.application.port.outbound.GenerateAiSummaryPort;
 import dev.logicojp.reviewer.domain.resilience.CopilotCliException;
 import org.slf4j.Logger;
@@ -45,7 +45,7 @@ public class AiSummaryClient implements GenerateAiSummaryPort {
             return Optional.empty();
         }
         try {
-            SessionConfig sessionConfig = buildSessionConfig();
+            CreateSessionOptions sessionConfig = buildSessionConfig();
             long timeoutMs = TimeUnit.MINUTES.toMillis(agentTimeoutMinutes);
             try (var session = copilotService.getClient()
                 .createSession(sessionConfig)
@@ -78,10 +78,9 @@ public class AiSummaryClient implements GenerateAiSummaryPort {
         }
     }
 
-    private SessionConfig buildSessionConfig() {
-        var sessionConfig = new SessionConfig()
-            .setModel(model)
-            .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL);
+    private CreateSessionOptions buildSessionConfig() {
+        var sessionConfig = new CreateSessionOptions().setModel(model);
+        sessionConfig.getPermissions().setOnRequest(CopilotPermissionHandlers.DENY_ALL);
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             sessionConfig.setSystemMessage(new SystemMessageConfig()
                 .setMode(SystemMessageMode.APPEND)

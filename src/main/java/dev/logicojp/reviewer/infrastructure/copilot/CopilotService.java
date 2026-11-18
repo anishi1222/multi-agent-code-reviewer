@@ -1,7 +1,9 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.CopilotClient;
-import com.github.copilot.rpc.CopilotClientOptions;
+import com.microsoft.copilot.CopilotClient;
+import com.microsoft.copilot.rpc.CopilotClientMode;
+import com.microsoft.copilot.rpc.CopilotClientOptions;
+import com.microsoft.copilot.rpc.RuntimeConnection;
 import dev.logicojp.reviewer.application.port.outbound.ManageCopilotClientPort;
 import dev.logicojp.reviewer.domain.resilience.CopilotCliException;
 import dev.logicojp.reviewer.infrastructure.auth.CopilotCliPathResolver;
@@ -163,16 +165,13 @@ public class CopilotService implements ManageCopilotClientPort {
         }
     }
 
-    private CopilotClientOptions buildOptions(String resolvedPath, String sdkLogLevel) {
+    static CopilotClientOptions buildOptions(String resolvedPath, String sdkLogLevel) {
+        // Keep the trusted external executable for JVM and Native Image; v2 defaults to in-process.
         var options = new CopilotClientOptions()
-            .setAutoRestart(true)
-            .setUseLoggedInUser(true);
-        if (resolvedPath != null && !resolvedPath.isBlank()) {
-            options.setCliPath(resolvedPath);
-        }
-        if (sdkLogLevel != null) {
-            options.setLogLevel(sdkLogLevel);
-        }
+            .setMode(CopilotClientMode.CODING_AGENT)
+            .setRuntime(RuntimeConnection.forSpawnedStdio(resolvedPath));
+        options.getGitHub().setUseLoggedInUser(true);
+        options.getObservability().setLogLevel(sdkLogLevel);
         return options;
     }
 

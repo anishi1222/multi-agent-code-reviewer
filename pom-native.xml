@@ -31,7 +31,7 @@
 
         <!-- Application dependencies -->
         <assertj.version>3.27.7</assertj.version>
-        <copilot.sdk.version>1.0.28</copilot.sdk.version>
+        <copilot.sdk.version>2.0.0</copilot.sdk.version>
         <dependency.check.version>12.2.2</dependency.check.version>
 
         <!-- Security: override BOM-managed tools.jackson.core artifacts with the patched 3.1.6 release. -->
@@ -76,8 +76,8 @@
 
         <!-- Copilot SDK for Java -->
         <dependency>
-            <groupId>com.github</groupId>
-            <artifactId>copilot-sdk-java</artifactId>
+            <groupId>com.microsoft</groupId>
+            <artifactId>copilot-sdk</artifactId>
             <version>${copilot.sdk.version}</version>
         </dependency>
 

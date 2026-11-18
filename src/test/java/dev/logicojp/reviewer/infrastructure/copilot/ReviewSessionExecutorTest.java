@@ -33,7 +33,7 @@ class ReviewSessionExecutorTest {
 
         assertThat(sessionConfig.getModel()).isEqualTo("model-a");
         assertThat(sessionConfig.getSessionId()).isEqualTo("security_2of3_2026-06-24-14-00-00");
-        assertThat(sessionConfig.getMcpServers()).containsKey("github");
+        assertThat(sessionConfig.getMcp().getServers()).containsKey("github");
         assertThat(sessionConfig.getSystemMessage().getContent())
             .contains("SYSTEM")
             .contains("auth");

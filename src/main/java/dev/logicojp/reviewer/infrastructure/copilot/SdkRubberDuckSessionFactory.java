@@ -1,11 +1,9 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.CopilotSession;
-import com.github.copilot.SystemMessageMode;
-import com.github.copilot.rpc.McpHttpServerConfig;
-import com.github.copilot.rpc.McpServerConfig;
-import com.github.copilot.rpc.SessionConfig;
-import com.github.copilot.rpc.SystemMessageConfig;
+import com.microsoft.copilot.CopilotSession;
+import com.microsoft.copilot.SystemMessageMode;
+import com.microsoft.copilot.rpc.CreateSessionOptions;
+import com.microsoft.copilot.rpc.SystemMessageConfig;
 import dev.logicojp.reviewer.application.port.outbound.McpServerSpec;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.infrastructure.config.ModelConfig;
@@ -13,11 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /// Creates SDK sessions for rubber-duck dialogue participants.
 ///
@@ -48,7 +44,7 @@ final class SdkRubberDuckSessionFactory {
                               String systemPrompt,
                               List<McpServerSpec> mcpServers,
                               String sessionTag) throws Exception {
-        SessionConfig sessionConfig = buildSessionConfig(agentConfig, systemPrompt, mcpServers, sessionTag);
+        CreateSessionOptions sessionConfig = buildSessionConfig(agentConfig, systemPrompt, mcpServers, sessionTag);
         CopilotSession session = copilotService.getClient()
             .createSession(sessionConfig)
             .get(agentTimeoutMinutes, TimeUnit.MINUTES);
@@ -58,34 +54,23 @@ final class SdkRubberDuckSessionFactory {
         return new SdkSession(session, sender, timeoutMs);
     }
 
-    private SessionConfig buildSessionConfig(AgentConfig agentConfig,
+    private CreateSessionOptions buildSessionConfig(AgentConfig agentConfig,
                                               String systemPrompt,
                                               List<McpServerSpec> mcpServers,
                                               String sessionTag) {
         String model = agentConfig.model();
-        var sessionConfig = new SessionConfig()
+        var sessionConfig = new CreateSessionOptions()
             .setModel(model)
             .setSessionId(buildSessionId(agentConfig.name(), sessionTag))
-            .setOnPermissionRequest(CopilotPermissionHandlers.DENY_ALL)
             .setSystemMessage(new SystemMessageConfig()
                 .setMode(SystemMessageMode.APPEND)
                 .setContent(systemPrompt));
-
-        if (mcpServers != null && !mcpServers.isEmpty()) {
-            Map<String, McpServerConfig> sdkServers = mcpServers.stream()
-                .collect(Collectors.toMap(
-                    McpServerSpec::name,
-                    spec -> (McpServerConfig) new McpHttpServerConfig()
-                        .setUrl(spec.url())
-                        .setHeaders(spec.headers())
-                        .setTools(spec.tools())
-                ));
-            sessionConfig.setMcpServers(sdkServers);
-        }
+        sessionConfig.getPermissions().setOnRequest(CopilotPermissionHandlers.DENY_ALL);
+        ReviewSessionConfigFactory.applyMcpServers(sessionConfig, mcpServers);
 
         String effort = ModelConfig.resolveReasoningEffort(model, null);
         if (effort != null) {
-            sessionConfig.setReasoningEffort(effort);
+            sessionConfig.getInference().setReasoningEffort(effort);
         }
         return sessionConfig;
     }

@@ -1,5 +1,7 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
+import com.microsoft.copilot.rpc.CopilotClientMode;
+import com.microsoft.copilot.rpc.SpawnedStdioRuntimeConnection;
 import dev.logicojp.reviewer.infrastructure.auth.CopilotCliPathResolver;
 import dev.logicojp.reviewer.infrastructure.config.CopilotConfig;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +22,18 @@ class CopilotServiceTest {
             new CopilotStartupErrorFormatter(),
             new CopilotClientStarter()
         );
+    }
+
+    @Test
+    @DisplayName("JVMとNative Imageで検証済みCLIをstdioで起動し、既存のログインを利用する")
+    void usesResolvedCliInsteadOfDefaultInProcessRuntime() {
+        var options = CopilotService.buildOptions("/opt/bin/copilot", "warning");
+
+        assertThat(options.getRuntime()).isInstanceOfSatisfying(SpawnedStdioRuntimeConnection.class,
+            runtime -> assertThat(runtime.getPath()).isEqualTo("/opt/bin/copilot"));
+        assertThat(options.getMode()).isEqualTo(CopilotClientMode.CODING_AGENT);
+        assertThat(options.getGitHub().getUseLoggedInUser()).contains(true);
+        assertThat(options.getObservability().getLogLevel()).isEqualTo("warning");
     }
 
     @Test

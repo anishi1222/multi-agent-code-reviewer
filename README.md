@@ -200,8 +200,9 @@ instead of relying on an undocumented container build.
 
 ## Copilot SDK License and Service Terms
 
-The project depends on `com.github:copilot-sdk-java:1.0.8`, whose code is distributed under the MIT
-License. Calls to GitHub Copilot remain governed by the applicable GitHub Copilot product terms and
+The project depends on `com.microsoft:copilot-sdk:2.0.0` (MIT). Both the JAR and Native Image
+launch the installed Copilot CLI over stdio; use a CLI compatible with SDK protocol 4.
+No platform-specific in-process runtime JAR is required. Calls to GitHub Copilot remain governed by the applicable GitHub Copilot product terms and
 the authenticated user's or organization's entitlement. Do not share one login among unrelated
 users or expose Copilot as a transparent multi-tenant backend without product/legal review.
 

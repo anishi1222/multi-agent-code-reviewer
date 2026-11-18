@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.generated.AssistantMessageEvent;
-import com.github.copilot.generated.AssistantMessageEvent.AssistantMessageEventData;
+import com.microsoft.copilot.generated.AssistantMessageEvent;
+import com.microsoft.copilot.generated.AssistantMessageEvent.AssistantMessageEventData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -252,16 +252,9 @@ class ReviewSessionMessageSenderTest {
 
     private static AssistantMessageEvent assistantEvent(String content) {
         var event = new AssistantMessageEvent();
-        event.setData(new AssistantMessageEventData(
-            /* messageId */ "msg-id", /* originatingMessageId */ null,
-            /* model */ null, /* providerId */ null, /* content */ content,
-            /* toolRequests */ null, /* reasoningOpaque */ null, /* reasoningText */ null,
-            /* reasoningWireField */ null, /* encryptedContent */ null, /* phase */ null,
-            /* chunkIndex */ null, /* chunkCount */ null, /* outputTokens */ null,
-            /* interactionId */ null, /* requestId */ null, /* clientRequestId */ null,
-            /* serviceRequestId */ null, /* rte */ null, /* apiCallId */ null,
-            /* serverTools */ null, /* reasoningBlocks */ null, /* turnId */ null,
-            /* parentToolCallId */ null, /* citations */ null, /* fusion */ null));
+        if (content != null) {
+            event.setData(AssistantMessageEventData.builder().messageId("msg-id").content(content).build());
+        }
         return event;
     }
 

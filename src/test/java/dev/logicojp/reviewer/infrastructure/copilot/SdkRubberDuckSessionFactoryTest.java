@@ -1,6 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.rpc.SessionConfig;
+import com.microsoft.copilot.rpc.CreateSessionOptions;
 import dev.logicojp.reviewer.application.port.outbound.McpServerSpec;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
 import dev.logicojp.reviewer.infrastructure.auth.CopilotCliPathResolver;
@@ -33,8 +33,9 @@ class SdkRubberDuckSessionFactoryTest {
         var sessionConfig = buildSessionConfig(config, "SYSTEM", mcpServers, "tag/1");
 
         assertThat(sessionConfig.getSessionId()).isEqualTo("agent-name_rubber-duck_tag-1_2026-06-24-14-00");
-        assertThat(sessionConfig.getMcpServers()).containsKey("github");
-        assertThat(sessionConfig.getReasoningEffort()).isEqualTo("high");
+        assertThat(sessionConfig.getMcp().getServers()).containsKey("github");
+        assertThat(sessionConfig.getPermissions().getOnRequest()).isSameAs(CopilotPermissionHandlers.DENY_ALL);
+        assertThat(sessionConfig.getInference().getReasoningEffort()).isEqualTo("high");
         assertThat(sessionConfig.getSystemMessage().getContent()).isEqualTo("SYSTEM");
     }
 
@@ -46,7 +47,7 @@ class SdkRubberDuckSessionFactoryTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static SessionConfig buildSessionConfig(AgentConfig config,
+    private static CreateSessionOptions buildSessionConfig(AgentConfig config,
                                                     String systemPrompt,
                                                     List<McpServerSpec> mcpServers,
                                                     String sessionTag) throws Exception {
@@ -62,6 +63,6 @@ class SdkRubberDuckSessionFactoryTest {
         Method method = SdkRubberDuckSessionFactory.class.getDeclaredMethod(
             "buildSessionConfig", AgentConfig.class, String.class, List.class, String.class);
         method.setAccessible(true);
-        return (SessionConfig) method.invoke(factory, config, systemPrompt, mcpServers, sessionTag);
+        return (CreateSessionOptions) method.invoke(factory, config, systemPrompt, mcpServers, sessionTag);
     }
 }

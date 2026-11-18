@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.SystemMessageMode;
-import com.github.copilot.rpc.SessionConfig;
+import com.microsoft.copilot.SystemMessageMode;
+import com.microsoft.copilot.rpc.CreateSessionOptions;
 import dev.logicojp.reviewer.application.port.outbound.McpServerSpec;
 import dev.logicojp.reviewer.application.port.outbound.SessionRequest;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
@@ -38,7 +38,7 @@ class ReviewSessionConfigFactoryTest {
         @Test
         @DisplayName("モデル名が設定される")
         void setsModelName() {
-            SessionConfig result = factory.create(
+            CreateSessionOptions result = factory.create(
                 request(List.of(), Map.of()), SYSTEM_PROMPT, "2026-03-05-12-34-56", 1, 1);
 
             assertThat(result.getModel()).isEqualTo(MODEL);
@@ -47,22 +47,23 @@ class ReviewSessionConfigFactoryTest {
         @Test
         @DisplayName("システムメッセージが設定される")
         void setsSystemMessage() {
-            SessionConfig result = factory.create(
+            CreateSessionOptions result = factory.create(
                 request(List.of(), Map.of()), SYSTEM_PROMPT, "2026-03-05-12-34-56", 1, 1);
 
             assertThat(result.getSystemMessage()).isNotNull();
             assertThat(result.getSystemMessage().getContent()).isEqualTo(SYSTEM_PROMPT);
             assertThat(result.getSystemMessage().getMode()).isEqualTo(SystemMessageMode.APPEND);
+            assertThat(result.getPermissions().getOnRequest()).isSameAs(CopilotPermissionHandlers.DENY_ALL);
         }
 
         @Test
         @DisplayName("MCPサーバーがnullの場合はsetMcpServersを呼ばない")
         void handlesNullMcpServers() {
-            SessionConfig result = factory.create(
+            CreateSessionOptions result = factory.create(
                 request(null, Map.of()), SYSTEM_PROMPT, "2026-03-05-12-34-56", 1, 1);
 
             assertThat(result).isNotNull();
-            assertThat(result.getMcpServers()).isNullOrEmpty();
+            assertThat(result.getMcp().getServers()).isNullOrEmpty();
         }
 
         @Test
@@ -70,11 +71,11 @@ class ReviewSessionConfigFactoryTest {
         void setsMcpServers() {
             var mcpServers = List.of(McpServerSpec.of("github", "https://api.example.com"));
 
-            SessionConfig result = factory.create(
+            CreateSessionOptions result = factory.create(
                 request(mcpServers, Map.of()), SYSTEM_PROMPT, "2026-03-05-12-34-56", 2, 3);
 
             assertThat(result.getSessionId()).isEqualTo("test-agent_2of3_2026-03-05-12-34-56");
-            assertThat(result.getMcpServers()).containsKey("github");
+            assertThat(result.getMcp().getServers()).containsKey("github");
         }
     }
 }

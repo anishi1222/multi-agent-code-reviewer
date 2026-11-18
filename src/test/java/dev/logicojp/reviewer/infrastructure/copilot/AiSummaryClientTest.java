@@ -1,6 +1,6 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.rpc.SessionConfig;
+import com.microsoft.copilot.rpc.CreateSessionOptions;
 import dev.logicojp.reviewer.infrastructure.auth.CopilotCliPathResolver;
 import dev.logicojp.reviewer.infrastructure.config.CopilotConfig;
 import org.junit.jupiter.api.DisplayName;
@@ -25,11 +25,11 @@ class AiSummaryClientTest {
             5
         );
 
-        SessionConfig config = buildSessionConfig(client);
+        CreateSessionOptions config = buildSessionConfig(client);
 
         assertThat(config.getModel()).isEqualTo("claude-opus-4.8");
         assertThat(config.getSystemMessage().getContent()).isEqualTo("SYSTEM SUMMARY");
-        assertThat(config.getOnPermissionRequest()).isNotNull();
+        assertThat(config.getPermissions().getOnRequest()).isSameAs(CopilotPermissionHandlers.DENY_ALL);
     }
 
     @Test
@@ -37,16 +37,16 @@ class AiSummaryClientTest {
     void blankModelFallsBackToDefault() throws Exception {
         AiSummaryClient client = new AiSummaryClient(copilotService(), " ", null, 5);
 
-        SessionConfig config = buildSessionConfig(client);
+        CreateSessionOptions config = buildSessionConfig(client);
 
         assertThat(config.getModel()).isEqualTo("claude-sonnet-4.5");
         assertThat(config.getSystemMessage()).isNull();
     }
 
-    private static SessionConfig buildSessionConfig(AiSummaryClient client) throws Exception {
+    private static CreateSessionOptions buildSessionConfig(AiSummaryClient client) throws Exception {
         Method method = AiSummaryClient.class.getDeclaredMethod("buildSessionConfig");
         method.setAccessible(true);
-        return (SessionConfig) method.invoke(client);
+        return (CreateSessionOptions) method.invoke(client);
     }
 
     private static CopilotService copilotService() {

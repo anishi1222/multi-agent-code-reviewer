@@ -1,8 +1,8 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.CopilotSession;
-import com.github.copilot.generated.AssistantMessageEvent;
-import com.github.copilot.rpc.MessageOptions;
+import com.microsoft.copilot.CopilotSession;
+import com.microsoft.copilot.generated.AssistantMessageEvent;
+import com.microsoft.copilot.rpc.MessageOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

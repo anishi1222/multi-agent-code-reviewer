@@ -1,7 +1,7 @@
 package dev.logicojp.reviewer.infrastructure.copilot;
 
-import com.github.copilot.CopilotSession;
-import com.github.copilot.rpc.SessionConfig;
+import com.microsoft.copilot.CopilotSession;
+import com.microsoft.copilot.rpc.CreateSessionOptions;
 import dev.logicojp.reviewer.application.port.outbound.RunCopilotSessionPort;
 import dev.logicojp.reviewer.application.port.outbound.SessionRequest;
 import dev.logicojp.reviewer.domain.agent.AgentConfig;
@@ -55,7 +55,7 @@ public class ReviewSessionExecutor implements RunCopilotSessionPort {
         int totalPasses = parseIntParam(request.parameters().get("totalPasses"), 1);
         String timestamp = request.parameters().getOrDefault("invocationTimestamp", invocationTimestamp);
 
-        SessionConfig sessionConfig = sessionConfigFactory.create(
+        CreateSessionOptions sessionConfig = sessionConfigFactory.create(
             request, systemPrompt, timestamp, currentPass, totalPasses);
 
         long timeoutMs = TimeUnit.MINUTES.toMillis(agentTimeoutMinutes);
